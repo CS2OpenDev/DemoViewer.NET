@@ -45,7 +45,7 @@ public class ScoutingReportExportRenderTests
     }
 
     [Test]
-    public async Task TheOnePager_DrawsEachStarredCardsPicture_OnPaper_AndWritesTheSample()
+    public async Task TheOnePager_DrawsTheBuyPictures_OnPaper_AndWritesTheSample()
     {
         HostedMapAssets.Install();
         ScoutingReportStageLayer nukeSetups = new("setups", "Setups",
@@ -106,6 +106,13 @@ public class ScoutingReportExportRenderTests
 
                 return png;
             });
+        // The buy pictures: Nuke CT with its setups and AWP routes together, Mirage T with its plants.
+        editor.BuyStages = _ => Task.FromResult<IReadOnlyList<ScoutingReportBuyStage>>(
+        [
+            new ScoutingReportBuyStage("de_nuke", "CT", "de_nuke CT · Full buy · setups, AWP routes",
+                [.. nukeSetups.Marks, .. nukeAwp.Marks]),
+            new ScoutingReportBuyStage("de_mirage", "T", "de_mirage T · Full buy · plants", mirageT.Marks)
+        ]);
         editor.Load(Guid.NewGuid(), "Falcons", "11 demos across 2 maps", sources);
         editor.Summary = "Slow defaults on T; the AWP decides their CT rounds.";
         foreach (ScoutingReportFindingViewModel row in editor.Findings.ToList())
@@ -123,10 +130,10 @@ public class ScoutingReportExportRenderTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(string.Join(",", drawn.Select(d => d.Map))).IsEqualTo("de_nuke,de_nuke,de_mirage")
-                .Because("one picture per printed card that pictures a layer: Nuke setups, Nuke AWP, Mirage plants");
+            await Assert.That(string.Join(",", drawn.Select(d => d.Map))).IsEqualTo("de_nuke,de_mirage")
+                .Because("one picture per map, side and buy: the cards draw none of their own on the one-pager");
             await Assert.That(drawn.All(d => d.Bytes > 10_000)).IsTrue().Because("each stage is the real radar");
-            await Assert.That(html!.Split("<figure").Length - 1).IsEqualTo(3);
+            await Assert.That(html!.Split("<figure").Length - 1).IsEqualTo(2);
             await Assert.That(html).DoesNotContain("retake B from ramp");
         }
 

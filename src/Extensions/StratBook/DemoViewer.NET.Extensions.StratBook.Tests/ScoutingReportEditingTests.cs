@@ -421,7 +421,7 @@ public class ScoutingReportEditingTests
         editor.ExportCommand.Execute(null);
         using (Assert.Multiple())
         {
-            await Assert.That(editor.ExportLabel).IsEqualTo("Export long form");
+            await Assert.That(editor.ExportLabel).IsEqualTo("Export full report");
             await Assert.That(written[1].Extension).IsEqualTo(".md");
             await Assert.That(written[1].Stem).IsEqualTo("Falcons-scouting-report");
             await Assert.That(written[1].Text).StartsWith("# Falcons scouting report");

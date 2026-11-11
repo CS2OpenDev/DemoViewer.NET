@@ -2,8 +2,6 @@
 
 using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Extensions.StratBook.Modules;
-using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingDashboard;
-using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingHybrid;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger;
@@ -20,8 +18,6 @@ using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.Services.Zones;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingDashboard;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingHybrid;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
@@ -159,31 +155,17 @@ public sealed class StratBookPack : IExtension
             "Every grenade in your indexed demos, grouped by where it landed: pick a map, a grenade and a "
             + "landing place to see every position it was thrown from.",
             PackFeatureId, AudienceDefaults.Everyone),
-        // The Scouting Report tab: the Map Pool Record and, later, the rest of the Scouting Report sections,
-        // keyed by a Team Identity team. Default-visible like the Strat Book and the Utility Book, and
-        // on both hosts: the browser keeps teams for the session and the Teams tab already says so.
+        // The Scouting Report tab, keyed by a Team Identity team. Default-visible like the Strat Book and the
+        // Utility Book, and on both hosts: the browser keeps teams for the session and the Teams tab already
+        // says so. It carries the ids of the tab its layout was first built in, so a saved override follows it.
         new(
-            ScoutingReportModule.TabFeatureId, ExtensionFeatureKind.Tab, "Scouting Report (Layers)",
-            "A scouting page per team: maps played, win rate, side wins and the decider record where "
-            + "it is inferable, plus a veto history you enter by hand.",
+            ScoutingReportModule.TabFeatureId, ExtensionFeatureKind.Tab, "Scouting Report",
+            "A scouting page per team: the roster and map pool, then one map at a time on a stage with its "
+            + "layers (setups, AWP routes, utility and more), starred into a one-pager you export.",
             PackFeatureId, AudienceDefaults.Everyone)
         {
-            PreviousIds = [ScoutingReportModule.PreviousTabFeatureId]
+            PreviousIds = [ScoutingReportModule.PreviousTabFeatureId, ScoutingReportModule.EarlierTabFeatureId]
         },
-        // The Scouting Report as a dashboard: the same team, layers and stars as the Layers tab, laid out as
-        // cards per side instead of on one map stage. Default-visible like the Layers tab.
-        new(
-            ScoutingDashboardModule.TabFeatureId, ExtensionFeatureKind.Tab, "Scouting Report (Dashboard)",
-            "The scouting page as cards: one per finding for the map and side in view, each with its numbers, "
-            + "starred into the same one-pager as the Layers tab.",
-            PackFeatureId, AudienceDefaults.Everyone),
-        // The Scouting Report (Hybrid): the Layers tab laid out tighter, the start of a mix of the two layouts.
-        // Default-visible like the other two.
-        new(
-            ScoutingHybridModule.TabFeatureId, ExtensionFeatureKind.Tab, "Scouting Report (Hybrid)",
-            "The Layers page laid out tighter: roster and map pool side by side, and one panel for the map in "
-            + "view. Same team, stars and one-pager as the other two.",
-            PackFeatureId, AudienceDefaults.Everyone),
 
         // ---------------- SUB-FEATURES (ParentId = owning tab) ----------------
         // The Round Tagger's palette docked in the 2D tab. Works on both hosts: the
@@ -687,9 +669,8 @@ public sealed class StratBookPack : IExtension
         services.AddSingleton(sp =>
             new ScoutingReportNotesStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.ScoutingReportNotes)),
                 StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.ScoutingReportNotesOldName))));
-        // The loads both Scouting Report tabs read: one per team, joined by the second tab on the same team and
-        // dropped when neither holds it. Each section is a queue item keyed by team, so two tabs on different
-        // teams never replace each other's, and two on the same team run it once.
+        // The Scouting Report's loads: one per team, dropped when the tab no longer holds it. Each section is a
+        // queue item keyed by team, so a load is never run twice for the same team.
         services.AddSingleton(sp => new ScoutingReportLoads((team, section) => work => Job(sp,
             "Scouting report: " + section, work,
             new JobOptions(Key: $"section:scouting-report:{team:N}:{section}", Preemptible: true))));
@@ -700,11 +681,6 @@ public sealed class StratBookPack : IExtension
         // Facts and read the same positions files for the lurk; the Post-Plant And Retake read them for the
         // plant spots, the holds and the retakes. The Situational Behaviour reads Round Facts alone.
         services.AddSingleton(sp => ScoutingReportFor(sp, "scouting-report"));
-        // The Dashboard tab: its own report over the same services and stores (team, map and side are its own;
-        // stars, notes, ranks and vetoes are shared), laid out as cards.
-        services.AddSingleton(sp => new ScoutingDashboardTabViewModel(ScoutingReportFor(sp, "scouting-dashboard")));
-        // The Hybrid tab: a third report of the Layers kind, its own team, map and side over the same stores.
-        services.AddSingleton(sp => new ScoutingHybridReport(ScoutingReportFor(sp, "scouting-hybrid")));
 
         // Lineup Clip Render: every repeated throw position and technique gets a GIF and its setpos line,
         // rendered one demo at a time as processing queue items and shown on the Utility Book's position card.
@@ -1067,12 +1043,6 @@ public sealed class StratBookPack : IExtension
 
         // The Scouting Report tab.
         contributions.Tabs(new ScoutingReportModule(sp.GetRequiredService<ScoutingReportTabViewModel>));
-
-        // The Scouting Report as a dashboard.
-        contributions.Tabs(new ScoutingDashboardModule(sp.GetRequiredService<ScoutingDashboardTabViewModel>));
-
-        // The Scouting Report (Hybrid).
-        contributions.Tabs(new ScoutingHybridModule(() => sp.GetRequiredService<ScoutingHybridReport>().Report));
     }
 
     // The Utility Book tab, and the Strat Book's lineup picker (locked to the strat's map): the same index,

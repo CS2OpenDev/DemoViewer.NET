@@ -32,7 +32,7 @@ public enum ScoutingReportFormat
 ///     rewrite when there is one), and whether it is on the one-pager. The key's scope
 ///     (<see cref="ScoutingReportStarKeys" />) places it under its map and side, and on the card that shows its layer
 ///     there; a key with no scope prints under its section. A layer's row also carries its label, value and the
-///     inspector section it sits in, so a card prints it in a table the way the Dashboard shows it.
+///     inspector section it sits in, so a card prints it in a table the way the inspector shows it.
 /// </summary>
 public sealed class ScoutingReportFinding
 {
@@ -73,7 +73,7 @@ public sealed record ScoutingReportCardPart(
     Func<string, bool>? Reads = null);
 
 /// <summary>
-///     One card of the export, as the Dashboard lays it out: the side it sits under ("CT", "T", or "" for the
+///     One card of the export, one layer's: the side it sits under ("CT", "T", or "" for the
 ///     map-wide cards), its title, the layers it reads, the layer it pictures on the radar, and whether it spans
 ///     the page.
 /// </summary>
@@ -115,7 +115,7 @@ public sealed record ScoutingReportRosterEntry(string Name, string Role, string 
 public sealed record ScoutingReportPicture(string Caption, byte[] Png);
 
 /// <summary>
-///     One map and side's row of pictures printed above its cards: the Hybrid one-pager's radar with the setups, AWP
+///     One map and side's row of pictures printed above its cards: the one-pager's radar with the setups, AWP
 ///     routes and utility together, once per buy.
 /// </summary>
 /// <param name="Map">The map.</param>
@@ -156,7 +156,7 @@ public sealed class ScoutingReportDocument
 
     public IReadOnlyList<ScoutingReportFinding> Findings { get; init; } = [];
 
-    /// <summary>The cards in Dashboard order: each side's, then the map-wide ones.</summary>
+    /// <summary>The cards in print order: each side's layers.</summary>
     public IReadOnlyList<ScoutingReportCard> Cards { get; init; } = [];
 
     /// <summary>
@@ -177,12 +177,11 @@ public sealed class ScoutingReportDocument
 ///     long form (the working document), each as self-contained HTML like LAN Print or as Markdown. Pure string
 ///     builders over <see cref="ScoutingReportDocument" />; the writer below is the only part that touches disk.
 ///     <para>
-///         <b>Laid out like the Dashboard.</b> The identity as tiles and the roster as a table, then each map (in
-///         the order the maps first appear): its record, then under each side the cards the Dashboard shows with
-///         that side in view (the side's own, AWP, then the map-wide ones, which read either side's lines), each
-///         card leading with its sentences, then its picture, then its rows as tables under their section titles. A line lands
-///         on the card the Dashboard shows it on; one no card claims lands on a card named for its layer, so
-///         nothing is dropped. Lines about the team as a whole (deciders, Period Diff, veto) and the notes follow.
+///         <b>Laid out by layer.</b> The identity as tiles and the roster as a table, then each map (in
+///         the order the maps first appear): its record, then under each side its picture row and the cards for
+///         that side, one per layer, each leading with its sentences, then its picture, then its rows as tables
+///         under their section titles. A line lands on its layer's card; one no card claims lands on a card named
+///         for its section, so nothing is dropped. Lines about the team as a whole (deciders, Period Diff, veto) and the notes follow.
 ///         The one-pager keeps the starred lines (and the cards holding them); the long form keeps every line,
 ///         starred ones marked. A line's buy and AWP window are printed after it, since no heading says them.
 ///     </para>
@@ -610,7 +609,7 @@ public static class ScoutingReportExporter
     private sealed record MapOut(string Map, List<SideOut> Sides);
 
     /// <summary>
-    ///     The maps to print (first-appearance order), each with its CT, T and map-wide cards in Dashboard order and
+    ///     The maps to print (first-appearance order), each with its CT, T and map-wide cards in print order and
     ///     the cards holding no line dropped, then the team-wide sections as cards. The one-pager keeps only starred
     ///     lines; the long form keeps every line it is given.
     /// </summary>

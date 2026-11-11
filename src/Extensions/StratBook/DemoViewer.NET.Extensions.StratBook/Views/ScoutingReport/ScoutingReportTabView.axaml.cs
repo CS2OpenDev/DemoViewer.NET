@@ -15,9 +15,9 @@ using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 namespace DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport;
 
 /// <summary>
-///     The Scouting Report tab view. Bindings only, apart from the arrow keys on the map tabs and the side switch,
-///     which move the focus with the selection, and "Copy markdown": the clipboard needs the visual tree
-///     (<c>TopLevel.Clipboard</c>), so the handler lives here and the text comes from the VM.
+///     The Scouting Report tab view: the roster and map pool side by side above one per-map panel. Bindings only, apart from the arrow keys on the map tabs and the side switch,
+///     which move the focus with the selection, the inspector's height cap, and "Copy markdown": the clipboard
+///     needs the visual tree (<c>TopLevel.Clipboard</c>), so the handler lives here and the text comes from the VM.
 /// </summary>
 public partial class ScoutingReportTabView : UserControl
 {
@@ -150,6 +150,45 @@ public partial class ScoutingReportTabView : UserControl
         {
             side.Children[toCt ? 0 : 1].Focus(NavigationMethod.Directional);
         }
+    }
+
+    // The header's one-pager button: the side panel with the starred lines and the export.
+    private void OnOnePagerClick(object? sender, RoutedEventArgs e)
+    {
+        OnePagerScrim.IsVisible = true;
+        OnePagerClose.Focus();
+        e.Handled = true;
+    }
+
+    private void OnOnePagerCloseClick(object? sender, RoutedEventArgs e) => CloseOnePager();
+
+    // A press on the dimmed page closes the panel; a press inside it does not.
+    private void OnOnePagerScrimPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (ReferenceEquals(e.Source, OnePagerScrim))
+        {
+            CloseOnePager();
+            e.Handled = true;
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && OnePagerScrim.IsVisible)
+        {
+            CloseOnePager();
+            e.Handled = true;
+            return;
+        }
+
+        base.OnKeyDown(e);
+    }
+
+    private void CloseOnePager()
+    {
+        OnePagerScrim.IsVisible = false;
+        OnePagerButton.Focus();
     }
 
     private async void OnCopyMarkdownClick(object? sender, RoutedEventArgs e)

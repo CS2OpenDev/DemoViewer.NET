@@ -182,7 +182,7 @@ public class TeamRanksTests
     }
 
     [Test]
-    public async Task TheOpponentMix_CountsEachDemoByTheRankOnItsDay_AndSizesTheDots()
+    public async Task TheOpponentMix_CountsEachDemoByTheRankOnItsDay_AndTheMatchHistoryTiersFollow()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid a, Guid b) = await Library();
         TeamRanksStore ranks = new(null);
@@ -194,8 +194,7 @@ public class TeamRanksTests
         ranks.Set(b, RankSystem.Hltv, 50, new DateOnly(2026, 3, 1));
         ranks.Set(b, RankSystem.Hltv, 20, new DateOnly(2026, 3, 15));
         string mixed = vm.OpponentMixLine;
-        int large = vm.Timeline.Count(d => d.Size > 7);
-        int tooltips = vm.Timeline.Count(d => d.ToolTip.Contains("vs top-30"));
+        int top = vm.MatchHistory.Count(d => d.TierLabel == "top 30");
 
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == b);
         string reversed = vm.OpponentMixLine;
@@ -204,8 +203,7 @@ public class TeamRanksTests
         {
             await Assert.That(empty).Contains("add a rank").Because("no placeholder, the empty state teaches");
             await Assert.That(mixed).IsEqualTo("2 vs top-30 · 3 other · 0 unknown");
-            await Assert.That(large).IsEqualTo(2);
-            await Assert.That(tooltips).IsEqualTo(2);
+            await Assert.That(top).IsEqualTo(2);
             await Assert.That(reversed).Contains("add a rank").Because("team A has no rank");
         }
     }

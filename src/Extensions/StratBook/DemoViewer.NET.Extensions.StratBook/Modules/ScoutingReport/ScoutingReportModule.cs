@@ -15,11 +15,13 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 ///     Period Diff, and the editable long form with its one-pager export.
 ///     <para>
 ///         <b>The ids are persisted keys.</b> <see cref="BrowserTabId" /> and <see cref="TabFeatureId" />
-///         key the user's per-tab session state and <c>Features:Overrides:{id}</c>; the header
-///         "Scouting Report (Layers)" is display text (it was "Scouting Report" until the Dashboard tab arrived). These were renamed once (2026-11, from <c>tab.dossier</c>,
-///         <c>dossier.browser</c> and <c>net.demoviewer.dossier</c>); the old values travel as
-///         <c>ExtensionFeature.PreviousIds</c> and <c>WorkspaceTabDescriptor.PreviousTabIds</c>, which the host
-///         reads to carry the user's saved overrides and session state forward.
+///         key the user's per-tab session state and <c>Features:Overrides:{id}</c>; the header is display text.
+///         These were renamed once (2026-11, from <c>tab.dossier</c>, <c>dossier.browser</c> and
+///         <c>net.demoviewer.dossier</c>); the old values travel as <c>ExtensionFeature.PreviousIds</c> and
+///         <c>WorkspaceTabDescriptor.PreviousTabIds</c>, which the host reads to carry the user's saved overrides
+///         and session state forward. The ids of the tab this layout was first built
+///         in (2026-11, <c>tab.scouting-report-hybrid</c>, beside the retired Layers and Dashboard tabs) travel the
+///         same way.
 ///     </para>
 ///     <para>
 ///         <b>Wiring contract.</b> <see cref="WorkspaceTabDescriptor.ViewModelFactory" /> (lazy and
@@ -42,6 +44,12 @@ public sealed class ScoutingReportModule : IWorkspaceModule
     /// <summary>The tab id before the 2026-11 rename; carried as <c>WorkspaceTabDescriptor.PreviousTabIds</c>.</summary>
     private const string PreviousBrowserTabId = "dossier.browser";
 
+    /// <summary>The feature id of the tab this layout was first built in; carried as <c>ExtensionFeature.PreviousIds</c>.</summary>
+    public const string EarlierTabFeatureId = "tab.scouting-report-hybrid";
+
+    /// <summary>The tab id this layout was first built in; carried as <c>WorkspaceTabDescriptor.PreviousTabIds</c>.</summary>
+    private const string EarlierBrowserTabId = "scouting-report-hybrid.browser";
+
     private readonly Func<ScoutingReportTabViewModel> _viewModelFactory;
 
     /// <param name="viewModelFactory">Builds the tab VM on first activation, at the composition root.</param>
@@ -60,8 +68,8 @@ public sealed class ScoutingReportModule : IWorkspaceModule
         yield return new WorkspaceTabDescriptor
         {
             TabId = BrowserTabId,
-            PreviousTabIds = [PreviousBrowserTabId],
-            Header = "Scouting Report (Layers)",
+            PreviousTabIds = [PreviousBrowserTabId, EarlierBrowserTabId],
+            Header = "Scouting Report",
             Order = 5, // after Review (4)
             HostId = HostIds.StratBookHub,
             FeatureId = TabFeatureId,

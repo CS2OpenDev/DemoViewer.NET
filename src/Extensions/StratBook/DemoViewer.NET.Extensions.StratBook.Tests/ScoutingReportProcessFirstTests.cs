@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingDashboard;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using SyntheticTeam = DemoViewer.NET.AppTests.ScoutingReportShellRenderTests.SyntheticTeam;
@@ -118,27 +117,6 @@ public class ScoutingReportProcessFirstTests
             await Assert.That(currentShowsNone).IsTrue();
             await Assert.That(vm.Notices).Contains(n =>
                 n.StartsWith("8 of 8 demos for this team still processing", StringComparison.Ordinal));
-        }
-    }
-
-    [Test]
-    public async Task TheDashboard_OpeningATeam_AsksThroughItsReport()
-    {
-        using SyntheticTeam team = await SyntheticTeam.Create();
-        QueuedPost posted = new();
-        Requests requests = new();
-        using ScoutingDashboardTabViewModel dashboard = new(team.Tab(posted, requestDemos: requests.Record), posted.Post,
-            (_, _) => null, _ => null);
-
-        dashboard.Report.SelectedTeam = dashboard.Report.Teams.Single(t => t.Id == team.TeamA);
-        await ScoutingReportTestKit.Settle(dashboard.Report, posted);
-        dashboard.Report.ProcessTeamFirstCommand.Execute(null);
-
-        using (Assert.Multiple())
-        {
-            await Assert.That(requests.Calls).Count().IsEqualTo(2);
-            await Assert.That(requests.Calls.All(c => c.Order().SequenceEqual(DemosOf(team, team.TeamA).Order())))
-                .IsTrue();
         }
     }
 }

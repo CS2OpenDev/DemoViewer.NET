@@ -36,7 +36,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
     /// <summary>The inspector tab with one row per buy.</summary>
     public const string ByBuyTab = "By buy";
 
-    /// <summary>The CTs per area section's title; the Dashboard's cards match on it.</summary>
+    /// <summary>The CTs per area section's title.</summary>
     public const string FormationsTitle = "CTs per area · A · mid · B";
 
     /// <summary>The buys the filter offers, in the fact vocabulary.</summary>

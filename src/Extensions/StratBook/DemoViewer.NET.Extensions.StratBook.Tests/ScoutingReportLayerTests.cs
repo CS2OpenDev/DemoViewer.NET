@@ -222,7 +222,7 @@ public class ScoutingReportLayerTests
         ScoutingInspectorRowViewModel read = vm.Layers.Inspector.Reads.Single();
         bool suggested = read.IsStarred;
         read.ToggleStarCommand.Execute(null);
-        bool exportOff = !vm.Editor.CanExport;
+        bool exportStillOn = vm.Editor.CanExport;
 
         ScoutingInspectorRowViewModel planted =
             vm.Layers.Inspector.Sections.SelectMany(s => s.Rows).Titled("de_nuke T · plants");
@@ -232,7 +232,8 @@ public class ScoutingReportLayerTests
         {
             await Assert.That(suggested).IsTrue().Because("suggested lines start starred");
             await Assert.That(read.Key).IsEqualTo("de_nuke|T|plants|All||read");
-            await Assert.That(exportOff).IsTrue().Because("the one-pager is empty once the suggestion is unstarred");
+            await Assert.That(exportStillOn).IsTrue()
+                .Because("with nothing starred the one-pager still prints the buy pictures");
             await Assert.That(planted.Key).IsEqualTo("de_nuke|T|plants|All||plants");
             await Assert.That(planted.IsStarred).IsTrue();
             await Assert.That(notes.For(teamA).Starred).Contains(planted.Key);
@@ -247,7 +248,7 @@ public class ScoutingReportLayerTests
         {
             await Assert.That(planted.IsStarred).IsFalse().Because("the inspector follows the preview");
             await Assert.That(vm.Editor.Starred).IsEmpty();
-            await Assert.That(vm.Editor.CanExport).IsFalse();
+            await Assert.That(vm.Editor.CanExport).IsTrue().Because("the buy pictures still print");
         }
 
         vm.Editor.ExportForm = ScoutingReportForm.LongForm;

@@ -419,9 +419,6 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
         Selection.Set([], false, 1f);
     }
 
-    /// <summary>The pinned mark, or null.</summary>
-    public ScoutingMapMark? SelectedMark => _selected?.Mark;
-
     private void ShowStageNote()
     {
         List<ScoutingLayerChipViewModel> drawn = [.. MapChips.Where(c => c.IsOn)];
@@ -475,7 +472,7 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
     /// <summary>
     ///     A build's read sentences and sections as starrable rows, each keyed under its scope: what the inspector
-    ///     shows, and what a Dashboard card shows for its part of a layer.
+    ///     shows.
     /// </summary>
     /// <param name="host">Stars, Review and 2D for the rows.</param>
     /// <param name="chip">The layer, named for the side in view.</param>

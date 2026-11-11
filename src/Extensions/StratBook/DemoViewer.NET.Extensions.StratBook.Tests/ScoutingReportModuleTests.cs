@@ -105,8 +105,9 @@ public class ScoutingReportModuleTests
         {
             await Assert.That(module.Id).IsEqualTo("net.demoviewer.scouting-report");
             await Assert.That(tab.TabId).IsEqualTo("scouting-report.browser");
-            await Assert.That(tab.Header).IsEqualTo("Scouting Report (Layers)");
-            await Assert.That(tab.PreviousTabIds).IsEquivalentTo(["dossier.browser"]);
+            await Assert.That(tab.Header).IsEqualTo("Scouting Report");
+            await Assert.That(tab.PreviousTabIds).IsEquivalentTo(["dossier.browser", "scouting-report-hybrid.browser"])
+                .Because("the earlier tab's saved state follows it here");
             await Assert.That(tab.HostId).IsEqualTo(HostIds.StratBookHub);
             await Assert.That(tab.Order).IsEqualTo(5).Because("last on the rail, after Review");
             await Assert.That(tab.ViewModelFactory is not null).IsTrue()
@@ -219,9 +220,9 @@ public class ScoutingReportModuleTests
             await Assert.That(vm.Losses).IsEqualTo(2);
             await Assert.That(vm.RecordLine).IsEqualTo("60% of 5 maps");
             await Assert.That(vm.DemosLine).IsEqualTo("5 demos · Mar 11 to Mar 31 · newest 5d ago");
-            await Assert.That(vm.Timeline.Count).IsEqualTo(5);
-            await Assert.That(vm.Timeline.Count(d => d.IsSelectedMap)).IsEqualTo(2);
-            await Assert.That(vm.Timeline.Count(d => d.Won)).IsEqualTo(3);
+            await Assert.That(vm.MatchHistory.Count).IsEqualTo(5);
+            await Assert.That(vm.MatchHistory.Count(d => d.MapLabel == "Nuke")).IsEqualTo(2);
+            await Assert.That(vm.MatchHistory.Count(d => d.Won == true)).IsEqualTo(3);
         }
     }
 
@@ -251,29 +252,24 @@ public class ScoutingReportModuleTests
     }
 
     [Test]
-    public async Task TheMapTabs_PickTheMap_AndTheScopeLineFollowsTheSideAndTheBuy_AndTheBelowSectionsStartClosed()
+    public async Task TheMapTabs_PickTheMap_AndTheBelowSectionsStartClosed()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
         using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false);
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
-        bool closedAtStart = !vm.IsPeriodOpen && !vm.IsVetoOpen && !vm.IsNotesOpen && vm.IsPoolOpen;
-        string first = vm.ScopeLine;
+        bool closedAtStart = !vm.IsPeriodOpen && !vm.IsVetoOpen && !vm.IsNotesOpen;
 
         vm.SelectMapCommand.Execute(vm.Maps.Single(m => m.Map == "de_inferno"));
         vm.Side = DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers.ScoutingSide.T;
         vm.Buy = DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers.ScoutingBuy.Force;
         vm.TogglePeriodCommand.Execute(null);
-        vm.TogglePoolCommand.Execute(null);
         using (Assert.Multiple())
         {
             await Assert.That(closedAtStart).IsTrue();
-            await Assert.That(first).IsEqualTo("Nuke · CT · all buys · 2 maps");
-            await Assert.That(vm.ScopeLine).IsEqualTo("Inferno · T · Force buy · 1 map");
             await Assert.That(vm.MapName).IsEqualTo("de_inferno");
             await Assert.That(vm.Maps.Single(m => m.IsSelected).Map).IsEqualTo("de_inferno");
             await Assert.That(vm.IsT).IsTrue();
             await Assert.That(vm.IsPeriodOpen).IsTrue();
-            await Assert.That(vm.IsPoolOpen).IsFalse();
             await Assert.That(vm.PlayersTitle).IsEqualTo("Players · Inferno");
         }
     }
@@ -322,7 +318,6 @@ public class ScoutingReportModuleTests
             await Assert.That(vm.Maps.Count).IsEqualTo(4);
             await Assert.That(vm.SampleSizeLine).Contains("5 demos");
             await Assert.That(vm.SampleSizeLine).Contains("4 maps");
-            await Assert.That(vm.HasDeciderData).IsTrue();
             await Assert.That(vm.DeciderLine).Contains("1-0");
         }
 

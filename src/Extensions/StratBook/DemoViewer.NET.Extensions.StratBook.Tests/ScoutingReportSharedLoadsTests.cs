@@ -1,7 +1,6 @@
 #region
 
 using System.Collections.Concurrent;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingDashboard;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using SyntheticTeam = DemoViewer.NET.AppTests.ScoutingReportShellRenderTests.SyntheticTeam;
@@ -38,7 +37,7 @@ public class ScoutingReportSharedLoadsTests
         vm.Teams.First(t => t.Id != team.TeamA && team.Teams.DemosOf(t.Id).Count > 0);
 
     [Test]
-    public async Task BothTabs_OnTheSameTeam_LoadItOnce_AndShareIt()
+    public async Task TwoReports_OnTheSameTeam_LoadItOnce_AndShareIt()
     {
         using SyntheticTeam team = await SyntheticTeam.Create();
         Sections sections = new();
@@ -46,12 +45,12 @@ public class ScoutingReportSharedLoadsTests
         QueuedPost layersPost = new();
         QueuedPost dashPost = new();
         using ScoutingReportTabViewModel layers = team.Tab(layersPost, loads: loads);
-        using ScoutingDashboardTabViewModel dash = new(team.Tab(dashPost, loads: loads), dashPost.Post);
+        using ScoutingReportTabViewModel second = team.Tab(dashPost, loads: loads);
 
         layers.SelectedTeam = layers.Teams.Single(t => t.Id == team.TeamA);
         await ScoutingReportTestKit.Settle(layers, layersPost);
-        dash.Report.SelectedTeam = dash.Report.Teams.Single(t => t.Id == team.TeamA);
-        await ScoutingReportTestKit.Settle(dash.Report, dashPost);
+        second.SelectedTeam = second.Teams.Single(t => t.Id == team.TeamA);
+        await ScoutingReportTestKit.Settle(second, dashPost);
 
         using (Assert.Multiple())
         {
@@ -61,7 +60,7 @@ public class ScoutingReportSharedLoadsTests
             await Assert.That(sections.Count(team.TeamA, "situational")).IsEqualTo(1);
             await Assert.That(sections.CountsOf(team.TeamA).All(n => n == 1)).IsTrue()
                 .Because("no section, the players' numbers included, runs twice for one team");
-            await Assert.That(ReferenceEquals(layers.Data, dash.Report.Data)).IsTrue();
+            await Assert.That(ReferenceEquals(layers.Data, second.Data)).IsTrue();
             await Assert.That(loads.Holders(team.TeamA)).IsEqualTo(2);
             await Assert.That(loads.Count).IsEqualTo(1);
         }
@@ -195,7 +194,7 @@ public class ScoutingReportSharedLoadsTests
     }
 
     [Test]
-    public async Task GiveFeedback_OpensTheOneIssue_FromBothTabs()
+    public async Task GiveFeedback_OpensTheIssue()
     {
         using SyntheticTeam team = await SyntheticTeam.Create();
         List<string> opened = [];
@@ -205,16 +204,8 @@ public class ScoutingReportSharedLoadsTests
             opened.Add(uri);
             return true;
         });
-        using ScoutingDashboardTabViewModel dash = new(team.Tab(posted, openUri: uri =>
-        {
-            opened.Add(uri);
-            return true;
-        }), posted.Post);
-
         layers.GiveFeedbackCommand.Execute(null);
-        dash.Report.GiveFeedbackCommand.Execute(null);
 
-        await Assert.That(opened).IsEquivalentTo(
-            (string[])["https://github.com/CS2OpenDev/DemoViewer.NET/issues/78", ScoutingReportTabViewModel.FeedbackUrl]);
+        await Assert.That(opened).IsEquivalentTo((string[])["https://github.com/CS2OpenDev/DemoViewer.NET/issues/78"]);
     }
 }

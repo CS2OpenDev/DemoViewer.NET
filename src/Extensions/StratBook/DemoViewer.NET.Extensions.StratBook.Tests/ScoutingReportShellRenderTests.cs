@@ -154,9 +154,8 @@ public class ScoutingReportShellRenderTests
                 .Because("each floor of a stacked map gets a full band, not half of one map's height");
             await Assert.That(mono).IsFalse().Because("the export label is a word, not code");
             await Assert.That(shown).Contains("Map pool");
-            await Assert.That(shown).Contains("Two layouts this release. Tell us which you prefer");
+            await Assert.That(shown).Contains("Tell us what works and what is missing");
             await Assert.That(shown).Contains("Give feedback");
-            await Assert.That(shown.Any(t => t.StartsWith("Nuke · CT · all buys", StringComparison.Ordinal))).IsTrue();
         }
     }
 
@@ -279,13 +278,13 @@ public class ScoutingReportShellRenderTests
         Console.WriteLine($"[p4-tab] {string.Join(" > ", order)}");
         using (Assert.Multiple())
         {
-            await Assert.That(regions).Contains("chips");
+            await Assert.That(regions).Contains("stage");
             await Assert.That(regions).Contains("inspector");
             await Assert.That(regions).Contains("strip");
             await Assert.That(regions).IsEquivalentTo(
                     regions.OrderBy(r => Array.IndexOf((string[])["chips", "stage", "inspector", "strip"], r)),
                     TUnit.Assertions.Enums.CollectionOrdering.Matching)
-                .Because("Tab goes chips, stage, inspector, then the strip under the map");
+                .Because("Tab goes from the chips on the filter row to the stage, the inspector, then the strip under the map");
             await Assert.That(mapAfterRight).IsNotEqualTo("de_nuke");
             await Assert.That(mapAfterLeft).IsEqualTo("de_nuke");
             await Assert.That(sideAfterRight).IsEqualTo(ScoutingSide.T);

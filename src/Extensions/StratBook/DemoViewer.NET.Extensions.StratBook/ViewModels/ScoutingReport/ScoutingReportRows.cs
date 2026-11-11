@@ -165,25 +165,6 @@ public sealed partial class MapPoolRowViewModel : ObservableObject
     }
 }
 
-/// <summary>One demo on the header's sample timeline: filled when won, a ring when lost; the selected map bright.</summary>
-/// <param name="X">Left edge in pixels inside the strip.</param>
-/// <param name="Y">Top edge in pixels inside the strip.</param>
-/// <param name="Won">Won.</param>
-/// <param name="IsSelectedMap">On the map in view.</param>
-/// <param name="ToolTip">"de_nuke · 2026-03-11 · won".</param>
-/// <param name="TopTier">The opponent was ranked 30 or better then; the dot is drawn larger.</param>
-public sealed record TimelineDotViewModel(double X, double Y, bool Won, bool IsSelectedMap, string ToolTip,
-    bool TopTier = false)
-{
-    /// <summary>The dot's diameter: larger against a top-30 opponent.</summary>
-    public double Size => TopTier ? 11 : 7;
-
-    /// <summary>The strip's width in pixels.</summary>
-    public const double Width = 220;
-
-    public double Opacity => IsSelectedMap ? 1 : 0.3;
-}
-
 /// <summary>One demo of the team's match history, newest first: when, where, against whom, and how it ended.</summary>
 /// <param name="DateLabel">"2026-03-11".</param>
 /// <param name="MapLabel">"Nuke".</param>

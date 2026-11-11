@@ -10,12 +10,11 @@ using Avalonia.Styling;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingHybrid;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
-using DemoViewer.NET.Extensions.StratBook.Views.ScoutingHybrid;
+using DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
 using SyntheticTeam = DemoViewer.NET.AppTests.ScoutingReportShellRenderTests.SyntheticTeam;
@@ -25,43 +24,16 @@ using SyntheticTeam = DemoViewer.NET.AppTests.ScoutingReportShellRenderTests.Syn
 namespace DemoViewer.NET.AppTests;
 
 /// <summary>
-///     The Scouting Report (Hybrid) tab: its persisted ids, and its layout over the shell tests' synthetic team in
+///     The Scouting Report tab: its layout over the shell tests' synthetic team in
 ///     both themes: the roster and the map pool (tabbed with the match history) side by side above the map, and the
 ///     map tabs, the side switch with the layer chips beside it, and the stage inside one panel. The PNGs land in <see cref="HeadlessSession.ArtifactDir" /> as
-///     <c>hybrid-*.png</c>.
+///     <c>scouting-*.png</c>.
 /// </summary>
 [NotInParallel]
 [Category("Render")]
-public class ScoutingHybridTests
+public class ScoutingReportTabViewTests
 {
     private const int Width = 1440;
-
-    [Test]
-    public async Task TheModule_ContributesTheHybridSection_UnderItsPersistedIds()
-    {
-        ScoutingHybridModule module = new(() => throw new InvalidOperationException("never built here"));
-        WorkspaceTabDescriptor tab = module.CreateTabs(null!).Single();
-        FeatureDescriptor? feature = FeatureCatalog.ById("tab.scouting-report-hybrid");
-
-        using (Assert.Multiple())
-        {
-            await Assert.That(module.Id).IsEqualTo("net.demoviewer.scouting-report-hybrid");
-            await Assert.That(tab.TabId).IsEqualTo("scouting-report-hybrid.browser");
-            await Assert.That(tab.FeatureId).IsEqualTo("tab.scouting-report-hybrid");
-            await Assert.That(tab.Header).IsEqualTo("Scouting Report (Hybrid)");
-            await Assert.That(tab.HostId).IsEqualTo(HostIds.StratBookHub);
-            await Assert.That(tab.Order).IsEqualTo(7);
-            await Assert.That(tab.ViewModelFactory is not null).IsTrue().Because("lazy and retained, never DataContext");
-            await Assert.That(tab.DataContext).IsNull();
-            await Assert.That(feature).IsNotNull();
-            await Assert.That(feature!.Scope).IsEqualTo(FeatureScope.Tab);
-            await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook");
-            foreach (UserCategory category in Enum.GetValues<UserCategory>())
-            {
-                await Assert.That(feature.Defaults[category]).IsTrue().Because($"{category} sees the tab by default");
-            }
-        }
-    }
 
     [Test]
     [Arguments("light")]
@@ -92,12 +64,12 @@ public class ScoutingHybridTests
                     Width = Width,
                     Height = 2800,
                     RequestedThemeVariant = theme == "dark" ? ThemeVariant.Dark : ThemeVariant.Light,
-                    Content = new ScoutingHybridTabView { DataContext = vm }
+                    Content = new ScoutingReportTabView { DataContext = vm }
                 };
                 window.Show();
                 UxConsistencyRenderTests.Settle();
                 UxConsistencyRenderTests.Settle();
-                UxConsistencyRenderTests.Save(window, $"hybrid-ct-nuke-{theme}-{Width}.png");
+                UxConsistencyRenderTests.Save(window, $"scouting-ct-nuke-{theme}-{Width}.png");
 
                 Rect BoundsOf(Control c) => new(c.TranslatePoint(default, window)!.Value, c.Bounds.Size);
                 TextBlock Heading(string text) => window.GetVisualDescendants().OfType<TextBlock>()
@@ -117,22 +89,18 @@ public class ScoutingHybridTests
                 bool oneMapPanel = ReferenceEquals(PanelOf(ct), mapPanel)
                                    && stage.GetVisualAncestors().Contains(mapPanel);
                 bool layersOnFilterRow = Math.Abs(BoundsOf(Heading("Layers")).Y - BoundsOf(ct).Y) < 12;
-                bool noScopeLabel = window.GetVisualDescendants().OfType<TextBlock>()
-                    .All(t => !t.IsEffectivelyVisible || t.Text != vm.ScopeLine);
-                bool noTimeline = !window.GetVisualDescendants().OfType<ItemsControl>()
-                    .Any(i => ReferenceEquals(i.ItemsSource, vm.Timeline));
 
                 // Match history: its tab shows one row per demo, newest first; the pool table hides.
                 window.GetVisualDescendants().OfType<RadioButton>().Single(r => r.Name == "HistoryTab").IsChecked = true;
                 UxConsistencyRenderTests.Settle();
-                UxConsistencyRenderTests.Save(window, $"hybrid-history-{theme}-{Width}.png");
+                UxConsistencyRenderTests.Save(window, $"scouting-history-{theme}-{Width}.png");
                 ItemsControl history = window.GetVisualDescendants().OfType<ItemsControl>()
                     .Single(i => ReferenceEquals(i.ItemsSource, vm.MatchHistory));
                 int historyRows = history.IsEffectivelyVisible ? history.ItemCount : 0;
                 bool poolHidden = !Heading("W–L").IsEffectivelyVisible;
 
                 // The one-pager lives in a side panel the header opens, not in the inspector; Escape closes it.
-                ScoutingHybridTabView view = (ScoutingHybridTabView)window.Content!;
+                ScoutingReportTabView view = (ScoutingReportTabView)window.Content!;
                 Border inspector = view.FindControl<Border>("InspectorPanel")!;
                 bool onePagerOutOfInspector = !inspector.GetVisualDescendants().OfType<TextBlock>()
                     .Any(t => t.Text == vm.Editor.OnePagerHeading);
@@ -141,7 +109,7 @@ public class ScoutingHybridTests
                 Border scrim = view.FindControl<Border>("OnePagerScrim")!;
                 bool onePagerOpens = scrim.IsVisible && scrim.GetVisualDescendants().OfType<ItemsControl>()
                     .Any(i => ReferenceEquals(i.ItemsSource, vm.Editor.Starred) && i.ItemCount == vm.Editor.Starred.Count);
-                UxConsistencyRenderTests.Save(window, $"hybrid-onepager-{theme}-{Width}.png");
+                UxConsistencyRenderTests.Save(window, $"scouting-onepager-{theme}-{Width}.png");
                 view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
                 bool onePagerCloses = !scrim.IsVisible;
 
@@ -152,7 +120,7 @@ public class ScoutingHybridTests
                 UxConsistencyRenderTests.Settle();
                 bool shapeOnly = vm.Layers.Inspector.TabSections.All(t => t.Tab is "" or "Shape")
                                  && vm.Layers.Inspector.TabSections.Any(t => t.Tab == "Shape");
-                UxConsistencyRenderTests.Save(window, $"hybrid-setups-shape-{theme}-{Width}.png");
+                UxConsistencyRenderTests.Save(window, $"scouting-setups-shape-{theme}-{Width}.png");
 
                 // A layer's own controls (the AWP trail window) sit on the map, not in the inspector.
                 vm.Layers.Focus(vm.Layers.Find("awp")!);
@@ -164,7 +132,7 @@ public class ScoutingHybridTests
                                      && controls.GetVisualParent() is Panel overMap
                                      && overMap.Children.OfType<ScoutingMapHost>().Any()
                                      && !inspector.GetVisualDescendants().OfType<RadioButton>().Any(r => r.Classes.Contains("pill"));
-                UxConsistencyRenderTests.Save(window, $"hybrid-awp-controls-{theme}-{Width}.png");
+                UxConsistencyRenderTests.Save(window, $"scouting-awp-controls-{theme}-{Width}.png");
 
                 // Rotations draw on the map: each real rotation as its own trail.
                 ScoutingLayerChipViewModel rotationsChip = vm.Layers.Find("rotations")!;
@@ -172,11 +140,11 @@ public class ScoutingHybridTests
                 vm.Layers.Focus(rotationsChip);
                 await ScoutingReportTestKit.Settle(vm, posted);
                 UxConsistencyRenderTests.Settle();
-                UxConsistencyRenderTests.Save(window, $"hybrid-rotations-{theme}-{Width}.png");
+                UxConsistencyRenderTests.Save(window, $"scouting-rotations-{theme}-{Width}.png");
                 bool rotationsOnMap = rotationsChip.IsMap && vm.Layers.MapChips.Contains(rotationsChip)
                                       && !vm.Layers.StripMinis.Contains(rotationsChip);
                 window.Close();
-                return new { sameRow, rosterLeft, halves, above, oneMapPanel, layersOnFilterRow, noScopeLabel, noTimeline, historyRows, demos = vm.MatchHistory.Count, poolHidden, onePagerOutOfInspector, onePagerOpens, onePagerCloses, controlsOnMap, tabNames, shapeOnly, rotationsOnMap };
+                return new { sameRow, rosterLeft, halves, above, oneMapPanel, layersOnFilterRow, historyRows, demos = vm.MatchHistory.Count, poolHidden, onePagerOutOfInspector, onePagerOpens, onePagerCloses, controlsOnMap, tabNames, shapeOnly, rotationsOnMap };
             }
             finally
             {
@@ -196,8 +164,6 @@ public class ScoutingHybridTests
             await Assert.That(seen.oneMapPanel).IsTrue()
                 .Because("the map tabs, the side switch and the stage sit in one containing panel");
             await Assert.That(seen.layersOnFilterRow).IsTrue().Because("the layer chips share the side and buy line");
-            await Assert.That(seen.noScopeLabel).IsTrue().Because("the map · side · buy · maps label is gone");
-            await Assert.That(seen.noTimeline).IsTrue().Because("the header's demo dots are gone");
             await Assert.That(seen.demos).IsGreaterThan(0);
             await Assert.That(seen.historyRows).IsEqualTo(seen.demos).Because("Match history lists every demo");
             await Assert.That(seen.poolHidden).IsTrue().Because("one tab of the panel at a time");
@@ -226,7 +192,7 @@ public class ScoutingHybridTests
             vm.Side = ScoutingSide.Ct;
             await ScoutingReportTestKit.Settle(vm, posted);
 
-            Window window = new() { Width = Width, Height = 2800, Content = new ScoutingHybridTabView { DataContext = vm } };
+            Window window = new() { Width = Width, Height = 2800, Content = new ScoutingReportTabView { DataContext = vm } };
             window.Show();
             UxConsistencyRenderTests.Settle();
             UxConsistencyRenderTests.Settle();
@@ -257,7 +223,7 @@ public class ScoutingHybridTests
             bool canWatch = vm.Layers.MarkCard.Rows.Any(r => r.CanOpen && r.CanPlay);
             int detail = vm.Layers.Selection.Marks.Count;
             bool selectionDrawn = vm.Layers.Selection.Visible;
-            UxConsistencyRenderTests.Save(window, $"hybrid-mark-pinned-{Width}.png");
+            UxConsistencyRenderTests.Save(window, $"scouting-mark-pinned-{Width}.png");
 
             // Clicking the map away from every mark unpins it.
             host.Click(new Point(2, 2));
@@ -279,14 +245,13 @@ public class ScoutingHybridTests
     }
 
     [Test]
-    public async Task HybridExport_OnePagerDrawsEachBuy_AndTheFullReportCyclesEveryLayer()
+    public async Task Export_OnePagerDrawsEachBuy_AndTheFullReportCyclesEveryLayer()
     {
         var seen = await OnUi(async () =>
         {
             using SyntheticTeam team = await SyntheticTeam.Create();
             QueuedPost posted = new();
             using ScoutingReportTabViewModel vm = team.Tab(posted);
-            vm.UseHybridExport();
             vm.SelectedTeam = vm.Teams.Single(t => t.Id == team.TeamA);
             await ScoutingReportTestKit.Settle(vm, posted);
             vm.SelectMapCommand.Execute(vm.Maps.Single(m => m.Map == "de_nuke"));
@@ -304,7 +269,7 @@ public class ScoutingHybridTests
             ];
             vm.Editor.ExportForm = ScoutingReportForm.OnePager;
             string onePager = ScoutingReportExporter.Html(vm.Editor.Document(true, rows), ScoutingReportForm.OnePager);
-            await File.WriteAllTextAsync(Path.Combine(HeadlessSession.ArtifactDir, "hybrid-one-pager.html"), onePager);
+            await File.WriteAllTextAsync(Path.Combine(HeadlessSession.ArtifactDir, "scouting-one-pager.html"), onePager);
 
             vm.Editor.ExportForm = ScoutingReportForm.LongForm;
             ScoutingReportDocument full = vm.Editor.Document(false);

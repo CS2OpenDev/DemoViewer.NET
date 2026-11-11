@@ -192,7 +192,6 @@ public class UxConsistencyRenderTests
             await Assert.That(shown).Contains("Map pool");
             await Assert.That(shown).Contains("Plants and post-plant");
             await Assert.That(shown.Any(t => t.StartsWith("One-pager · ", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(shown.Any(t => t.StartsWith("Nuke · T · all buys", StringComparison.Ordinal))).IsTrue();
             await Assert.That(shown).Contains("Long form and notes");
         }
     }

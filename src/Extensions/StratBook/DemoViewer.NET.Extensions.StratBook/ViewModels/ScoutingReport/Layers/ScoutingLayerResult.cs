@@ -217,7 +217,7 @@ public sealed record ScoutingInspectorRow
 /// <param name="Rows">The rows.</param>
 /// <param name="Tab">
 ///     The inspector tab it sits on ("Players", "Shape"); empty shows it on every tab. A layer that names tabs gets a
-///     tab bar in an inspector that draws one (the Hybrid tab's); the others list every section in order.
+///     tab bar in the inspector.
 /// </param>
 public sealed record ScoutingInspectorSection(string Title, IReadOnlyList<ScoutingInspectorRow> Rows, string Tab = "");
 

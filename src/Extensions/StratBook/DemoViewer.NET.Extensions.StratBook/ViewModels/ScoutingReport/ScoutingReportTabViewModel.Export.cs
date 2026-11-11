@@ -11,26 +11,19 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
 /// <summary>
 ///     The export's identity block and roster line, read off the header and the players table at export time, and
-///     the Hybrid one-pager's buy pictures.
+///     the one-pager's buy pictures.
 /// </summary>
 public sealed partial class ScoutingReportTabViewModel
 {
-    /// <summary>The layers the Hybrid one-pager draws together, bottom to top: clouds under the spots and routes.</summary>
+    /// <summary>The layers the one-pager draws together, bottom to top: clouds under the spots and routes.</summary>
     internal static readonly IReadOnlyList<string> OnePagerLayers = ["util", "setups", "awp"];
 
-    /// <summary>The buys the Hybrid one-pager draws apart, left to right.</summary>
+    /// <summary>The buys the one-pager draws apart, left to right.</summary>
     internal static readonly IReadOnlyList<(ScoutingBuy Buy, string Label)> OnePagerBuys =
         [(ScoutingBuy.Full, "Full buy"), (ScoutingBuy.Force, "Force"), (ScoutingBuy.Eco, "Eco")];
 
-    /// <summary>Turns the export to the Hybrid one (<see cref="ScoutingReportEditorViewModel.HybridLayout" />).</summary>
-    public void UseHybridExport()
-    {
-        Editor.HybridLayout = true;
-        Editor.BuyStages = BuyStagesAsync;
-    }
-
     /// <summary>
-    ///     The Hybrid one-pager's pictures: for the map in view and each map in <paramref name="maps" />, each side's
+    ///     The one-pager's pictures: for the map in view and each map in <paramref name="maps" />, each side's
     ///     utility, setups and AWP routes on one radar, once per buy. A buy with nothing drawn is left out.
     /// </summary>
     /// <param name="maps">The maps the starred lines name.</param>

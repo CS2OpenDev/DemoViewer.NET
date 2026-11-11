@@ -12,10 +12,10 @@ using SkiaSharp;
 namespace DemoViewer.NET.AppTests;
 
 /// <summary>
-///     The Scouting Report export from scoped stars, laid out like the Dashboard: the identity tiles and roster
-///     table, each map's record and its side cards in Dashboard order with scope suffixes; the long form putting
-///     every line on its card with rows as tables; HTML escaping with nothing external; and one picture per printed
-///     card that pictures a layer.
+///     The Scouting Report export from scoped stars, one card per layer: the identity tiles and roster table, each
+///     map's record and its side's layer cards in catalog order with scope suffixes; the long form putting every
+///     line on its layer's card with rows as tables and a picture per map layer; the one-pager's buy pictures; and
+///     HTML escaping with nothing external.
 /// </summary>
 public class ScoutingReportExportTests
 {
@@ -39,7 +39,7 @@ public class ScoutingReportExportTests
         HeadToHeadLine = "vs Us 1–2",
         Roster = [new ScoutingReportRosterEntry("m0NESY", "AWP", "1.21")],
         RosterScope = "every map",
-        Cards = ScoutingReportEditorViewModel.ExportCards,
+        Cards = ScoutingReportEditorViewModel.ExportCards(false),
         Findings = findings
     };
 
@@ -74,7 +74,7 @@ public class ScoutingReportExportTests
     }
 
     [Test]
-    public async Task TheOnePager_PrintsIdentityAndRoster_ThenEachMapsRecordAndSideCards_InDashboardOrder()
+    public async Task TheOnePager_PrintsIdentityAndRoster_ThenEachMapsRecordAndSideCards_InLayerOrder()
     {
         string md = ScoutingReportExporter.Markdown(Doc(Mixed()));
 
@@ -90,19 +90,19 @@ public class ScoutingReportExportTests
             "## Nuke",
             "#### Map record", "- Nuke: 4 played, 3-1\n",
             "### CT side",
-            "#### Starting setups", "- 2-1-2 on full buys (Full buy)\n",
-            "#### AWP · CT", "- the AWP holds outside (to 0:30)\n", "- ramp then heaven (to first contact)\n",
+            "#### Setups", "- 2-1-2 on full buys (Full buy)\n",
+            "#### AWP routes", "- the AWP holds outside (to 0:30)\n", "- ramp then heaven (to first contact)\n",
             "### T side",
-            "#### Site targeting and plants", "- A site in 6 of 10 rounds\n",
+            "#### Plants", "- A site in 6 of 10 rounds\n",
             "## Mirage",
             "### CT side",
-            "#### Starting setups", "- stack A on ecos (Eco buy)\n",
+            "#### Setups", "- stack A on ecos (Eco buy)\n",
             "## Map pool", "- Deciders: 1-0\n",
             "## Notes", "- watch the B apps smoke\n");
 
         string html = ScoutingReportExporter.Html(Doc(Mixed()));
         InOrder(html, "<h2>Nuke</h2>", "<h4>Map record</h4>", "<h3 class=\"side ct\">CT side</h3>",
-            "<h4>Starting setups</h4>", "2-1-2 on full buys", "<span class=\"scope\">(Full buy)</span>",
+            "<h4>Setups</h4>", "2-1-2 on full buys", "<span class=\"scope\">(Full buy)</span>",
             "<h3 class=\"side t\">T side</h3>", "<h2>Mirage</h2>", "<h2>Team</h2>", "<h4>Map pool</h4>",
             "<h4>Notes</h4>");
 
@@ -130,7 +130,7 @@ public class ScoutingReportExportTests
     }
 
     [Test]
-    public async Task TheLongForm_PutsEveryLineOnItsDashboardCard_RowsAsTables_AndDropsNothing()
+    public async Task TheLongForm_PutsEveryLineOnItsLayersCard_RowsAsTables_AndDropsNothing()
     {
         ScoutingReportNotesStore store = new(null);
         ScoutingReportEditorViewModel editor = new(store, export: (_, _, _) => "x");
@@ -168,12 +168,12 @@ public class ScoutingReportExportTests
             "# Falcons scouting report",
             "## Nuke", "#### Map record", "- Nuke: 4 played\n",
             "### CT side",
-            "#### Starting setups", "- setups read\n", "- p0 anchors CT Spawn every round\n",
-            "#### Site distribution and rotations", "**CTs per area · A · mid · B**", "| ★ 1-3-1 | 12 of 30 rounds |",
+            "#### Setups", "- setups read\n", "- p0 anchors CT Spawn every round\n",
+            "**CTs per area · A · mid · B**", "| ★ 1-3-1 | 12 of 30 rounds |",
             "#### Economy", "- econ read\n",
-            "### T side", "#### Site targeting and plants", "- ★ plants read\n",
+            "### T side", "#### Plants", "- ★ plants read\n",
             "#### Mystery", "- mystery read\n",
-            "## Mirage", "### T side", "#### Lurk", "- lurks read\n",
+            "## Mirage", "### T side", "#### Lurks", "- lurks read\n",
             "## Period Diff", "- period note\n",
             "## Notes", "- watch the B apps smoke\n");
         using (Assert.Multiple())
@@ -194,7 +194,7 @@ public class ScoutingReportExportTests
             HeadToHeadLine = "vs \"Us\" 1–2",
             Roster = [new ScoutingReportRosterEntry("<b>bold</b>", "AWP", "1.00")],
             Summary = "They <i>always</i> go B",
-            Cards = ScoutingReportEditorViewModel.ExportCards,
+            Cards = ScoutingReportEditorViewModel.ExportCards(true),
             Findings =
             [
                 F(K("de_<nuke>", "CT", "setups"), "de_<nuke> CT · Set<ups>", "a < b && c > d"),
@@ -225,7 +225,7 @@ public class ScoutingReportExportTests
     }
 
     [Test]
-    public async Task EachPrintedCardThatPicturesALayer_GetsThatLayersMarks_AndMarkdownDrawsNone()
+    public async Task TheLongFormPicturesEachMapLayer_TheOnePagerDrawsTheBuys_AndMarkdownDrawsNone()
     {
         ScoutingMapMark setupsMark = new(1, 2, 0, ScoutingMarkShape.Dot, ScoutingColor.Player1);
         ScoutingMapMark awpMark = new(3, 4, 0, ScoutingMarkShape.Badge, ScoutingColor.Ct, 9f, "1");
@@ -260,36 +260,43 @@ public class ScoutingReportExportTests
         editor.Load(Guid.NewGuid(), "Falcons", "6 demos", sources);
         void Star(string text) => editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Text == text));
 
-        // Only lines on cards without a picture starred: nothing drawn.
+        // The one-pager's cards draw no layer picture of their own: the buy pictures stand in for them.
         Star("de_nuke: 4 played");
-        Star("econ read");
-        editor.ExportCommand.Execute(null);
-        using (Assert.Multiple())
-        {
-            await Assert.That(rendered).IsEmpty();
-            await Assert.That(written[^1]).DoesNotContain("data:image");
-            await Assert.That(written[^1]).DoesNotContain("<figure");
-        }
-
-        // The setups card (a read and a row) and the AWP card: one picture each, its own layer's marks only.
         Star("awp read");
         Star("setups read");
         Star("A anchor: 4");
         editor.ExportCommand.Execute(null);
-        string html = written[^1];
         using (Assert.Multiple())
         {
-            await Assert.That(rendered.Count).IsEqualTo(2);
-            await Assert.That(rendered[0].Marks.SequenceEqual([setupsMark])).IsTrue();
-            await Assert.That(rendered[1].Marks.SequenceEqual([awpMark])).IsTrue();
-            await Assert.That(html.Split("<figure").Length - 1).IsEqualTo(2);
-            await Assert.That(html).Contains("<figcaption>Nuke CT · Setups</figcaption>");
-            await Assert.That(html).Contains("<figcaption>Nuke CT · AWP</figcaption>");
+            await Assert.That(rendered).IsEmpty();
+            await Assert.That(written[^1]).DoesNotContain("<figure");
+            await Assert.That(written[^1]).Contains("<h4>Setups</h4>");
         }
 
-        InOrder(html, "<h3 class=\"side ct\">CT side</h3>", "<h4>Starting setups</h4>", "<figure>",
-            "<td>A anchor</td><td class=\"v\">4</td>", "<h4>AWP · CT</h4>", "<h3 class=\"side t\">T side</h3>",
-            "<h4>Economy</h4>");
+        // With buy pictures: one row of them under the side heading, before the cards.
+        List<IReadOnlyList<string>> asked = [];
+        editor.BuyStages = maps =>
+        {
+            asked.Add(maps);
+            return Task.FromResult<IReadOnlyList<ScoutingReportBuyStage>>(
+            [
+                new ScoutingReportBuyStage("de_nuke", "CT", "de_nuke CT · Full buy · setups", [setupsMark]),
+                new ScoutingReportBuyStage("de_nuke", "CT", "de_nuke CT · Eco · setups", [setupsMark]),
+                new ScoutingReportBuyStage("de_nuke", "CT", "de_nuke CT · Force · nothing", [])
+            ]);
+        };
+        editor.ExportCommand.Execute(null);
+        string buys = written[^1];
+        using (Assert.Multiple())
+        {
+            await Assert.That(asked.Single()).IsEquivalentTo(["de_nuke"]).Because("the maps the stars name");
+            await Assert.That(rendered.Count).IsEqualTo(2).Because("a buy with nothing drawn is left out");
+            await Assert.That(buys.Split("<figure").Length - 1).IsEqualTo(2);
+        }
+
+        InOrder(buys, "<h3 class=\"side ct\">CT side</h3>", "<div class=\"stages\">",
+            "<figcaption>Nuke CT · Full buy · setups</figcaption>", "<figcaption>Nuke CT · Eco · setups</figcaption>",
+            "<h4>Setups</h4>");
 
         // Markdown carries no picture and renders none.
         rendered.Clear();
@@ -301,16 +308,24 @@ public class ScoutingReportExportTests
             await Assert.That(written[^1]).DoesNotContain("data:image");
         }
 
-        // The long form pictures every card with a layer to draw, starred or not.
+        // The full report: every map layer's card with its own marks, starred or not, in layer order.
         editor.ExportFormat = ScoutingReportFormat.Html;
         editor.ExportForm = ScoutingReportForm.LongForm;
         editor.ExportCommand.Execute(null);
+        string html = written[^1];
         using (Assert.Multiple())
         {
             await Assert.That(rendered.Count).IsEqualTo(3);
-            await Assert.That(written[^1].Split("<figure").Length - 1).IsEqualTo(3);
-            await Assert.That(written[^1]).Contains("<figcaption>Nuke T · Plants</figcaption>");
+            await Assert.That(rendered[0].Marks.SequenceEqual([setupsMark])).IsTrue();
+            await Assert.That(rendered[1].Marks.SequenceEqual([awpMark])).IsTrue();
+            await Assert.That(rendered[2].Marks.SequenceEqual([plantsMark])).IsTrue();
+            await Assert.That(html.Split("<figure").Length - 1).IsEqualTo(3);
+            await Assert.That(html).Contains("<figcaption>Nuke T · Plants</figcaption>");
         }
+
+        InOrder(html, "<h3 class=\"side ct\">CT side</h3>", "<h4>Setups</h4>", "<figure>",
+            "<td>A anchor</td><td class=\"v\">4</td>", "<h4>AWP routes</h4>", "<h3 class=\"side t\">T side</h3>",
+            "<h4>Plants</h4>", "<h4>Economy</h4>");
     }
 
     [Test]

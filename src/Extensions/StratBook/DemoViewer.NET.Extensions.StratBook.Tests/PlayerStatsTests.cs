@@ -599,8 +599,9 @@ public class PlayerStatsRenderTests
 
             ItemsControl table = window.GetVisualDescendants().OfType<ItemsControl>()
                 .First(i => ReferenceEquals(i.ItemsSource, vm.Players));
+            // One row grid per player: the outermost grid each row's template draws.
             rows = table.GetVisualDescendants().OfType<Grid>().Count(g => g.DataContext is PlayerRowViewModel
-                                                                          && g.ColumnDefinitions.Count == 12);
+                && !g.GetVisualAncestors().OfType<Grid>().Any(a => a.DataContext is PlayerRowViewModel));
             foreach (TextBlock text in table.GetVisualDescendants().OfType<TextBlock>()
                          .Where(t => t.IsEffectivelyVisible && t.TextWrapping == Avalonia.Media.TextWrapping.NoWrap
                                                             && !string.IsNullOrEmpty(t.Text)))
@@ -620,7 +621,7 @@ public class PlayerStatsRenderTests
         using (Assert.Multiple())
         {
             await Assert.That(rows).IsEqualTo(5);
-            await Assert.That(clipped).IsEmpty();
+            await Assert.That(clipped).IsEmpty().Because(string.Join("; ", clipped));
         }
     }
 }

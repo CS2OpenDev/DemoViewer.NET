@@ -8,15 +8,10 @@
              x:DataType="vm:ScoutingReportTabViewModel">
 
     <!--
-      THE SCOUTING REPORT: one team, one map, one side at a time. Top to bottom: the header (team, record,
-      ranks you enter by hand, head-to-head, the sample by date, the export), the map pool comparing every map
-      (a row opens its map), the map tabs with the side and buy filter and the notices, the map stage with
-      its layers and the inspector beside it, the players, and the collapsed Period Diff, veto history and
-      long form. Overview first, then one map: the pool never sits between the tabs and what they pick.
-
-      Every number that has rounds behind it is a dotted-underline button that opens them in Review. Icons
-      are drawn geometry, never glyphs. Colour: every value is a {DynamicResource} token; CT and T use the
-      2D viewer's team tokens; state is carried by words as well as tint.
+      THE SCOUTING REPORT. Top to bottom: the header (team, record, ranks, the sample by date, the export); the roster and the
+      map pool side by side; then one panel for the map in view, its head the map tabs with the side, buy and scope
+      under them, holding the stage with its layer chips and strip and the inspector; then the collapsed Period
+      Diff, veto history and long form.
     -->
 
     <UserControl.Styles>
@@ -104,18 +99,59 @@
             <Setter Property="TextDecorations" Value="Underline" />
         </Style>
         <!-- Map tabs: the selected one underlined in the accent. -->
+        <!-- Tabs (the map tabs and the pool panel's tabs): the selected one filled, underlined in the accent and
+             bold; the rest muted with a plain baseline, so which is open reads at a glance. -->
         <Style Selector="Button.maptab">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0 0 0 2" />
+            <Setter Property="BorderThickness" Value="0 0 0 3" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="Padding" Value="12 8" />
-            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+            <Setter Property="CornerRadius" Value="6 6 0 0" />
+            <Setter Property="Padding" Value="14 8" />
+            <Setter Property="Margin" Value="0 0 2 0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.maptab.on">
+            <Setter Property="Background" Value="{DynamicResource FrameRowSelectedBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentInteractive}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.maptab.on /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource FrameRowSelectedBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentInteractive}" />
+        </Style>
+        <Style Selector="RadioButton.ptab">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="PART_Box" Background="{TemplateBinding Background}" Padding="14 8"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0 0 0 3" CornerRadius="6 6 0 0">
+                        <ContentPresenter Content="{TemplateBinding Content}" FontSize="13"
+                                          FontWeight="{TemplateBinding FontWeight}"
+                                          Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+            <Setter Property="Margin" Value="0 0 2 0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="RadioButton.ptab:pointerover /template/ Border#PART_Box">
+            <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
+        </Style>
+        <Style Selector="RadioButton.ptab:checked">
+            <Setter Property="Background" Value="{DynamicResource FrameRowSelectedBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentInteractive}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="RadioButton.ptab:checked /template/ Border#PART_Box">
+            <Setter Property="Background" Value="{DynamicResource FrameRowSelectedBg}" />
+        </Style>
+        <Style Selector="RadioButton.ptab:focus-visible /template/ Border#PART_Box">
             <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextCardHeader}" />
         </Style>
         <Style Selector="Button.maptab:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
@@ -428,7 +464,8 @@
                            IsVisible="{Binding ShowsPlainLabel}" />
                 <Border Classes="skel" Width="30" HorizontalAlignment="Right" Margin="2 4" IsVisible="{Binding IsLoading}" />
                 <TextBlock HorizontalAlignment="Right" FontSize="10" Foreground="{DynamicResource AccentCaution}"
-                           Text="{Binding Detail}" IsVisible="{Binding HasDetail}" Margin="2 0" />
+                           Text="{Binding Detail}" IsVisible="{Binding HasDetail}" Margin="2 0"
+                           TextWrapping="Wrap" TextAlignment="Right" />
             </StackPanel>
         </DataTemplate>
         <ItemsPanelTemplate x:Key="WrapItems">
@@ -439,14 +476,15 @@
         </ItemsPanelTemplate>
     </UserControl.Resources>
 
+    <Panel>
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" Background="{DynamicResource ShellBg}">
         <StackPanel Margin="16" Spacing="12">
-            <!-- Feedback: both layouts ship this release; one quiet line asks which reads better. -->
+            <!-- Feedback: one quiet line asking how the report reads. -->
             <WrapPanel Orientation="Horizontal" Margin="2 0">
                 <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" VerticalAlignment="Center"
-                           Text="Two layouts this release. Tell us which you prefer" Margin="0 0 6 0" />
+                           Text="Tell us what works and what is missing" Margin="0 0 6 0" />
                 <Button Classes="link" Command="{Binding GiveFeedbackCommand}"
-                        AutomationProperties.Name="Give feedback on the Scouting Report layouts"
+                        AutomationProperties.Name="Give feedback on the Scouting Report"
                         ToolTip.Tip="{x:Static vm:ScoutingReportTabViewModel.FeedbackUrl}">
                     <TextBlock Text="Give feedback" />
                 </Button>
@@ -491,63 +529,51 @@
                         </WrapPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top"
                                     IsVisible="{Binding HasSelection}">
-                            <CheckBox Content="Build status" FontSize="12" IsChecked="{Binding ShowBuildStatus}"
-                                      ToolTip.Tip="Show each layer's data status (E exists, D derivable, R app work, K engine work)" />
-                            <ComboBox FontSize="12" ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
-                                      SelectedItem="{Binding Editor.SelectedFormOption}"
-                                      AutomationProperties.Name="Export form"
-                                      ToolTip.Tip="One-pager: the starred lines. Long form: every line not dismissed." />
-                            <ComboBox FontSize="12"
-                                      ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormatOptions}"
-                                      SelectedItem="{Binding Editor.SelectedFormatOption}"
-                                      AutomationProperties.Name="Export format"
-                                      IsVisible="{Binding !IsBrowser}" />
-                            <Button Classes="primary" FontSize="12" Padding="12 6"
-                                    Content="{Binding Editor.ExportLabel}"
-                                    Command="{Binding Editor.ExportCommand}" IsVisible="{Binding !IsBrowser}" />
-                            <Button Content="Copy markdown" Classes="ghost" FontSize="12" Padding="10 6"
-                                    Click="OnCopyMarkdownClick" />
+                            <Button FontSize="12" Padding="12 6" Content="Process this team first"
+                                    IsVisible="{Binding CanProcessTeamFirst}" Command="{Binding ProcessTeamFirstCommand}"
+                                    ToolTip.Tip="Queue every demo of this team ahead of the rest of the library" />
+                            <!-- The export: the one-pager (buy pictures and the starred lines) or the full report
+                                 (every layer in turn). The one-pager panel carries the same controls. -->
+                            <Button Name="ExportButton" FontSize="12" Padding="12 6" Content="Export"
+                                    AutomationProperties.Name="Export the report"
+                                    ToolTip.Tip="One-pager: setups, AWP routes and utility per buy, then the starred lines. Full report: every layer in turn."
+                                    IsVisible="{Binding !IsBrowser}">
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Spacing="8" Width="320">
+                                            <TextBlock Classes="h" FontSize="13" Text="Export" />
+                                            <WrapPanel Orientation="Horizontal">
+                                                <ComboBox FontSize="12"
+                                                          ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
+                                                          SelectedItem="{Binding Editor.SelectedFormOption}" Margin="0 0 8 6"
+                                                          AutomationProperties.Name="Export form" />
+                                                <ComboBox FontSize="12"
+                                                          ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormatOptions}"
+                                                          SelectedItem="{Binding Editor.SelectedFormatOption}" Margin="0 0 8 6"
+                                                          AutomationProperties.Name="Export format" />
+                                            </WrapPanel>
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" TextWrapping="Wrap"
+                                                       Text="One-pager: each map's setups, AWP routes and utility for full buys, forces and ecos, then the starred lines. Full report: every layer of every map and side with its picture. Markdown leaves the pictures out." />
+                                            <Button Classes="primary" FontSize="12" Padding="12 6" HorizontalAlignment="Left"
+                                                    Content="{Binding Editor.ExportLabel}"
+                                                    Command="{Binding Editor.ExportCommand}" />
+                                            <TextBlock Classes="mid" Text="{Binding Editor.ExportLine}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                            <Button Name="OnePagerButton" Classes="primary" FontSize="12" Padding="12 6"
+                                    Click="OnOnePagerClick" AutomationProperties.Name="Open the one-pager"
+                                    ToolTip.Tip="The starred lines, ready to export">
+                                <TextBlock Text="{Binding Editor.StarredCount, StringFormat='One-pager · {0} starred'}" />
+                            </Button>
                         </StackPanel>
                     </Grid>
                     <WrapPanel Orientation="Horizontal" Margin="14 2 14 8" IsVisible="{Binding HasSelection}">
-                        <Border Width="{x:Static vm:TimelineDotViewModel.Width}" Height="24" Margin="0 0 14 0"
-                                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1"
-                                VerticalAlignment="Center"
-                                AutomationProperties.Name="The team's demos by date; filled is won, the map in view is bright">
-                            <ItemsControl ItemsSource="{Binding Timeline}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.Styles>
-                                    <Style Selector="ContentPresenter" x:DataType="vm:TimelineDotViewModel">
-                                        <Setter Property="Canvas.Left" Value="{Binding X}" />
-                                        <Setter Property="Canvas.Top" Value="{Binding Y}" />
-                                    </Style>
-                                </ItemsControl.Styles>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:TimelineDotViewModel">
-                                        <Panel Width="{Binding Size}" Height="{Binding Size}" Opacity="{Binding Opacity}" ToolTip.Tip="{Binding ToolTip}">
-                                            <Ellipse Fill="{DynamicResource TextValue}" IsVisible="{Binding Won}" />
-                                            <Ellipse Stroke="{DynamicResource TextValue}" StrokeThickness="1.5"
-                                                     IsVisible="{Binding !Won}" />
-                                        </Panel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Border>
                         <TextBlock Classes="mid" Text="{Binding DemosLine}" VerticalAlignment="Center" Margin="0 0 14 0" />
                         <TextBlock Classes="mid" Text="{Binding OpponentMixLine}" VerticalAlignment="Center"
                                    Margin="0 0 14 0" Foreground="{DynamicResource TextBright}" />
-                        <TextBlock FontSize="11" Text="{Binding TimelineCaption}" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextBright}" />
                     </WrapPanel>
-                    <StackPanel Margin="14 0 14 6" Spacing="2" IsVisible="{Binding HasSelection}">
-                        <TextBlock Classes="mid" Text="{Binding Editor.ExportUnavailableNote}"
-                                   IsVisible="{Binding Editor.HasExportUnavailableNote}" />
-                        <TextBlock Classes="mid" Text="{Binding Editor.ExportLine}" TextWrapping="Wrap" />
-                    </StackPanel>
                 </StackPanel>
             </Border>
 
@@ -569,81 +595,195 @@
                 </StackPanel>
             </Border>
 
-            <!-- Map pool: every map side by side; a row opens that map in the tabs and the stage below. -->
-            <Border Classes="panel" IsVisible="{Binding HasMaps}">
-                <StackPanel Margin="8 6">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <Button Grid.Column="0" Classes="ghost" Padding="6 4" Command="{Binding TogglePoolCommand}"
-                                AutomationProperties.Name="Map pool">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="chevron" Classes.open="{Binding IsPoolOpen}" />
-                                <TextBlock Classes="h" Text="Map pool" />
-                            </StackPanel>
-                        </Button>
-                        <TextBlock Grid.Column="2" FontSize="11" Foreground="{DynamicResource TextBright}"
-                                   Text="{Binding PoolCaption}" VerticalAlignment="Center" Margin="0 0 6 0" />
-                    </Grid>
-                    <StackPanel IsVisible="{Binding IsPoolOpen}" Margin="6 4 6 4">
-                        <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*" Margin="0 0 0 4">
-                            <TextBlock Grid.Column="0" Classes="col-label" Text="Map" />
-                            <TextBlock Grid.Column="1" Classes="col-label" Text="Played" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="2" Classes="col-label" Text="W–L" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="3" Classes="col-label" Text="CT rounds" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="4" Classes="col-label" Text="T rounds" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="5" Classes="col-label" Text="Pistols" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="6" Classes="col-label" Text="Plant median" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="7" Classes="col-label" Text="AWP bought" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="8" Classes="col-label" Text="Last played" HorizontalAlignment="Right" />
+            <!-- Roster (left) and map pool (right), side by side above the map: two tables that each left
+                 wide gaps between their columns when they ran the full width. -->
+            <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding HasMaps}">
+                <Border Grid.Column="0" Classes="panel" Padding="14 10" VerticalAlignment="Stretch">
+                    <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                            <TextBlock Classes="h" Text="{Binding PlayersTitle}" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Classes="ghost" Padding="8 2" FontSize="11" Margin="10 0 0 0"
+                                    Command="{Binding TogglePlayersScopeCommand}" VerticalAlignment="Center"
+                                    AutomationProperties.Name="Players stats scope"
+                                    ToolTip.Tip="Rating, K/D, ADR, KAST, opening and 1vX on the map in view, or pooled over every map. Roles, CT spot and T role stay on the map in view.">
+                                <TextBlock Text="{Binding PlayersScopeLabel, StringFormat='Numbers: {0}'}" />
+                            </Button>
+                            <ComboBox Grid.Column="3" FontSize="11" ItemsSource="{Binding IglOptions}" SelectedItem="{Binding SelectedIgl}"
+                                      AutomationProperties.Name="In-game leader"
+                                      ToolTip.Tip="The in-game leader is yours to set: the demos cannot tell it. Saved with this team's notes." />
                         </Grid>
-                        <ItemsControl ItemsSource="{Binding Maps}">
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" TextWrapping="Wrap"
+                                   Text="roles are suggested from the demos; the reason is under each" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource AccentCaution}" TextWrapping="Wrap"
+                                   Text="{Binding PlayersStatusLine}" IsVisible="{Binding HasPlayersStatus}" />
+                        <Grid ColumnDefinitions="16,1.4*,1.4*,0.8*,0.7*,0.7*,0.7*,0.8*,0.8*,1.1*,0.9*" Margin="0 6 0 2">
+                            <TextBlock Grid.Column="1" Classes="col-label" Text="Player" />
+                            <TextBlock Grid.Column="2" Classes="col-label" Text="Role" />
+                            <TextBlock Grid.Column="3" Classes="col-label" Text="Rating" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="4" Classes="col-label" Text="K/D" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="5" Classes="col-label" Text="ADR" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="6" Classes="col-label" Text="KAST" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="7" Classes="col-label" Text="Opening" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="8" Classes="col-label" Text="1vX" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="9" Classes="col-label" Text="CT spot" Margin="8 0 0 0" />
+                            <TextBlock Grid.Column="10" Classes="col-label" Text="T role" />
+                        </Grid>
+                        <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !HasPlayers}"
+                                   Text="No current roster for this team yet. Team Identity names the five once they have played together in two demos; Library › Teams shows what it has." />
+                        <ItemsControl ItemsSource="{Binding Players}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:MapPoolRowViewModel">
-                                    <Button Classes="poolrow"
-                                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).SelectMapCommand, FallbackValue={x:Null}}"
-                                            CommandParameter="{Binding}"
-                                            AutomationProperties.Name="{Binding MapLabel, StringFormat='Open {0}'}">
-                                        <Border Classes="poolrow" Classes.sel="{Binding IsSelected}" Padding="0 5" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0">
-                                            <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*">
-                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="4 0 0 0">
-                                                    <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding MapLabel}" />
-                                                    <TextBlock FontSize="11" Text="thin sample" Foreground="{DynamicResource TextBright}"
-                                                               IsVisible="{Binding IsThin}" VerticalAlignment="Center" />
-                                                </StackPanel>
-                                                <TextBlock Grid.Column="1" Classes="val" Text="{Binding Played}" HorizontalAlignment="Right" />
-                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
-                                                    <TextBlock Classes="val" Text="{Binding WinLossLabel}" />
-                                                    <TextBlock Classes="mid" Text="{Binding WinRateLabel}" />
-                                                </StackPanel>
-                                                <Border Grid.Column="3" Classes="skel" Width="34" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
-                                                <TextBlock Grid.Column="3" Classes="val" Text="{Binding CtLabel}" HorizontalAlignment="Right"
-                                                           IsVisible="{Binding !IsReading}"
-                                                           ToolTip.Tip="{Binding CtToolTip}" />
-                                                <Border Grid.Column="4" Classes="skel" Width="34" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
-                                                <TextBlock Grid.Column="4" Classes="val" Text="{Binding TLabel}" HorizontalAlignment="Right"
-                                                           IsVisible="{Binding !IsReading}"
-                                                           ToolTip.Tip="{Binding TToolTip}" />
-                                                <Border Grid.Column="5" Classes="skel" Width="40" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
-                                                <TextBlock Grid.Column="5" Classes="val" Text="{Binding PistolsLabel}" HorizontalAlignment="Right"
-                                                           IsVisible="{Binding !IsReading}" />
-                                                <Border Grid.Column="6" Classes="skel" Width="36" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
-                                                <TextBlock Grid.Column="6" Classes="val" Text="{Binding PlantLabel}" HorizontalAlignment="Right"
-                                                           IsVisible="{Binding !IsReading}" />
-                                                <Border Grid.Column="7" Classes="skel" Width="34" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
-                                                <TextBlock Grid.Column="7" Classes="mid" Text="{Binding AwpLabel}" HorizontalAlignment="Right"
-                                                           IsVisible="{Binding !IsReading}"
-                                                           ToolTip.Tip="{Binding AwpToolTip}" />
-                                                <TextBlock Grid.Column="8" Classes="mid" Text="{Binding LastPlayedLabel}" HorizontalAlignment="Right" />
-                                            </Grid>
-                                        </Border>
-                                    </Button>
+                                <DataTemplate x:DataType="vm:PlayerRowViewModel">
+                                    <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0" Padding="0 5">
+                                        <Grid ColumnDefinitions="16,1.4*,1.4*,0.8*,0.7*,0.7*,0.7*,0.8*,0.8*,1.1*,0.9*">
+                                            <Ellipse Grid.Column="0" Width="10" Height="10" VerticalAlignment="Top" Margin="0 3 0 0"
+                                                     Fill="{Binding Color, Converter={x:Static local:ScoutingColorBrush.Instance}}" />
+                                            <StackPanel Grid.Column="1">
+                                                <Button Classes="num" HorizontalAlignment="Left" Padding="0"
+                                                        Command="{Binding OpenOverviewCommand}" IsEnabled="{Binding OpenOverviewCommand, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                        ToolTip.Tip="{Binding OverviewToolTip}" AutomationProperties.Name="{Binding OverviewToolTip}">
+                                                    <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding Name}" TextWrapping="Wrap" />
+                                                </Button>
+                                                <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Text="{Binding Appearances}" />
+                                                <Button Classes="link" HorizontalAlignment="Left" Margin="0 2 0 0"
+                                                        Command="{Binding IsolateCommand}" CommandParameter="{Binding}"
+                                                        IsVisible="{Binding CanIsolate}"
+                                                        AutomationProperties.Name="{Binding IsolateLabel}"
+                                                        ToolTip.Tip="Shows this player's CT setup positions alone on the map; Show all puts everyone back">
+                                                    <TextBlock Text="{Binding IsolateLabel}" />
+                                                </Button>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Margin="0 0 6 0">
+                                                <TextBlock Classes="val" Text="{Binding Role}" />
+                                                <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Text="{Binding RoleNote}"
+                                                           IsVisible="{Binding HasRoleNote}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <ContentControl Grid.Column="3" Content="{Binding Rating}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                            <ContentControl Grid.Column="4" Content="{Binding KillDeath}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                            <ContentControl Grid.Column="5" Content="{Binding Adr}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                            <ContentControl Grid.Column="6" Content="{Binding Kast}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                            <ContentControl Grid.Column="7" Content="{Binding Opening}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                            <ContentControl Grid.Column="8" Content="{Binding Clutch}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                            <TextBlock Grid.Column="9" Classes="mid" Text="{Binding CtSpot}" Margin="8 0 4 0"
+                                                       TextWrapping="Wrap" ToolTip.Tip="{Binding CtSpotNote}" />
+                                            <TextBlock Grid.Column="10" Classes="val" Text="{Binding TRole}" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </StackPanel>
-                </StackPanel>
-            </Border>
+                </Border>
+                <Border Grid.Column="2" Classes="panel" VerticalAlignment="Stretch">
+                    <StackPanel Margin="8 6">
+                        <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Name="PoolTab" Classes="ptab" GroupName="scouting-pool" Content="Map pool"
+                                             IsChecked="True" AutomationProperties.Name="Map pool" />
+                                <RadioButton Name="HistoryTab" Classes="ptab" GroupName="scouting-pool" Content="Match history"
+                                             AutomationProperties.Name="Match history" />
+                            </StackPanel>
+                        </Border>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Margin="6 8 6 0"
+                                   Text="{Binding PoolCaption}" TextWrapping="Wrap" IsVisible="{Binding #PoolTab.IsChecked}" />
+                        <StackPanel IsVisible="{Binding #PoolTab.IsChecked}" Margin="6 4 6 4">
+                            <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*" Margin="0 0 0 4">
+                                <TextBlock Grid.Column="0" Classes="col-label" Text="Map" />
+                                <TextBlock Grid.Column="1" Classes="col-label" Text="Played" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="2" Classes="col-label" Text="W–L" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="3" Classes="col-label" Text="CT rounds" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="4" Classes="col-label" Text="T rounds" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="5" Classes="col-label" Text="Pistols" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="6" Classes="col-label" Text="Plant median" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="7" Classes="col-label" Text="AWP bought" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="8" Classes="col-label" Text="Last played" HorizontalAlignment="Right" />
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding Maps}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:MapPoolRowViewModel">
+                                        <Button Classes="poolrow"
+                                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).SelectMapCommand, FallbackValue={x:Null}}"
+                                                CommandParameter="{Binding}"
+                                                AutomationProperties.Name="{Binding MapLabel, StringFormat='Open {0}'}">
+                                            <Border Classes="poolrow" Classes.sel="{Binding IsSelected}" Padding="0 5" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0">
+                                                <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="4 0 0 0">
+                                                        <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding MapLabel}" />
+                                                        <TextBlock FontSize="11" Text="thin sample" Foreground="{DynamicResource TextBright}"
+                                                                   IsVisible="{Binding IsThin}" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Classes="val" Text="{Binding Played}" HorizontalAlignment="Right" />
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                                                        <TextBlock Classes="val" Text="{Binding WinLossLabel}" />
+                                                        <TextBlock Classes="mid" Text="{Binding WinRateLabel}" />
+                                                    </StackPanel>
+                                                    <Border Grid.Column="3" Classes="skel" Width="34" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
+                                                    <TextBlock Grid.Column="3" Classes="val" Text="{Binding CtLabel}" HorizontalAlignment="Right"
+                                                               IsVisible="{Binding !IsReading}"
+                                                               ToolTip.Tip="{Binding CtToolTip}" />
+                                                    <Border Grid.Column="4" Classes="skel" Width="34" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
+                                                    <TextBlock Grid.Column="4" Classes="val" Text="{Binding TLabel}" HorizontalAlignment="Right"
+                                                               IsVisible="{Binding !IsReading}"
+                                                               ToolTip.Tip="{Binding TToolTip}" />
+                                                    <Border Grid.Column="5" Classes="skel" Width="40" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
+                                                    <TextBlock Grid.Column="5" Classes="val" Text="{Binding PistolsLabel}" HorizontalAlignment="Right"
+                                                               IsVisible="{Binding !IsReading}" />
+                                                    <Border Grid.Column="6" Classes="skel" Width="36" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
+                                                    <TextBlock Grid.Column="6" Classes="val" Text="{Binding PlantLabel}" HorizontalAlignment="Right"
+                                                               IsVisible="{Binding !IsReading}" />
+                                                    <Border Grid.Column="7" Classes="skel" Width="34" HorizontalAlignment="Right" IsVisible="{Binding IsReading}" />
+                                                    <TextBlock Grid.Column="7" Classes="mid" Text="{Binding AwpLabel}" HorizontalAlignment="Right"
+                                                               IsVisible="{Binding !IsReading}"
+                                                               ToolTip.Tip="{Binding AwpToolTip}" />
+                                                    <TextBlock Grid.Column="8" Classes="mid" Text="{Binding LastPlayedLabel}" HorizontalAlignment="Right" />
+                                                </Grid>
+                                            </Border>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                        <!-- Match history: every demo of the team, newest first. -->
+                        <StackPanel IsVisible="{Binding #HistoryTab.IsChecked}" Margin="6 8 6 4">
+                            <TextBlock Classes="mid" Text="No demos for this team yet." IsVisible="{Binding !HasMatchHistory}" />
+                            <Grid ColumnDefinitions="1.1*,1*,2*,0.8*,0.8*,0.9*" Margin="0 0 10 4" IsVisible="{Binding HasMatchHistory}">
+                                <TextBlock Grid.Column="0" Classes="col-label" Text="Date" />
+                                <TextBlock Grid.Column="1" Classes="col-label" Text="Map" />
+                                <TextBlock Grid.Column="2" Classes="col-label" Text="Opponent" />
+                                <TextBlock Grid.Column="3" Classes="col-label" Text="Result" />
+                                <TextBlock Grid.Column="4" Classes="col-label" Text="Score" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="5" Classes="col-label" Text="Opp. rank" HorizontalAlignment="Right" />
+                            </Grid>
+                            <ScrollViewer MaxHeight="300" HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding MatchHistory}" Margin="0 0 10 0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:MatchHistoryRowViewModel">
+                                            <Border Padding="0 5" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0">
+                                                <Grid ColumnDefinitions="1.1*,1*,2*,0.8*,0.8*,0.9*">
+                                                    <TextBlock Grid.Column="0" Classes="mid" Text="{Binding DateLabel}" />
+                                                    <TextBlock Grid.Column="1" Classes="val" Text="{Binding MapLabel}" />
+                                                    <TextBlock Grid.Column="2" Classes="val" Text="{Binding Opponent}"
+                                                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Opponent}" />
+                                                    <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Text="{Binding ResultLabel}"
+                                                               Foreground="{DynamicResource StatPositive}" IsVisible="{Binding IsWin}" />
+                                                    <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Text="{Binding ResultLabel}"
+                                                               Foreground="{DynamicResource StatNegative}" IsVisible="{Binding IsLoss}" />
+                                                    <TextBlock Grid.Column="3" Classes="mid" Text="{Binding ResultLabel}"
+                                                               IsVisible="{Binding IsUnresolved}" />
+                                                    <TextBlock Grid.Column="4" Classes="val" Text="{Binding ScoreLabel}" HorizontalAlignment="Right" />
+                                                    <TextBlock Grid.Column="5" Classes="mid" Text="{Binding TierLabel}" HorizontalAlignment="Right" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
 
-            <!-- Map nav: the tabs pick one map; the side, buy and scope below them filter what the stage draws. -->
+            <!-- The map in view: one panel. Its head is the map tabs (a tab bar) with the side, buy and scope
+                 under them, then the notices; the stage and the inspector sit inside it. -->
             <Border Classes="panel" IsVisible="{Binding HasMaps}">
                 <StackPanel>
                     <!-- Map tabs: played and last played under each name. Tab reaches the open map's tab; the
@@ -669,25 +809,44 @@
                         </ItemsControl>
                     </Border>
 
-                    <!-- Side (one at a time), the buy filter, and the scope line. -->
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="14 10" IsVisible="{Binding HasMaps}">
+                    <!-- Side (one at a time), the buy filter, and the layers the stage draws, on one line. -->
+                    <Grid ColumnDefinitions="Auto,Auto,*" Margin="14 10 14 4" IsVisible="{Binding HasMaps}">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0 0 16 0"
-                                    KeyDown="OnSideKeyDown">
+                                    VerticalAlignment="Top" KeyDown="OnSideKeyDown">
                             <RadioButton Classes="seg ct" Content="CT" GroupName="scouting-side"
                                          IsChecked="{Binding IsCt}" IsTabStop="{Binding IsCt}" AutomationProperties.Name="CT side" />
                             <RadioButton Classes="seg t" Content="T" GroupName="scouting-side"
                                          IsChecked="{Binding IsT}" IsTabStop="{Binding IsT}" AutomationProperties.Name="T side" />
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top">
                             <TextBlock Classes="mid" Text="Buy" VerticalAlignment="Center" />
                             <ComboBox FontSize="12" ItemsSource="{x:Static vm:ScoutingReportTabViewModel.BuyOptions}"
                                       SelectedItem="{Binding Buy}" AutomationProperties.Name="Buy filter" />
                         </StackPanel>
-                        <TextBlock Grid.Column="3" Classes="mid" Text="{Binding ScopeLine}" VerticalAlignment="Center" />
-                        <Button Grid.Column="4" Classes="ghost" FontSize="11" Padding="8 3" Margin="12 0 0 0"
-                                VerticalAlignment="Center" Content="Process this team first"
-                                IsVisible="{Binding CanProcessTeamFirst}" Command="{Binding ProcessTeamFirstCommand}"
-                                ToolTip.Tip="Queue every demo of this team ahead of the rest of the library" />
+                        <Grid Grid.Column="2" ColumnDefinitions="Auto,*" Margin="8 0 0 0"
+                              KeyboardNavigation.TabNavigation="Local">
+                            <TextBlock Classes="mid" Text="Layers" VerticalAlignment="Top" Margin="0 8 10 0" />
+                            <ItemsControl Grid.Column="1" ItemsSource="{Binding Layers.MapChips}" ItemsPanel="{StaticResource WrapItems}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="layers:ScoutingLayerChipViewModel">
+                                        <Border Classes="chip" Classes.focus="{Binding IsFocused}" Margin="0 0 6 6">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <CheckBox IsChecked="{Binding IsOn}" MinWidth="0" Padding="0"
+                                                          AutomationProperties.Name="{Binding DrawLabel}"
+                                                          ToolTip.Tip="{Binding DrawLabel}" />
+                                                <ContentControl Content="{Binding Swatch}" ContentTemplate="{StaticResource Swatch}" />
+                                                <Button Classes="ghost chipname" Padding="4 3" Content="{Binding Name}" FontSize="12"
+                                                        Foreground="{DynamicResource TextValue}"
+                                                        Command="{Binding InspectCommand}"
+                                                        AutomationProperties.Name="{Binding InspectLabel}" />
+                                                <TextBlock Text="{Binding CountLabel}" FontSize="11" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextBright}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
                     </Grid>
 
                     <!-- Notices: a thin sample, demos without positions. -->
@@ -710,420 +869,296 @@
                     </ItemsControl>
                     <TextBlock Classes="mid" Text="{Binding ReviewLine}" Margin="14 6"
                                IsVisible="{Binding ReviewLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                </StackPanel>
-            </Border>
-
-            <!-- Work area: the map stage and the inspector. Tab walks the layer chips, the stage, the inspector and
-                 then the strip under the map: each is its own tab group, ordered by its index. -->
-            <Grid ColumnDefinitions="*,12,400" IsVisible="{Binding HasMaps}" KeyboardNavigation.TabNavigation="Local">
-                <Border Grid.Column="0" Name="StagePanel" Classes="panel" Padding="12" VerticalAlignment="Top"
-                        SizeChanged="OnStagePanelSizeChanged">
-                    <StackPanel Spacing="10">
-                        <Grid ColumnDefinitions="Auto,*" KeyboardNavigation.TabNavigation="Local"
-                                   KeyboardNavigation.TabIndex="1">
-                            <TextBlock Classes="mid" Text="Layers" VerticalAlignment="Top" Margin="0 6 10 0" />
-                            <ItemsControl Grid.Column="1" ItemsSource="{Binding Layers.MapChips}" ItemsPanel="{StaticResource WrapItems}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="layers:ScoutingLayerChipViewModel">
-                                        <Border Classes="chip" Classes.focus="{Binding IsFocused}" Margin="0 0 6 6">
-                                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <CheckBox IsChecked="{Binding IsOn}" MinWidth="0" Padding="0"
-                                                          AutomationProperties.Name="{Binding DrawLabel}"
-                                                          ToolTip.Tip="{Binding DrawLabel}" />
-                                                <ContentControl Content="{Binding Swatch}" ContentTemplate="{StaticResource Swatch}" />
-                                                <Button Classes="ghost chipname" Padding="4 3" Content="{Binding Name}" FontSize="12"
-                                                        Foreground="{DynamicResource TextValue}"
-                                                        Command="{Binding InspectCommand}"
-                                                        AutomationProperties.Name="{Binding InspectLabel}" />
-                                                <TextBlock Text="{Binding CountLabel}" FontSize="11" VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextBright}" />
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Grid>
-                        <!-- The stage sizes itself to the map: every floor of a multi-floor map gets a full band. -->
-                        <Border CornerRadius="6" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
-                                Background="{DynamicResource PanelBg}" ClipToBounds="True"
-                                KeyboardNavigation.TabNavigation="Local" KeyboardNavigation.TabIndex="2"
-                                AutomationProperties.Name="The map with the drawn layers; the numbers are in the inspector">
-                            <Panel>
-                                <host:ScoutingMapHost />
-                                <!-- A clicked mark's card: every row behind it, each opening, playing and starring like the inspector's. -->
-                                <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10" Padding="12 8" Width="330"
-                                        CornerRadius="6" Background="{DynamicResource CardBg}"
-                                        BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
-                                        DataContext="{Binding Layers.MarkCard}" x:DataType="layers:ScoutingMarkCardViewModel"
-                                        IsVisible="{Binding IsOpen}" AutomationProperties.Name="Selected map mark">
-                                    <DockPanel>
-                                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                            <StackPanel Spacing="1">
-                                                <TextBlock FontSize="11" Text="{Binding Layer}" Foreground="{DynamicResource TextMid}" />
-                                                <TextBlock FontSize="13" FontWeight="SemiBold" Text="{Binding Title}" TextWrapping="Wrap"
-                                                           Foreground="{DynamicResource TextBright}" />
-                                            </StackPanel>
-                                            <Button Grid.Column="1" Classes="ghost" Content="Close" FontSize="11" Padding="8 2" VerticalAlignment="Top"
-                                                    Command="{Binding CloseCommand}" ToolTip.Tip="Close (Esc)"
-                                                    AutomationProperties.Name="{Binding CloseLabel}" />
-                                        </Grid>
-                                        <ScrollViewer MaxHeight="280" Margin="0 4 0 0">
-                                            <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource InspectorRow}" />
-                                        </ScrollViewer>
-                                    </DockPanel>
-                                </Border>
-                                <!-- What the stage waits on, or why it is empty: a line over the map, never a spinner. -->
-                                <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Padding="10 6"
-                                        CornerRadius="6" MaxWidth="460" Background="{DynamicResource CardBg}"
-                                        BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
-                                        IsVisible="{Binding Layers.HasStageNote}">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <StackPanel Spacing="4" VerticalAlignment="Center" IsVisible="{Binding Layers.IsStageBuilding}">
-                                            <Border Classes="skel" Width="22" Height="5" />
-                                            <Border Classes="skel" Width="14" Height="5" />
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding Layers.StageNote}" FontSize="12" TextWrapping="Wrap"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource TextValue}" />
-                                    </StackPanel>
-                                </Border>
-                            </Panel>
-                        </Border>
-                        <WrapPanel Orientation="Horizontal">
-                            <ItemsControl ItemsSource="{Binding Layers.Legend}" ItemsPanel="{StaticResource WrapItems}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="layers:ScoutingLegendEntry">
-                                        <StackPanel Orientation="Horizontal" Spacing="5" Margin="0 0 16 2">
-                                            <ContentControl Content="{Binding Swatch}" ContentTemplate="{StaticResource Swatch}" />
-                                            <TextBlock FontSize="11" Text="{Binding Text}" Foreground="{DynamicResource TextBright}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock FontSize="11" Text="other layers fade while one is inspected"
-                                       Foreground="{DynamicResource TextBright}" />
-                        </WrapPanel>
-
-                        <!-- What a map cannot draw: the strip minis, each inspectable. -->
-                        <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="6"
-                                Background="{DynamicResource BorderSubtle}"
-                                KeyboardNavigation.TabNavigation="Local" KeyboardNavigation.TabIndex="4">
-                            <ItemsControl ItemsSource="{Binding Layers.StripMinis}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <UniformGrid Rows="1" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="layers:ScoutingLayerChipViewModel">
-                                        <Border Background="{DynamicResource PanelBg}" Padding="10 8" Margin="0 0 1 0">
-                                            <StackPanel Spacing="6">
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0" Classes="h" Text="{Binding Title}"
-                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                                    <Button Grid.Column="1" Classes="ghost" Padding="6 2" FontSize="11"
-                                                            Content="Inspect" Command="{Binding InspectCommand}"
-                                                            AutomationProperties.Name="{Binding InspectLabel}" />
+                    <!-- Work area: the map stage and the inspector. Tab walks the layer chips, the stage, the inspector and
+                         then the strip under the map: each is its own tab group, ordered by its index. -->
+                    <Grid ColumnDefinitions="*,12,400" Margin="12 4 12 12" KeyboardNavigation.TabNavigation="Local">
+                        <Border Grid.Column="0" Name="StagePanel" Classes="panel" Padding="12" VerticalAlignment="Top"
+                                SizeChanged="OnStagePanelSizeChanged">
+                            <StackPanel Spacing="10">
+                                <!-- The stage sizes itself to the map: every floor of a multi-floor map gets a full band. -->
+                                <Border CornerRadius="6" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                        Background="{DynamicResource PanelBg}" ClipToBounds="True"
+                                        KeyboardNavigation.TabNavigation="Local" KeyboardNavigation.TabIndex="2"
+                                        AutomationProperties.Name="The map with the drawn layers; the numbers are in the inspector">
+                                    <Panel>
+                                        <host:ScoutingMapHost />
+                                        <!-- A clicked mark's card: every row behind it, each opening, playing and starring like the inspector's. -->
+                                        <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10" Padding="12 8" Width="330"
+                                                CornerRadius="6" Background="{DynamicResource CardBg}"
+                                                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                                DataContext="{Binding Layers.MarkCard}" x:DataType="layers:ScoutingMarkCardViewModel"
+                                                IsVisible="{Binding IsOpen}" AutomationProperties.Name="Selected map mark">
+                                            <DockPanel>
+                                                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <StackPanel Spacing="1">
+                                                        <TextBlock FontSize="11" Text="{Binding Layer}" Foreground="{DynamicResource TextMid}" />
+                                                        <TextBlock FontSize="13" FontWeight="SemiBold" Text="{Binding Title}" TextWrapping="Wrap"
+                                                                   Foreground="{DynamicResource TextBright}" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Classes="ghost" Content="Close" FontSize="11" Padding="8 2" VerticalAlignment="Top"
+                                                            Command="{Binding CloseCommand}" ToolTip.Tip="Close (Esc)"
+                                                            AutomationProperties.Name="{Binding CloseLabel}" />
                                                 </Grid>
-                                                <!-- Still building: three skeleton bars where the lines will land. -->
-                                                <StackPanel Spacing="7" Margin="0 3 0 2" IsVisible="{Binding IsBuilding}">
-                                                    <Border Classes="skel" Width="120" />
-                                                    <Border Classes="skel" Width="92" />
-                                                    <Border Classes="skel" Width="106" />
-                                                </StackPanel>
-                                                <ItemsControl ItemsSource="{Binding MiniLines}" IsVisible="{Binding ShowsMiniLines}">
+                                                <ScrollViewer MaxHeight="280" Margin="0 4 0 0">
+                                                    <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource InspectorRow}" />
+                                                </ScrollViewer>
+                                            </DockPanel>
+                                        </Border>
+                                        <!-- The inspected layer's own controls (the AWP trail window), on the map they change. -->
+                                        <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Padding="10 6"
+                                                CornerRadius="6" Background="{DynamicResource CardBg}"
+                                                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                                DataContext="{Binding Layers.Inspector}" x:DataType="layers:ScoutingInspectorViewModel"
+                                                IsVisible="{Binding HasWindows}" AutomationProperties.Name="Layer controls">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock FontSize="12" FontWeight="SemiBold" Text="{Binding Title}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextBright}" />
+                                                <TextBlock Classes="mid" Text="trail to" VerticalAlignment="Center" />
+                                                <ItemsControl ItemsSource="{Binding Windows}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
-                                                        <DataTemplate x:DataType="x:String">
-                                                            <TextBlock Text="{Binding}" FontSize="11" TextWrapping="Wrap"
-                                                                       Foreground="{DynamicResource TextBright}" />
+                                                        <DataTemplate x:DataType="layers:ScoutingWindowPillViewModel">
+                                                            <RadioButton Classes="seg pill" GroupName="scouting-window" Content="{Binding Label}"
+                                                                         IsChecked="{Binding IsOn, Mode=OneWay}" Command="{Binding PickCommand}"
+                                                                         AutomationProperties.Name="{Binding AccessibleName}" />
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
-                                                <!-- The mini's compact chart (strip build, P3.5): one template per chart type. -->
-                                                <StackPanel Spacing="4" IsVisible="{Binding HasMiniChart}">
-                                                    <ContentControl Content="{Binding MiniChart}">
-                                                        <ContentControl.DataTemplates>
-                                                            <DataTemplate x:DataType="layers:ScoutingStackChart">
-                                                                <ItemsControl ItemsSource="{Binding Rows}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate x:DataType="layers:ScoutingStackRow">
-                                                                            <Grid ColumnDefinitions="92,*,34" Margin="0 0 0 4"
-                                                                                  ToolTip.Tip="{Binding Text}"
-                                                                                  AutomationProperties.Name="{Binding Text}">
-                                                                                <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
-                                                                                           Foreground="{DynamicResource TextBright}" VerticalAlignment="Center"
-                                                                                           TextTrimming="CharacterEllipsis" />
-                                                                                <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" Margin="6 0" />
-                                                                                <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Trailing}"
-                                                                                           Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right"
-                                                                                           VerticalAlignment="Center" />
-                                                                            </Grid>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </DataTemplate>
-                                                            <DataTemplate x:DataType="layers:ScoutingStripChart">
-                                                                <ItemsControl ItemsSource="{Binding Lanes}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate x:DataType="layers:ScoutingStripLane">
-                                                                            <Grid ColumnDefinitions="18,*" Margin="0 0 0 4"
-                                                                                  ToolTip.Tip="{Binding Text}"
-                                                                                  AutomationProperties.Name="{Binding Text}">
-                                                                                <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
-                                                                                           Foreground="{DynamicResource TextBright}" VerticalAlignment="Center" />
-                                                                                <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" />
-                                                                            </Grid>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </DataTemplate>
-                                                            <DataTemplate x:DataType="layers:ScoutingDumbbellChart">
-                                                                <ItemsControl ItemsSource="{Binding Rows}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate x:DataType="layers:ScoutingDumbbell">
-                                                                            <Grid ColumnDefinitions="24,*,72" Margin="0 0 0 4">
-                                                                                <TextBlock Grid.Column="0" FontSize="11" FontWeight="Bold" Text="{Binding Label}"
-                                                                                           Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
-                                                                                <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" Margin="0 0 6 0" />
-                                                                                <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Value}"
-                                                                                           Foreground="{DynamicResource TextBright}" HorizontalAlignment="Right"
-                                                                                           VerticalAlignment="Center" />
-                                                                            </Grid>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </DataTemplate>
-                                                            <DataTemplate x:DataType="layers:ScoutingTableChart">
-                                                                <StackPanel Spacing="2">
-                                                                    <Grid ColumnDefinitions="*,62,62">
-                                                                        <TextBlock Grid.Column="1" FontSize="11" FontWeight="SemiBold" Text="{Binding First}"
-                                                                                   Foreground="{DynamicResource Pb2dTeamCt}" HorizontalAlignment="Right" />
-                                                                        <TextBlock Grid.Column="2" FontSize="11" FontWeight="SemiBold" Text="{Binding Second}"
-                                                                                   Foreground="{DynamicResource Pb2dTeamT}" HorizontalAlignment="Right" />
-                                                                    </Grid>
-                                                                    <ItemsControl ItemsSource="{Binding Rows}">
-                                                                        <ItemsControl.ItemTemplate>
-                                                                            <DataTemplate x:DataType="layers:ScoutingTableRow">
-                                                                                <Grid ColumnDefinitions="*,62,62" Margin="0 0 0 2">
-                                                                                    <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
-                                                                                               Foreground="{DynamicResource TextBright}" />
-                                                                                    <TextBlock Grid.Column="1" FontSize="11" Text="{Binding First}"
-                                                                                               Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right" />
-                                                                                    <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Second}"
-                                                                                               Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right" />
-                                                                                </Grid>
-                                                                            </DataTemplate>
-                                                                        </ItemsControl.ItemTemplate>
-                                                                    </ItemsControl>
-                                                                </StackPanel>
-                                                            </DataTemplate>
-                                                        </ContentControl.DataTemplates>
-                                                    </ContentControl>
-                                                    <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextBright}"
-                                                               Text="{Binding MiniChart.Caption, FallbackValue=''}" />
-                                                </StackPanel>
                                             </StackPanel>
                                         </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                        <!-- What the stage waits on, or why it is empty: a line over the map, never a spinner. -->
+                                        <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Padding="10 6"
+                                                CornerRadius="6" MaxWidth="460" Background="{DynamicResource CardBg}"
+                                                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                                IsVisible="{Binding Layers.HasStageNote}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <StackPanel Spacing="4" VerticalAlignment="Center" IsVisible="{Binding Layers.IsStageBuilding}">
+                                                    <Border Classes="skel" Width="22" Height="5" />
+                                                    <Border Classes="skel" Width="14" Height="5" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Layers.StageNote}" FontSize="12" TextWrapping="Wrap"
+                                                           VerticalAlignment="Center" Foreground="{DynamicResource TextValue}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Panel>
+                                </Border>
+                                <WrapPanel Orientation="Horizontal">
+                                    <ItemsControl ItemsSource="{Binding Layers.Legend}" ItemsPanel="{StaticResource WrapItems}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="layers:ScoutingLegendEntry">
+                                                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0 0 16 2">
+                                                    <ContentControl Content="{Binding Swatch}" ContentTemplate="{StaticResource Swatch}" />
+                                                    <TextBlock FontSize="11" Text="{Binding Text}" Foreground="{DynamicResource TextBright}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock FontSize="11" Text="other layers fade while one is inspected"
+                                               Foreground="{DynamicResource TextBright}" />
+                                </WrapPanel>
+
+                                <!-- What a map cannot draw: the strip minis, each inspectable. -->
+                                <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="6"
+                                        Background="{DynamicResource BorderSubtle}"
+                                        KeyboardNavigation.TabNavigation="Local" KeyboardNavigation.TabIndex="4">
+                                    <ItemsControl ItemsSource="{Binding Layers.StripMinis}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Rows="1" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="layers:ScoutingLayerChipViewModel">
+                                                <Border Background="{DynamicResource PanelBg}" Padding="10 8" Margin="0 0 1 0">
+                                                    <StackPanel Spacing="6">
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Grid.Column="0" Classes="h" Text="{Binding Title}"
+                                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                            <Button Grid.Column="1" Classes="ghost" Padding="6 2" FontSize="11"
+                                                                    Content="Inspect" Command="{Binding InspectCommand}"
+                                                                    AutomationProperties.Name="{Binding InspectLabel}" />
+                                                        </Grid>
+                                                        <!-- Still building: three skeleton bars where the lines will land. -->
+                                                        <StackPanel Spacing="7" Margin="0 3 0 2" IsVisible="{Binding IsBuilding}">
+                                                            <Border Classes="skel" Width="120" />
+                                                            <Border Classes="skel" Width="92" />
+                                                            <Border Classes="skel" Width="106" />
+                                                        </StackPanel>
+                                                        <ItemsControl ItemsSource="{Binding MiniLines}" IsVisible="{Binding ShowsMiniLines}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="x:String">
+                                                                    <TextBlock Text="{Binding}" FontSize="11" TextWrapping="Wrap"
+                                                                               Foreground="{DynamicResource TextBright}" />
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <!-- The mini's compact chart (strip build, P3.5): one template per chart type. -->
+                                                        <StackPanel Spacing="4" IsVisible="{Binding HasMiniChart}">
+                                                            <ContentControl Content="{Binding MiniChart}">
+                                                                <ContentControl.DataTemplates>
+                                                                    <DataTemplate x:DataType="layers:ScoutingStackChart">
+                                                                        <ItemsControl ItemsSource="{Binding Rows}">
+                                                                            <ItemsControl.ItemTemplate>
+                                                                                <DataTemplate x:DataType="layers:ScoutingStackRow">
+                                                                                    <Grid ColumnDefinitions="92,*,34" Margin="0 0 0 4"
+                                                                                          ToolTip.Tip="{Binding Text}"
+                                                                                          AutomationProperties.Name="{Binding Text}">
+                                                                                        <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
+                                                                                                   Foreground="{DynamicResource TextBright}" VerticalAlignment="Center"
+                                                                                                   TextTrimming="CharacterEllipsis" />
+                                                                                        <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" Margin="6 0" />
+                                                                                        <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Trailing}"
+                                                                                                   Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right"
+                                                                                                   VerticalAlignment="Center" />
+                                                                                    </Grid>
+                                                                                </DataTemplate>
+                                                                            </ItemsControl.ItemTemplate>
+                                                                        </ItemsControl>
+                                                                    </DataTemplate>
+                                                                    <DataTemplate x:DataType="layers:ScoutingStripChart">
+                                                                        <ItemsControl ItemsSource="{Binding Lanes}">
+                                                                            <ItemsControl.ItemTemplate>
+                                                                                <DataTemplate x:DataType="layers:ScoutingStripLane">
+                                                                                    <Grid ColumnDefinitions="18,*" Margin="0 0 0 4"
+                                                                                          ToolTip.Tip="{Binding Text}"
+                                                                                          AutomationProperties.Name="{Binding Text}">
+                                                                                        <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
+                                                                                                   Foreground="{DynamicResource TextBright}" VerticalAlignment="Center" />
+                                                                                        <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" />
+                                                                                    </Grid>
+                                                                                </DataTemplate>
+                                                                            </ItemsControl.ItemTemplate>
+                                                                        </ItemsControl>
+                                                                    </DataTemplate>
+                                                                    <DataTemplate x:DataType="layers:ScoutingDumbbellChart">
+                                                                        <ItemsControl ItemsSource="{Binding Rows}">
+                                                                            <ItemsControl.ItemTemplate>
+                                                                                <DataTemplate x:DataType="layers:ScoutingDumbbell">
+                                                                                    <Grid ColumnDefinitions="24,*,72" Margin="0 0 0 4">
+                                                                                        <TextBlock Grid.Column="0" FontSize="11" FontWeight="Bold" Text="{Binding Label}"
+                                                                                                   Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                                                                        <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" Margin="0 0 6 0" />
+                                                                                        <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Value}"
+                                                                                                   Foreground="{DynamicResource TextBright}" HorizontalAlignment="Right"
+                                                                                                   VerticalAlignment="Center" />
+                                                                                    </Grid>
+                                                                                </DataTemplate>
+                                                                            </ItemsControl.ItemTemplate>
+                                                                        </ItemsControl>
+                                                                    </DataTemplate>
+                                                                    <DataTemplate x:DataType="layers:ScoutingTableChart">
+                                                                        <StackPanel Spacing="2">
+                                                                            <Grid ColumnDefinitions="*,62,62">
+                                                                                <TextBlock Grid.Column="1" FontSize="11" FontWeight="SemiBold" Text="{Binding First}"
+                                                                                           Foreground="{DynamicResource Pb2dTeamCt}" HorizontalAlignment="Right" />
+                                                                                <TextBlock Grid.Column="2" FontSize="11" FontWeight="SemiBold" Text="{Binding Second}"
+                                                                                           Foreground="{DynamicResource Pb2dTeamT}" HorizontalAlignment="Right" />
+                                                                            </Grid>
+                                                                            <ItemsControl ItemsSource="{Binding Rows}">
+                                                                                <ItemsControl.ItemTemplate>
+                                                                                    <DataTemplate x:DataType="layers:ScoutingTableRow">
+                                                                                        <Grid ColumnDefinitions="*,62,62" Margin="0 0 0 2">
+                                                                                            <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
+                                                                                                       Foreground="{DynamicResource TextBright}" />
+                                                                                            <TextBlock Grid.Column="1" FontSize="11" Text="{Binding First}"
+                                                                                                       Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right" />
+                                                                                            <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Second}"
+                                                                                                       Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right" />
+                                                                                        </Grid>
+                                                                                    </DataTemplate>
+                                                                                </ItemsControl.ItemTemplate>
+                                                                            </ItemsControl>
+                                                                        </StackPanel>
+                                                                    </DataTemplate>
+                                                                </ContentControl.DataTemplates>
+                                                            </ContentControl>
+                                                            <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextBright}"
+                                                                       Text="{Binding MiniChart.Caption, FallbackValue=''}" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </StackPanel>
                         </Border>
-                    </StackPanel>
-                </Border>
 
-                <!-- Inspector: the focused layer's reads and rows, then the one-pager. No taller than the stage
-                     beside it (the code-behind sets the cap): the title and scope stay put, the rest scrolls. -->
-                <Border Grid.Column="2" Name="InspectorPanel" Classes="panel" Padding="14 12 4 12" VerticalAlignment="Top"
-                        KeyboardNavigation.TabNavigation="Local" KeyboardNavigation.TabIndex="3"
-                        DataContext="{Binding Layers.Inspector}"
-                        AutomationProperties.Name="Inspector">
-                    <DockPanel>
-                    <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0 0 10 0">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="15" FontWeight="Bold"
-                                       Foreground="{DynamicResource TextBright}" TextWrapping="Wrap" />
-                            <Border Grid.Column="1" BorderBrush="{DynamicResource AccentCaution}" BorderThickness="1"
-                                    CornerRadius="4" Padding="5 1" VerticalAlignment="Center"
-                                    IsVisible="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).ShowBuildStatus, FallbackValue=False}">
-                                <TextBlock Text="{Binding BuildCode}" FontSize="11" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource AccentCaution}" />
-                            </Border>
-                        </Grid>
-                        <TextBlock Classes="mid" Text="{Binding ScopeLine}" Margin="0 0 0 4" />
-                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0 0 0 4" IsVisible="{Binding HasWindows}">
-                            <TextBlock Classes="mid" Text="Trail to" VerticalAlignment="Center" />
-                            <ItemsControl ItemsSource="{Binding Windows}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="layers:ScoutingWindowPillViewModel">
-                                        <RadioButton Classes="seg pill" GroupName="scouting-window" Content="{Binding Label}"
-                                                     IsChecked="{Binding IsOn, Mode=OneWay}" Command="{Binding PickCommand}"
-                                                     AutomationProperties.Name="{Binding AccessibleName}" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </StackPanel>
-                    <ScrollViewer Name="InspectorScroll" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Spacing="4" Margin="0 0 10 0">
-                        <TextBlock Text="{Binding StatusMessage}" FontSize="12" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextBright}" IsVisible="{Binding HasStatusMessage}" />
-                        <!-- Still building: a read and four rows of skeleton where the lines will land. -->
-                        <StackPanel Spacing="10" Margin="0 4 0 2" IsVisible="{Binding IsBuilding}"
-                                    AutomationProperties.Name="Reading the rounds for this layer">
-                            <Border Classes="skel" Width="300" Height="11" />
-                            <Border Classes="skel" Width="220" Height="11" />
-                            <Grid ColumnDefinitions="*,Auto" Margin="0 8 0 0">
-                                <Border Classes="skel" Width="150" />
-                                <Border Grid.Column="1" Classes="skel" Width="54" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Border Classes="skel" Width="180" />
-                                <Border Grid.Column="1" Classes="skel" Width="54" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Border Classes="skel" Width="128" />
-                                <Border Grid.Column="1" Classes="skel" Width="54" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Border Classes="skel" Width="164" />
-                                <Border Grid.Column="1" Classes="skel" Width="54" />
-                            </Grid>
-                        </StackPanel>
-                        <ItemsControl ItemsSource="{Binding Reads}" ItemTemplate="{StaticResource InspectorRow}" />
-                        <ItemsControl ItemsSource="{Binding Sections}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="layers:ScoutingInspectorSectionViewModel">
-                                    <StackPanel Margin="0 10 0 0">
-                                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextCardHeader}" Margin="0 0 0 2"
-                                                   IsVisible="{Binding HasTitle}" TextWrapping="Wrap" />
-                                        <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource InspectorRow}" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <TextBlock Classes="mid" Text="{Binding ReviewLine}"
-                                   IsVisible="{Binding ReviewLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-
-                        <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0" Padding="0 10 0 0"
-                                Margin="0 14 0 0"
-                                DataContext="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext)}"
-                                x:DataType="vm:ScoutingReportTabViewModel">
-                            <StackPanel Spacing="4">
-                                <TextBlock Classes="h" FontSize="12" Text="{Binding Editor.OnePagerHeading}" />
-                                <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" TextWrapping="Wrap"
-                                           Text="Suggested lines start starred. Unstar any; star a number to add it with its scope." />
-                                <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !Editor.HasStarred}"
-                                           Text="Nothing starred. The one-pager export stays off until something is." />
-                                <ItemsControl ItemsSource="{Binding Editor.Starred}">
+                        <!-- Inspector: the focused layer's reads and rows, then the one-pager. No taller than the stage
+                             beside it (the code-behind sets the cap): the title and scope stay put, the rest scrolls. -->
+                        <Border Grid.Column="2" Name="InspectorPanel" Classes="panel" Padding="14 12 4 12" VerticalAlignment="Top"
+                                KeyboardNavigation.TabNavigation="Local" KeyboardNavigation.TabIndex="3"
+                                DataContext="{Binding Layers.Inspector}"
+                                AutomationProperties.Name="Inspector">
+                            <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0 0 10 0">
+                                <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextBright}" TextWrapping="Wrap" />
+                                <!-- The focused layer's tabs, when it names more than one. -->
+                                <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Margin="0 4 0 2"
+                                        IsVisible="{Binding HasTabs}">
+                                    <ItemsControl ItemsSource="{Binding Tabs}" ItemsPanel="{StaticResource WrapItems}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="layers:ScoutingInspectorTabViewModel">
+                                                <Button Classes="maptab" Classes.on="{Binding IsSelected}" Padding="12 6"
+                                                        Content="{Binding Name}" Command="{Binding SelectCommand}"
+                                                        AutomationProperties.Name="{Binding Name}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </StackPanel>
+                            <ScrollViewer Name="InspectorScroll" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Spacing="4" Margin="0 0 10 0">
+                                <TextBlock Text="{Binding StatusMessage}" FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextBright}" IsVisible="{Binding HasStatusMessage}" />
+                                <!-- Still building: a read and four rows of skeleton where the lines will land. -->
+                                <StackPanel Spacing="10" Margin="0 4 0 2" IsVisible="{Binding IsBuilding}"
+                                            AutomationProperties.Name="Reading the rounds for this layer">
+                                    <Border Classes="skel" Width="300" Height="11" />
+                                    <Border Classes="skel" Width="220" Height="11" />
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0 8 0 0">
+                                        <Border Classes="skel" Width="150" />
+                                        <Border Grid.Column="1" Classes="skel" Width="54" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Border Classes="skel" Width="180" />
+                                        <Border Grid.Column="1" Classes="skel" Width="54" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Border Classes="skel" Width="128" />
+                                        <Border Grid.Column="1" Classes="skel" Width="54" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Border Classes="skel" Width="164" />
+                                        <Border Grid.Column="1" Classes="skel" Width="54" />
+                                    </Grid>
+                                </StackPanel>
+                                <ItemsControl ItemsSource="{Binding Reads}" ItemTemplate="{StaticResource InspectorRow}" />
+                                <ItemsControl ItemsSource="{Binding TabSections}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:ScoutingReportFindingViewModel">
-                                            <Grid ColumnDefinitions="*,Auto" Margin="0 2">
-                                                <TextBlock Grid.Column="0" FontSize="12" TextWrapping="Wrap">
-                                                    <Run Text="{Binding Where}" Foreground="{DynamicResource TextBright}" />
-                                                    <Run Text=" · " Foreground="{DynamicResource TextBright}" />
-                                                    <Run Text="{Binding DisplayText}" Foreground="{DynamicResource TextValue}" />
-                                                </TextBlock>
-                                                <Button Grid.Column="1" Classes="ghost" Padding="3" VerticalAlignment="Top"
-                                                        Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).UnstarCommand, FallbackValue={x:Null}}"
-                                                        CommandParameter="{Binding}"
-                                                        ToolTip.Tip="Take it off the one-pager">
-                                                    <AutomationProperties.Name>
-                                                        <MultiBinding StringFormat="Unstar &quot;{0}&quot; · {1}">
-                                                            <Binding Path="Text" />
-                                                            <Binding Path="Where" />
-                                                        </MultiBinding>
-                                                    </AutomationProperties.Name>
-                                                    <Path Classes="star on" Data="{StaticResource StarGeometry}" />
-                                                </Button>
-                                            </Grid>
+                                        <DataTemplate x:DataType="layers:ScoutingInspectorSectionViewModel">
+                                            <StackPanel Margin="0 10 0 0">
+                                                <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextCardHeader}" Margin="0 0 0 2"
+                                                           IsVisible="{Binding HasTitle}" TextWrapping="Wrap" />
+                                                <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource InspectorRow}" />
+                                            </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                    </ScrollViewer>
-                    </DockPanel>
-                </Border>
-            </Grid>
+                                <TextBlock Classes="mid" Text="{Binding ReviewLine}"
+                                           IsVisible="{Binding ReviewLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
-            <!-- Players: the current roster, roles and spots on the map in view, numbers on it or on every map. -->
-            <Border Classes="panel" Padding="14 10" IsVisible="{Binding HasMaps}">
-                <StackPanel Spacing="4">
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" >
-                        <TextBlock Classes="h" Text="{Binding PlayersTitle}" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Classes="ghost" Padding="8 2" FontSize="11" Margin="10 0 0 0"
-                                Command="{Binding TogglePlayersScopeCommand}" VerticalAlignment="Center"
-                                AutomationProperties.Name="Players stats scope"
-                                ToolTip.Tip="Rating, K/D, ADR, KAST, opening and 1vX on the map in view, or pooled over every map. Roles, CT spot and T role stay on the map in view.">
-                            <TextBlock Text="{Binding PlayersScopeLabel, StringFormat='Numbers: {0}'}" />
-                        </Button>
-                        <TextBlock Grid.Column="3" FontSize="11" Foreground="{DynamicResource TextBright}" VerticalAlignment="Center"
-                                   Margin="0 0 10 0" Text="roles are suggested from the demos; the reason is under each" />
-                        <ComboBox Grid.Column="4" FontSize="11" ItemsSource="{Binding IglOptions}" SelectedItem="{Binding SelectedIgl}"
-                                  AutomationProperties.Name="In-game leader"
-                                  ToolTip.Tip="The in-game leader is yours to set: the demos cannot tell it. Saved with this team's notes." />
+                            </StackPanel>
+                            </ScrollViewer>
+                            </DockPanel>
+                        </Border>
                     </Grid>
-                    <TextBlock FontSize="11" Foreground="{DynamicResource AccentCaution}" TextWrapping="Wrap"
-                               Text="{Binding PlayersStatusLine}" IsVisible="{Binding HasPlayersStatus}" />
-                    <Grid ColumnDefinitions="20,1.4*,1.7*,0.8*,0.8*,0.8*,0.8*,0.9*,0.9*,1.2*,1.1*,104" Margin="0 6 0 2">
-                        <TextBlock Grid.Column="1" Classes="col-label" Text="Player" />
-                        <TextBlock Grid.Column="2" Classes="col-label" Text="Role" />
-                        <TextBlock Grid.Column="3" Classes="col-label" Text="Rating" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="4" Classes="col-label" Text="K/D" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="5" Classes="col-label" Text="ADR" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="6" Classes="col-label" Text="KAST" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="7" Classes="col-label" Text="Opening" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="8" Classes="col-label" Text="1vX" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="9" Classes="col-label" Text="CT spot" Margin="20 0 0 0" />
-                        <TextBlock Grid.Column="10" Classes="col-label" Text="T role" />
-                    </Grid>
-                    <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !HasPlayers}"
-                               Text="No current roster for this team yet. Team Identity names the five once they have played together in two demos; Library › Teams shows what it has." />
-                    <ItemsControl ItemsSource="{Binding Players}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:PlayerRowViewModel">
-                                <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0" Padding="0 5">
-                                    <Grid ColumnDefinitions="20,1.4*,1.7*,0.8*,0.8*,0.8*,0.8*,0.9*,0.9*,1.2*,1.1*,104">
-                                        <Ellipse Grid.Column="0" Width="10" Height="10" VerticalAlignment="Top" Margin="0 3 0 0"
-                                                 Fill="{Binding Color, Converter={x:Static local:ScoutingColorBrush.Instance}}" />
-                                        <StackPanel Grid.Column="1">
-                                            <Button Classes="num" HorizontalAlignment="Left" Padding="0"
-                                                    Command="{Binding OpenOverviewCommand}" IsEnabled="{Binding OpenOverviewCommand, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                    ToolTip.Tip="{Binding OverviewToolTip}" AutomationProperties.Name="{Binding OverviewToolTip}">
-                                                <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                            </Button>
-                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Text="{Binding Appearances}" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2" Margin="0 0 6 0">
-                                            <TextBlock Classes="val" Text="{Binding Role}" />
-                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Text="{Binding RoleNote}"
-                                                       IsVisible="{Binding HasRoleNote}" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                        <ContentControl Grid.Column="3" Content="{Binding Rating}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
-                                        <ContentControl Grid.Column="4" Content="{Binding KillDeath}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
-                                        <ContentControl Grid.Column="5" Content="{Binding Adr}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
-                                        <ContentControl Grid.Column="6" Content="{Binding Kast}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
-                                        <ContentControl Grid.Column="7" Content="{Binding Opening}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
-                                        <ContentControl Grid.Column="8" Content="{Binding Clutch}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
-                                        <TextBlock Grid.Column="9" Classes="mid" Text="{Binding CtSpot}" Margin="20 0 4 0"
-                                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CtSpotNote}" />
-                                        <TextBlock Grid.Column="10" Classes="val" Text="{Binding TRole}" TextTrimming="CharacterEllipsis" />
-                                        <Button Grid.Column="11" Classes="ghost" Padding="8 3" FontSize="11" HorizontalAlignment="Right"
-                                                Content="{Binding IsolateLabel}" Command="{Binding IsolateCommand}"
-                                                CommandParameter="{Binding}" IsVisible="{Binding CanIsolate}"
-                                                AutomationProperties.Name="{Binding IsolateLabel}"
-                                                ToolTip.Tip="Shows this player's CT setup positions alone on the map; Show all puts everyone back" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
                 </StackPanel>
             </Border>
 
@@ -1255,4 +1290,78 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
+
+    <!-- The one-pager: the starred lines, unstar, and the export, in a panel along the right edge. Escape, Close or a
+         click on the dimmed page closes it. -->
+    <Border Name="OnePagerScrim" IsVisible="False" Background="{DynamicResource ModalScrim}"
+            PointerPressed="OnOnePagerScrimPressed">
+        <Border Name="OnePagerPanel" Classes="panel" Width="460" HorizontalAlignment="Right" Margin="0 12 12 12"
+                CornerRadius="8" Padding="16 14" AutomationProperties.Name="One-pager">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0 0 0 6">
+                    <TextBlock Classes="h" FontSize="15" Text="{Binding Editor.OnePagerHeading}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Name="OnePagerClose" Classes="ghost" Content="Close" FontSize="12" Padding="10 4"
+                            Click="OnOnePagerCloseClick" ToolTip.Tip="Close (Esc)" />
+                </Grid>
+                <TextBlock DockPanel.Dock="Top" FontSize="11" Foreground="{DynamicResource TextBright}" TextWrapping="Wrap"
+                           Margin="0 0 0 8"
+                           Text="Suggested lines start starred. Unstar any here; star a line or a number in the inspector to add it with its scope." />
+                <!-- The export, at the foot of the panel. -->
+                <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0 10 0 0">
+                    <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0" />
+                    <WrapPanel Orientation="Horizontal">
+                        <ComboBox FontSize="12" ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
+                                  SelectedItem="{Binding Editor.SelectedFormOption}" Margin="0 0 8 6"
+                                  AutomationProperties.Name="Export form"
+                                  ToolTip.Tip="One-pager: setups, AWP routes and utility per buy, then the starred lines. Long form: every layer in turn." />
+                        <ComboBox FontSize="12"
+                                  ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormatOptions}"
+                                  SelectedItem="{Binding Editor.SelectedFormatOption}" Margin="0 0 8 6"
+                                  AutomationProperties.Name="Export format"
+                                  IsVisible="{Binding !IsBrowser}" />
+                        <Button Classes="primary" FontSize="12" Padding="12 6" Margin="0 0 8 6"
+                                Content="{Binding Editor.ExportLabel}"
+                                Command="{Binding Editor.ExportCommand}" IsVisible="{Binding !IsBrowser}" />
+                        <Button Content="Copy markdown" Classes="ghost" FontSize="12" Padding="10 6" Margin="0 0 0 6"
+                                Click="OnCopyMarkdownClick" />
+                    </WrapPanel>
+                    <TextBlock Classes="mid" Text="{Binding Editor.ExportUnavailableNote}"
+                               IsVisible="{Binding Editor.HasExportUnavailableNote}" />
+                    <TextBlock Classes="mid" Text="{Binding Editor.ExportLine}" TextWrapping="Wrap" />
+                </StackPanel>
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="4" Margin="0 0 10 0">
+                        <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !Editor.HasStarred}"
+                                   Text="Nothing starred. The one-pager still prints each map's buy pictures." />
+                        <ItemsControl ItemsSource="{Binding Editor.Starred}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ScoutingReportFindingViewModel">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0 2">
+                                        <TextBlock Grid.Column="0" FontSize="12" TextWrapping="Wrap">
+                                            <Run Text="{Binding Where}" Foreground="{DynamicResource TextBright}" />
+                                            <Run Text=" · " Foreground="{DynamicResource TextBright}" />
+                                            <Run Text="{Binding DisplayText}" Foreground="{DynamicResource TextValue}" />
+                                        </TextBlock>
+                                        <Button Grid.Column="1" Classes="ghost" Padding="3" VerticalAlignment="Top"
+                                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).UnstarCommand, FallbackValue={x:Null}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="Take it off the one-pager">
+                                            <AutomationProperties.Name>
+                                                <MultiBinding StringFormat="Unstar &quot;{0}&quot; · {1}">
+                                                    <Binding Path="Text" />
+                                                    <Binding Path="Where" />
+                                                </MultiBinding>
+                                            </AutomationProperties.Name>
+                                            <Path Classes="star on" Data="{StaticResource StarGeometry}" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Border>
+    </Panel>
 </UserControl>

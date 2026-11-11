@@ -90,9 +90,6 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private bool _isPeriodOpen;
 
     [ObservableProperty]
-    private bool _isPoolOpen = true;
-
-    [ObservableProperty]
     private bool _isVetoOpen;
 
     [ObservableProperty]
@@ -240,17 +237,13 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             MinedPatterns = minedPatterns,
             Renderer = renderer ?? (() => new SetupHeatmapRenderer())
         };
-        Editor = new ScoutingReportEditorViewModel(_notes, IsBrowser, export, ExportHeader);
+        Editor = new ScoutingReportEditorViewModel(_notes, IsBrowser, export, ExportHeader)
+        {
+            BuyStages = BuyStagesAsync
+        };
         Editor.StarsChanged += OnStarsChanged;
         Layers = new ScoutingLayerRegistry(layers ?? ScoutingLayerCatalog.Create(), _post, this);
         Editor.LayerOrder = [.. Layers.All.Select(c => c.Id)];
-        Layers.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(ScoutingLayerRegistry.Focused))
-            {
-                OnPropertyChanged(nameof(ScopeLine));
-            }
-        };
 
         Players.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasPlayers));
         _teams.Changed += Refresh;
@@ -267,7 +260,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Refresh();
     }
 
-    /// <summary>Where both report tabs send feedback on the two layouts.</summary>
+    /// <summary>Where the report sends feedback.</summary>
     public const string FeedbackUrl = "https://github.com/CS2OpenDev/DemoViewer.NET/issues/78";
 
     public bool IsBrowser { get; }
@@ -279,10 +272,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     public ObservableCollection<VetoRowViewModel> Vetoes { get; } = [];
 
-    /// <summary>One dot per demo, by date.</summary>
-    public ObservableCollection<TimelineDotViewModel> Timeline { get; } = [];
-
-    /// <summary>The team's demos, newest first, as the Hybrid tab's Match history lists them.</summary>
+    /// <summary>The team's demos, newest first, as the Match history lists them.</summary>
     public ObservableCollection<MatchHistoryRowViewModel> MatchHistory { get; } = [];
 
     public bool HasMatchHistory => MatchHistory.Count > 0;
@@ -395,21 +385,11 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <summary>"11 vs top-30 · 10 other · 2 unknown", or what to do when no opponent has a rank.</summary>
     public string OpponentMixLine { get; private set; } = "";
 
-    /// <summary>"filled = won · de_nuke bright".</summary>
-    public string TimelineCaption => SelectedMap is { } map ? $"filled = won, ring = lost, large = top-30 opponent · {map.MapLabel} bright" : "";
-
     /// <summary>"18 demos", the sample the export prints under its title.</summary>
     public string SampleSizeLine { get; private set; } = "";
 
     /// <summary>"Deciders: 3-1 (4 inferable)", or empty.</summary>
     public string DeciderLine { get; private set; } = "";
-
-    public bool HasDeciderData => DeciderLine.Length > 0;
-
-    /// <summary>"de_mirage · CT · Full buy · 6 maps".</summary>
-    public string ScopeLine => SelectedMap is not { } map
-        ? ""
-        : $"{map.MapLabel} · {Side.Label()} · {(Buy == ScoutingBuy.All ? "all buys" : Buy + " buy")} · {ScoutingLayerBase.Plural(map.Played, "map")}";
 
     /// <summary>"de_mirage open below · a row opens its map · CT and T are the team's own round win %".</summary>
     public string PoolCaption => SelectedMap is { } map
@@ -500,11 +480,10 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         }
 
         OnPropertyChanged(nameof(MapName));
-        OnPropertyChanged(nameof(TimelineCaption));
         OnPropertyChanged(nameof(PoolCaption));
         OnPropertyChanged(nameof(PlayersTitle));
         OnPropertyChanged(nameof(PlayersScopeLabel));
-        ProjectTimeline();
+        ProjectSample();
         ProjectScope();
         SeedSuggested();
     }
@@ -535,10 +514,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         }
     }
 
-    [RelayCommand]
-    private void TogglePool() => IsPoolOpen = !IsPoolOpen;
-
-    /// <summary>Opens the feedback issue for the two report layouts in the browser.</summary>
+    /// <summary>Opens the Scouting Report's feedback issue in the browser.</summary>
     [RelayCommand]
     private void GiveFeedback() => _openUri(FeedbackUrl);
 
@@ -699,7 +675,6 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             _data = null;
             Wins = Losses = 0;
             RecordLine = HeadToHeadLine = DemosLine = SampleSizeLine = DeciderLine = "";
-            Timeline.Clear();
             ProjectMatchHistory(null);
             OpponentMixLine = "";
             Players.Clear();
@@ -871,29 +846,21 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         OnPropertyChanged(nameof(DemosLine));
         OnPropertyChanged(nameof(SampleSizeLine));
         OnPropertyChanged(nameof(DeciderLine));
-        OnPropertyChanged(nameof(HasDeciderData));
         OnPropertyChanged(nameof(HasMaps));
         OnPropertyChanged(nameof(HasSelectionWithoutMaps));
         OnPropertyChanged(nameof(OpponentMixLine));
     }
 
-    // A rank was set or cleared: the box refills, and the mix and the dot sizes follow.
+    // A rank was set or cleared: the box refills, and the mix and the match history follow.
     private void OnRanksChanged()
     {
         VrsRank.Refresh();
         HltvRank.Refresh();
         OnPropertyChanged(nameof(RanksProblem));
         OnPropertyChanged(nameof(HasRanksProblem));
-        ProjectTimeline();
+        ProjectSample();
         RaiseHeader();
     }
-
-    private static string TierNote(OpponentTier tier) => tier switch
-    {
-        OpponentTier.Top30 => " · vs top-30",
-        OpponentTier.Other => " · vs ranked below 30",
-        _ => " · opponent rank unknown"
-    };
 
     private OpponentTier TierOf(TeamDemoFacts demo) =>
         _ranks.TierAt(demo.OpponentId, DateOnly.FromDateTime(new DateTime(demo.Ticks)));
@@ -922,31 +889,11 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             : $"{top} vs top-30 · {other} other · {unknown} unknown";
     }
 
-    private void ProjectTimeline()
+    // The sample's opponent mix and match history.
+    private void ProjectSample()
     {
-        Timeline.Clear();
         ProjectOpponentMix(_data);
         ProjectMatchHistory(_data);
-        if (_data is not { Demos.Count: > 0 } data)
-        {
-            return;
-        }
-
-        long min = data.Demos.Min(d => d.Ticks);
-        long max = data.Demos.Max(d => d.Ticks);
-        double span = Math.Max(1, max - min);
-        int i = 0;
-        foreach (TeamDemoFacts demo in data.Demos.OrderBy(d => d.Ticks))
-        {
-            double x = 4 + (demo.Ticks - min) / span * (TimelineDotViewModel.Width - 15);
-            double y = 1 + i++ % 3 * 5;
-            OpponentTier tier = TierOf(demo);
-            string result = demo.Won switch { true => "won", false => "lost", _ => "no result" };
-            Timeline.Add(new TimelineDotViewModel(x, y, demo.Won == true,
-                SelectedMap is { } map && map.Map == demo.Map,
-                $"{ScoutingNames.Map(demo.Map)} · {new DateTime(demo.Ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} · {result}{TierNote(tier)}",
-                tier == OpponentTier.Top30));
-        }
     }
 
     private void ProjectMatchHistory(ScoutingReportData? data)
@@ -982,7 +929,6 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     {
         Layers.ScopeSuffix = SelectedMap is { } m ? ScoutingLayerBase.Plural(m.Played, "map") : "";
         Layers.SetScope(_data, SelectedMap?.Map ?? "", Side, Buy);
-        OnPropertyChanged(nameof(ScopeLine));
         ProjectNotices();
         ProjectPlayers();
     }
