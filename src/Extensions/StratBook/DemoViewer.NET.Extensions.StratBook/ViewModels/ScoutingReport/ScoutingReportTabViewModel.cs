@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.Sdk.Review;
+using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
@@ -35,9 +36,11 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 ///         <item>The players, then Period Diff, the veto history and the long form, collapsed.</item>
 ///     </list>
 ///     <para>
-///         <b>Loads.</b> Opening a team starts its shared loads (<see cref="ScoutingReportData" />): the record and
-///         the demos at once, every service build on its own worker. The stage builds the scope in view from them;
-///         the long form builds every map and side once they have all landed, and is what the export prints.
+///         <b>Loads.</b> Opening a team starts its loads (<see cref="ScoutingReportData" />): the record and the
+///         demos at once, every service build on its own worker. They come from <see cref="ScoutingReportLoads" />,
+///         so another tab on the same team joins them instead of loading again. The stage builds the scope in
+///         view from them; the long form builds every map and side once they have all landed, and is what the
+///         export prints.
 ///     </para>
 ///     <para>
 ///         Delegate-injected (the Teams tab's own precedent): the VM owns no clustering and no aggregation of
@@ -49,17 +52,18 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 {
     private readonly GrenadeIndex? _grenades;
     private readonly IExtensionLibrary _library;
+    private readonly ScoutingReportLoads _loads;
     private readonly Func<DateTime> _now;
     private readonly ScoutingReviewOpener _opener;
     private readonly Action<Action> _post;
     private readonly RoundIndexStore? _roundIndex;
-    private readonly Func<string, Func<Action, Task>> _runSection;
     private readonly ScoutingReportSources _sources;
     private readonly TeamIdentityService _teams;
     private readonly VetoHistoryStore _vetoes;
     private readonly TeamRanksStore _ranks;
     private readonly ScoutingReportNotesStore _notes;
     private readonly Func<ulong, PlayerOverviewScope?, bool>? _openPlayerOverview;
+    private readonly Func<string, bool> _openUri;
 
     // The long form's layer lines for the current loads, by map; empty until every load has landed.
     private IReadOnlyList<ScoutingReportFindingSource> _layerFindings = [];
@@ -145,7 +149,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <param name="notes">The user's stars, edits and notes; a session-only store when null.</param>
     /// <param name="export">Writes an export (text, stem, extension) and opens it; the temp-file writer when null.</param>
     /// <param name="grenades">The grenade index the openings read; its changes re-project the team.</param>
-    /// <param name="runSection">Runs a named load; the pool when null.</param>
+    /// <param name="runSection">Runs a named load; the pool when null. Unused when <paramref name="loads" /> is given.</param>
     /// <param name="roundIndex">The round index stamps the projection key reads; none when null.</param>
     /// <param name="roundFacts">Round Facts, for the team-scoped CT and T %, pistols and plant times; none when null.</param>
     /// <param name="playback">2D playback for a row's play button; none when null.</param>
@@ -159,6 +163,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <param name="analysisFacts">The library's analysis facts, for the players table's rates; none when null.</param>
     /// <param name="openPlayerOverview">Opens the Player Overview on a SteamID64 with a demo scope; none when null.</param>
     /// <param name="requestDemos">Queues demos at user priority, off the UI thread; the team is never pushed ahead when null.</param>
+    /// <param name="loads">The loads every report tab shares; this tab's own over <paramref name="runSection" /> when null.</param>
+    /// <param name="openUri">Opens a web address in the browser; the OS handler when null.</param>
     /// <param name="watchMinedPatterns">
     ///     Subscribes a handler to Strat Mining's change event (raised on the UI thread) and returns the
     ///     unsubscribe; the strat layers rebuild on it. None when null.
@@ -190,7 +196,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         TeamRanksStore? ranks = null,
         IAnalysisFacts? analysisFacts = null,
         Func<ulong, PlayerOverviewScope?, bool>? openPlayerOverview = null,
-        Action<IReadOnlyList<string>>? requestDemos = null)
+        Action<IReadOnlyList<string>>? requestDemos = null,
+        ScoutingReportLoads? loads = null,
+        Func<string, bool>? openUri = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -202,7 +210,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         _grenades = grenades;
         _roundIndex = roundIndex;
         _post = post ?? (action => Dispatcher.UIThread.Post(action));
-        _runSection = runSection ?? (_ => Task.Run);
+        Func<string, Func<Action, Task>> run = runSection ?? (_ => Task.Run);
+        _loads = loads ?? new ScoutingReportLoads((_, section) => run(section));
+        _openUri = openUri ?? OpenExternal.OpenUri;
         _now = now ?? (() => DateTime.Now);
         VrsRank = new RankFieldViewModel(_ranks, RankSystem.Vrs, _now);
         HltvRank = new RankFieldViewModel(_ranks, RankSystem.Hltv, _now);
@@ -256,6 +266,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         _minedWatch = watchMinedPatterns?.Invoke(OnMinedPatternsChanged);
         Refresh();
     }
+
+    /// <summary>Where both report tabs send feedback on the two layouts.</summary>
+    public const string FeedbackUrl = "https://github.com/CS2OpenDev/DemoViewer.NET/issues/78";
 
     public bool IsBrowser { get; }
 
@@ -425,6 +438,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
         _disposed = true;
         Interlocked.Increment(ref _generation);
+        _loads.Release(this);
         Layers.Dispose();
         Editor.StarsChanged -= OnStarsChanged;
         Editor.Detach();
@@ -518,6 +532,10 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     [RelayCommand]
     private void TogglePool() => IsPoolOpen = !IsPoolOpen;
+
+    /// <summary>Opens the feedback issue for the two report layouts in the browser.</summary>
+    [RelayCommand]
+    private void GiveFeedback() => _openUri(FeedbackUrl);
 
     [RelayCommand]
     private void TogglePeriod() => IsPeriodOpen = !IsPeriodOpen;
@@ -672,6 +690,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         ReviewLine = "";
         if (SelectedTeam is not { } row)
         {
+            _loads.Release(this);
             _data = null;
             Wins = Losses = 0;
             RecordLine = HeadToHeadLine = DemosLine = SampleSizeLine = DeciderLine = "";
@@ -689,7 +708,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             return;
         }
 
-        ScoutingReportData data = ScoutingReportData.Start(row.Id, row.Name, _sources, _runSection);
+        ScoutingReportData data = _loads.Acquire(this, row.Id, row.Name, _projectedKey!, _sources);
         _data = data;
         DateTime now = _now();
         foreach (MapPoolMapRow map in data.Record.Maps)
@@ -711,26 +730,24 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         LoadTask = Task.WhenAll(Land(data, generation), StartPlayerStats(data));
     }
 
-    // Once every load is in: the pool's team-scoped columns, the notices, the players and the long form.
+    // Once every load is in: the pool's team-scoped columns, the notices, the players and the long form. The long
+    // form is built once per load and layer set, whichever tab asks first.
     private Task Land(ScoutingReportData data, int generation)
     {
-        if (data.All.IsCompleted)
+        Task<IReadOnlyList<ScoutingReportFindingSource>> longForm = _loads.Share(data, "long-form",
+            string.Join(',', Layers.All.Select(c => c.Id)),
+            () => data.All.IsCompleted
+                ? BuildLongForm(data)
+                : data.All.ContinueWith(_ => BuildLongForm(data), CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default).Unwrap());
+        if (longForm.IsCompleted)
         {
-            Task<IReadOnlyList<ScoutingReportFindingSource>> longForm = BuildLongForm(data);
-            if (longForm.IsCompleted)
-            {
-                Landed(data, generation, longForm);
-                return Task.CompletedTask;
-            }
-
-            return longForm.ContinueWith(t => _post(() => Landed(data, generation, t)), CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            Landed(data, generation, longForm);
+            return Task.CompletedTask;
         }
 
-        return data.All.ContinueWith(_ => BuildLongForm(data), CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default).Unwrap()
-            .ContinueWith(t => _post(() => Landed(data, generation, t)), CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        return longForm.ContinueWith(t => _post(() => Landed(data, generation, t)), CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
     private void Landed(ScoutingReportData data, int generation, Task<IReadOnlyList<ScoutingReportFindingSource>> longForm)

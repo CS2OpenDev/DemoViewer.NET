@@ -98,6 +98,27 @@
                 </TextDecorationCollection>
             </Setter>
         </Style>
+        <!-- A link out of the app: plain words with a solid underline, a button underneath. -->
+        <Style Selector="Button.link">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="2 0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+        </Style>
+        <Style Selector="Button.link:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+        </Style>
+        <Style Selector="Button.link:focus-visible /template/ ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Button.link TextBlock">
+            <Setter Property="TextDecorations" Value="Underline" />
+        </Style>
         <!-- Map tabs and the side tabs: the selected one underlined. -->
         <Style Selector="Button.maptab">
             <Setter Property="Background" Value="Transparent" />
@@ -532,6 +553,19 @@
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" Background="{DynamicResource ShellBg}">
         <StackPanel Margin="16" Spacing="14">
+            <!-- Feedback: both layouts ship this release; one quiet line asks which reads better. -->
+            <WrapPanel Orientation="Horizontal" Margin="2 0">
+                <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" VerticalAlignment="Center"
+                           Text="Two layouts this release. Tell us which you prefer" Margin="0 0 6 0" />
+                <Button Classes="link" Command="{Binding Report.GiveFeedbackCommand}"
+                        AutomationProperties.Name="Give feedback on the Scouting Report layouts"
+                        ToolTip.Tip="{x:Static vm:ScoutingReportTabViewModel.FeedbackUrl}">
+                    <TextBlock Text="Give feedback" />
+                </Button>
+                <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" VerticalAlignment="Center"
+                           Text="· full long-form editing (rewrite, reset, dismiss) is in the Layers tab"
+                           Margin="6 0 0 0" />
+            </WrapPanel>
             <!-- Empty: no team found yet. -->
             <Border Classes="empty" IsVisible="{Binding !Report.HasTeams}">
                 <StackPanel Spacing="6">
