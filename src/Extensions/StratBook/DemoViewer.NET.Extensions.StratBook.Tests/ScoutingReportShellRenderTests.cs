@@ -145,7 +145,7 @@ public class ScoutingReportShellRenderTests
         Console.WriteLine($"[p4-shell] {theme} {width}: stage {nukeStage:0} px for {nukeFloors} floors");
         using (Assert.Multiple())
         {
-            await Assert.That(inspector).IsEqualTo("Setups and rotations");
+            await Assert.That(inspector).IsEqualTo("Setups");
             await Assert.That(inspectorHeight).IsLessThanOrEqualTo(Math.Max(560, stagePanelHeight) + 1)
                 .Because("a long layer scrolls inside the inspector instead of stretching the page");
             await Assert.That(scrolls).IsTrue();

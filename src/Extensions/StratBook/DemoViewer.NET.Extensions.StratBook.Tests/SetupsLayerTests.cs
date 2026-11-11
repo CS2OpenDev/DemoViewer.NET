@@ -20,8 +20,10 @@ namespace DemoViewer.NET.AppTests;
 /// <summary>
 ///     The Setups layer's per-player derivations on synthetic rounds (places held, CTs per area, rotations, the
 ///     area classifier, the capture from a positions file, the isolate fade), then the layer through the tab over
-///     one synthetic demo: every number opens its rounds, the player colours match the players table, the CT spot
-///     column fills, and "Show CT setup" isolates one player from the T side and "Show all" puts everyone back.
+///     one synthetic demo: the Players, Shape and By buy tabs, the read for the buy in view, every number opens its
+///     rounds, the player colours match the players table, the CT spot column fills, and "Show CT setup" isolates
+///     one player from the T side and "Show all" puts everyone back. The Rotations layer's fake row reads its
+///     fakes once per team load.
 /// </summary>
 [NotInParallel]
 public class SetupsLayerTests
@@ -377,7 +379,7 @@ public class SetupsLayerTests
     // ---- Through the tab ----
 
     [Test]
-    public async Task TheFakeRow_ReadsSuggestedTagsFakes_AndSaysHowManyDemosHadThem()
+    public async Task TheRotationsFakeRow_ReadsSuggestedTagsFakes_AndSaysHowManyDemosHadThem()
     {
         using Harness h = await Harness.Create();
         QueuedPost posted = new();
@@ -396,10 +398,10 @@ public class SetupsLayerTests
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == h.TeamB);
         await ScoutingReportTestKit.Settle(vm, posted);
         IReadOnlyList<ScoutingInspectorRowViewModel> rows =
-            await ScoutingReportTestKit.Inspect(vm, posted, "de_mirage", ScoutingSide.Ct, "setups");
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_mirage", ScoutingSide.Ct, "rotations");
         ScoutingInspectorRow fake = rows.Single(r => r.Label == "Rotated off a site on a fake").Row!;
         int reads = asked.Count;
-        await ScoutingReportTestKit.Inspect(vm, posted, "de_mirage", ScoutingSide.Ct, "setups");
+        await ScoutingReportTestKit.Inspect(vm, posted, "de_mirage", ScoutingSide.Ct, "rotations");
         using (Assert.Multiple())
         {
             await Assert.That(fake.IsPlaceholder).IsFalse();
@@ -411,7 +413,7 @@ public class SetupsLayerTests
     }
 
     [Test]
-    public async Task TheLayer_DrawsPlayerColours_AndEveryNumberOpensItsRounds_AndShowCtSetupIsolates()
+    public async Task TheLayer_DrawsPlayerColours_InThreeTabs_AndEveryNumberOpensItsRounds_AndShowCtSetupIsolates()
     {
         using Harness h = await Harness.Create();
         ReviewQueue queue = new(null);
@@ -426,28 +428,32 @@ public class SetupsLayerTests
             await ScoutingReportTestKit.Inspect(vm, posted, "de_mirage", ScoutingSide.Ct, "setups");
         ScoutingInspectorRowViewModel anchor = rows.Single(r => r.Label == "A site · p5");
         ScoutingInspectorRowViewModel standard = rows.Single(r => r.Label == "2-1-2");
-        ScoutingInspectorRowViewModel rotator = rows.Single(r => r.Label == "First rotator reaches the hit site");
-        ScoutingInspectorRowViewModel beforePlant = rows.Single(r => r.Label == "Rotated before the plant");
+        ScoutingInspectorRowViewModel byBuy = rows.Single(r => r.Row?.OpenTitle == "de_mirage · full buy");
         List<string> reads = [.. vm.Layers.Inspector.Reads.Select(r => r.Label)];
+        List<string> tabs = [.. vm.Layers.Inspector.Sections.Select(s => $"{s.Tab}:{s.Title}")];
         using (Assert.Multiple())
         {
-            await Assert.That(reads).Contains("Full buy CT: p5 holds A site in 4 of 4 rounds; p6 holds Jungle in 4 of 4.");
-            await Assert.That(reads).Contains(
-                "The first rotator reaches the hit site a median 8s after T contact; on the site before the plant in 2 of 3 planted rounds.");
+            await Assert.That(reads).IsEquivalentTo(["Full buy CT: p5 holds A site in 4 of 4 rounds; p6 holds Jungle in 4 of 4."])
+                .Because("with every buy in view there is one read, the most sampled buy's; here that is the only buy");
+            await Assert.That(tabs).IsEquivalentTo(
+            [
+                "Players:Places held in the setup window · all buys", "Shape:CTs per area · A · mid · B",
+                "By buy:Rounds by buy"
+            ], CollectionOrdering.Matching);
+            await Assert.That(vm.Layers.Inspector.Tabs.Select(t => t.Name))
+                .IsEquivalentTo(["Players", "Shape", "By buy"], CollectionOrdering.Matching);
+            await Assert.That(rows.Any(r => r.Row?.Label.Contains("rotat", StringComparison.OrdinalIgnoreCase) == true)).IsFalse()
+                .Because("rotations are the Rotations layer's");
+            await Assert.That(byBuy.Label).IsEqualTo("Full buy");
+            await Assert.That(byBuy.Value).IsEqualTo("4 rounds · 4 sampled");
+            await Assert.That(byBuy.Row!.Note).IsEqualTo("p5 A site · p6 Jungle");
+            await Assert.That(byBuy.Row.Swatch).IsNull().Because("with every buy in view no buy stands out");
             await Assert.That(anchor.Value).IsEqualTo("4 of 4 rounds");
             await Assert.That(anchor.Color).IsEqualTo(ScoutingColor.Player1);
             await Assert.That(standard.Value).IsEqualTo("3 of 4 rounds");
             await Assert.That(standard.Row!.Note).IsEqualTo("won 67% (2 of 3)");
             await Assert.That(standard.Row.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1, 2, 3], CollectionOrdering.Matching);
             await Assert.That(rows.Single(r => r.Label == "3-1-1, A stack").Row!.Rounds.Single().RoundNumber).IsEqualTo(4);
-            await Assert.That(rotator.Value).IsEqualTo("median 8s");
-            await Assert.That(rotator.Row!.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1, 2, 4], CollectionOrdering.Matching);
-            await Assert.That(rows.Single(r => r.Label == "B hits").Row!.Rounds.Select(r => r.RoundNumber))
-                .IsEquivalentTo([1, 4], CollectionOrdering.Matching);
-            await Assert.That(beforePlant.Value).IsEqualTo("2 of 3 rounds");
-            await Assert.That(beforePlant.Row!.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1, 2], CollectionOrdering.Matching);
-            await Assert.That(rows.Single(r => r.Label == "Rotated off a site on a fake").Row!.IsPlaceholder).IsTrue()
-                .Because("this tab has no Suggested Tags source");
             await Assert.That(rows.EveryNumberOpensItsRounds()).IsTrue();
             await Assert.That(vm.Players.Select(p => $"{p.Name}:{p.Color}:{p.CtSpot}")).IsEquivalentTo(
                 ["p5:Player1:A site", "p6:Player2:Jungle", "p7:Player3:Window", "p8:Player4:B site", "p9:Player5:B site"],
@@ -458,6 +464,28 @@ public class SetupsLayerTests
         standard.OpenCommand.Execute(null);
         await Assert.That(queue.Clips.Select(c => c.FromTick)).IsEquivalentTo(
             [Harness.FreezeEnd(1), Harness.FreezeEnd(2), Harness.FreezeEnd(3)], CollectionOrdering.Matching);
+
+        await Assert.That(vm.Editor.Findings.Any(f => f.Key == "de_mirage|CT|setups|Full||read")).IsTrue()
+            .Because("the suggested read is filed under its buy");
+
+        // One buy in view: its read alone, the places follow it, and its By buy row says so.
+        vm.Buy = ScoutingBuy.Full;
+        await ScoutingReportTestKit.Settle(vm, posted);
+        ScoutingInspectorRow fullRow = vm.Layers.Inspector.Sections.SelectMany(s => s.Rows)
+            .Single(r => r.Row?.OpenTitle == "de_mirage · full buy").Row!;
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Layers.Inspector.Reads.Select(r => r.Label))
+                .IsEquivalentTo(["Full buy CT: p5 holds A site in 4 of 4 rounds; p6 holds Jungle in 4 of 4."]);
+            await Assert.That(vm.Layers.Inspector.Sections.Select(s => s.Title))
+                .Contains("Places held in the setup window · full buy");
+            await Assert.That(fullRow.Note).IsEqualTo("in view · p5 A site · p6 Jungle");
+            await Assert.That(fullRow.Swatch).IsEqualTo(ScoutingColor.Ct);
+            await Assert.That(fullRow.KeyText).IsEqualTo("rounds");
+        }
+
+        vm.Buy = ScoutingBuy.All;
+        await ScoutingReportTestKit.Settle(vm, posted);
 
         // From the T side, Show CT setup switches to CT, inspects Setups and fades everyone else.
         ScoutingLayerChipViewModel setups = vm.Layers.Find("setups")!;
