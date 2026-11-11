@@ -4,6 +4,8 @@
         <RootNamespace>DemoViewer.NET.Extensions.RuleCanvas</RootNamespace>
         <AssemblyName>DemoViewer.NET.Extensions.RuleCanvas</AssemblyName>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <!-- pack-extension.sh stages the packages the app does not ship (Nodify) from this output. -->
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
 
     <!-- The manifest: ..\extension.json is a template whose version is stamped from ..\version.json at

@@ -24,6 +24,10 @@
     <ItemGroup>
         <ProjectReference Include="..\..\..\App\DemoViewer.NET\DemoViewer.NET.csproj"/>
         <ProjectReference Include="..\DemoViewer.NET.Extensions.StratBook\DemoViewer.NET.Extensions.StratBook.csproj"/>
+        <!-- Built, not referenced: InstalledRuleCanvasTests installs its output, and only a process with no
+             canvas or Nodify beside it loads both from the install folder. -->
+        <ProjectReference Include="..\..\RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas.csproj"
+                          ReferenceOutputAssembly="false" Private="false"/>
         <ProjectReference Include="..\..\..\Testing\DemoViewer.NET.TestSupport\DemoViewer.NET.TestSupport.csproj"/>
     </ItemGroup>
 
@@ -47,6 +51,9 @@
         <Compile Include="..\..\..\App\DemoViewer.NET.App.Tests\SingleWalkSession.cs" Link="SingleWalkSession.cs"/>
         <!-- Manifests for the IFeaturePack fakes every moved test's FakePack now needs. -->
         <Compile Include="..\..\..\App\DemoViewer.NET.App.Tests\Extensions\FakeManifests.cs" Link="FakeManifests.cs"/>
+        <!-- The feed and updater fakes the installed-canvas test serves its zip through. -->
+        <Compile Include="..\..\..\App\DemoViewer.NET.App.Tests\Extensions\UpdateFixtures.cs" Link="UpdateFixtures.cs"/>
+        <Compile Include="..\..\..\App\DemoViewer.NET.App.Tests\Extensions\FakeFeeds.cs" Link="FakeFeeds.cs"/>
     </ItemGroup>
 
     <!-- Fixtures that need the StratBook pack, shared with App.Tests. -->
