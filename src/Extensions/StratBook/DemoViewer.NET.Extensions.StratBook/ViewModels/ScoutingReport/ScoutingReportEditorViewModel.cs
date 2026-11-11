@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingDashboard;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 
@@ -24,7 +25,8 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 /// <param name="Image">Reads the line's PNG when it is exported; null for a text line.</param>
 /// <param name="Map">The map a map-specific line is about; null for the team as a whole.</param>
 /// <param name="Suggested">Starts starred the first time it is built (once ever per team).</param>
-/// <param name="Stage">What the line's layer draws on the map stage, for the one-pager's picture; null off the stage.</param>
+/// <param name="Stage">What the line's layer draws on the map stage, for its card's picture; null off the stage.</param>
+/// <param name="Shape">A layer line's structure, so the export prints it on its card; null for any other line.</param>
 public sealed record ScoutingReportFindingSource(
     string Key,
     string Section,
@@ -32,7 +34,15 @@ public sealed record ScoutingReportFindingSource(
     Func<byte[]?>? Image = null,
     string? Map = null,
     bool Suggested = false,
-    ScoutingReportStageLayer? Stage = null);
+    ScoutingReportStageLayer? Stage = null,
+    ScoutingReportLineShape? Shape = null);
+
+/// <summary>A layer line as the inspector showed it: a read sentence, or a row in a titled section.</summary>
+/// <param name="Group">A row's inspector section, by its raw title ("" when untitled); null for a read.</param>
+/// <param name="Label">A row's label: "CT Spawn · p0".</param>
+/// <param name="Value">A row's number: "30 of 30 rounds".</param>
+/// <param name="StarText">A read's star label: "read", "rotations".</param>
+public sealed record ScoutingReportLineShape(string? Group, string Label, string Value, string StarText);
 
 /// <summary>A map layer's marks for one map and side, as the build drew them: what a stage picture draws for its lines.</summary>
 /// <param name="LayerId">The layer id.</param>
@@ -68,9 +78,9 @@ public sealed record ScoutingReportHeader
 ///     is editable (rewritten, reset, left out), the user adds notes and a summary beside them, and the export
 ///     writes either form as self-contained HTML or Markdown, the one-pager by default.
 ///     <para>
-///         <b>The one-pager's pictures.</b> Each map and side with a starred line from a map layer gets one stage
-///         picture: the radar with the marks of those layers, in registry order. The long form keeps the lines' own
-///         pictures (the setup heatmaps) instead. Markdown carries no picture.
+///         <b>Laid out like the Dashboard.</b> The export prints the Dashboard's cards (<see cref="ExportCards" />);
+///         a card that pictures a layer gets that layer's marks on the radar for its map and side, drawn only for
+///         a card that prints. Markdown carries no picture.
 ///     </para>
 ///     <para>
 ///         <b>Ratings.</b> The roster line prints each player's composite rating (spec Q5). Every other number is
@@ -375,7 +385,6 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     public ScoutingReportDocument Document(bool images = true)
     {
         ScoutingReportHeader header = _header?.Invoke() ?? new ScoutingReportHeader();
-        bool longForm = ExportForm == ScoutingReportForm.LongForm;
         return new ScoutingReportDocument
         {
             TeamName = _teamName,
@@ -388,7 +397,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             Roster = header.Roster,
             RosterScope = header.RosterScope,
             Summary = Summary.Trim(),
-            LayerOrder = LayerOrder,
+            Cards = ExportCards,
             Findings =
             [
                 .. _rows.Where(r => !r.IsHidden).Select(r => new ScoutingReportFinding
@@ -397,58 +406,61 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                     Section = r.Section,
                     Text = r.Text,
                     IsStarred = r.IsStarred,
-                    ImagePng = images && longForm ? r.Image?.Invoke() : null
+                    IsEdited = r.IsEdited,
+                    Group = r.Shape?.Group,
+                    Label = r.Shape?.Label ?? "",
+                    Value = r.Shape?.Value ?? "",
+                    StarText = r.Shape?.StarText ?? ""
                 })
             ],
-            Stages = longForm ? [] : Stages(images)
+            Picture = images ? Picture : null
         };
     }
 
+    /// <summary>The Dashboard's cards for the export: each side's with its AWP card, then the map-wide ones.</summary>
+    public static IReadOnlyList<ScoutingReportCard> ExportCards { get; } =
+    [
+        .. Side(ScoutingSide.Ct, ScoutingDashboardCards.Ct()),
+        .. Side(ScoutingSide.T, ScoutingDashboardCards.T()),
+        .. ScoutingDashboardCards.MapWide().Select(c => Card("", c.TitleFor(ScoutingSide.Ct, ""), c))
+    ];
+
+    private static IEnumerable<ScoutingReportCard> Side(ScoutingSide side,
+        IReadOnlyList<ScoutingDashboardCardViewModel> cards) =>
+        cards.Append(ScoutingDashboardCards.Awp()).Select(c => Card(side.Label(), c.TitleFor(side, ""), c));
+
+    private static ScoutingReportCard Card(string side, string title, ScoutingDashboardCardViewModel card) =>
+        new(side, title,
+            [
+                .. card.Parts.Select(p => new ScoutingReportCardPart(p.LayerId, p.Sections,
+                    p.Reads is { } reads ? starText => reads(new ScoutingRead("", starText)) : null))
+            ],
+            card.MapLayerId, card.IsWide);
+
     /// <summary>
-    ///     One picture per map and side with a starred line from a map layer: the marks of each such layer (once,
-    ///     in registry order) over the map. A side whose render comes back empty prints its lines alone. Without
-    ///     <paramref name="render" /> the pictures are listed with no PNG, so Markdown can say where they are.
+    ///     A card's picture: the layer's marks for the map and side, as the build drew them, on the radar. Null when
+    ///     the layer drew nothing there or the render came back empty.
     /// </summary>
-    /// <param name="render">Draw the pictures.</param>
-    private List<ScoutingReportStageImage> Stages(bool render)
+    /// <param name="map">The map.</param>
+    /// <param name="side">"CT" or "T".</param>
+    /// <param name="layerId">The layer.</param>
+    private ScoutingReportPicture? Picture(string map, string side, string layerId)
     {
-        List<(string Map, string Side)> order = [];
-        Dictionary<(string Map, string Side), Dictionary<string, ScoutingReportStageLayer>> layers = [];
         foreach (ScoutingReportFindingViewModel row in _rows)
         {
-            if (row is not { IsStarred: true, IsHidden: false, Stage: { } stage }
+            if (row is not { IsHidden: false, Stage: { } stage } || stage.LayerId != layerId
+                || stage.Marks.Count == 0
                 || ScoutingReportStarKeys.Parse(row.Key) is not { } parsed
-                || parsed.Scope.Map.Length == 0 || parsed.Scope.Side.Length == 0)
+                || parsed.Scope.Map != map || parsed.Scope.Side != side)
             {
                 continue;
             }
 
-            (string, string) at = (parsed.Scope.Map, parsed.Scope.Side);
-            if (!layers.TryGetValue(at, out Dictionary<string, ScoutingReportStageLayer>? drawn))
-            {
-                order.Add(at);
-                layers[at] = drawn = new Dictionary<string, ScoutingReportStageLayer>(StringComparer.Ordinal);
-            }
-
-            drawn.TryAdd(stage.LayerId, stage);
+            byte[]? png = _renderStage(map, stage.Marks);
+            return png is { Length: > 0 } ? new ScoutingReportPicture($"{map} {side} · {stage.Name}", png) : null;
         }
 
-        List<ScoutingReportStageImage> stages = [];
-        foreach ((string map, string side) in order)
-        {
-            List<ScoutingReportStageLayer> drawn = [.. layers[(map, side)].Values.OrderBy(l => Rank(l.LayerId))];
-            List<ScoutingMapMark> marks = [.. drawn.SelectMany(l => l.Marks)];
-            byte[] png = [];
-            if (marks.Count == 0 || (render && (png = _renderStage(map, marks) ?? []).Length == 0))
-            {
-                continue;
-            }
-
-            stages.Add(new ScoutingReportStageImage(map, side,
-                $"{map} {side} · {string.Join(", ", drawn.Select(l => l.Name))}", png));
-        }
-
-        return stages;
+        return null;
     }
 
     private int Rank(string layerId)
@@ -645,6 +657,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                         {
                             Map = source.Map,
                             Stage = source.Stage,
+                            Shape = source.Shape,
                             IsStarred = starred.Contains(source.Key),
                             IsHidden = hidden.Contains(source.Key)
                         });
@@ -812,19 +825,23 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         {
             yield return new ScoutingReportFindingSource(
                 ScoutingReportStarKeys.Key(context.Scope(layer, read.Buy), read.StarText), section, read.Text,
-                read.Image, context.Map, read.Suggested, stage);
+                read.Image, context.Map, read.Suggested, stage, new ScoutingReportLineShape(null, "", "", read.StarText));
         }
 
-        foreach (ScoutingInspectorRow row in result.Sections.SelectMany(s => s.Rows))
+        foreach (ScoutingInspectorSection group in result.Sections)
         {
-            if (row.IsPlaceholder || row.Value.Length == 0)
+            foreach (ScoutingInspectorRow row in group.Rows)
             {
-                continue;
-            }
+                if (row.IsPlaceholder || row.Value.Length == 0)
+                {
+                    continue;
+                }
 
-            yield return new ScoutingReportFindingSource(
-                ScoutingReportStarKeys.Key(context.Scope(layer, row.Buy), row.KeyText), section,
-                $"{row.KeyText}: {row.Value}", Map: context.Map, Stage: stage);
+                yield return new ScoutingReportFindingSource(
+                    ScoutingReportStarKeys.Key(context.Scope(layer, row.Buy), row.KeyText), section,
+                    $"{row.KeyText}: {row.Value}", Map: context.Map, Stage: stage,
+                    Shape: new ScoutingReportLineShape(group.Title, row.Label, row.Value, row.KeyText));
+            }
         }
     }
 
@@ -899,8 +916,11 @@ public sealed partial class ScoutingReportFindingViewModel : ObservableObject
     /// <summary>The map a map-specific line sits under; null for the team as a whole and for notes.</summary>
     public string? Map { get; init; }
 
-    /// <summary>What the line's layer draws on the stage, for the one-pager's picture; null off the stage.</summary>
+    /// <summary>What the line's layer draws on the stage, for its card's picture; null off the stage.</summary>
     public ScoutingReportStageLayer? Stage { get; init; }
+
+    /// <summary>A layer line's structure, for the export's cards; null for any other line.</summary>
+    public ScoutingReportLineShape? Shape { get; init; }
 
     public string Section { get; }
 

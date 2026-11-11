@@ -90,6 +90,11 @@ public sealed partial class ScoutingDashboardCardViewModel : ObservableObject
 
     public string Key { get; }
 
+    /// <summary>The card's title for a side and a map label ("" leaves the map out).</summary>
+    /// <param name="side">The side.</param>
+    /// <param name="mapLabel">"Nuke", or "".</param>
+    public string TitleFor(ScoutingSide side, string mapLabel) => _titleFor(side, mapLabel);
+
     public IReadOnlyList<ScoutingDashboardPart> Parts { get; }
 
     /// <summary>The layer whose marks the card draws, or null.</summary>

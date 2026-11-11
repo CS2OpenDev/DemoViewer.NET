@@ -45,7 +45,7 @@ public class ScoutingReportExportRenderTests
     }
 
     [Test]
-    public async Task TheOnePager_DrawsEachStarredStage_OnPaper_AndWritesTheSample()
+    public async Task TheOnePager_DrawsEachStarredCardsPicture_OnPaper_AndWritesTheSample()
     {
         HostedMapAssets.Install();
         ScoutingReportStageLayer nukeSetups = new("setups", "Setups",
@@ -123,9 +123,10 @@ public class ScoutingReportExportRenderTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(string.Join(",", drawn.Select(d => d.Map))).IsEqualTo("de_nuke,de_mirage");
+            await Assert.That(string.Join(",", drawn.Select(d => d.Map))).IsEqualTo("de_nuke,de_nuke,de_mirage")
+                .Because("one picture per printed card that pictures a layer: Nuke setups, Nuke AWP, Mirage plants");
             await Assert.That(drawn.All(d => d.Bytes > 10_000)).IsTrue().Because("each stage is the real radar");
-            await Assert.That(html!.Split("<figure").Length - 1).IsEqualTo(2);
+            await Assert.That(html!.Split("<figure").Length - 1).IsEqualTo(3);
             await Assert.That(html).DoesNotContain("retake B from ramp");
         }
 

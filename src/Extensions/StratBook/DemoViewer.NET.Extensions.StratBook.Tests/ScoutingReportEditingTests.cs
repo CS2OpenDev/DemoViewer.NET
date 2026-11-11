@@ -35,15 +35,13 @@ public class ScoutingReportEditingTests
         Findings = findings
     };
 
-    private static ScoutingReportFinding Line(string key, string section, string text, bool starred = false,
-        byte[]? png = null) =>
+    private static ScoutingReportFinding Line(string key, string section, string text, bool starred = false) =>
         new()
         {
             Key = key,
             Section = section,
             Text = text,
-            IsStarred = starred,
-            ImagePng = png
+            IsStarred = starred
         };
 
     private const string NukeKey = "de_nuke||pool|||record";
@@ -97,10 +95,10 @@ public class ScoutingReportEditingTests
     }
 
     [Test]
-    public async Task TheHtml_IsSelfContained_Escaped_AndEmbedsTheHeatmap()
+    public async Task TheHtml_IsSelfContained_AndEscaped()
     {
         ScoutingReportDocument doc = Doc(
-            Line("h", "Setup Heatmaps By Buy", "de_nuke CT full buy: <10> rounds", starred: true, png: _png),
+            Line("h", "Setup Heatmaps By Buy", "de_nuke CT full buy: <10> rounds", starred: true),
             Line("b", "Map Pool Record", "de_mirage: 1 played"));
 
         string html = ScoutingReportExporter.Html(doc);
@@ -111,13 +109,12 @@ public class ScoutingReportEditingTests
             await Assert.That(html).StartsWith("<!doctype html>");
             await Assert.That(html).Contains("<title>Falcons &lt;B&gt; one-pager</title>");
             await Assert.That(html).Contains("Nuke CT full buy: &lt;10&gt; rounds");
-            await Assert.That(html).Contains("src=\"data:image/png;base64," + Convert.ToBase64String(_png) + "\"");
             await Assert.That(html).DoesNotContain("de_mirage");
             await Assert.That(html).DoesNotContain("http")
                 .Because("no external reference: the emailed file renders alone");
             await Assert.That(html).DoesNotContain("<script");
             await Assert.That(html).DoesNotContain("<link");
-            await Assert.That(longHtml).Contains("<li class=\"starred\">");
+            await Assert.That(longHtml).Contains("<p class=\"read starred\">");
             await Assert.That(longHtml).Contains("Mirage");
         }
     }
@@ -144,9 +141,13 @@ public class ScoutingReportEditingTests
             {
                 using (Assert.Multiple())
                 {
-                    await Assert.That(text).Contains("Roster (role, rating over every map)");
-                    await Assert.That(text).Contains("m0NESY (AWP, 1.21)");
-                    await Assert.That(text).Contains("kyxsan (IGL, —)");
+                    // A table: a Markdown row or an HTML one, name, role and rating side by side.
+                    static bool Row(string text, string name, string role, string rating) =>
+                        text.Contains($"| {name} | {role} | {rating} |", StringComparison.Ordinal)
+                        || text.Contains($"<td>{name}</td><td>{role}</td><td class=\"v\">{rating}</td>", StringComparison.Ordinal);
+                    await Assert.That(text).Contains("Roster · role, rating over every map");
+                    await Assert.That(Row(text, "m0NESY", "AWP", "1.21")).IsTrue();
+                    await Assert.That(Row(text, "kyxsan", "IGL", "—")).IsTrue();
                 }
             }
 
@@ -349,11 +350,9 @@ public class ScoutingReportEditingTests
         editor.ShowStarredOnly = true;
         using (Assert.Multiple())
         {
-            await Assert.That(md).Contains("### Map-wide\n\n- **Map pool:** Nuke: their best map\n");
+            await Assert.That(md).Contains("## Nuke\n\n#### Map record\n\n- Nuke: their best map\n");
             await Assert.That(md).Contains("Slow defaults.");
             await Assert.That(md).DoesNotContain("BombsiteA");
-            await Assert.That(doc.Findings.Single(f => f.Key == SetupKey).ImagePng).IsNull()
-                .Because("an unstarred line's picture is not drawn for the one-pager");
             await Assert.That(editor.Findings.Count).IsEqualTo(1);
             await Assert.That(editor.Findings.Select(f => f.Key))
                 .IsEquivalentTo([NukeKey], CollectionOrdering.Matching);

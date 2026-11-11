@@ -12,13 +12,13 @@ using SkiaSharp;
 namespace DemoViewer.NET.AppTests;
 
 /// <summary>
-///     The Scouting Report export from scoped stars: the one-pager's identity block, roster line, map, side and
-///     layer order and scope suffixes; the long form's completeness; HTML escaping with nothing external; and one
-///     stage picture per map and side that has a starred map-layer line, and none otherwise.
+///     The Scouting Report export from scoped stars, laid out like the Dashboard: the identity tiles and roster
+///     table, each map's record and its side cards in Dashboard order with scope suffixes; the long form putting
+///     every line on its card with rows as tables; HTML escaping with nothing external; and one picture per printed
+///     card that pictures a layer.
 /// </summary>
 public class ScoutingReportExportTests
 {
-    private static readonly IReadOnlyList<string> _order = [.. ScoutingLayerCatalog.Create().Select(l => l.Id)];
     private static readonly byte[] _stagePng = [0x89, 0x50, 0x4E, 0x47, 9, 9, 9];
 
     private static string K(string map, string side, string layer, string buy = "All", string window = "",
@@ -39,7 +39,7 @@ public class ScoutingReportExportTests
         HeadToHeadLine = "vs Us 1–2",
         Roster = [new ScoutingReportRosterEntry("m0NESY", "AWP", "1.21")],
         RosterScope = "every map",
-        LayerOrder = _order,
+        Cards = ScoutingReportEditorViewModel.ExportCards,
         Findings = findings
     };
 
@@ -74,7 +74,7 @@ public class ScoutingReportExportTests
     }
 
     [Test]
-    public async Task TheOnePager_PrintsIdentityAndRoster_ThenMapCtTMapWide_InLayerOrder_WithScopeSuffixes()
+    public async Task TheOnePager_PrintsIdentityAndRoster_ThenEachMapsRecordAndSideCards_InDashboardOrder()
     {
         string md = ScoutingReportExporter.Markdown(Doc(Mixed()));
 
@@ -85,35 +85,34 @@ public class ScoutingReportExportTests
             "**Sample:** 6 demos across 2 maps · Aug 1, 2026 to Nov 8, 2026",
             "**Opponents:** 4 vs top-30 · 2 other",
             "**Head to head:** vs Us 1–2",
-            "**Roster (role, rating over every map):** m0NESY (AWP, 1.21)",
+            "**Roster · role, rating over every map**",
+            "| m0NESY | AWP | 1.21 |",
             "## Nuke",
-            "### CT",
-            "- **Setups:** 2-1-2 on full buys (Full buy)\n",
-            "- **AWP:** the AWP holds outside (to 0:30)\n",
-            "- **AWP:** ramp then heaven (to first contact)\n",
-            "### T",
-            "- **Plants:** A site in 6 of 10 rounds\n",
-            "### Map-wide",
-            "- **Map pool:** Nuke: 4 played, 3-1\n",
+            "#### Map record", "- Nuke: 4 played, 3-1\n",
+            "### CT side",
+            "#### Starting setups", "- 2-1-2 on full buys (Full buy)\n",
+            "#### AWP · CT", "- the AWP holds outside (to 0:30)\n", "- ramp then heaven (to first contact)\n",
+            "### T side",
+            "#### Site targeting and plants", "- A site in 6 of 10 rounds\n",
             "## Mirage",
-            "### CT",
-            "- **Setups:** stack A on ecos (Eco buy)\n",
-            "## Map pool",
-            "- Deciders: 1-0\n",
-            "## Notes",
-            "- watch the B apps smoke\n");
+            "### CT side",
+            "#### Starting setups", "- stack A on ecos (Eco buy)\n",
+            "## Map pool", "- Deciders: 1-0\n",
+            "## Notes", "- watch the B apps smoke\n");
 
         string html = ScoutingReportExporter.Html(Doc(Mixed()));
-        InOrder(html, "<h2>Nuke</h2>", "<h3>CT</h3>", "<span class=\"layer\">Setups:</span> 2-1-2 on full buys",
-            "<span class=\"scope\">(Full buy)</span>", "<h3>T</h3>", "<h3>Map-wide</h3>", "<h2>Mirage</h2>",
-            "<h2>Map pool</h2>", "<h2>Notes</h2>");
+        InOrder(html, "<h2>Nuke</h2>", "<h4>Map record</h4>", "<h3 class=\"side ct\">CT side</h3>",
+            "<h4>Starting setups</h4>", "2-1-2 on full buys", "<span class=\"scope\">(Full buy)</span>",
+            "<h3 class=\"side t\">T side</h3>", "<h2>Mirage</h2>", "<h2>Team</h2>", "<h4>Map pool</h4>",
+            "<h4>Notes</h4>");
 
         using (Assert.Multiple())
         {
             await Assert.That(md).DoesNotContain("first death mid").Because("unstarred lines stay off the one-pager");
-            await Assert.That(md).DoesNotContain("Opening deaths");
+            await Assert.That(md).DoesNotContain("Opening death");
             await Assert.That(md).DoesNotContain("(All buy)").Because("the All buy is implied and gets no suffix");
-            await Assert.That(html).Contains("<dt>Ranks</dt><dd>VRS 7 (set 2026-11-01) · HLTV 9 (set 2026-10-28)</dd>");
+            await Assert.That(html).Contains(
+                "<div class=\"k\">Ranks</div><div class=\"v\">VRS 7 (set 2026-11-01) · HLTV 9 (set 2026-10-28)</div>");
         }
     }
 
@@ -126,24 +125,29 @@ public class ScoutingReportExportTests
         {
             await Assert.That(md).Contains("**Record:** 67% of 6 maps (4-2)");
             await Assert.That(md).Contains(ScoutingReportExporter.NothingStarredLine);
-            await Assert.That(md).DoesNotContain("## de_nuke");
+            await Assert.That(md).DoesNotContain("## Nuke");
         }
     }
 
     [Test]
-    public async Task TheLongForm_PrintsEveryLineNotDismissed_OverEveryMapAndSide_AndTheNotes()
+    public async Task TheLongForm_PutsEveryLineOnItsDashboardCard_RowsAsTables_AndDropsNothing()
     {
         ScoutingReportNotesStore store = new(null);
         ScoutingReportEditorViewModel editor = new(store, export: (_, _, _) => "x");
+        static ScoutingReportLineShape Read(string star = "read") => new(null, "", "", star);
         ScoutingReportFindingSource[] sources =
         [
             new(K("de_nuke", "", "pool", "", "", "record"), ScoutingReportEditorViewModel.MapPoolSection, "de_nuke: 4 played", Map: "de_nuke"),
-            new(K("de_nuke", "CT", "setups"), "de_nuke CT · Setups", "setups read", Map: "de_nuke"),
-            new(K("de_nuke", "CT", "setups", text: "A anchor"), "de_nuke CT · Setups", "A anchor: 4 of 10 rounds", Map: "de_nuke"),
-            new(K("de_nuke", "CT", "econ"), "de_nuke CT · Economy", "econ read", Map: "de_nuke"),
-            new(K("de_nuke", "T", "plants"), "de_nuke T · Plants", "plants read", Map: "de_nuke"),
-            new(K("de_mirage", "T", "lurks"), "de_mirage T · Lurks", "lurks read", Map: "de_mirage"),
-            new(K("de_mirage", "T", "util"), "de_mirage T · Utility", "dismissed read", Map: "de_mirage"),
+            new(K("de_nuke", "CT", "setups"), "de_nuke CT · Setups", "setups read", Map: "de_nuke", Shape: Read()),
+            new(K("de_nuke", "CT", "setups", text: "p0 at CT Spawn"), "de_nuke CT · Setups", "p0 at CT Spawn: 30 of 30 rounds",
+                Map: "de_nuke", Shape: new("Places held in the setup window · all buys", "CT Spawn · p0", "30 of 30 rounds", "p0 at CT Spawn")),
+            new(K("de_nuke", "CT", "setups", text: "formation 1-3-1"), "de_nuke CT · Setups", "formation 1-3-1: 12 of 30 rounds",
+                Map: "de_nuke", Shape: new("CTs per area · A · mid · B", "1-3-1", "12 of 30 rounds", "formation 1-3-1")),
+            new(K("de_nuke", "CT", "econ"), "de_nuke CT · Economy", "econ read", Map: "de_nuke", Shape: Read()),
+            new(K("de_nuke", "T", "plants"), "de_nuke T · Plants", "plants read", Map: "de_nuke", Shape: Read()),
+            new(K("de_nuke", "T", "mystery"), "de_nuke T · Mystery", "mystery read", Map: "de_nuke", Shape: Read()),
+            new(K("de_mirage", "T", "lurks"), "de_mirage T · Lurks", "lurks read", Map: "de_mirage", Shape: Read()),
+            new(K("de_mirage", "T", "util"), "de_mirage T · Utility", "dismissed read", Map: "de_mirage", Shape: Read()),
             new(K("", "", "period", text: "note"), ScoutingReportEditorViewModel.PeriodDiffSection, "period note")
         ];
         editor.Load(Guid.NewGuid(), "Falcons", "6 demos", sources);
@@ -151,20 +155,33 @@ public class ScoutingReportExportTests
         editor.NewNoteText = "watch the B apps smoke";
         editor.AddNoteCommand.Execute(null);
         editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Text == "plants read"));
+        editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Text == "formation 1-3-1: 12 of 30 rounds"));
+        ScoutingReportFindingViewModel rewritten = editor.Findings.Single(f => f.Text == "p0 at CT Spawn: 30 of 30 rounds");
+        rewritten.BeginEditCommand.Execute(null);
+        rewritten.EditText = "p0 anchors CT Spawn every round";
+        editor.CommitEditCommand.Execute(rewritten);
         editor.ExportForm = ScoutingReportForm.LongForm;
 
         string md = ScoutingReportExporter.Markdown(editor.Document(false), ScoutingReportForm.LongForm);
 
         InOrder(md,
             "# Falcons scouting report",
-            "## Nuke", "### CT", "#### Setups", "- setups read\n", "- A anchor: 4 of 10 rounds\n",
+            "## Nuke", "#### Map record", "- Nuke: 4 played\n",
+            "### CT side",
+            "#### Starting setups", "- setups read\n", "- p0 anchors CT Spawn every round\n",
+            "#### Site distribution and rotations", "**CTs per area · A · mid · B**", "| ★ 1-3-1 | 12 of 30 rounds |",
             "#### Economy", "- econ read\n",
-            "### T", "#### Plants", "- ★ plants read\n",
-            "### Map-wide", "#### Map pool", "- Nuke: 4 played\n",
-            "## Mirage", "### T", "#### Lurks", "- lurks read\n",
+            "### T side", "#### Site targeting and plants", "- ★ plants read\n",
+            "#### Mystery", "- mystery read\n",
+            "## Mirage", "### T side", "#### Lurk", "- lurks read\n",
             "## Period Diff", "- period note\n",
             "## Notes", "- watch the B apps smoke\n");
-        await Assert.That(md).DoesNotContain("dismissed read").Because("a dismissed line is in neither form");
+        using (Assert.Multiple())
+        {
+            await Assert.That(md).DoesNotContain("dismissed read").Because("a dismissed line is in neither form");
+            await Assert.That(md).DoesNotContain("formation 1-3-1:").Because("a row prints as label and number");
+            await Assert.That(md).DoesNotContain("| CT Spawn · p0 |").Because("a rewritten row prints as its sentence");
+        }
     }
 
     [Test]
@@ -177,13 +194,13 @@ public class ScoutingReportExportTests
             HeadToHeadLine = "vs \"Us\" 1–2",
             Roster = [new ScoutingReportRosterEntry("<b>bold</b>", "AWP", "1.00")],
             Summary = "They <i>always</i> go B",
-            LayerOrder = _order,
+            Cards = ScoutingReportEditorViewModel.ExportCards,
             Findings =
             [
                 F(K("de_<nuke>", "CT", "setups"), "de_<nuke> CT · Set<ups>", "a < b && c > d"),
                 F("note:1", "Notes", "<img src=x onerror=alert(1)>")
             ],
-            Stages = [new ScoutingReportStageImage("de_<nuke>", "CT", "de_<nuke> CT · Set<ups>", _stagePng)]
+            Picture = (map, side, layer) => new ScoutingReportPicture($"{map} {side} · Set<ups>", _stagePng)
         };
 
         string html = ScoutingReportExporter.Html(doc);
@@ -208,7 +225,7 @@ public class ScoutingReportExportTests
     }
 
     [Test]
-    public async Task TheOnePager_DrawsOneStagePerMapAndSideWithAStarredMapLayerLine_AndNoneOtherwise()
+    public async Task EachPrintedCardThatPicturesALayer_GetsThatLayersMarks_AndMarkdownDrawsNone()
     {
         ScoutingMapMark setupsMark = new(1, 2, 0, ScoutingMarkShape.Dot, ScoutingColor.Player1);
         ScoutingMapMark awpMark = new(3, 4, 0, ScoutingMarkShape.Badge, ScoutingColor.Ct, 9f, "1");
@@ -216,14 +233,16 @@ public class ScoutingReportExportTests
         ScoutingReportStageLayer setups = new("setups", "Setups", [setupsMark]);
         ScoutingReportStageLayer awp = new("awp", "AWP", [awpMark]);
         ScoutingReportStageLayer plants = new("plants", "Plants", [plantsMark]);
+        ScoutingReportLineShape read = new(null, "", "", "read");
         ScoutingReportFindingSource[] sources =
         [
             new(K("de_nuke", "", "pool", "", "", "record"), ScoutingReportEditorViewModel.MapPoolSection, "de_nuke: 4 played", Map: "de_nuke"),
-            new(K("de_nuke", "CT", "awp", window: "0:30"), "de_nuke CT · AWP", "awp read", Map: "de_nuke", Stage: awp),
-            new(K("de_nuke", "CT", "setups"), "de_nuke CT · Setups", "setups read", Map: "de_nuke", Stage: setups),
-            new(K("de_nuke", "CT", "setups", text: "A anchor"), "de_nuke CT · Setups", "A anchor: 4", Map: "de_nuke", Stage: setups),
-            new(K("de_nuke", "T", "plants"), "de_nuke T · Plants", "plants read", Map: "de_nuke", Stage: plants),
-            new(K("de_nuke", "T", "econ"), "de_nuke T · Economy", "econ read", Map: "de_nuke")
+            new(K("de_nuke", "CT", "awp", window: "0:30"), "de_nuke CT · AWP", "awp read", Map: "de_nuke", Stage: awp, Shape: read),
+            new(K("de_nuke", "CT", "setups"), "de_nuke CT · Setups", "setups read", Map: "de_nuke", Stage: setups, Shape: read),
+            new(K("de_nuke", "CT", "setups", text: "A anchor"), "de_nuke CT · Setups", "A anchor: 4", Map: "de_nuke", Stage: setups,
+                Shape: new("Places held in the setup window · all buys", "A anchor", "4", "A anchor")),
+            new(K("de_nuke", "T", "plants"), "de_nuke T · Plants", "plants read", Map: "de_nuke", Stage: plants, Shape: read),
+            new(K("de_nuke", "T", "econ"), "de_nuke T · Economy", "econ read", Map: "de_nuke", Shape: read)
         ];
         List<(string Map, IReadOnlyList<ScoutingMapMark> Marks)> rendered = [];
         List<string> written = [];
@@ -241,7 +260,7 @@ public class ScoutingReportExportTests
         editor.Load(Guid.NewGuid(), "Falcons", "6 demos", sources);
         void Star(string text) => editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Text == text));
 
-        // Only text lines starred: no picture at all.
+        // Only lines on cards without a picture starred: nothing drawn.
         Star("de_nuke: 4 played");
         Star("econ read");
         editor.ExportCommand.Execute(null);
@@ -252,7 +271,7 @@ public class ScoutingReportExportTests
             await Assert.That(written[^1]).DoesNotContain("<figure");
         }
 
-        // Two CT setups lines and the AWP line: one CT picture, setups' marks once, in registry order.
+        // The setups card (a read and a row) and the AWP card: one picture each, its own layer's marks only.
         Star("awp read");
         Star("setups read");
         Star("A anchor: 4");
@@ -260,16 +279,19 @@ public class ScoutingReportExportTests
         string html = written[^1];
         using (Assert.Multiple())
         {
-            await Assert.That(rendered.Count).IsEqualTo(1);
-            await Assert.That(rendered[0].Map).IsEqualTo("de_nuke");
-            await Assert.That(rendered[0].Marks.SequenceEqual([setupsMark, awpMark])).IsTrue();
-            await Assert.That(html.Split("<figure").Length - 1).IsEqualTo(1);
-            await Assert.That(html).Contains("<figcaption>Nuke CT · Setups, AWP</figcaption>");
+            await Assert.That(rendered.Count).IsEqualTo(2);
+            await Assert.That(rendered[0].Marks.SequenceEqual([setupsMark])).IsTrue();
+            await Assert.That(rendered[1].Marks.SequenceEqual([awpMark])).IsTrue();
+            await Assert.That(html.Split("<figure").Length - 1).IsEqualTo(2);
+            await Assert.That(html).Contains("<figcaption>Nuke CT · Setups</figcaption>");
+            await Assert.That(html).Contains("<figcaption>Nuke CT · AWP</figcaption>");
         }
 
-        InOrder(html, "<h3>CT</h3>", "<figure class=\"stage\">", "Setups:", "<h3>T</h3>", "Economy:");
+        InOrder(html, "<h3 class=\"side ct\">CT side</h3>", "<h4>Starting setups</h4>", "<figure>",
+            "<td>A anchor</td><td class=\"v\">4</td>", "<h4>AWP · CT</h4>", "<h3 class=\"side t\">T side</h3>",
+            "<h4>Economy</h4>");
 
-        // Markdown carries no picture, renders none, and says where the picture is.
+        // Markdown carries no picture and renders none.
         rendered.Clear();
         editor.ExportFormat = ScoutingReportFormat.Markdown;
         editor.ExportCommand.Execute(null);
@@ -277,18 +299,17 @@ public class ScoutingReportExportTests
         {
             await Assert.That(rendered).IsEmpty();
             await Assert.That(written[^1]).DoesNotContain("data:image");
-            await Assert.That(written[^1])
-                .Contains(ScoutingReportExporter.StageOmittedLine("Nuke CT · Setups, AWP"));
         }
 
-        // The long form carries the lines' own pictures, never the stage.
+        // The long form pictures every card with a layer to draw, starred or not.
         editor.ExportFormat = ScoutingReportFormat.Html;
         editor.ExportForm = ScoutingReportForm.LongForm;
         editor.ExportCommand.Execute(null);
         using (Assert.Multiple())
         {
-            await Assert.That(rendered).IsEmpty();
-            await Assert.That(written[^1]).DoesNotContain("<figure");
+            await Assert.That(rendered.Count).IsEqualTo(3);
+            await Assert.That(written[^1].Split("<figure").Length - 1).IsEqualTo(3);
+            await Assert.That(written[^1]).Contains("<figcaption>Nuke T · Plants</figcaption>");
         }
     }
 
