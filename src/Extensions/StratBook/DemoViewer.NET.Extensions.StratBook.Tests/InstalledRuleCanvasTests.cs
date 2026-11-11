@@ -19,7 +19,6 @@ using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views;
 using Microsoft.Extensions.DependencyInjection;
-using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.Extensions.UpdateFixtures;
 
 #endregion
@@ -80,8 +79,9 @@ public class InstalledRuleCanvasTests
                 await Assert.That(status.IsCompatible).IsTrue().Because(status.Problem ?? "compatible");
                 await Assert.That(pack.Id).IsEqualTo(Id);
                 await Assert.That(context).IsTypeOf<ExternalLoadContext>();
-                await Assert.That(stagedFiles).Contains("Nodify.Avalonia.dll").And.Contains("DemoViewer.NET.RuleAuthoring.dll");
-                await Assert.That(stagedFiles.Where(f => f.StartsWith("Avalonia", StringComparison.Ordinal))).IsEmpty();
+                // The set pack-extension.sh stages from the Desktop head's closure; CI's dry run checks the same.
+                await Assert.That(stagedFiles.Where(f => f.EndsWith(".dll", StringComparison.Ordinal)))
+                    .IsEquivalentTo([Assembly + ".dll", "Nodify.Avalonia.dll", "DemoViewer.NET.RuleAuthoring.dll"]);
                 await Assert.That(AssemblyLoadContext.GetLoadContext(nodify)).IsEqualTo(context);
                 await Assert.That(nodify.Location).EndsWith(Path.Combine(Id, version, "Nodify.Avalonia.dll"));
                 // Nodify is built against an older Avalonia of the same major, which the app's copy binds.
@@ -182,7 +182,8 @@ public class InstalledRuleCanvasTests
         string manifest = Path.Combine(output, Id + "." + ExtensionManifest.FileName);
         if (!File.Exists(manifest))
         {
-            throw new SkipTestException($"no {Path.GetFileName(manifest)} in {output}");
+            // The project builds the canvas, so a missing output is a broken build, not a reason to skip.
+            throw new InvalidOperationException($"no {Path.GetFileName(manifest)} in {output}");
         }
 
         Directory.CreateDirectory(directory);
