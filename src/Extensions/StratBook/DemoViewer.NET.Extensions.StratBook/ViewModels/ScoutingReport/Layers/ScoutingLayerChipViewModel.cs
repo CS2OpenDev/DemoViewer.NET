@@ -91,10 +91,12 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
 
     public bool HasMiniChart => MiniChart is not null;
 
-    /// <summary>A strip mini's second button: the By score mini also inspects the timeouts.</summary>
-    public ScoutingLayerChipViewModel? Companion { get; internal set; }
-
-    public bool HasCompanion => Companion is not null;
+    /// <summary>
+    ///     Always false: no strip mini has a second button any more (Timeouts is its own mini). Kept, with
+    ///     <see cref="CompanionLabel" /> and <see cref="InspectCompanionCommand" />, only until the views drop their
+    ///     bindings to them.
+    /// </summary>
+    public bool HasCompanion { get; }
 
     /// <summary>The checkbox's accessible name.</summary>
     public string DrawLabel => $"Draw {Name} on the map";
@@ -102,8 +104,11 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
     /// <summary>The name button's accessible name.</summary>
     public string InspectLabel => $"Inspect {Name}";
 
-    /// <summary>The companion button's accessible name: "Inspect tactical timeouts".</summary>
-    public string CompanionLabel => Companion is { } companion ? $"Inspect {companion.Title}" : "";
+    /// <summary>Always empty; see <see cref="HasCompanion" />.</summary>
+    public string CompanionLabel { get; } = "";
+
+    /// <summary>Does nothing; see <see cref="HasCompanion" />.</summary>
+    public IRelayCommand InspectCompanionCommand { get; } = new RelayCommand(static () => { });
 
     partial void OnIsOnChanged(bool value)
     {
@@ -122,16 +127,6 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
     /// <summary>Focuses the layer in the inspector, turning it on.</summary>
     [RelayCommand]
     private void Inspect() => _registry.Focus(this);
-
-    /// <summary>Focuses the companion layer.</summary>
-    [RelayCommand]
-    private void InspectCompanion()
-    {
-        if (Companion is { } companion)
-        {
-            _registry.Focus(companion);
-        }
-    }
 
     /// <summary>Sets the checkbox without asking the registry again.</summary>
     /// <param name="on">Drawn.</param>

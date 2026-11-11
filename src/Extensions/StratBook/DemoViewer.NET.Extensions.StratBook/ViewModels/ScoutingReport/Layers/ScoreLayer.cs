@@ -8,14 +8,19 @@ using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 
 /// <summary>
-///     By score (strip, map-wide): rounds won per side when leading by 3+, within 2 and trailing by 3+ (the score
-///     before the round, captured from the server since R2), on and facing match point, and what changes with the
-///     score: the force-buy rate and which site the T side plants. <see cref="ScoreDerivation" /> over Round
-///     Facts. Every number opens its rounds; the buy filter does not apply (the force rate is one of the answers).
+///     By score (strip, map-wide): round win % per side overall and when leading by 3+, within 2 and trailing by 3+
+///     (the score before the round, captured from the server since R2), each against the side's overall; on and
+///     facing match point; and what changes with the score: the force-buy rate and which site the T side plants.
+///     A state with fewer than <see cref="ScoreDerivation.MinRounds" /> rounds on a side shows "—" in the mini.
+///     <see cref="ScoreDerivation" /> over Round Facts. Every number opens its rounds; the buy filter does not apply
+///     (the force rate is one of the answers). Tactical timeouts are their own strip layer (<see cref="TimeoutsLayer" />).
 /// </summary>
 public sealed class ScoreLayer() : ScoutingLayerBase("score", "By score", ScoutingLayerPlacement.Strip,
     ScoutingSides.Both, new ScoutingSwatch(ScoutingMarkShape.Dot, ScoutingColor.Neutral), "D")
 {
+    /// <summary>The mini table's first row: every round on the side.</summary>
+    public const string OverallRow = "Overall";
+
     /// <inheritdoc />
     public override async Task<ScoutingLayerResult> BuildAsync(ScoutingLayerContext context,
         CancellationToken cancellationToken)
@@ -31,26 +36,38 @@ public sealed class ScoreLayer() : ScoutingLayerBase("score", "By score", Scouti
 
         ScoreState[] states = Enum.GetValues<ScoreState>();
         List<ScoutingInspectorRow> byState = [];
-        List<ScoutingTableRow> table = [];
+        foreach (int side in (int[])[3, 2])
+        {
+            List<TeamRound> all = [.. rounds.Where(r => r.Side == side)];
+            if (all.Count > 0)
+            {
+                string s = StripData.SideLabel(side);
+                byState.Add(StripData.Share($"{OverallRow} · {s}", [.. all.Where(r => r.Won).Select(r => r.Clip)],
+                    all.Count, $"overall {s}", StripData.MapTitle(context, $"{s} rounds won"),
+                    StripData.SideColor(side), "rounds won"));
+            }
+        }
+
         foreach (ScoreState state in states)
         {
             string label = ScoreDerivation.Label(state);
-            List<string> cells = [];
             foreach (int side in (int[])[3, 2])
             {
-                List<TeamRound> here = [.. rounds.Where(r => r.Side == side && ScoreDerivation.StateOf(r) == state)];
-                string s = StripData.SideLabel(side);
-                cells.Add(here.Count > 0 ? Percent((double)here.Count(r => r.Won) / here.Count) : "–");
-                if (here.Count > 0)
+                List<TeamRound> all = [.. rounds.Where(r => r.Side == side)];
+                List<TeamRound> here = [.. all.Where(r => ScoreDerivation.StateOf(r) == state)];
+                if (here.Count == 0)
                 {
-                    byState.Add(StripData.Share($"{label} · {s}", [.. here.Where(r => r.Won).Select(r => r.Clip)],
-                        here.Count, $"{label.ToLowerInvariant()} {s}",
-                        StripData.MapTitle(context, $"{s} {label.ToLowerInvariant()}"), StripData.SideColor(side),
-                        "rounds won"));
+                    continue;
                 }
-            }
 
-            table.Add(new ScoutingTableRow(label, cells));
+                string s = StripData.SideLabel(side);
+                string note = here.Count < ScoreDerivation.MinRounds
+                    ? $"under {ScoreDerivation.MinRounds} rounds, not compared · rounds won"
+                    : $"{Signed(WinPercent(here) - WinPercent(all))} vs {WinPercent(all)}% overall · rounds won";
+                byState.Add(StripData.Share($"{label} · {s}", [.. here.Where(r => r.Won).Select(r => r.Clip)],
+                    here.Count, $"{label.ToLowerInvariant()} {s}",
+                    StripData.MapTitle(context, $"{s} {label.ToLowerInvariant()}"), StripData.SideColor(side), note));
+            }
         }
 
         List<ScoutingInspectorRow> matchPoint = [];
@@ -88,50 +105,121 @@ public sealed class ScoreLayer() : ScoutingLayerBase("score", "By score", Scouti
             }
         }
 
-        List<ScoutingInspectorRow> timeoutRows = [];
-        if (await TimeoutsLayer.TimeoutsFor(context).ConfigureAwait(false) is { Count: > 0 } timeouts)
-        {
-            timeoutRows.AddRange(TimeoutsLayer.ByScoreRows(context, timeouts));
-            timeoutRows.Add(StripData.Share("Round after the timeout won",
-                [.. timeouts.Where(t => t.Won).Select(t => t.Round)], timeouts.Count, "round after the timeout won",
-                StripData.MapTitle(context, "won after a tactical timeout"), note: "tactical timeouts only"));
-        }
-
         List<ScoutingInspectorSection> sections =
         [
             new("By score before the round", byState),
             new("Match point", matchPoint),
-            new("What changes with the score", changes),
-            new("Timeouts by the score", timeoutRows)
+            new("What changes with the score", changes)
         ];
         return new ScoutingLayerResult
         {
             CountLabel = Plural(rounds.Count, "round"),
             Reads = Read(rounds) is { } read ? [new ScoutingRead(read, Suggested: StripData.SuggestOn(context))] : [],
             Sections = [.. sections.Where(s => s.Rows.Count > 0)],
-            MiniChart = new ScoutingTableChart("CT", "T", table)
-            {
-                Caption = "rounds won, by the score before the round"
-            }
+            MiniChart = Chart(rounds)
         };
     }
 
-    /// <summary>The read: how much their win rate moves between leading and trailing, both sides together.</summary>
+    /// <summary>
+    ///     The mini: round win % and its rounds per side, overall and by the score before the round, "58% (24)";
+    ///     "—" for a cell with fewer than <see cref="ScoreDerivation.MinRounds" /> rounds.
+    /// </summary>
+    /// <param name="rounds">The rounds.</param>
+    public static ScoutingTableChart Chart(IReadOnlyList<TeamRound> rounds)
+    {
+        ArgumentNullException.ThrowIfNull(rounds);
+        List<ScoutingTableRow> table =
+        [
+            new(OverallRow, [.. ((int[])[3, 2]).Select(side => Cell([.. rounds.Where(r => r.Side == side)]))])
+        ];
+        foreach (ScoreState state in Enum.GetValues<ScoreState>())
+        {
+            table.Add(new ScoutingTableRow(ScoreDerivation.Label(state),
+            [
+                .. ((int[])[3, 2]).Select(side =>
+                    Cell([.. rounds.Where(r => r.Side == side && ScoreDerivation.StateOf(r) == state)]))
+            ]));
+        }
+
+        return new ScoutingTableChart("CT", "T", table)
+        {
+            Caption = $"round win % (rounds) by the score before the round; — = under {ScoreDerivation.MinRounds} rounds"
+        };
+    }
+
+    /// <summary>"58% (24)", or "—" under <see cref="ScoreDerivation.MinRounds" /> rounds.</summary>
+    /// <param name="rounds">The rounds of one cell.</param>
+    public static string Cell(IReadOnlyList<TeamRound> rounds)
+    {
+        ArgumentNullException.ThrowIfNull(rounds);
+        return rounds.Count < ScoreDerivation.MinRounds
+            ? "—"
+            : $"{Percent((double)rounds.Count(r => r.Won) / rounds.Count)} ({rounds.Count})";
+    }
+
+    /// <summary>
+    ///     The read: the score state and side whose round win % moves furthest from that side's overall, among
+    ///     states with at least <see cref="ScoreDerivation.MinRounds" /> rounds. Null when none has that many.
+    /// </summary>
     /// <param name="rounds">The rounds.</param>
     public static string? Read(IReadOnlyList<TeamRound> rounds)
     {
         ArgumentNullException.ThrowIfNull(rounds);
-        List<TeamRound> leading = [.. rounds.Where(r => ScoreDerivation.StateOf(r) == ScoreState.Leading)];
-        List<TeamRound> trailing = [.. rounds.Where(r => ScoreDerivation.StateOf(r) == ScoreState.Trailing)];
-        if (leading.Count == 0 || trailing.Count == 0)
+        (ScoreState State, int Side, int Rate, int Overall)? best = null;
+        foreach (int side in (int[])[3, 2])
+        {
+            List<TeamRound> all = [.. rounds.Where(r => r.Side == side)];
+            if (all.Count < ScoreDerivation.MinRounds)
+            {
+                continue;
+            }
+
+            int overall = WinPercent(all);
+            foreach (ScoreState state in Enum.GetValues<ScoreState>())
+            {
+                List<TeamRound> here = [.. all.Where(r => ScoreDerivation.StateOf(r) == state)];
+                if (here.Count < ScoreDerivation.MinRounds)
+                {
+                    continue;
+                }
+
+                int rate = WinPercent(here);
+                if (best is not { } b || Math.Abs(rate - overall) > Math.Abs(b.Rate - b.Overall))
+                {
+                    best = (state, side, rate, overall);
+                }
+            }
+        }
+
+        if (best is not { } top)
         {
             return null;
         }
 
-        double lead = (double)leading.Count(r => r.Won) / leading.Count;
-        double trail = (double)trailing.Count(r => r.Won) / trailing.Count;
-        return $"They win {Percent(lead)} of rounds when leading by {ScoreDerivation.Margin}+ and {Percent(trail)} when trailing by {ScoreDerivation.Margin}+.";
+        int delta = top.Rate - top.Overall;
+        if (delta == 0)
+        {
+            return "Their round win % does not move with the score on either side.";
+        }
+
+        string lead = top.State == ScoreState.Within
+            ? $"With the score within {ScoreDerivation.Margin - 1}"
+            : ScoreDerivation.Label(top.State);
+        return $"{lead}, their {StripData.SideLabel(top.Side)} win rate {(delta > 0 ? "rises" : "falls")} to {top.Rate}% ({Signed(delta)} vs their {top.Overall}% overall).";
     }
+
+    // Round win %, rounded the way Percent rounds it, so a difference of two matches the numbers shown.
+    private static int WinPercent(List<TeamRound> rounds) => rounds.Count == 0
+        ? 0
+        : (int)Math.Round(100.0 * rounds.Count(r => r.Won) / rounds.Count, MidpointRounding.AwayFromZero);
+
+    // "+15", "−22" (a true minus sign), "±0".
+    private static string Signed(int points) => points switch
+    {
+        > 0 => $"+{points}",
+        < 0 => $"−{-points}",
+        _ => "±0"
+    };
 
     private static void AddMatchPoint(ScoutingLayerContext context, List<ScoutingInspectorRow> rows,
         IReadOnlyList<TeamRound> rounds, string label)

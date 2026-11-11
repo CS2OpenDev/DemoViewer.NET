@@ -23,6 +23,12 @@ public static class ScoreDerivation
     /// <summary>A lead or deficit of this many rounds or more is leading or trailing.</summary>
     public const int Margin = 3;
 
+    /// <summary>
+    ///     A score state with fewer rounds than this on a side shows "—" in place of its round win %, and is left
+    ///     out of the read: two or three rounds swing the rate too far to compare against the side's overall.
+    /// </summary>
+    public const int MinRounds = 5;
+
     /// <summary>The state before a round.</summary>
     /// <param name="own">The team's score.</param>
     /// <param name="enemy">The opponent's.</param>

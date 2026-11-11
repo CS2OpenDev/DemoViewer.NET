@@ -64,10 +64,6 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
         _post = post;
         _rows = rows;
         _all = [.. layers.Select(l => new ScoutingLayerChipViewModel(this, l))];
-        if (Find("score") is { } score)
-        {
-            score.Companion = Find("timeouts");
-        }
     }
 
     /// <summary>Every layer, both sides.</summary>
@@ -76,7 +72,7 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
     /// <summary>The map layers offered on the side in view.</summary>
     public ObservableCollection<ScoutingLayerChipViewModel> MapChips { get; } = [];
 
-    /// <summary>The strip minis under the map: Economy, Pace (T) or Rotations (CT), Opening impact, By score.</summary>
+    /// <summary>The strip minis under the map: Economy, Pace (T) or Rotations (CT), Opening impact, By score, Timeouts.</summary>
     public ObservableCollection<ScoutingLayerChipViewModel> StripMinis { get; } = [];
 
     /// <summary>The legend lines of the drawn layers.</summary>
@@ -144,7 +140,7 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
         }
 
         Replace(MapChips, offered.Where(c => c.IsMap));
-        Replace(StripMinis, ((string[])["econ", side == ScoutingSide.T ? "pace" : "rotations", "impact", "score"])
+        Replace(StripMinis, ((string[])["econ", side == ScoutingSide.T ? "pace" : "rotations", "impact", "score", "timeouts"])
             .Select(Find).OfType<ScoutingLayerChipViewModel>());
         if (Focused is null || !Focused.Layer.AppliesTo(side) || (Focused.IsMap && !Focused.IsOn))
         {

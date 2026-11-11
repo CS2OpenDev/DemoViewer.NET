@@ -12,6 +12,7 @@ using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Review;
+using TUnit.Assertions.Enums;
 
 #endregion
 
@@ -285,14 +286,39 @@ public class StripLayersTests
             ]
         };
         OpeningImpact impact = OpeningImpact.Of(block);
-        ScoutingDumbbellChart chart = ImpactLayer.Chart([impact]);
+        ScoutingTableChart chart = ImpactLayer.Chart([impact]);
         using (Assert.Multiple())
         {
             await Assert.That(impact.High).IsEqualTo(50);
             await Assert.That(impact.Low).IsEqualTo(0);
             await Assert.That(impact.Traded.Select(r => r.RoundNumber)).IsEquivalentTo([3]);
-            await Assert.That(chart.Rows.Single().Value).IsEqualTo("0% → 50%");
-            await Assert.That(ImpactLayer.Read([impact])).IsEqualTo("Winning the opening lifts their CT rounds from 0% to 50%.");
+            await Assert.That(chart.Rows.Select(r => $"{r.Label}: {r.First} | {r.Second}")).IsEquivalentTo(
+                ["Won the opening: 50% (2) | —", "Lost the opening: 0% (2) | —", "Lost opening traded: 50% (2) | —"],
+                CollectionOrdering.Matching);
+            await Assert.That(ImpactLayer.Read([impact]))
+                .IsEqualTo("Losing the opening costs them 50 points of round win % on CT (50% → 0%).");
+        }
+    }
+
+    [Test]
+    public async Task Score_ShowsEachCellsRounds_HidesThinCells_AndReadsTheBiggestSwingAgainstTheOverall()
+    {
+        // A's scores before each round: T r1-r3 within (won), r4 leading (lost), r5 within (lost), r6 within (won);
+        // CT r7-r11 within (lost, lost, won, won, won), r12 leading (lost).
+        IReadOnlyList<TeamRound> rounds = Rounds();
+        ScoutingTableChart chart = ScoreLayer.Chart(rounds);
+        using (Assert.Multiple())
+        {
+            await Assert.That(chart.Rows.Select(r => $"{r.Label}: {r.First} | {r.Second}")).IsEquivalentTo(
+                [
+                    "Overall: 50% (6) | 67% (6)", "Leading by 3+: — | —", "Within 2: 60% (5) | 80% (5)",
+                    "Trailing by 3+: — | —"
+                ],
+                CollectionOrdering.Matching);
+            await Assert.That(ScoreLayer.Read(rounds))
+                .IsEqualTo("With the score within 2, their T win rate rises to 80% (+13 vs their 67% overall).");
+            await Assert.That(ScoreLayer.Read([.. rounds.Where(r => r.Number <= 4)])).IsNull()
+                .Because($"no state has {ScoreDerivation.MinRounds} rounds on a side");
         }
     }
 
@@ -342,6 +368,16 @@ public class StripLayersTests
             await Assert.That(rows[1].Value).IsEqualTo("2 of 3 rounds");
             await Assert.That(rows[2].Label).IsEqualTo("Usual call after the timeout · B execute");
             await Assert.That(rows.All(r => r.Rounds.Count > 0)).IsTrue();
+            await Assert.That(built.Sections[1].Rows.Select(r => $"{r.Label}: {r.Value}")).IsEquivalentTo(
+                [
+                    "CT · called: 2 timeouts", "CT · round after won: 1 of 2 rounds", "T · called: 1 timeout",
+                    "T · round after won: 1 of 1 round"
+                ],
+                CollectionOrdering.Matching);
+            ScoutingTableChart chart = (ScoutingTableChart)built.MiniChart!;
+            await Assert.That(chart.Rows.Select(r => $"{r.Label}: {r.First} | {r.Second}"))
+                .IsEquivalentTo(["Called: 2 | 1", "Round after won: 1 of 2 | 1 of 1"], CollectionOrdering.Matching);
+            await Assert.That(chart.Caption).EndsWith("usual call after one: B execute (2 of 3)");
         }
     }
 
@@ -367,11 +403,12 @@ public class StripLayersTests
             await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.T, "score");
         using (Assert.Multiple())
         {
-            await Assert.That(vm.Layers.StripMinis.All(m => m.HasMiniChart)).IsTrue()
-                .Because("economy, pace, impact and score each draw a chart on T");
+            await Assert.That(vm.Layers.StripMinis.Where(m => m.Id != "timeouts").All(m => m.HasMiniChart)).IsTrue()
+                .Because("economy, pace, impact and score each draw a chart on T; timeouts need round captures");
+            await Assert.That(vm.Layers.StripMinis.Select(m => m.Id)).Contains("timeouts");
             await Assert.That(vm.Layers.Find("econ")!.MiniChart).IsTypeOf<ScoutingStackChart>();
             await Assert.That(vm.Layers.Find("pace")!.MiniChart).IsTypeOf<ScoutingStripChart>();
-            await Assert.That(vm.Layers.Find("impact")!.MiniChart).IsTypeOf<ScoutingDumbbellChart>();
+            await Assert.That(vm.Layers.Find("impact")!.MiniChart).IsTypeOf<ScoutingTableChart>();
             await Assert.That(vm.Layers.Find("score")!.MiniChart).IsTypeOf<ScoutingTableChart>();
 
             await Assert.That(econ.Titled("de_nuke · CT force buys").Value).IsEqualTo("1 of 5 rounds");
@@ -522,7 +559,7 @@ public class StripLayersRenderTests
             await Assert.That(shown).Contains("Lost pistol → R2");
             await Assert.That(shown).Contains("Leading by 3+");
             await Assert.That(shown.Any(t => t.StartsWith("plant time 0:00", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(shown.Any(t => t.StartsWith("round win % after losing", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(shown.Any(t => t.StartsWith("round win % (rounds) after the opening duel", StringComparison.Ordinal))).IsTrue();
         }
     }
 }

@@ -43,14 +43,23 @@ public sealed record OpeningImpact(
 }
 
 /// <summary>
-///     Opening impact (strip, map-wide): per side, round win % after losing and after winning the opening duel,
-///     drawn as a dumbbell (ring = lost, dot = won), and how often a lost opening is traded. Read from the
-///     Opening layer's duels (<see cref="OpeningLayer.DuelsFor" />: Round Facts kills, 5 s trade window). Every
-///     number opens its rounds; the buy filter does not apply.
+///     Opening impact (strip, map-wide): per side, round win % after winning and after losing the opening duel, and
+///     how often a lost opening is traded, as a small CT | T table. Read from the Opening layer's duels
+///     (<see cref="OpeningLayer.DuelsFor" />: Round Facts kills, 5 s trade window). Every number opens its rounds;
+///     the buy filter does not apply.
 /// </summary>
 public sealed class ImpactLayer() : ScoutingLayerBase("impact", "Opening impact", ScoutingLayerPlacement.Strip,
     ScoutingSides.Both, new ScoutingSwatch(ScoutingMarkShape.Dot, ScoutingColor.Neutral), "D")
 {
+    /// <summary>The mini table's first row; its inspector section starts with it.</summary>
+    public const string WonRow = "Won the opening";
+
+    /// <summary>The mini table's second row.</summary>
+    public const string LostRow = "Lost the opening";
+
+    /// <summary>The mini table's third row: the share of lost openings a teammate traded.</summary>
+    public const string TradedRow = "Lost opening traded";
+
     /// <inheritdoc />
     public override async Task<ScoutingLayerResult> BuildAsync(ScoutingLayerContext context,
         CancellationToken cancellationToken)
@@ -78,19 +87,21 @@ public sealed class ImpactLayer() : ScoutingLayerBase("impact", "Opening impact"
             return ScoutingLayerResult.Empty($"no opening duels on {context.Map}");
         }
 
-        List<ScoutingInspectorRow> rows = [];
+        // One section per table row and one row per side in it, so every cell of the mini opens its rounds here.
+        List<ScoutingInspectorRow> won = [];
+        List<ScoutingInspectorRow> lost = [];
         List<ScoutingInspectorRow> traded = [];
         foreach (OpeningImpact side in sides)
         {
             string s = StripData.SideLabel(side.Side);
             ScoutingColor color = StripData.SideColor(side.Side);
-            rows.Add(StripData.Share($"{s} · lost the opening", side.WonAfterLosing, side.LostOpening.Count,
-                $"{s} won after losing the opening", StripData.MapTitle(context, $"{s} won after losing the opening"),
-                color, "rounds won"));
-            rows.Add(StripData.Share($"{s} · won the opening", side.WonAfterWinning, side.WonOpening.Count,
+            won.Add(StripData.Share($"{s} · won the opening", side.WonAfterWinning, side.WonOpening.Count,
                 $"{s} won after winning the opening", StripData.MapTitle(context, $"{s} won after winning the opening"),
                 color, "rounds won"));
-            traded.Add(StripData.Share($"Opening deaths traded · {s}", side.Traded, side.LostOpening.Count,
+            lost.Add(StripData.Share($"{s} · lost the opening", side.WonAfterLosing, side.LostOpening.Count,
+                $"{s} won after losing the opening", StripData.MapTitle(context, $"{s} won after losing the opening"),
+                color, Swing(side) is { } swing ? $"rounds won · {swing}" : "rounds won"));
+            traded.Add(StripData.Share($"{s} · opening deaths traded", side.Traded, side.LostOpening.Count,
                 $"{s} opening deaths traded", StripData.MapTitle(context, $"{s} opening deaths traded"), color,
                 $"killer dies within {OpeningDuelsService.TradeWindowSeconds:0} s"));
         }
@@ -101,36 +112,77 @@ public sealed class ImpactLayer() : ScoutingLayerBase("impact", "Opening impact"
             Reads = Read(sides) is { } read ? [new ScoutingRead(read, Suggested: StripData.SuggestOn(context))] : [],
             Sections =
             [
-                new ScoutingInspectorSection("Round win % by opening duel", rows),
-                new ScoutingInspectorSection("", traded)
+                new ScoutingInspectorSection($"{WonRow} · round win %", won),
+                new ScoutingInspectorSection($"{LostRow} · round win %", lost),
+                new ScoutingInspectorSection($"{TradedRow} · share of lost openings", traded)
             ],
             MiniChart = Chart(sides)
         };
     }
 
-    /// <summary>The read: the side where the opening swings the round most.</summary>
+    /// <summary>
+    ///     The read: the side where losing the opening costs the most, in points of round win %, with both rates.
+    ///     When losing it costs nothing on any side, it says that instead.
+    /// </summary>
     /// <param name="sides">The sides with duels.</param>
     public static string? Read(IReadOnlyList<OpeningImpact> sides)
     {
         ArgumentNullException.ThrowIfNull(sides);
-        OpeningImpact? top = sides.Where(s => s is { Low: not null, High: not null })
-            .MaxBy(s => s.High!.Value - s.Low!.Value);
-        return top is null
-            ? null
-            : $"Winning the opening lifts their {StripData.SideLabel(top.Side)} rounds from {Percent(top.Low!.Value / 100)} to {Percent(top.High!.Value / 100)}.";
+        OpeningImpact? top = sides.Where(s => s is { Low: not null, High: not null }).MaxBy(Points);
+        if (top is null)
+        {
+            return null;
+        }
+
+        string side = StripData.SideLabel(top.Side);
+        int points = Points(top);
+        return points > 0
+            ? $"Losing the opening costs them {Plural(points, "point")} of round win % on {side} ({Text(top.High)} → {Text(top.Low)})."
+            : $"Losing the opening does not cost them on {side}: they win {Text(top.Low)} of rounds after losing it and {Text(top.High)} after winning it.";
     }
 
-    /// <summary>The mini: a dumbbell per side, ring after losing the opening, dot after winning it.</summary>
+    /// <summary>
+    ///     The mini: a CT | T table of round win % after winning and after losing the opening, each with its
+    ///     rounds, and the share of lost openings a teammate traded.
+    /// </summary>
     /// <param name="sides">The sides with duels.</param>
-    public static ScoutingDumbbellChart Chart(IReadOnlyList<OpeningImpact> sides)
+    public static ScoutingTableChart Chart(IReadOnlyList<OpeningImpact> sides)
     {
         ArgumentNullException.ThrowIfNull(sides);
-        return new ScoutingDumbbellChart(
+        OpeningImpact? ct = sides.FirstOrDefault(s => s.Side == 3);
+        OpeningImpact? t = sides.FirstOrDefault(s => s.Side == 2);
+        return new ScoutingTableChart("CT", "T",
         [
-            .. sides.Select(s => new ScoutingDumbbell(StripData.SideLabel(s.Side), StripData.SideColor(s.Side), s.Low,
-                s.High, $"{Text(s.Low)} → {Text(s.High)}"))
-        ]) { Caption = "round win % after losing (ring) and winning (filled) the opening duel" };
+            new ScoutingTableRow(WonRow,
+                [Cell(ct?.WonAfterWinning.Count, ct?.WonOpening.Count), Cell(t?.WonAfterWinning.Count, t?.WonOpening.Count)]),
+            new ScoutingTableRow(LostRow,
+                [Cell(ct?.WonAfterLosing.Count, ct?.LostOpening.Count), Cell(t?.WonAfterLosing.Count, t?.LostOpening.Count)]),
+            new ScoutingTableRow(TradedRow,
+                [Cell(ct?.Traded.Count, ct?.LostOpening.Count), Cell(t?.Traded.Count, t?.LostOpening.Count)])
+        ]) { Caption = "round win % (rounds) after the opening duel; traded = lost openings a teammate traded" };
     }
 
-    private static string Text(double? percent) => percent is { } p ? Percent(p / 100) : "–";
+    /// <summary>"67% (12)": a share and the rounds it is out of, or "—" with none.</summary>
+    /// <param name="count">The rounds counted.</param>
+    /// <param name="of">The rounds it is out of.</param>
+    public static string Cell(int? count, int? of) =>
+        count is { } c && of is > 0 ? $"{Percent((double)c / of.Value)} ({of.Value})" : "—";
+
+    // Points of round win % lost with the opening, from the shown (rounded) percentages so the read adds up.
+    private static int Points(OpeningImpact side) => Rounded(side.High) - Rounded(side.Low);
+
+    private static int Rounded(double? percent) =>
+        percent is { } p ? (int)Math.Round(p, MidpointRounding.AwayFromZero) : 0;
+
+    // "17 points under winning it", for the lost row's note; null when either rate is missing.
+    private static string? Swing(OpeningImpact side) => side is { Low: not null, High: not null }
+        ? Points(side) switch
+        {
+            > 0 and var p => $"{Plural(p, "point")} under winning it",
+            < 0 and var p => $"{Plural(-p, "point")} over winning it",
+            _ => "same as winning it"
+        }
+        : null;
+
+    private static string Text(double? percent) => percent is { } p ? Percent(p / 100) : "—";
 }
