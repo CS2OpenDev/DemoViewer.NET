@@ -703,7 +703,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         return assignment;
     }
 
-    // Anchored lineup techniques that have no stored flight, with their throws and mean origin.
+    // Anchored lineup techniques that have no stored flight, or only one keyed by a demo's path, with their
+    // throws and mean origin.
     private static IEnumerable<(string Key, WorldPoint Origin, List<IndexedGrenade> Throws)> Unpathed(
         IReadOnlyList<IndexedGrenade> all, Dictionary<string, Guid> assignment, MapLineups lineups)
     {
@@ -713,7 +714,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
                      .GroupBy(g => PathKey(assignment[g.Key], GrenadeLineups.TechniqueKey(g.Row)),
                          StringComparer.Ordinal))
         {
-            if (!lineups.Paths.ContainsKey(group.Key))
+            if (!lineups.Paths.TryGetValue(group.Key, out LineupPath? held) || IsPathKeyed(held.Throw))
             {
                 List<IndexedGrenade> throws = [.. group];
                 yield return (group.Key, Mean(throws.Select(t => t.Origin)), throws);
@@ -721,7 +722,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         }
     }
 
-    // Stores one in-memory flight per anchored technique that has none: the one released nearest the mean.
+    // Stores one in-memory flight per anchored technique that has none, or replaces one keyed by a path: the
+    // one released nearest the mean.
     private static bool FillPaths(IReadOnlyList<IndexedGrenade> all, Dictionary<string, Guid> assignment,
         MapLineups lineups)
     {
@@ -745,7 +747,9 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
     // Under _gate. Older builds keyed a seed or a flight by the demo's path key while it was unhashed, and
     // the file travels to machines where that path means nothing. A key whose demo is hashed by now moves
-    // to the hash; any other is dropped (a seed to "", a flight for FillPaths to refill). Ids, aliases and
+    // to the hash. Any other seed is dropped to "". Any other flight is kept: its demo may be unhashed or on
+    // an offline drive, so nothing could refill it, and FillPaths replaces it once a hashed throw is here. The
+    // import never takes a path-keyed flight, so keeping it does not let the path travel. Ids, aliases and
     // origins are never touched: strats and clips name the ids. A second run finds nothing to change.
     private bool DropPathKeysLocked(MapLineups lineups)
     {
@@ -792,13 +796,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
         foreach ((string key, LineupPath path) in lineups.Paths.ToList())
         {
-            string? rekeyed = Rekey(path.Throw);
-            if (rekeyed is null)
-            {
-                lineups.Paths.Remove(key);
-                changed = true;
-            }
-            else if (!string.Equals(rekeyed, path.Throw, StringComparison.Ordinal))
+            if (Rekey(path.Throw) is { } rekeyed && !string.Equals(rekeyed, path.Throw, StringComparison.Ordinal))
             {
                 lineups.Paths[key] = path with { Throw = rekeyed };
                 changed = true;

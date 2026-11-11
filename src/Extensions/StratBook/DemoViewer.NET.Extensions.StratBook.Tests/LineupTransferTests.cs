@@ -147,7 +147,8 @@ public class LineupTransferTests
                 await Assert.That(migrated.Aliases[grid]).IsEqualTo(onSpot);
                 await Assert.That(migrated.Paths[$"{onSpot:N}/{Technique}"].Throw).IsEqualTo(Sha(1) + "/a");
                 await Assert.That(migrated.Paths[$"{onSpot:N}/{Technique}"].Points.Single().X).IsEqualTo(1f);
-                await Assert.That(migrated.Paths.ContainsKey($"{offline:N}/{Technique}")).IsFalse();
+                await Assert.That(migrated.Paths[$"{offline:N}/{Technique}"].Throw).IsEqualTo(Offline + "/z")
+                    .Because("its demo may be on an offline drive, and nothing here could fly it again");
                 await Assert.That(migrated.Anchors.Count).IsEqualTo(3).Because("the throws joined the stored anchor");
             }
 
@@ -166,6 +167,36 @@ public class LineupTransferTests
         {
             Directory.Delete(root, true);
         }
+    }
+
+    [Test]
+    public async Task APathKeyedFlight_IsKept_WhileNoHashedThrowHasAFlightToReplaceIt()
+    {
+        // Rows read from the cache carry no flight (only a walk this session does), so a hashed demo joining the
+        // lineup cannot replace the stored one either.
+        DemoCacheStore cache = new(null);
+        Indexed(cache, DemoPath(1), null, Row("a", _spot, _landing));
+        Guid onSpot = Id("on-spot");
+        string pathKey = DemoCacheStore.StableKey(DemoPath(1));
+        GrenadeLineupStore store = new(null);
+        MapLineups map = store.For(Mirage);
+        map.Anchors.Add(new LineupAnchor(onSpot, GrenadeKind.Smoke, _spot, _landing, ""));
+        map.Paths[$"{onSpot:N}/{Technique}"] = Flight(pathKey + "/a", 1);
+        using (GrenadeIndex index = Index(cache, store))
+        {
+            index.Load();
+        }
+
+        await Assert.That(map.Paths[$"{onSpot:N}/{Technique}"].Throw).IsEqualTo(pathKey + "/a")
+            .Because("its only throw is unhashed, so dropping the flight would leave the lineup without one");
+
+        Indexed(cache, DemoPath(2), Sha(2), Row("a", new WorldPoint(515, 290, -160), _landing));
+        using (GrenadeIndex index = Index(cache, store))
+        {
+            index.Load();
+        }
+
+        await Assert.That(map.Paths[$"{onSpot:N}/{Technique}"].Points.Single().X).IsEqualTo(1f);
     }
 
     // ── B2: lineups ───────────────────────────────────────────────────────────────────────────────

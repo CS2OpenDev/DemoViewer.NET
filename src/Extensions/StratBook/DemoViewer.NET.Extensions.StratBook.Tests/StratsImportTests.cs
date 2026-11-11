@@ -233,6 +233,43 @@ public class StratsImportTests
     }
 
     [Test]
+    public async Task ANewStrat_WhoseLogLostALineBeforeItsEnd_IsLeftOut()
+    {
+        using Machines m = new();
+        StratDocument strat = Committed(m.There);
+        Rename(m.There, strat.Id, "A split");
+        string log = Directory.EnumerateFiles(m.TherePath, "*" + StratStore.HistoryExtension,
+            SearchOption.AllDirectories).Single();
+        string[] lines = [.. File.ReadAllLines(log).Where(l => l.Length > 0)];
+        lines[0] = "{not json";
+        File.WriteAllLines(log, lines);
+
+        ImportLedger ledger = m.Import();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(m.Here.TryLoad(strat.Id)).IsNull();
+            await Assert.That(ledger.Skipped).IsEqualTo(1);
+            await Assert.That(ledger.Added).IsEqualTo(0);
+            await Assert.That(m.Lines.Any(l => l.Contains("does not replay"))).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task ANewStrat_WhoseLogEndsInATornLine_IsStillCopied()
+    {
+        using Machines m = new();
+        Committed(m.There);
+        string log = Directory.EnumerateFiles(m.TherePath, "*" + StratStore.HistoryExtension,
+            SearchOption.AllDirectories).Single();
+        File.AppendAllText(log, "{\"revision\":");
+
+        ImportLedger ledger = m.Import();
+
+        await Assert.That(ledger.Added).IsEqualTo(1).Because("a crash mid-append leaves a torn last line");
+    }
+
+    [Test]
     public async Task AStratDeletedHere_IsNotBroughtBack()
     {
         using Machines m = new();

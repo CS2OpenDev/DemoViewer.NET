@@ -980,15 +980,15 @@ public sealed class StratStore
             }
             else
             {
-                ImportNew(incoming, text, logBytes, owner, ledger);
+                ImportNew(incoming, text, logBytes, log, owner, ledger);
             }
         }
     }
 
     // Under _rmwGate. A byte copy, the log first like a commit, so the files stay exactly what the other machine
     // wrote, a working copy's uncommitted edits included.
-    private void ImportNew(StratDocument incoming, string text, byte[]? logBytes, StratOwner owner,
-        ImportLedger ledger)
+    private void ImportNew(StratDocument incoming, string text, byte[]? logBytes, List<HistoryEntry> log,
+        StratOwner owner, ImportLedger ledger)
     {
         string folder = FolderIn(owner, incoming.Map);
         string target = Path.Combine(folder, incoming.Id.ToString("D") + StratExtension);
@@ -996,6 +996,13 @@ public sealed class StratStore
             && _folder!.FileExists(Path.Combine(folder, TrashFolderName, Path.GetFileName(target))))
         {
             ledger.Report($"'{incoming.Name}' was deleted on this machine and was not brought back");
+            ledger.CountSkipped();
+            return;
+        }
+
+        if (!Replays(logBytes, log))
+        {
+            ledger.Report($"'{incoming.Name}' in the bundle has a history that does not replay; it was left out");
             ledger.CountSkipped();
             return;
         }
@@ -1210,6 +1217,31 @@ public sealed class StratStore
         catch (Exception e) when (e is InvalidOperationException or JsonException)
         {
             return null;
+        }
+    }
+
+    // Whether a bundle's log is one a commit could have left: only a torn last line (a crash mid-append) may fail
+    // to parse, since a bad line before it hides a change the later lines build on, and the whole log replays.
+    // A strat copied in with a broken log would open, but its history and later imports of it would not work.
+    private static bool Replays(byte[]? logBytes, List<HistoryEntry> log)
+    {
+        if (logBytes is null)
+        {
+            return true;
+        }
+
+        if (log.Count < DecodeLines(logBytes).Count(l => !string.IsNullOrWhiteSpace(l)) - 1)
+        {
+            return false;
+        }
+
+        try
+        {
+            return log.Count == 0 || StateAt(log, log.Count - 1) is not null;
+        }
+        catch (Exception e) when (e is InvalidOperationException or JsonException)
+        {
+            return false;
         }
     }
 

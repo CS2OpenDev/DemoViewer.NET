@@ -108,6 +108,29 @@ public class TeamsImportTests
     }
 
     [Test]
+    public async Task KeepMine_TakesATypedName_OverOneThisMachineDerived()
+    {
+        Guid id = Guid.NewGuid();
+        Team derived = Named(id, "ALPHA");
+        derived.NameSource = TeamNameSource.ClanTag;
+        using Run run = Setup(new TeamsFile { Teams = { derived } },
+            new TeamsFile { Teams = { Named(id, "Alpha FC") } });
+
+        ImportLedger ledger = run.Ledger();
+        run.Teams.ImportTeams(run.Staged, ledger);
+
+        Team only = run.Teams.AllTeams.Single();
+        using (Assert.Multiple())
+        {
+            // Keep mine guards what the user wrote; dropping the typed name would lose the only copy of it here.
+            await Assert.That(only.Name).IsEqualTo("Alpha FC");
+            await Assert.That(only.NameSource).IsEqualTo(TeamNameSource.User);
+            await Assert.That(ledger.Conflicts).IsEqualTo(0);
+            await Assert.That(ledger.Merged).IsEqualTo(1);
+        }
+    }
+
+    [Test]
     public async Task AnIdThisMachineMergedAway_MapsToItsHeir()
     {
         Guid heir = Guid.NewGuid();
