@@ -8,7 +8,6 @@ using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
-using DemoViewer.NET.Extensions.RuleCanvas;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.LiveSync;
 using DemoViewer.NET.Services;
@@ -31,7 +30,7 @@ internal static class Program
         // The XAML previewer calls this without Main, so it declares the same packs; a no-op after Main.
         // Behind a factory: after Main a staged copy may be the configured one, and the shipped type must
         // then stay untouched.
-        FeaturePacks.ConfigureIfUnset(static () => [new StratBookPack(), new RuleCanvasPack()]);
+        FeaturePacks.ConfigureIfUnset(static () => [new StratBookPack()]);
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
@@ -81,10 +80,7 @@ internal static class Program
         bool allowUnverified = ExtensionStartup.ReadAllowUnverified(AppPaths.SettingsFile);
         ExtensionStartupResult extensions = ExtensionStartup.Resolve(
             AppPaths.ConfigRoot,
-            [
-                ShippedPack.BesideApp(StratBookPack.PackId, static () => new StratBookPack()),
-                ShippedPack.BesideApp(RuleCanvasPack.PackId, static () => new RuleCanvasPack())
-            ],
+            [ShippedPack.BesideApp(StratBookPack.PackId, static () => new StratBookPack())],
             ExtensionHost.Current,
             TrustPolicy.ForLaunch(allowUnverified),
             PublisherKeys.Current,

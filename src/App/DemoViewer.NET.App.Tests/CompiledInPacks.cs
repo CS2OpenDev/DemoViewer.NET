@@ -2,7 +2,6 @@
 
 using System.Runtime.CompilerServices;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.RuleCanvas;
 using DemoViewer.NET.Extensions.StratBook;
 
 #endregion
@@ -18,5 +17,5 @@ namespace DemoViewer.NET.AppTests;
 internal static class CompiledInPacks
 {
     [ModuleInitializer]
-    internal static void Declare() => FeaturePacks.Configure([new StratBookPack(), new RuleCanvasPack()]);
+    internal static void Declare() => FeaturePacks.Configure([new StratBookPack()]);
 }

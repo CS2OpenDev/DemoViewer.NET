@@ -7,8 +7,8 @@
     </PropertyGroup>
 
     <!-- The manifest: ..\extension.json is a template whose version is stamped from ..\version.json at
-         build. The stamped copy is embedded and copied beside the DLL under the id-qualified name, since the
-         heads ship more than one extension into one output directory. -->
+         build. The stamped copy is embedded and copied beside the DLL under the id-qualified name, since a
+         test project that references more than one extension gets them all in one output directory. -->
     <PropertyGroup>
         <ExtensionManifestTemplate>$(MSBuildProjectDirectory)/../extension.json</ExtensionManifestTemplate>
         <ExtensionManifestOutputName>net.demoviewer.pack.rulecanvas.extension.json</ExtensionManifestOutputName>
@@ -40,14 +40,12 @@
 
     <ItemGroup>
         <!-- The SDK and its UI kit are the packages a third party takes; the projects stand in for them.
-             Nothing of the app belongs here: the app never references the extension, the heads reference
-             both and hand the pack list to FeaturePacks. -->
+             Nothing of the app belongs here: neither the app nor a head references the extension. It is
+             installed from its feed. -->
         <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk\DemoViewer.NET.Extensions.Sdk.csproj"/>
         <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk.Ui\DemoViewer.NET.Extensions.Sdk.Ui.csproj"/>
-        <!-- The comment-preserving splice writer. A library of the repo that nothing else references on
-             main. While the extension ships bundled, this and the packages above bind to the copies beside
-             the app; a staged release needs the dependency-staging packer from the optional-extensions
-             branch before it can carry them itself. -->
+        <!-- The comment-preserving splice writer. A library of the repo that the app does not ship, so
+             pack-extension.sh stages it beside the extension, as it does Nodify. -->
         <ProjectReference Include="..\..\..\RuleAuthoring\DemoViewer.NET.RuleAuthoring\DemoViewer.NET.RuleAuthoring.csproj"/>
     </ItemGroup>
 

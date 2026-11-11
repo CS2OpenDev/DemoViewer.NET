@@ -32,7 +32,7 @@
          DLL for the loader. The targets are the SDK package's, imported from source here. -->
     <PropertyGroup>
         <ExtensionManifestTemplate>$(MSBuildProjectDirectory)/../extension.json</ExtensionManifestTemplate>
-        <!-- Id-qualified: the heads ship this pack and the Rule Canvas into one output directory. -->
+        <!-- Id-qualified: a test project that references more than one extension gets them all in one output directory. -->
         <ExtensionManifestOutputName>net.demoviewer.pack.stratbook.extension.json</ExtensionManifestOutputName>
     </PropertyGroup>
     <Import Project="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk\build\DemoViewer.NET.Extensions.Sdk.targets"/>
