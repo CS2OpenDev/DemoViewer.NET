@@ -208,7 +208,14 @@ public sealed record SetupRotation(
     BombSite Site,
     double? ArrivalSeconds,
     string? Rotator,
-    bool BeforePlant);
+    bool BeforePlant)
+{
+    /// <summary>The first rotator's key (<see cref="SetupRoundCapture.KeyOf" />), or null.</summary>
+    public string? RotatorKey { get; init; }
+
+    /// <summary>Every rotation of the round (<see cref="RotationRule" />), earliest arrival first.</summary>
+    public IReadOnlyList<RotationTrail> Trails { get; init; } = [];
+}
 
 /// <summary>
 ///     The Setups layer's numbers over a set of CT rounds: per player places, CTs per area and rotations. Pure
@@ -343,9 +350,10 @@ public static class SetupsDerivation
     }
 
     /// <summary>
-    ///     The rotation of every planted round with a first contact before the plant and at least one CT set up
-    ///     off the hit site: when the first of those reached the site (by <paramref name="areas" />), and whether
-    ///     that was before the plant. A round where nobody got there inside the followed window has no arrival.
+    ///     The rotation of every planted round with a first contact before the plant and at least one CT off the hit
+    ///     site and tracked at contact (<see cref="RotationRule.IsCandidate" />): every CT whose own samples carry
+    ///     them onto the site under <see cref="RotationRule" />, the first of them, and whether that was before the
+    ///     plant. A round where nobody rotated inside the followed window has no arrival.
     /// </summary>
     /// <param name="rounds">The rounds.</param>
     /// <param name="areas">The map's areas.</param>
@@ -364,43 +372,19 @@ public static class SetupsDerivation
             }
 
             SetupArea hit = detail.PlantSite == BombSite.A ? SetupArea.A : SetupArea.B;
-            double? first = null;
-            string? rotator = null;
-            bool any = false;
-            foreach (SetupRoundPlayer player in detail.Players)
+            if (!detail.Players.Any(p => RotationRule.IsCandidate(p, hit, areas)))
             {
-                IReadOnlyList<SetupSample> setup = player.Setup.Count > 0
-                    ? player.Setup
-                    : player.AfterContact.Count > 0
-                        ? [player.AfterContact[0].Sample]
-                        : [];
-                if (setup.Count == 0 || areas.Of(setup) == hit)
-                {
-                    continue;
-                }
-
-                any = true;
-                foreach (SetupTimedSample t in player.AfterContact)
-                {
-                    if (areas.Of(t.Sample) != hit)
-                    {
-                        continue;
-                    }
-
-                    if (first is null || t.Seconds < first)
-                    {
-                        first = t.Seconds;
-                        rotator = player.Name;
-                    }
-
-                    break;
-                }
+                continue;
             }
 
-            if (any)
-            {
-                result.Add(new SetupRotation(round, detail.PlantSite, first, rotator, first is { } f && f < plant));
-            }
+            List<RotationTrail> trails =
+            [
+                .. detail.Players.Select(p => RotationRule.Trail(p, hit, plant, areas)).OfType<RotationTrail>()
+                    .OrderBy(t => t.ArrivalSeconds).ThenBy(t => t.Key, StringComparer.Ordinal)
+            ];
+            RotationTrail? first = trails.FirstOrDefault();
+            result.Add(new SetupRotation(round, detail.PlantSite, first?.ArrivalSeconds, first?.Name,
+                first?.BeforePlant ?? false) { RotatorKey = first?.Key, Trails = trails });
         }
 
         return result;
