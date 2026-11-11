@@ -106,12 +106,22 @@ public sealed record ScoutingReportCard(
 /// <param name="Name">The player.</param>
 /// <param name="Role">"AWP", "Entry", or "—".</param>
 /// <param name="Rating">The composite rating ("1.14"), or "—" when there are no facts.</param>
-public sealed record ScoutingReportRosterEntry(string Name, string Role, string Rating);
+/// <param name="Swatch">The colour their marks draw in on the pictures, as "#rrggbb"; empty prints no dot.</param>
+public sealed record ScoutingReportRosterEntry(string Name, string Role, string Rating, string Swatch = "");
 
 /// <summary>A card's picture: the radar with one layer's marks for a map and side, on a light background for print.</summary>
 /// <param name="Caption">"Nuke CT · Setups": what the picture draws.</param>
 /// <param name="Png">The picture.</param>
 public sealed record ScoutingReportPicture(string Caption, byte[] Png);
+
+/// <summary>
+///     One map and side's row of pictures printed above its cards: the Hybrid one-pager's radar with the setups, AWP
+///     routes and utility together, once per buy.
+/// </summary>
+/// <param name="Map">The map.</param>
+/// <param name="Side">"CT" or "T".</param>
+/// <param name="Pictures">The pictures, left to right.</param>
+public sealed record ScoutingReportStageRow(string Map, string Side, IReadOnlyList<ScoutingReportPicture> Pictures);
 
 /// <summary>A Scouting Report ready to export: the identity, the roster, the lines not left out, and the stage pictures.</summary>
 public sealed class ScoutingReportDocument
@@ -154,6 +164,12 @@ public sealed class ScoutingReportDocument
     ///     for a card that prints. Null on the document draws no pictures (Markdown).
     /// </summary>
     public Func<string, string, string, ScoutingReportPicture?>? Picture { get; init; }
+
+    /// <summary>
+    ///     Picture rows printed under a map's side heading before its cards, in map order; a map or side with a row
+    ///     prints even when no line lands on it. Markdown leaves them out.
+    /// </summary>
+    public IReadOnlyList<ScoutingReportStageRow> Stages { get; init; } = [];
 }
 
 /// <summary>
@@ -285,7 +301,7 @@ public static class ScoutingReportExporter
         foreach (MapOut map in maps)
         {
             md.Append("## ").Append(map.Map).Append("\n\n");
-            foreach (SideOut side in map.Sides)
+            foreach (SideOut side in map.Sides.Where(s => s.Cards.Count > 0))
             {
                 if (side.Heading is { } heading)
                 {
@@ -382,7 +398,13 @@ public static class ScoutingReportExporter
                 .Append("<table class=\"rows\"><thead><tr><th>Player</th><th>Role</th><th class=\"v\">Rating</th></tr></thead><tbody>\n");
             foreach (ScoutingReportRosterEntry p in doc.Roster)
             {
-                html.Append("<tr><td>").Append(Escape(p.Name)).Append("</td><td>").Append(Escape(p.Role))
+                html.Append("<tr><td>");
+                if (p.Swatch.Length > 0)
+                {
+                    html.Append("<span class=\"dot\" style=\"background:").Append(Escape(p.Swatch)).Append("\"></span>");
+                }
+
+                html.Append(Escape(p.Name)).Append("</td><td>").Append(Escape(p.Role))
                     .Append("</td><td class=\"v\">").Append(Escape(p.Rating)).Append("</td></tr>\n");
             }
 
@@ -415,6 +437,24 @@ public static class ScoutingReportExporter
                 {
                     html.Append("<h3 class=\"side").Append(side.Side == "CT" ? " ct" : " t").Append("\">")
                         .Append(Escape(heading)).Append("</h3>\n");
+                }
+
+                if (side.Stage is { Pictures.Count: > 0 } stage)
+                {
+                    html.Append("<div class=\"stages\">\n");
+                    foreach (ScoutingReportPicture picture in stage.Pictures)
+                    {
+                        html.Append("<figure><img alt=\"").Append(Escape(picture.Caption))
+                            .Append("\" src=\"data:image/png;base64,").Append(Convert.ToBase64String(picture.Png))
+                            .Append("\"><figcaption>").Append(Escape(picture.Caption)).Append("</figcaption></figure>\n");
+                    }
+
+                    html.Append("</div>\n");
+                }
+
+                if (side.Cards.Count == 0)
+                {
+                    continue;
                 }
 
                 html.Append("<div class=\"grid\">\n");
@@ -564,8 +604,8 @@ public static class ScoutingReportExporter
         public CardOut? Record { get; set; }
     }
 
-    /// <summary>One side's cards under a map ("CT side", "T side"), or the map's record with no heading.</summary>
-    private sealed record SideOut(string Side, string? Heading, List<CardOut> Cards);
+    /// <summary>One side's cards under a map ("CT side", "T side"), or the map's record with no heading; its picture row first.</summary>
+    private sealed record SideOut(string Side, string? Heading, List<CardOut> Cards, ScoutingReportStageRow? Stage = null);
 
     private sealed record MapOut(string Map, List<SideOut> Sides);
 
@@ -578,7 +618,8 @@ public static class ScoutingReportExporter
     /// <param name="form">The form.</param>
     private static (List<MapOut> Maps, List<CardOut> Team) Layout(ScoutingReportDocument doc, ScoutingReportForm form)
     {
-        List<string> maps = [];
+        // A map with a picture row prints first, in the rows' order, then the maps the lines name.
+        List<string> maps = [.. doc.Stages.Select(s => s.Map).Distinct(StringComparer.Ordinal)];
         Dictionary<(string Map, string Side), SideSlot> placed = [];
         List<CardOut> team = [];
 
@@ -642,22 +683,24 @@ public static class ScoutingReportExporter
             List<SideOut> sides = [];
             foreach (string side in (string[])["", "CT", "T"])
             {
-                if (!placed.TryGetValue((map, side), out SideSlot? slot))
-                {
-                    continue;
-                }
-
+                ScoutingReportStageRow? stage = doc.Stages.FirstOrDefault(s =>
+                    s.Pictures.Count > 0 && string.Equals(s.Map, map, StringComparison.Ordinal)
+                                         && string.Equals(s.Side, side, StringComparison.Ordinal));
                 List<CardOut> cards = [];
-                if (slot.Record is { } record)
+                if (placed.TryGetValue((map, side), out SideSlot? slot))
                 {
-                    cards.Add(record);
+                    if (slot.Record is { } record)
+                    {
+                        cards.Add(record);
+                    }
+
+                    cards.AddRange(slot.Cards.OfType<CardOut>().Where(c => !c.IsEmpty));
+                    cards.AddRange(slot.Extra);
                 }
 
-                cards.AddRange(slot.Cards.OfType<CardOut>().Where(c => !c.IsEmpty));
-                cards.AddRange(slot.Extra);
-                if (cards.Count > 0)
+                if (cards.Count > 0 || stage is not null)
                 {
-                    sides.Add(new SideOut(side, side.Length == 0 ? null : SideHeading(side), cards));
+                    sides.Add(new SideOut(side, side.Length == 0 ? null : SideHeading(side), cards, stage));
                 }
             }
 
@@ -737,13 +780,17 @@ public static class ScoutingReportExporter
                                figure img { width: 100%; max-width: 520px; border-radius: 6px; border: 1px solid #ccc; }
                                figcaption { font-size: 11px; color: #555; }
                                .split { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; align-items: start; }
+                               .stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 12px; break-inside: avoid; page-break-inside: avoid; }
+                               .stages figure { margin: 0; }
+                               .stages figure img { max-width: 100%; }
                                .split figure img { max-width: 100%; }
+                               .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
                                .group { font-size: 12px; font-weight: 600; color: #444; margin: 8px 0 2px; }
                                table.rows { width: 100%; border-collapse: collapse; font-size: 12px; }
                                table.rows th { text-align: left; font-size: 11px; color: #555; font-weight: 600; padding: 2px 4px; }
                                table.rows td { border-top: 1px solid #ececec; padding: 3px 4px; vertical-align: top; }
                                table.rows .v { text-align: right; white-space: nowrap; }
-                               @media (max-width: 760px) { .grid, .split { grid-template-columns: 1fr; } }
+                               @media (max-width: 760px) { .grid, .split, .stages { grid-template-columns: 1fr; } }
                                @media print { body { padding: 0; max-width: none; } h2, h3 { break-after: avoid; } }
                                """
         + "\n";

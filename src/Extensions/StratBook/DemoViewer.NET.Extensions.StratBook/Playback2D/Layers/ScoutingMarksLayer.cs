@@ -155,6 +155,13 @@ public sealed class ScoutingMarksLayer : ISceneLayer
         _dash.Dispose();
     }
 
+    /// <summary>A player colour as the marks draw it, as "#rrggbb" for print; empty for any other colour.</summary>
+    /// <param name="color">Player1 to Player5.</param>
+    public static string PlayerHex(ScoutingColor color) =>
+        color is >= ScoutingColor.Player1 and <= ScoutingColor.Player5 && _players[color - ScoutingColor.Player1] is var c
+            ? $"#{c.Red:x2}{c.Green:x2}{c.Blue:x2}"
+            : "";
+
     /// <summary>The colour a mark draws in, from the scene palette where the theme has one.</summary>
     /// <param name="color">The mark's colour.</param>
     /// <param name="ctx">The pane's context.</param>

@@ -533,6 +533,36 @@
                             <Button FontSize="12" Padding="12 6" Content="Process this team first"
                                     IsVisible="{Binding CanProcessTeamFirst}" Command="{Binding ProcessTeamFirstCommand}"
                                     ToolTip.Tip="Queue every demo of this team ahead of the rest of the library" />
+                            <!-- The export: the one-pager (buy pictures and the starred lines) or the full report
+                                 (every layer in turn). The one-pager panel carries the same controls. -->
+                            <Button Name="ExportButton" FontSize="12" Padding="12 6" Content="Export"
+                                    AutomationProperties.Name="Export the report"
+                                    ToolTip.Tip="One-pager: setups, AWP routes and utility per buy, then the starred lines. Full report: every layer in turn."
+                                    IsVisible="{Binding !IsBrowser}">
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Spacing="8" Width="320">
+                                            <TextBlock Classes="h" FontSize="13" Text="Export" />
+                                            <WrapPanel Orientation="Horizontal">
+                                                <ComboBox FontSize="12"
+                                                          ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
+                                                          SelectedItem="{Binding Editor.SelectedFormOption}" Margin="0 0 8 6"
+                                                          AutomationProperties.Name="Export form" />
+                                                <ComboBox FontSize="12"
+                                                          ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormatOptions}"
+                                                          SelectedItem="{Binding Editor.SelectedFormatOption}" Margin="0 0 8 6"
+                                                          AutomationProperties.Name="Export format" />
+                                            </WrapPanel>
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" TextWrapping="Wrap"
+                                                       Text="One-pager: each map's setups, AWP routes and utility for full buys, forces and ecos, then the starred lines. Full report: every layer of every map and side with its picture. Markdown leaves the pictures out." />
+                                            <Button Classes="primary" FontSize="12" Padding="12 6" HorizontalAlignment="Left"
+                                                    Content="{Binding Editor.ExportLabel}"
+                                                    Command="{Binding Editor.ExportCommand}" />
+                                            <TextBlock Classes="mid" Text="{Binding Editor.ExportLine}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
                             <Button Name="OnePagerButton" Classes="primary" FontSize="12" Padding="12 6"
                                     Click="OnOnePagerClick" AutomationProperties.Name="Open the one-pager"
                                     ToolTip.Tip="The starred lines, ready to export">
@@ -1284,7 +1314,7 @@
                         <ComboBox FontSize="12" ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
                                   SelectedItem="{Binding Editor.SelectedFormOption}" Margin="0 0 8 6"
                                   AutomationProperties.Name="Export form"
-                                  ToolTip.Tip="One-pager: the starred lines. Long form: every line not dismissed." />
+                                  ToolTip.Tip="One-pager: setups, AWP routes and utility per buy, then the starred lines. Long form: every layer in turn." />
                         <ComboBox FontSize="12"
                                   ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormatOptions}"
                                   SelectedItem="{Binding Editor.SelectedFormatOption}" Margin="0 0 8 6"
@@ -1303,7 +1333,7 @@
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="4" Margin="0 0 10 0">
                         <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !Editor.HasStarred}"
-                                   Text="Nothing starred. The one-pager export stays off until something is." />
+                                   Text="Nothing starred. The one-pager still prints each map's buy pictures." />
                         <ItemsControl ItemsSource="{Binding Editor.Starred}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ScoutingReportFindingViewModel">

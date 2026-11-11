@@ -50,6 +50,13 @@ public sealed record ScoutingReportLineShape(string? Group, string Label, string
 /// <param name="Marks">The marks.</param>
 public sealed record ScoutingReportStageLayer(string LayerId, string Name, IReadOnlyList<ScoutingMapMark> Marks);
 
+/// <summary>One picture on the Hybrid one-pager: a map and side's marks for one buy, several layers together.</summary>
+/// <param name="Map">The map.</param>
+/// <param name="Side">"CT" or "T".</param>
+/// <param name="Caption">"Full buy · setups, AWP routes, utility".</param>
+/// <param name="Marks">The marks, in drawing order.</param>
+public sealed record ScoutingReportBuyStage(string Map, string Side, string Caption, IReadOnlyList<ScoutingMapMark> Marks);
+
 /// <summary>The identity block and roster line, read from the tab at export time.</summary>
 public sealed record ScoutingReportHeader
 {
@@ -280,7 +287,31 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     ///     A team, a file to write, and for the one-pager at least one star: an empty one-pager is not exported,
     ///     the long form always can be.
     /// </summary>
-    public bool CanExport => HasTeam && !IsBrowser && (ExportForm == ScoutingReportForm.LongForm || HasStarred);
+    public bool CanExport => HasTeam && !IsBrowser
+                             && (ExportForm == ScoutingReportForm.LongForm || HasStarred || HybridLayout);
+
+    /// <summary>
+    ///     The Hybrid tab's export: the long form cycles every layer (one card per layer and side, a map layer with
+    ///     its own picture), and the one-pager opens each map with its buy pictures (<see cref="BuyStages" />) before
+    ///     the starred lines on their layers' cards. False prints the Dashboard's cards.
+    /// </summary>
+    public bool HybridLayout
+    {
+        get;
+        set
+        {
+            field = value;
+            OnPropertyChanged(nameof(ExportLabel));
+            OnPropertyChanged(nameof(CanExport));
+            ExportCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    /// <summary>
+    ///     The Hybrid one-pager's pictures for these maps (the starred ones; the owner adds the map in view): each
+    ///     side's setups, AWP routes and utility, once per buy. Null prints none.
+    /// </summary>
+    public Func<IReadOnlyList<string>, Task<IReadOnlyList<ScoutingReportBuyStage>>>? BuyStages { get; set; }
 
     /// <summary>What the Export slot says when there is no file to write.</summary>
     public string ExportUnavailableNote =>
@@ -293,7 +324,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     /// <summary>"Export one-pager · 5 starred", or "Export long form".</summary>
     public string ExportLabel => ExportForm == ScoutingReportForm.OnePager
         ? $"Export one-pager · {StarredCount} starred"
-        : "Export long form";
+        : HybridLayout ? "Export full report" : "Export long form";
 
     /// <summary>Whether a scope key is starred for the current team.</summary>
     /// <param name="key">The key.</param>
@@ -382,7 +413,8 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     ///     <paramref name="images" />.
     /// </summary>
     /// <param name="images">Render the pictures: false for Markdown, which carries none.</param>
-    public ScoutingReportDocument Document(bool images = true)
+    /// <param name="stages">The picture rows printed above each side's cards.</param>
+    public ScoutingReportDocument Document(bool images = true, IReadOnlyList<ScoutingReportStageRow>? stages = null)
     {
         ScoutingReportHeader header = _header?.Invoke() ?? new ScoutingReportHeader();
         return new ScoutingReportDocument
@@ -397,7 +429,8 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             Roster = header.Roster,
             RosterScope = header.RosterScope,
             Summary = Summary.Trim(),
-            Cards = ExportCards,
+            Cards = HybridLayout ? HybridCards(ExportForm == ScoutingReportForm.LongForm) : ExportCards,
+            Stages = stages ?? [],
             Findings =
             [
                 .. _rows.Where(r => !r.IsHidden).Select(r => new ScoutingReportFinding
@@ -423,6 +456,64 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         .. Side(ScoutingSide.Ct, ScoutingDashboardCards.Ct()),
         .. Side(ScoutingSide.T, ScoutingDashboardCards.T()),
         .. ScoutingDashboardCards.MapWide().Select(c => Card("", c.TitleFor(ScoutingSide.Ct, ""), c))
+    ];
+
+    /// <summary>
+    ///     The Hybrid export's cards: each side's layers in catalog order, one card per layer holding all its lines.
+    ///     With <paramref name="pictures" /> a map layer's card spans the page with its marks; without, the one-pager's
+    ///     buy pictures stand in for them.
+    /// </summary>
+    /// <param name="pictures">Draw each map layer's own picture (the long form).</param>
+    public static IReadOnlyList<ScoutingReportCard> HybridCards(bool pictures) =>
+        pictures ? _hybridLongCards : _hybridOnePagerCards;
+
+    private static readonly IReadOnlyList<ScoutingReportCard> _hybridLongCards = BuildHybridCards(true);
+    private static readonly IReadOnlyList<ScoutingReportCard> _hybridOnePagerCards = BuildHybridCards(false);
+
+    private static List<ScoutingReportCard> BuildHybridCards(bool pictures)
+    {
+        List<ScoutingReportCard> cards = [];
+        IReadOnlyList<IScoutingLayer> layers = ScoutingLayerCatalog.Create();
+        foreach (ScoutingSide side in (ScoutingSide[])[ScoutingSide.Ct, ScoutingSide.T])
+        {
+            foreach (IScoutingLayer layer in layers.Where(l => l.AppliesTo(side)))
+            {
+                bool map = pictures && layer.Placement == ScoutingLayerPlacement.Map;
+                cards.Add(new ScoutingReportCard(side.Label(), layer.NameFor(side),
+                    [new ScoutingReportCardPart(layer.Id, null, null)], map ? layer.Id : null, map));
+            }
+        }
+
+        return cards;
+    }
+
+    // The buy pictures, rendered: one row per map and side, in the order the owner gave them.
+    private List<ScoutingReportStageRow> RenderStages(IReadOnlyList<ScoutingReportBuyStage> stages)
+    {
+        List<ScoutingReportStageRow> rows = [];
+        foreach (IGrouping<(string Map, string Side), ScoutingReportBuyStage> group in stages.GroupBy(s => (s.Map, s.Side)))
+        {
+            List<ScoutingReportPicture> pictures = [];
+            foreach (ScoutingReportBuyStage stage in group)
+            {
+                if (stage.Marks.Count > 0 && _renderStage(stage.Map, stage.Marks) is { Length: > 0 } png)
+                {
+                    pictures.Add(new ScoutingReportPicture(stage.Caption, png));
+                }
+            }
+
+            rows.Add(new ScoutingReportStageRow(group.Key.Map, group.Key.Side, pictures));
+        }
+
+        return rows;
+    }
+
+    // The maps the starred lines name, in print order.
+    private List<string> StarredMaps() =>
+    [
+        .. _rows.Where(r => r is { IsStarred: true, IsHidden: false })
+            .Select(r => ScoutingReportStarKeys.Parse(r.Key)?.Scope.Map)
+            .OfType<string>().Where(m => m.Length > 0).Distinct(StringComparer.Ordinal)
     ];
 
     private static IEnumerable<ScoutingReportCard> Side(ScoutingSide side,
@@ -500,14 +591,30 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     partial void OnShowSettledChanged(bool value) => Project();
 
     [RelayCommand(CanExecute = nameof(CanExport))]
-    private void Export()
+    private async Task Export()
     {
         if (!CanExport)
         {
             return;
         }
 
-        ScoutingReportDocument doc = Document(ExportFormat == ScoutingReportFormat.Html);
+        bool html = ExportFormat == ScoutingReportFormat.Html;
+        List<ScoutingReportStageRow>? stages = null;
+        if (html && HybridLayout && ExportForm == ScoutingReportForm.OnePager && BuyStages is { } buyStages)
+        {
+            ExportLine = "drawing the buy pictures…";
+            try
+            {
+                stages = RenderStages(await buyStages(StarredMaps()));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ExportLine = $"could not draw the buy pictures: {ex.Message}";
+                return;
+            }
+        }
+
+        ScoutingReportDocument doc = Document(html, stages);
         (string text, string extension) = ExportFormat == ScoutingReportFormat.Html
             ? (ScoutingReportExporter.Html(doc, ExportForm), ".html")
             : (ScoutingReportExporter.Markdown(doc, ExportForm), ".md");

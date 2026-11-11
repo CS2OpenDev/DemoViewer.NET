@@ -12,6 +12,7 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingHybrid;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Extensions.StratBook.Views.ScoutingHybrid;
@@ -274,6 +275,67 @@ public class ScoutingHybridTests
             await Assert.That(seen.selectionDrawn).IsTrue();
             await Assert.That(seen.detail).IsGreaterThan(1).Because("the ring on the dot and the other CTs that round");
             await Assert.That(seen.cleared).IsTrue().Because("a click off every mark unpins it");
+        }
+    }
+
+    [Test]
+    public async Task HybridExport_OnePagerDrawsEachBuy_AndTheFullReportCyclesEveryLayer()
+    {
+        var seen = await OnUi(async () =>
+        {
+            using SyntheticTeam team = await SyntheticTeam.Create();
+            QueuedPost posted = new();
+            using ScoutingReportTabViewModel vm = team.Tab(posted);
+            vm.UseHybridExport();
+            vm.SelectedTeam = vm.Teams.Single(t => t.Id == team.TeamA);
+            await ScoutingReportTestKit.Settle(vm, posted);
+            vm.SelectMapCommand.Execute(vm.Maps.Single(m => m.Map == "de_nuke"));
+            await ScoutingReportTestKit.Settle(vm, posted);
+
+            IReadOnlyList<ScoutingReportBuyStage> stages = await vm.BuyStagesAsync([]);
+            List<ScoutingReportStageRow> rows =
+            [
+                .. stages.GroupBy(s => (s.Map, s.Side)).Select(g => new ScoutingReportStageRow(g.Key.Map, g.Key.Side,
+                [
+                    .. g.Select(s => ScoutingStageRenderer.TryRender(s.Map, s.Marks) is { } png
+                        ? new ScoutingReportPicture(s.Caption, png)
+                        : null).OfType<ScoutingReportPicture>()
+                ]))
+            ];
+            vm.Editor.ExportForm = ScoutingReportForm.OnePager;
+            string onePager = ScoutingReportExporter.Html(vm.Editor.Document(true, rows), ScoutingReportForm.OnePager);
+            await File.WriteAllTextAsync(Path.Combine(HeadlessSession.ArtifactDir, "hybrid-one-pager.html"), onePager);
+
+            vm.Editor.ExportForm = ScoutingReportForm.LongForm;
+            ScoutingReportDocument full = vm.Editor.Document(false);
+            string fullMd = ScoutingReportExporter.Markdown(full, ScoutingReportForm.LongForm);
+            return new
+            {
+                canExport = vm.Editor.CanExport,
+                captions = stages.Select(s => s.Caption).ToList(),
+                ctMap = stages.Where(s => s.Side == "CT").Select(s => s.Map).Distinct().ToList(),
+                figures = onePager.Split("<div class=\"stages\">").Length - 1,
+                cards = full.Cards.Select(c => (c.Side, c.Title)).ToList(),
+                fullMd,
+                label = vm.Editor.ExportLabel
+            };
+        });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(seen.canExport).IsTrue().Because("the full report needs no star");
+            await Assert.That(seen.ctMap).IsEquivalentTo(["de_nuke"]).Because("nothing starred: only the map in view");
+            await Assert.That(seen.captions.Count).IsGreaterThan(0);
+            await Assert.That(seen.captions.All(c => c.Contains("Full buy") || c.Contains("Force") || c.Contains("Eco")))
+                .IsTrue().Because("one picture per buy, never All");
+            await Assert.That(seen.captions.Any(c => c.Contains("CT") && c.Contains("setups"))).IsTrue()
+                .Because("the CT pictures carry the setups");
+            await Assert.That(seen.figures).IsGreaterThan(0).Because("the one-pager opens the map with its buy row");
+            await Assert.That(seen.cards.Count(c => c.Title == "Utility")).IsEqualTo(2)
+                .Because("the full report has a card per layer per side");
+            await Assert.That(seen.cards.Any(c => c is { Side: "CT", Title: "Setups" })).IsTrue();
+            await Assert.That(seen.fullMd).Contains("#### Setups");
+            await Assert.That(seen.label).IsEqualTo("Export full report");
         }
     }
 

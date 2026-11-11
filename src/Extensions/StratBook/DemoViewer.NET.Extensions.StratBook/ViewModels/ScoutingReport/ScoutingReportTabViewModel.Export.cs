@@ -1,15 +1,90 @@
 #region
 
 using System.Globalization;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 
 #endregion
 
 namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
-/// <summary>The export's identity block and roster line, read off the header and the players table at export time.</summary>
+/// <summary>
+///     The export's identity block and roster line, read off the header and the players table at export time, and
+///     the Hybrid one-pager's buy pictures.
+/// </summary>
 public sealed partial class ScoutingReportTabViewModel
 {
+    /// <summary>The layers the Hybrid one-pager draws together, bottom to top: clouds under the spots and routes.</summary>
+    internal static readonly IReadOnlyList<string> OnePagerLayers = ["util", "setups", "awp"];
+
+    /// <summary>The buys the Hybrid one-pager draws apart, left to right.</summary>
+    internal static readonly IReadOnlyList<(ScoutingBuy Buy, string Label)> OnePagerBuys =
+        [(ScoutingBuy.Full, "Full buy"), (ScoutingBuy.Force, "Force"), (ScoutingBuy.Eco, "Eco")];
+
+    /// <summary>Turns the export to the Hybrid one (<see cref="ScoutingReportEditorViewModel.HybridLayout" />).</summary>
+    public void UseHybridExport()
+    {
+        Editor.HybridLayout = true;
+        Editor.BuyStages = BuyStagesAsync;
+    }
+
+    /// <summary>
+    ///     The Hybrid one-pager's pictures: for the map in view and each map in <paramref name="maps" />, each side's
+    ///     utility, setups and AWP routes on one radar, once per buy. A buy with nothing drawn is left out.
+    /// </summary>
+    /// <param name="maps">The maps the starred lines name.</param>
+    internal async Task<IReadOnlyList<ScoutingReportBuyStage>> BuyStagesAsync(IReadOnlyList<string> maps)
+    {
+        if (_data is not { } data)
+        {
+            return [];
+        }
+
+        List<string> order = [];
+        if (SelectedMap?.Map is { Length: > 0 } inView)
+        {
+            order.Add(inView);
+        }
+
+        order.AddRange(maps.Where(m => !order.Contains(m, StringComparer.Ordinal)));
+        List<IScoutingLayer> layers =
+        [
+            .. OnePagerLayers.Select(id => Layers.All.FirstOrDefault(c => c.Id == id)?.Layer).OfType<IScoutingLayer>()
+        ];
+        List<ScoutingReportBuyStage> stages = [];
+        foreach (string map in order)
+        {
+            foreach (ScoutingSide side in (ScoutingSide[])[ScoutingSide.Ct, ScoutingSide.T])
+            {
+                foreach ((ScoutingBuy buy, string label) in OnePagerBuys)
+                {
+                    ScoutingLayerContext context = new(data, map, side, buy);
+                    List<ScoutingMapMark> marks = [];
+                    List<string> drawn = [];
+                    foreach (IScoutingLayer layer in layers.Where(l => l.AppliesTo(side)))
+                    {
+                        ScoutingLayerResult result = await ScoutingLayerRegistry.Build(layer, context,
+                            CancellationToken.None).ConfigureAwait(true);
+                        if (result.Status.State == ScoutingLayerState.Ready && result.Marks.Count > 0)
+                        {
+                            marks.AddRange(result.Marks);
+                            drawn.Add(layer.Id == "awp" ? "AWP routes" : layer.NameFor(side).ToLowerInvariant());
+                        }
+                    }
+
+                    if (marks.Count > 0)
+                    {
+                        stages.Add(new ScoutingReportBuyStage(map, side.Label(),
+                            $"{map} {side.Label()} · {label} · {string.Join(", ", drawn)}", marks));
+                    }
+                }
+            }
+        }
+
+        return stages;
+    }
+
     /// <summary>
     ///     The identity block (record, ranks with the date each was set, the sample's dates, the opponent mix, head
     ///     to head) and the roster with role and rating, as the header and the players table show them now.
@@ -50,7 +125,11 @@ public sealed partial class ScoutingReportTabViewModel
                 ? "no opponent ranked yet"
                 : OpponentMixLine,
             HeadToHeadLine = HeadToHeadLine,
-            Roster = [.. Players.Select(p => new ScoutingReportRosterEntry(p.Name, p.Role, p.Rating.Label))],
+            Roster =
+            [
+                .. Players.Select(p => new ScoutingReportRosterEntry(p.Name, p.Role, p.Rating.Label,
+                    ScoutingMarksLayer.PlayerHex(p.Color)))
+            ],
             RosterScope = PlayersAllMaps ? "every map" : SelectedMap?.Map ?? ""
         };
     }
