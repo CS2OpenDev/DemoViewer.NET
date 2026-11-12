@@ -16,7 +16,7 @@ namespace DemoViewer.NET.Services.Transfer;
 ///       transfer.json                              written last; its presence marks a complete bundle
 ///       data/&lt;sha&gt;/cache/&lt;file&gt;                    core record and siblings
 ///       data/&lt;sha&gt;/ext/&lt;extId&gt;/&lt;facet&gt;/&lt;file&gt;      extension per-demo data
-///       data/&lt;sha&gt;/ext/&lt;extId&gt;/stores/&lt;relpath&gt;   declared per-demo user stores
+///       data/&lt;sha&gt;/ext/&lt;extId&gt;/stores/&lt;storeId&gt;/&lt;relpath&gt;   declared per-demo stores
 ///       data/&lt;sha&gt;/annotations.dvann.json
 ///       shared/graph-breakpoints.json, shared/review-queue.json
 ///       dem/&lt;sha&gt;.dem                             optional
@@ -168,10 +168,12 @@ public static class TransferLayout
         ExtensionFolder(sha256, extensionId) + "/" + Segment(facet) + "/" + Segment(fileName);
 
     /// <summary>
-    ///     <c>data/&lt;sha&gt;/ext/&lt;extensionId&gt;/stores/&lt;relativePath&gt;</c>. Every segment of
-    ///     <paramref name="relativePath" /> (<c>/</c> or <c>\</c> separated) must be portable.
+    ///     <c>data/&lt;sha&gt;/ext/&lt;extensionId&gt;/stores/&lt;storeId&gt;/&lt;relativePath&gt;</c>, with
+    ///     <paramref name="relativePath" /> relative to the store's root, so the store's folder is laid out as
+    ///     <see cref="IExtensionImport.Staged" /> hands it to the extension. Every segment of it (<c>/</c> or
+    ///     <c>\</c> separated) must be portable.
     /// </summary>
-    public static string ExtensionStoreFile(string sha256, string extensionId, string relativePath)
+    public static string ExtensionStoreFile(string sha256, string extensionId, string storeId, string relativePath)
     {
         ArgumentException.ThrowIfNullOrEmpty(relativePath);
         string[] segments = relativePath.Split('/', '\\');
@@ -180,7 +182,8 @@ public static class TransferLayout
             Segment(segment);
         }
 
-        return ExtensionFolder(sha256, extensionId) + "/" + StoresDirectory + "/" + string.Join('/', segments);
+        return ExtensionFolder(sha256, extensionId) + "/" + StoresDirectory + "/" + Segment(storeId) + "/"
+            + string.Join('/', segments);
     }
 
     /// <summary><c>data/&lt;sha&gt;/annotations.dvann.json</c>.</summary>

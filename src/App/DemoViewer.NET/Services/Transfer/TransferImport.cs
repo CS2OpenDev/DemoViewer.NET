@@ -1,19 +1,46 @@
 namespace DemoViewer.NET.Services.Transfer;
 
-/// <summary>What import does with user-authored data (annotations, breakpoints) that exists on both sides.</summary>
+/// <summary>
+///     What import does with user-authored data (annotations, breakpoints, extension stores) that exists on both
+///     sides. Extensions see it as <see cref="ImportConflictPolicy" />, through <see cref="ConflictPolicies" />.
+/// </summary>
 public enum ConflictPolicy
 {
     /// <summary>Keep this machine's copy and skip the imported one. The default.</summary>
     KeepMine = 0,
 
     /// <summary>Replace this machine's copy with the imported one.</summary>
-    TakeImported,
+    TakeImported = 1,
 
     /// <summary>
     ///     Keep both where the store can hold two (e.g. merged entries). Where it cannot, falls back to
     ///     <see cref="KeepMine" /> and says so in the summary.
     /// </summary>
-    KeepBoth
+    KeepBoth = 2
+}
+
+/// <summary>The one mapping between the wizard's <see cref="ConflictPolicy" /> and the SDK's <see cref="ImportConflictPolicy" />.</summary>
+public static class ConflictPolicies
+{
+    /// <summary>The policy an extension's merge is handed.</summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="policy" /> is not a defined value.</exception>
+    public static ImportConflictPolicy ToSdk(this ConflictPolicy policy) => policy switch
+    {
+        ConflictPolicy.KeepMine => ImportConflictPolicy.KeepMine,
+        ConflictPolicy.TakeImported => ImportConflictPolicy.TakeImported,
+        ConflictPolicy.KeepBoth => ImportConflictPolicy.KeepBoth,
+        _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, null)
+    };
+
+    /// <summary>The wizard's policy for an SDK one.</summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="policy" /> is not a defined value.</exception>
+    public static ConflictPolicy FromSdk(this ImportConflictPolicy policy) => policy switch
+    {
+        ImportConflictPolicy.KeepMine => ConflictPolicy.KeepMine,
+        ImportConflictPolicy.TakeImported => ConflictPolicy.TakeImported,
+        ImportConflictPolicy.KeepBoth => ConflictPolicy.KeepBoth,
+        _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, null)
+    };
 }
 
 /// <summary>How a bundle demo relates to this machine.</summary>

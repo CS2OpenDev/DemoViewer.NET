@@ -220,15 +220,15 @@ public class TransferManifestTests
         {
             await Assert.That(TransferLayout.CacheFile(ShaA, ShaA + ".facts.core.json.gz"))
                 .IsEqualTo($"data/{ShaA}/cache/{ShaA}.facts.core.json.gz");
-            await Assert.That(TransferLayout.ExtensionStoreFile(ShaA, "net.ext", "tags\\demos/x.dvtag.json"))
-                .IsEqualTo($"data/{ShaA}/ext/net.ext/stores/tags/demos/x.dvtag.json");
+            await Assert.That(TransferLayout.ExtensionStoreFile(ShaA, "net.ext", "tags", "tags\\demos/x.dvtag.json"))
+                .IsEqualTo($"data/{ShaA}/ext/net.ext/stores/tags/tags/demos/x.dvtag.json");
             await Assert.That(TransferLayout.DemFile(ShaA)).IsEqualTo($"dem/{ShaA}.dem");
             await Assert.That(TransferLayout.BundleFolderName(new DateTime(2026, 11, 11, 15, 30, 59)))
                 .IsEqualTo("DemoViewer Transfer 2026-11-11 1530");
             await Assert.That(() => TransferLayout.CacheFile("ABC", "x")).Throws<ArgumentException>();
             await Assert.That(() => TransferLayout.CacheFile(ShaA, "../x")).Throws<ArgumentException>();
             await Assert.That(() => TransferLayout.CacheFile(ShaA, "naïve.json")).Throws<ArgumentException>();
-            await Assert.That(() => TransferLayout.ExtensionStoreFile(ShaA, "net.ext", "a/../b"))
+            await Assert.That(() => TransferLayout.ExtensionStoreFile(ShaA, "net.ext", "tags", "a/../b"))
                 .Throws<ArgumentException>();
             await Assert.That(() => TransferLayout.FullPath(Path.GetTempPath(), "../x")).Throws<ArgumentException>();
         }
