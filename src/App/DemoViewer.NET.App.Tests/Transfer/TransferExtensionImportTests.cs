@@ -48,7 +48,8 @@ public class TransferExtensionImportTests
     private static string Palette(string config, string name) => Path.Combine(config, PalettesPath, name);
 
     // A bundle with three palettes against this machine's two, an excluded index, a file outside the store, notes
-    // and a demo's tags for the extension's own merge, and two own files of which one was declared.
+    // and a demo's tags for the extension's own merge, two own files of which one was declared, and the files of a
+    // declared own folder beside one of a folder that only shares its prefix.
     private static void WriteBundle(string root)
     {
         BundleBuilder bundle = new(root);
@@ -65,6 +66,9 @@ public class TransferExtensionImportTests
         bundle.LibraryStore(ExtensionId, "notes", StoreRoot.Config, NotesPath + "/n.json", Text("notes"));
         bundle.LibraryOwn(ExtensionId, StoreRoot.Config, "state.json", Text("state"));
         bundle.LibraryOwn(ExtensionId, StoreRoot.Config, "other.json", Text("undeclared"));
+        bundle.LibraryOwn(ExtensionId, StoreRoot.Config, "lineups/a.json", Text("in the folder"));
+        bundle.LibraryOwn(ExtensionId, StoreRoot.Config, "lineups/deep/b.json", Text("deeper"));
+        bundle.LibraryOwn(ExtensionId, StoreRoot.Config, "lineups-old/c.json", Text("beside the folder"));
         bundle.Demo(Sha, "match.dem", 4096,
         [
             bundle.DemoStore(Sha, ExtensionId, "tags", StoreRoot.Config, TagsPath + "/" + Sha + ".tag.json",
@@ -238,6 +242,77 @@ public class TransferExtensionImportTests
     }
 
     [Test]
+    public async Task AnOwnFolder_HandsOverTheFilesUnderIt_AsTheExportWalksIt()
+    {
+        List<string> seen = [];
+        using Machine machine = new(import =>
+        {
+            IExtensionFolder own = import.StagedOwn(StoreRoot.Config)!;
+            seen.Add(Encoding.UTF8.GetString(own.Read("lineups/a.json")!));
+            seen.Add(Encoding.UTF8.GetString(own.Read("lineups/deep/b.json")!));
+            seen.Add($"beside:{own.FileExists("lineups-old/c.json")}");
+            return Task.FromResult(new ExtensionImportResult(0, 0, 0, 0));
+        });
+
+        await machine.Import();
+
+        await Assert.That(seen).IsEquivalentTo(["in the folder", "deeper", "beside:False"]);
+    }
+
+    // The bundle file the notes store's one file was written to.
+    private static string BundleFile(Machine machine, string text) =>
+        Directory.EnumerateFiles(machine.Bundle, "*", SearchOption.AllDirectories)
+            .Single(f => new FileInfo(f).Length == text.Length && File.ReadAllText(f) == text);
+
+    [Test]
+    public async Task ADamagedFileTheExtensionWouldBeHanded_RefusesItsDataBeforeTheMerge_AndCountsNoFault()
+    {
+        bool merged = false;
+        using Machine machine = new(_ =>
+        {
+            merged = true;
+            return Task.FromResult(new ExtensionImportResult(1, 0, 0, 0));
+        });
+        File.WriteAllText(BundleFile(machine, "notes"), "NOTES");
+
+        (_, TransferSummary summary) = await machine.Import();
+
+        TransferSummaryItem line = ExtensionLine(summary);
+        using (Assert.Multiple())
+        {
+            await Assert.That(merged).IsFalse();
+            await Assert.That(line.Outcome).IsEqualTo(TransferOutcome.Failed);
+            await Assert.That(line.Reason).Contains("damaged");
+            await Assert.That(machine.Guard.Faults.StateOf(machine.Pack.FeatureId).Count).IsEqualTo(0);
+            await Assert.That(File.ReadAllText(Palette(machine.Config, "b.json"))).IsEqualTo("new")
+                .Because("the host's own merge of the other stores still lands");
+        }
+    }
+
+    [Test]
+    public async Task ABundleDamagedDuringTheMerge_FailsTheLine_ButIsNoFaultOfTheExtension()
+    {
+        string? notes = null;
+        using Machine machine = new(import =>
+        {
+            File.WriteAllText(notes!, "NOTES");
+            import.Staged("notes")!.Read(NotesPath + "/n.json");
+            return Task.FromResult(new ExtensionImportResult(1, 0, 0, 0));
+        });
+        notes = BundleFile(machine, "notes");
+
+        (_, TransferSummary summary) = await machine.Import();
+
+        TransferSummaryItem line = ExtensionLine(summary);
+        using (Assert.Multiple())
+        {
+            await Assert.That(line.Outcome).IsEqualTo(TransferOutcome.Failed);
+            await Assert.That(line.Reason).Contains("damaged");
+            await Assert.That(machine.Guard.Faults.StateOf(machine.Pack.FeatureId).Count).IsEqualTo(0);
+        }
+    }
+
+    [Test]
     [Arguments(true)]
     [Arguments(false)]
     public async Task AnExtensionSwitchedOffOrMissing_IsSkipped_AndThePreviewSaysSo(bool installed)
@@ -296,7 +371,8 @@ public class TransferExtensionImportTests
     {
         public string FeatureId => "pack." + ExtensionId;
 
-        public IReadOnlyList<PortableOwnPath> OwnPaths => [new(StoreRoot.Config, "state.json")];
+        public IReadOnlyList<PortableOwnPath> OwnPaths =>
+            [new(StoreRoot.Config, "state.json"), new(StoreRoot.Config, "lineups")];
 
         public Task<ExtensionImportResult> MergeAsync(IExtensionImport import, CancellationToken ct) => merge(import);
     }

@@ -30,6 +30,9 @@ internal sealed class StagedBundleFolder : IExtensionFolder
 
     public string Path { get; }
 
+    /// <summary>Why a read found a file that no longer matches the manifest, or null while none has.</summary>
+    public string? Damage { get; private set; }
+
     public void Create() => throw ReadOnly();
 
     public bool FileExists(string relativePath) => _files.ContainsKey(File(relativePath));
@@ -76,10 +79,23 @@ internal sealed class StagedBundleFolder : IExtensionFolder
         ];
     }
 
-    public byte[]? Read(string relativePath) =>
-        _files.TryGetValue(File(relativePath), out TransferFile? file)
-            ? TransferImporter.ReadVerified(_bundle, file)
-            : null;
+    public byte[]? Read(string relativePath)
+    {
+        if (!_files.TryGetValue(File(relativePath), out TransferFile? file))
+        {
+            return null;
+        }
+
+        try
+        {
+            return TransferImporter.ReadVerified(_bundle, file);
+        }
+        catch (InvalidDataException ex)
+        {
+            Damage ??= ex.Message;
+            throw;
+        }
+    }
 
     public Stream? OpenRead(string relativePath) =>
         Read(relativePath) is { } bytes ? new MemoryStream(bytes, false) : null;

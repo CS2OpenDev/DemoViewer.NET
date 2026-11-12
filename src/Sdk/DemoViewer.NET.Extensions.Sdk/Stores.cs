@@ -52,9 +52,6 @@ public sealed record StoreDescriptor(
         init => field = Snapshot(value);
     } = Snapshot(Paths);
 
-    // The host checks these paths once and then opens and deletes what they name, so it must not see them
-    // change. The argument comes from extension code, which may hand over null whatever the annotation says;
-    // turning that into something the host refuses keeps the fault on this one store.
     /// <summary>What Library Transfer carries of the store. None, the default, keeps it on this machine.</summary>
     public StorePortability Portability { get; init; }
 
@@ -85,6 +82,9 @@ public sealed record StoreDescriptor(
     /// </summary>
     public bool ExtensionMerges { get; init; }
 
+    // The host checks these paths once and then opens and deletes what they name, so it must not see them
+    // change. The argument comes from extension code, which may hand over null whatever the annotation says;
+    // turning that into something the host refuses keeps the fault on this one store.
     private static string[] Snapshot(IReadOnlyList<string?>? paths) =>
         paths is null ? [] : [.. paths.Select(p => p ?? "")];
 }

@@ -144,7 +144,8 @@ internal sealed partial class TransferImporter
         {
             if (file.OwnRoot is { } root)
             {
-                if (transfer.OwnPaths.Any(o => o.Root == root && SamePath(o.Path, file.RelativePath)))
+                if (PathSafety.SafeRelativePath(file.RelativePath) is not null
+                    && transfer.OwnPaths.Any(o => o.Root == root && Under(o.Path, file.RelativePath)))
                 {
                     Slot(own, root)[file.RelativePath] = file.File;
                     handedOver.Add(file.File);
@@ -191,6 +192,13 @@ internal sealed partial class TransferImporter
                 Skip(run, handedOver);
                 notes.Add($"{label} does not merge imports, so the stores it merges itself were left out");
             }
+            else if (Damaged(run, handedOver) is { } damage)
+            {
+                // Checked before the merge starts: a merge that met a bad file half-way would leave half of it in.
+                Skip(run, handedOver);
+                mergeFailed = true;
+                notes.Insert(0, $"the bundle's copy of its data is damaged ({damage}), so none of it was imported");
+            }
             else
             {
                 ExtensionImport import = new(run.Request.Policy.ToSdk(), shas,
@@ -209,6 +217,13 @@ internal sealed partial class TransferImporter
                     {
                         return await portability.MergeAsync(import, ct).ConfigureAwait(false)
                                ?? throw new InvalidOperationException("The merge returned no result.");
+                    }
+                    catch (Exception ex) when (StagedDamage(import) is not null)
+                    {
+                        // The bundle changed under the merge after the check: its fault, not the extension's.
+                        failure = StagedDamage(import);
+                        transfer.Pack.Guard.Report(MergeSite, ex, FaultKind.LogOnly);
+                        return null;
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
                     {
@@ -394,10 +409,6 @@ internal sealed partial class TransferImporter
                && FileSystemName.MatchesSimpleExpression(path.AsSpan(patternSlash + 1), relative.AsSpan(slash + 1));
     }
 
-    private static bool SamePath(string declared, string relative) =>
-        string.Equals(PathSafety.SafeRelativePath(declared.Trim())?.Replace('\\', '/'), relative,
-            StringComparison.OrdinalIgnoreCase);
-
     private static Dictionary<string, TransferFile> Slot<TKey>(Dictionary<TKey, Dictionary<string, TransferFile>> all,
         TKey key) where TKey : notnull
     {
@@ -408,6 +419,27 @@ internal sealed partial class TransferImporter
 
         return files;
     }
+
+    // Why the first of the files an extension is handed does not match the manifest, or null when all of them do.
+    private static string? Damaged(Run run, IEnumerable<TransferFile> files)
+    {
+        foreach (TransferFile file in files)
+        {
+            try
+            {
+                ReadVerified(run.Bundle, file);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                return ex.Message;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? StagedDamage(ExtensionImport import) =>
+        import.Folders().Select(f => f.Damage).FirstOrDefault(d => d is not null);
 
     private static string StagedPath(Run run, HostDataTransfer transfer, string kind, string name) =>
         Path.Combine(run.Bundle, TransferLayout.LibraryDirectory, transfer.Pack.Pack.Id, kind, name);
@@ -429,6 +461,8 @@ internal sealed partial class TransferImporter
 
         public IExtensionFolder? StagedOwn(StoreRoot root) =>
             own.TryGetValue(root, out StagedBundleFolder? folder) ? folder : null;
+
+        public IEnumerable<StagedBundleFolder> Folders() => staged.Values.Concat(own.Values);
 
         public void Report(string line)
         {
