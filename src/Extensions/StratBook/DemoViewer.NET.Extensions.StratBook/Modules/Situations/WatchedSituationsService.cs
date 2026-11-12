@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
@@ -618,6 +619,94 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
             Changed?.Invoke();
         }
     });
+
+    // ── Library Transfer ──────────────────────────────────────────────────────
+
+    /// <summary>
+    ///     Folds another machine's watches in by id, the opponent filter moved onto the team it landed on. A watch
+    ///     both hold in different versions keeps this machine's unless the user asked for the imported one, and
+    ///     either way keeps this machine's watermark: what counts as new here is this machine's to say. A second
+    ///     import of the same file changes nothing.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the store, holding <see cref="FileName" />; read only.</param>
+    /// <param name="teams">Where each imported team landed.</param>
+    /// <param name="ledger">The policy, the report and the counts.</param>
+    public void Import(IExtensionFolder? staged, TeamIdMap teams, ImportLedger ledger)
+    {
+        ArgumentNullException.ThrowIfNull(teams);
+        ArgumentNullException.ThrowIfNull(ledger);
+        if (ledger.ReadJson<WatchedSituationsFile>(staged, FileName, WatchedSituationsFile.JsonOptions) is not
+            { } file)
+        {
+            return;
+        }
+
+        bool changed = false;
+        lock (_gate)
+        {
+            if (file.SchemaVersion > WatchedSituationsFile.CurrentSchema || _refused)
+            {
+                ledger.Report(_refused
+                    ? $"no watched situations were imported: {FileProblem}"
+                    : $"{FileName} in the bundle is newer than this build reads; no watches were imported");
+                return;
+            }
+
+            foreach (WatchedSituation watch in file.Watches.Where(w => w.Id != Guid.Empty))
+            {
+                int at = _doc.Watches.FindIndex(w => w.Id == watch.Id);
+                WatchedSituation incoming = Remapped(watch, teams,
+                    at < 0 ? watch.WatermarkTicks : _doc.Watches[at].WatermarkTicks);
+                if (at < 0)
+                {
+                    _doc.Watches.Add(incoming);
+                    _new[incoming.Id] = new Dictionary<string, NewGroup>(StringComparer.Ordinal);
+                    ledger.CountAdded();
+                    changed = true;
+                }
+                else if (SameWatch(_doc.Watches[at], incoming))
+                {
+                    ledger.CountSkipped();
+                }
+                else
+                {
+                    ledger.CountConflict();
+                    if (ledger.Policy == ImportConflictPolicy.TakeImported)
+                    {
+                        _doc.Watches[at] = incoming;
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed)
+            {
+                Save();
+            }
+        }
+
+        if (changed)
+        {
+            Reevaluate();
+            RaiseChanged();
+        }
+    }
+
+    private static WatchedSituation Remapped(WatchedSituation watch, TeamIdMap teams, long watermark) => new()
+    {
+        Id = watch.Id,
+        Name = watch.Name,
+        CreatedTicks = watch.CreatedTicks,
+        WatermarkTicks = watermark,
+        Map = watch.Map,
+        Tolerance = watch.Tolerance,
+        Tokens = [.. watch.Tokens],
+        Filters = watch.Filters with { Opponent = teams.Map(watch.Filters.Opponent) }
+    };
+
+    private static bool SameWatch(WatchedSituation a, WatchedSituation b) =>
+        JsonSerializer.Serialize(a, WatchedSituationsFile.JsonOptions)
+            .Equals(JsonSerializer.Serialize(b, WatchedSituationsFile.JsonOptions), StringComparison.Ordinal);
 
     // ── The file ──────────────────────────────────────────────────────────────
 

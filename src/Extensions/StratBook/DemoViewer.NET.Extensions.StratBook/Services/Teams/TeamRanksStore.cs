@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 
 #endregion
 
@@ -150,6 +151,71 @@ public sealed class TeamRanksStore
         FileProblem = null;
         Load();
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     Folds another machine's ranks in by id, each filed under the team it landed on. An entry for a team,
+    ///     ranking and day this machine already has is the same entry whatever its id, since <see cref="Set" />
+    ///     keeps one per day: a different rank there keeps this machine's unless the user asked for the imported
+    ///     one. A second import of the same file changes nothing. UI thread, like every other mutator.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the store, holding <see cref="FileName" />; read only.</param>
+    /// <param name="teams">Where each imported team landed.</param>
+    /// <param name="ledger">The policy, the report and the counts.</param>
+    public void Import(IExtensionFolder? staged, TeamIdMap teams, ImportLedger ledger)
+    {
+        ArgumentNullException.ThrowIfNull(teams);
+        ArgumentNullException.ThrowIfNull(ledger);
+        if (ledger.ReadJson<TeamRanksFile>(staged, FileName, TeamRanksFile.JsonOptions) is not { } file)
+        {
+            return;
+        }
+
+        if (file.SchemaVersion > TeamRanksFile.CurrentSchema || _refused)
+        {
+            ledger.Report(_refused
+                ? $"no team ranks were imported: {FileProblem}"
+                : $"{FileName} in the bundle is newer than this build reads; no ranks were imported");
+            return;
+        }
+
+        bool changed = false;
+        foreach (RankEntry entry in file.Entries.Where(e => e.Rank > 0))
+        {
+            RankEntry incoming = new()
+            {
+                Id = entry.Id, TeamId = teams.Map(entry.TeamId), System = entry.System, Rank = entry.Rank,
+                AsOf = entry.AsOf
+            };
+            int at = _entries.FindIndex(e => e.Id == incoming.Id
+                || (e.TeamId == incoming.TeamId && e.System == incoming.System && e.AsOf == incoming.AsOf));
+            if (at < 0)
+            {
+                _entries.Add(incoming);
+                ledger.CountAdded();
+                changed = true;
+            }
+            else if (_entries[at].TeamId == incoming.TeamId && _entries[at].System == incoming.System
+                     && _entries[at].AsOf == incoming.AsOf && _entries[at].Rank == incoming.Rank)
+            {
+                ledger.CountSkipped();
+            }
+            else
+            {
+                ledger.CountConflict();
+                if (ledger.Policy == ImportConflictPolicy.TakeImported)
+                {
+                    _entries[at] = incoming;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+        {
+            Save();
+            Changed?.Invoke();
+        }
     }
 
     private void Load()

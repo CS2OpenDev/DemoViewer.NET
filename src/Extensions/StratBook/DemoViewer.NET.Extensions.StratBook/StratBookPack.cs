@@ -698,7 +698,8 @@ public sealed class StratBookPack : IExtension
                 log: line => GrenadeIndexLog.LineupClip(log, line),
                 complete: () => index.IsReady,
                 maxBytes: () => settings.LineupClipsMaxMegabytes * 1024L * 1024L,
-                jobs: Host(sp).Jobs);
+                jobs: Host(sp).Jobs,
+                storedLineups: index.StoredLineupIds);
             index.Changed += () => clips.PlanSoon();
             sp.GetRequiredService<StratBookPackInstances>().Record(clips);
             return clips;

@@ -3,6 +3,9 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 #endregion
 
@@ -42,7 +45,7 @@ public sealed class StratStore
     private const string CalloutsFileName = "callouts.json";
 
     /// <summary>Where <see cref="Delete" /> moves a strat's files, inside its map folder.</summary>
-    private const string TrashFolderName = ".trash";
+    internal const string TrashFolderName = ".trash";
 
     /// <summary>
     ///     The extension-bag field an autosaved working copy carries: the file holds edits not yet
@@ -116,7 +119,7 @@ public sealed class StratStore
     }
 
     // Relative to the store folder, which is the only thing the host resolves paths against.
-    private const string IndexFileName = "index.json";
+    internal const string IndexFileName = "index.json";
 
     /// <summary>Raised through the post delegate after a commit or a delete with the strat's id, or null after a rebuild.</summary>
     public event Action<Guid?>? Changed;
@@ -832,6 +835,590 @@ public sealed class StratStore
         RaiseChanged(null);
     }
 
+    // ── Library Transfer ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    ///     Folds another machine's strats, books and callouts into this store. Strats are matched by id. One this
+    ///     machine does not have is copied with its log; one it has is left alone when this machine already holds
+    ///     every imported commit, fast-forwarded when its log is a strict prefix of the imported one, and otherwise
+    ///     settled by the policy: keep mine reports it, take imported commits the imported head on top of this
+    ///     machine's log (so nothing here is lost from the history), keep both adds the imported head as a new strat
+    ///     with no history. A strat open in the Strat Book, or deleted here, is left alone and reported. An owner
+    ///     that <paramref name="teams" /> moves is committed as a real revision, which moves the strat's folder.
+    ///     Books gain the slot defaults of epochs they lack and keep their notes; callouts gain the aliases they lack,
+    ///     compared case-insensitively. A second import of the same bundle changes nothing.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the strats store, laid out as this one; read only.</param>
+    /// <param name="teams">Where each imported team landed, from <c>TeamIdentityService.ImportTeams</c>.</param>
+    /// <param name="ledger">The policy, the report and the counts.</param>
+    public void Import(IExtensionFolder? staged, TeamIdMap teams, ImportLedger ledger)
+    {
+        ArgumentNullException.ThrowIfNull(teams);
+        ArgumentNullException.ThrowIfNull(ledger);
+        if (staged is null)
+        {
+            return;
+        }
+
+        if (_folder is null)
+        {
+            ledger.Report("strats are kept for this session only here, so none were imported");
+            return;
+        }
+
+        foreach (string path in ListFiles(staged, "*" + StratExtension))
+        {
+            if (Guid.TryParse(Path.GetFileName(path)[..^StratExtension.Length], out Guid id))
+            {
+                ImportStrat(staged, path, id, teams, ledger);
+            }
+        }
+
+        foreach (string ownerDir in SafeDirectories(staged, ""))
+        {
+            if (StratOwner.FromFolderName(Path.GetFileName(ownerDir)) is not { } owner)
+            {
+                continue;
+            }
+
+            StratOwner mapped = MapOwner(owner, teams);
+            ImportBook(staged, Path.Combine(ownerDir, BookFileName), mapped, ledger);
+            foreach (string mapDir in SafeDirectories(staged, ownerDir))
+            {
+                if (!Path.GetFileName(mapDir).StartsWith('.'))
+                {
+                    ImportCallouts(staged, Path.Combine(mapDir, CalloutsFileName), mapped, ledger);
+                }
+            }
+        }
+
+        SaveIndex();
+        RaiseChanged(null);
+    }
+
+    private static IEnumerable<string> SafeDirectories(IExtensionFolder folder, string relativePath)
+    {
+        try
+        {
+            return [.. folder.EnumerateDirectories(relativePath)];
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    private static StratOwner MapOwner(StratOwner owner, TeamIdMap teams)
+    {
+        StratOwner mapped = owner.Clone();
+        if (owner.IsTeam)
+        {
+            mapped.TeamId = teams.Map(owner.TeamId!.Value);
+        }
+
+        return mapped;
+    }
+
+    private void ImportStrat(IExtensionFolder staged, string stagedPath, Guid id, TeamIdMap teams,
+        ImportLedger ledger)
+    {
+        string? text;
+        byte[]? logBytes;
+        try
+        {
+            text = FolderText.Read(staged, stagedPath);
+            logBytes = staged.Read(HistoryPathBeside(stagedPath));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            ledger.Report($"strat {id} in the bundle could not be read and was left out: {e.Message}");
+            ledger.CountSkipped();
+            return;
+        }
+
+        if (text is null || Parse(text) is not { } incoming || incoming.Id != id)
+        {
+            ledger.Report($"strat {id} in the bundle could not be read and was left out");
+            ledger.CountSkipped();
+            return;
+        }
+
+        List<HistoryEntry> log = ParseHistory(logBytes is null ? [] : DecodeLines(logBytes));
+        StratOwner owner = MapOwner(incoming.Owner, teams);
+        if ((OwnerProblem(owner) ?? MapProblem(incoming.Map)) is { } problem)
+        {
+            ledger.Report($"'{incoming.Name}' in the bundle was left out: {problem}");
+            ledger.CountSkipped();
+            return;
+        }
+
+        lock (_rmwGate)
+        {
+            if (SessionFor(id) is not null)
+            {
+                ledger.Report($"'{incoming.Name}' was open in the Strat Book, so the imported copy was left out");
+                ledger.CountSkipped();
+                return;
+            }
+
+            bool known;
+            string? path;
+            lock (_gate)
+            {
+                known = _index.ContainsKey(id);
+                path = _paths.GetValueOrDefault(id);
+            }
+
+            if (known && path is not null)
+            {
+                ImportKnown(incoming, text, log, owner, ledger);
+            }
+            else if (path is not null)
+            {
+                ledger.Report($"'{incoming.Name}' here could not be read, so the imported copy was left out");
+                ledger.CountSkipped();
+            }
+            else
+            {
+                ImportNew(incoming, text, logBytes, log, owner, ledger);
+            }
+        }
+    }
+
+    // Under _rmwGate. A byte copy, the log first like a commit, so the files stay exactly what the other machine
+    // wrote, a working copy's uncommitted edits included.
+    private void ImportNew(StratDocument incoming, string text, byte[]? logBytes, List<HistoryEntry> log,
+        StratOwner owner, ImportLedger ledger)
+    {
+        string folder = FolderIn(owner, incoming.Map);
+        string target = Path.Combine(folder, incoming.Id.ToString("D") + StratExtension);
+        if (ledger.Policy != ImportConflictPolicy.TakeImported
+            && _folder!.FileExists(Path.Combine(folder, TrashFolderName, Path.GetFileName(target))))
+        {
+            ledger.Report($"'{incoming.Name}' was deleted on this machine and was not brought back");
+            ledger.CountSkipped();
+            return;
+        }
+
+        if (!Replays(logBytes, log))
+        {
+            ledger.Report($"'{incoming.Name}' in the bundle has a history that does not replay; it was left out");
+            ledger.CountSkipped();
+            return;
+        }
+
+        try
+        {
+            if (logBytes is not null)
+            {
+                _folder!.WriteAtomic(HistoryPathBeside(target), logBytes);
+            }
+
+            FolderText.Write(_folder!, target, text);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            ledger.Report($"'{incoming.Name}' could not be written: {e.Message}");
+            ledger.CountSkipped();
+            return;
+        }
+
+        lock (_gate)
+        {
+            _logHeads.Remove(incoming.Id);
+        }
+
+        IndexFile(incoming.Id, target);
+        ledger.CountAdded();
+        if (!incoming.Owner.Equals(owner))
+        {
+            CommitOwner(incoming.Id, owner, ledger);
+        }
+    }
+
+    // Under _rmwGate.
+    private void ImportKnown(StratDocument incoming, string text, List<HistoryEntry> log, StratOwner owner,
+        ImportLedger ledger)
+    {
+        Guid id = incoming.Id;
+        if (Load(id).Document is not { } local || IsUnresolved(id))
+        {
+            ledger.Report($"'{incoming.Name}' here could not be checked against the imported copy, which was left out");
+            ledger.CountSkipped();
+            return;
+        }
+
+        List<string> mine = [.. History(id).Select(LogLine)];
+        List<string> theirs = [.. log.Select(LogLine)];
+        bool importedPending = IsPending(incoming);
+        if (!importedPending && IsPrefix(theirs, mine))
+        {
+            ledger.CountSkipped();
+            return;
+        }
+
+        if (!IsPending(local) && theirs.Count > mine.Count && IsPrefix(mine, theirs))
+        {
+            FastForward(incoming, text, log, mine.Count, owner, ledger);
+            return;
+        }
+
+        StratDocument? head = HeadOf(incoming, log);
+        if (head is null)
+        {
+            ledger.Report($"'{incoming.Name}' in the bundle has a history that does not replay; it was left out");
+            ledger.CountSkipped();
+            return;
+        }
+
+        head.Owner = owner.Clone();
+        head.Map = head.Map.ToLowerInvariant();
+        StratDocument working = WithPending(local, false);
+        if (JsonNode.DeepEquals(Comparable(working), Comparable(head)))
+        {
+            ledger.CountSkipped();
+            return;
+        }
+
+        ledger.CountConflict();
+        switch (ledger.Policy)
+        {
+            case ImportConflictPolicy.TakeImported:
+                TakeImported(local, working, head, ledger);
+                break;
+            case ImportConflictPolicy.KeepBoth:
+                KeepBoth(head, ledger);
+                break;
+            default:
+                ledger.Report($"kept this machine's '{local.Name}': both machines changed it");
+                break;
+        }
+    }
+
+    // Under _rmwGate. The log only grows: the imported lines past this machine's are appended, then the strat file
+    // is replaced, the order a commit writes them in.
+    private void FastForward(StratDocument incoming, string text, List<HistoryEntry> log, int from,
+        StratOwner owner, ImportLedger ledger)
+    {
+        string? oldPath;
+        lock (_gate)
+        {
+            oldPath = _paths.GetValueOrDefault(incoming.Id);
+        }
+
+        string target = Path.Combine(FolderIn(owner, incoming.Map), incoming.Id.ToString("D") + StratExtension);
+        if (MoveIfRelocated(oldPath, target) is { } moveFailure)
+        {
+            ledger.Report($"'{incoming.Name}' was not updated: {moveFailure}");
+            return;
+        }
+
+        try
+        {
+            for (int i = from; i < log.Count; i++)
+            {
+                _folder!.Append(HistoryPathBeside(target), LogLine(log[i]));
+            }
+
+            FolderText.Write(_folder!, target, text);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            ledger.Report($"'{incoming.Name}' was not fully updated ({e.Message}); the next load re-applies its history");
+        }
+
+        lock (_gate)
+        {
+            _logHeads.Remove(incoming.Id);
+            _paths[incoming.Id] = target;
+        }
+
+        IndexFile(incoming.Id, target);
+        ledger.CountMerged();
+        if (!incoming.Owner.Equals(owner))
+        {
+            CommitOwner(incoming.Id, owner, ledger);
+        }
+    }
+
+    // Under _rmwGate. One commit from this machine's state, its own uncommitted edits included, to the imported
+    // head: every earlier revision here stays in the history.
+    private void TakeImported(StratDocument local, StratDocument working, StratDocument head, ImportLedger ledger)
+    {
+        // Revision and modifiedUtc are the entry's, never an op's.
+        head.Revision = working.Revision;
+        head.ModifiedUtc = working.ModifiedUtc;
+        List<PatchOp> ops = [.. PendingOps(local)];
+        ops.AddRange(StratHistory.Diff(StratHistory.ToNode(working), StratHistory.ToNode(head)));
+        StratSaveResult saved = Save(head, ops, "took the version from another machine");
+        ledger.Report(saved.Saved
+            ? $"'{local.Name}' now holds the imported version; this machine's is in its history"
+            : $"kept this machine's '{local.Name}': the imported version could not be committed ({saved.Reason})");
+    }
+
+    // Under _rmwGate. The copy's id comes from the imported head, so the next import of the same bundle finds it.
+    private void KeepBoth(StratDocument head, ImportLedger ledger)
+    {
+        Guid original = head.Id;
+        Guid copyId = ImportLedger.BesideId(original, Comparable(head).ToJsonString());
+        lock (_gate)
+        {
+            if (_index.ContainsKey(copyId) || _paths.ContainsKey(copyId))
+            {
+                return;
+            }
+        }
+
+        StratDocument copy = head.Clone();
+        copy.Id = copyId;
+        copy.Name = head.Name + " (imported)";
+        copy.Revision = 0;
+        foreach (StratBranch branch in copy.Branches.Where(b => b.Target.StratId == original))
+        {
+            branch.Target.StratId = copyId;
+        }
+
+        StratSaveResult saved = Save(copy, [], "imported beside the strat of the same id");
+        ledger.Report(saved.Saved
+            ? $"both machines changed '{head.Name}'; the imported version was added as '{copy.Name}'"
+            : $"kept this machine's '{head.Name}': the imported version could not be added ({saved.Reason})");
+    }
+
+    // Under _rmwGate. A team the import matched to one of this machine's: the strat moves to that team's book as
+    // a commit of its own, so the move is in the history like any other edit.
+    private void CommitOwner(Guid id, StratOwner owner, ImportLedger ledger)
+    {
+        if (TryLoad(id) is not { } loaded)
+        {
+            return;
+        }
+
+        List<PatchOp> ops = [.. PendingOps(loaded)];
+        StratDocument document = WithPending(loaded, false);
+        JsonNode before = StratHistory.ToNode(document);
+        document.Owner = owner.Clone();
+        ops.AddRange(StratHistory.Diff(before, StratHistory.ToNode(document)));
+        StratSaveResult saved = Save(document, ops, "moved to the matching team on import");
+        if (!saved.Saved)
+        {
+            ledger.Report($"'{loaded.Name}' stays in the imported team's book: {saved.Reason}");
+        }
+    }
+
+    // The strat as the other machine last had it: the file, unless a crash left it behind its log.
+    private static StratDocument? HeadOf(StratDocument incoming, List<HistoryEntry> log)
+    {
+        try
+        {
+            return log.Count > 0 && log[^1].Revision > incoming.Revision
+                ? StateAt(log, log.Count - 1)
+                : WithPending(incoming, false);
+        }
+        catch (Exception e) when (e is InvalidOperationException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    // Whether a bundle's log is one a commit could have left: only a torn last line (a crash mid-append) may fail
+    // to parse, since a bad line before it hides a change the later lines build on, and the whole log replays.
+    // A strat copied in with a broken log would open, but its history and later imports of it would not work.
+    private static bool Replays(byte[]? logBytes, List<HistoryEntry> log)
+    {
+        if (logBytes is null)
+        {
+            return true;
+        }
+
+        if (log.Count < DecodeLines(logBytes).Count(l => !string.IsNullOrWhiteSpace(l)) - 1)
+        {
+            return false;
+        }
+
+        try
+        {
+            return log.Count == 0 || StateAt(log, log.Count - 1) is not null;
+        }
+        catch (Exception e) when (e is InvalidOperationException or JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string LogLine(HistoryEntry entry) =>
+        JsonSerializer.Serialize(entry, StratHistoryJsonContext.Default.HistoryEntry);
+
+    private static bool IsPrefix(List<string> prefix, List<string> of) =>
+        prefix.Count <= of.Count && prefix.Select((line, i) => string.Equals(line, of[i], StringComparison.Ordinal))
+            .All(same => same);
+
+    private static IEnumerable<string> DecodeLines(byte[] bytes) =>
+        Encoding.UTF8.GetString(bytes is [0xEF, 0xBB, 0xBF, ..] ? bytes[3..] : bytes).Split('\n')
+            .Select(l => l.TrimEnd('\r'));
+
+    // An epoch this book lacks gains the imported defaults; the notes stay this machine's unless it has none.
+    private void ImportBook(IExtensionFolder staged, string stagedPath, StratOwner owner, ImportLedger ledger)
+    {
+        if (ReadStaged(staged, stagedPath, StratJsonContext.Default.StratBook, ledger) is not { } incoming)
+        {
+            return;
+        }
+
+        string? json = ReadSmallFile(owner.FolderName, Path.Combine(owner.FolderName, BookFileName), _memoryBooks);
+        StratBook local;
+        try
+        {
+            local = json is null
+                ? new StratBook { Owner = owner.Clone() }
+                : JsonSerializer.Deserialize(json, StratJsonContext.Default.StratBook) ?? throw new JsonException();
+        }
+        catch (JsonException)
+        {
+            ledger.Report($"the book for {owner.FolderName} here could not be read, so the imported one was left out");
+            ledger.CountSkipped();
+            return;
+        }
+
+        bool take = ledger.Policy == ImportConflictPolicy.TakeImported;
+        bool changed = false;
+        foreach ((string epoch, Dictionary<string, string> slots) in incoming.SlotDefaults)
+        {
+            if (!local.SlotDefaults.TryGetValue(epoch, out Dictionary<string, string>? mine))
+            {
+                local.SlotDefaults[epoch] = new Dictionary<string, string>(slots, StringComparer.Ordinal);
+                changed = true;
+            }
+            else if (mine.Count != slots.Count || mine.Except(slots).Any())
+            {
+                ledger.CountConflict();
+                if (take)
+                {
+                    local.SlotDefaults[epoch] = new Dictionary<string, string>(slots, StringComparer.Ordinal);
+                    changed = true;
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(incoming.Notes)
+            && !string.Equals(local.Notes, incoming.Notes, StringComparison.Ordinal))
+        {
+            bool hasOwn = !string.IsNullOrWhiteSpace(local.Notes);
+            if (hasOwn)
+            {
+                ledger.CountConflict();
+            }
+
+            if (take || !hasOwn)
+            {
+                local.Notes = incoming.Notes;
+                changed = true;
+            }
+        }
+
+        local.Owner = owner.Clone();
+        Settle(changed, json is null, owner, () => SaveBook(local), "book", ledger);
+    }
+
+    // An alias this table lacks is added; one it has, in any case or spacing, keeps its place unless the user asked
+    // for the imported one.
+    private void ImportCallouts(IExtensionFolder staged, string stagedPath, StratOwner owner, ImportLedger ledger)
+    {
+        if (ReadStaged(staged, stagedPath, StratJsonContext.Default.CalloutTable, ledger) is not { } incoming
+            || MapProblem(incoming.Map) is not null)
+        {
+            return;
+        }
+
+        string map = incoming.Map.ToLowerInvariant();
+        string? json = ReadSmallFile(owner.FolderName + "/" + map,
+            Path.Combine(FolderIn(owner, map), CalloutsFileName), _memoryCallouts);
+        CalloutTable local;
+        try
+        {
+            local = json is null
+                ? new CalloutTable { Map = map }
+                : JsonSerializer.Deserialize(json, StratJsonContext.Default.CalloutTable) ?? throw new JsonException();
+        }
+        catch (JsonException)
+        {
+            ledger.Report($"the callouts for {map} here could not be read, so the imported ones were left out");
+            ledger.CountSkipped();
+            return;
+        }
+
+        bool changed = false;
+        foreach (CalloutAlias alias in incoming.Aliases.Where(a => !string.IsNullOrWhiteSpace(a.Alias)))
+        {
+            // The validator's own key, case and separators folded, so the merged table never holds an alias twice.
+            string key = CalloutResolver.Fold(alias.Alias!);
+            CalloutAlias? mine = local.Aliases.FirstOrDefault(a =>
+                string.Equals(CalloutResolver.Fold(a.Alias ?? ""), key, StringComparison.Ordinal));
+            if (mine is null)
+            {
+                bool primaryTaken = local.Aliases.Any(a =>
+                    a.Primary && string.Equals(a.Place, alias.Place, StringComparison.Ordinal));
+                local.Aliases.Add(new CalloutAlias
+                {
+                    Alias = alias.Alias, Place = alias.Place, Primary = alias.Primary && !primaryTaken
+                });
+                changed = true;
+            }
+            else if (!string.Equals(mine.Place, alias.Place, StringComparison.Ordinal))
+            {
+                ledger.CountConflict();
+                if (ledger.Policy == ImportConflictPolicy.TakeImported)
+                {
+                    mine.Place = alias.Place;
+                    mine.Primary = false;
+                    changed = true;
+                }
+            }
+        }
+
+        if (local.Canonical is null && incoming.Canonical is not null)
+        {
+            local.Canonical = incoming.Canonical;
+            changed = true;
+        }
+
+        Settle(changed, json is null, owner, () => SaveCallouts(owner, local), $"callouts for {map}", ledger);
+    }
+
+    private static void Settle(bool changed, bool added, StratOwner owner, Func<bool> save, string what,
+        ImportLedger ledger)
+    {
+        if (!changed)
+        {
+            ledger.CountSkipped();
+        }
+        else if (!save())
+        {
+            ledger.Report($"the imported {what} of {owner.FolderName} could not be saved");
+        }
+        else if (added)
+        {
+            ledger.CountAdded();
+        }
+        else
+        {
+            ledger.CountMerged();
+        }
+    }
+
+    private static T? ReadStaged<T>(IExtensionFolder staged, string path, JsonTypeInfo<T> type, ImportLedger ledger)
+        where T : class
+    {
+        try
+        {
+            return FolderText.Read(staged, path) is { } json ? JsonSerializer.Deserialize(json, type) : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
+        {
+            ledger.Report($"{path} in the bundle could not be read and was left out");
+            return null;
+        }
+    }
+
     // Recovery is anchored by position, never by number: a log can hold a revision twice. The file is matched
     // to the last line whose revision and replayed state it equals, and only the lines after it are applied.
     // Every change made here leaves a note.
@@ -1515,28 +2102,26 @@ public sealed class StratStore
         }
     }
 
-    private List<string> EnumerateFiles(string pattern)
+    private List<string> EnumerateFiles(string pattern) => _folder is null ? [] : ListFiles(_folder, pattern);
+
+    // The same layout in any folder: this store's, or a bundle's copy of one.
+    private static List<string> ListFiles(IExtensionFolder folder, string pattern)
     {
         List<string> files = [];
-        if (_folder is null)
-        {
-            return files;
-        }
-
         try
         {
-            foreach (string ownerDir in _folder.EnumerateDirectories(""))
+            foreach (string ownerDir in folder.EnumerateDirectories(""))
             {
                 if (StratOwner.FromFolderName(Path.GetFileName(ownerDir)) is null)
                 {
                     continue;
                 }
 
-                foreach (string mapDir in _folder.EnumerateDirectories(ownerDir))
+                foreach (string mapDir in folder.EnumerateDirectories(ownerDir))
                 {
                     if (!Path.GetFileName(mapDir).StartsWith('.'))
                     {
-                        files.AddRange(_folder.EnumerateFiles(mapDir, pattern));
+                        files.AddRange(folder.EnumerateFiles(mapDir, pattern));
                     }
                 }
             }

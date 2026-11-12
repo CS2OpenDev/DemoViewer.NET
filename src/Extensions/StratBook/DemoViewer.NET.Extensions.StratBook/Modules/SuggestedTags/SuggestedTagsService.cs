@@ -850,7 +850,8 @@ public sealed class SuggestedTagsService : IExtensionPass
             Demo = new ProposalDemoHeader
             {
                 Sha256 = Normalize(record.Sha256),
-                StableKey = DemoKeys.StableKey(path),
+                // Only while unhashed: a path key does not travel with a library transfer.
+                StableKey = Normalize(record.Sha256) is null ? DemoKeys.StableKey(path) : null,
                 FileName = Path.GetFileName(path),
                 SizeBytes = record.FileSizeBytes
             },

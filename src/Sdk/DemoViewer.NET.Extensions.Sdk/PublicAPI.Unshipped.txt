@@ -43,3 +43,63 @@ static DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.operator ==(DemoViewer.
 DemoViewer.NET.Extensions.Sdk.CollectorContribution.GameProviders.get -> System.Collections.Generic.IReadOnlyList<string!>!
 DemoViewer.NET.Extensions.Sdk.CollectorContribution.GameProviders.init -> void
 DemoViewer.NET.Extensions.Sdk.IFrameReadView.TryReadGameInt(string! providerName, out int value) -> bool
+DemoViewer.NET.Extensions.Sdk.StorePortability
+DemoViewer.NET.Extensions.Sdk.StorePortability.LibraryWide = 2 -> DemoViewer.NET.Extensions.Sdk.StorePortability
+DemoViewer.NET.Extensions.Sdk.StorePortability.None = 0 -> DemoViewer.NET.Extensions.Sdk.StorePortability
+DemoViewer.NET.Extensions.Sdk.StorePortability.PerDemo = 1 -> DemoViewer.NET.Extensions.Sdk.StorePortability
+DemoViewer.NET.Extensions.Sdk.StoreDescriptor.Portability.get -> DemoViewer.NET.Extensions.Sdk.StorePortability
+DemoViewer.NET.Extensions.Sdk.StoreDescriptor.Portability.init -> void
+DemoViewer.NET.Extensions.Sdk.StoreDescriptor.DemoKeyedPaths.get -> System.Collections.Generic.IReadOnlyList<string!>!
+DemoViewer.NET.Extensions.Sdk.StoreDescriptor.DemoKeyedPaths.init -> void
+DemoViewer.NET.Extensions.Sdk.StoreDescriptor.PortableExcludes.get -> System.Collections.Generic.IReadOnlyList<string!>!
+DemoViewer.NET.Extensions.Sdk.StoreDescriptor.PortableExcludes.init -> void
+DemoViewer.NET.Extensions.Sdk.StoreDescriptor.ExtensionMerges.get -> bool
+DemoViewer.NET.Extensions.Sdk.StoreDescriptor.ExtensionMerges.init -> void
+DemoViewer.NET.Extensions.Sdk.ImportConflictPolicy
+DemoViewer.NET.Extensions.Sdk.ImportConflictPolicy.KeepBoth = 2 -> DemoViewer.NET.Extensions.Sdk.ImportConflictPolicy
+DemoViewer.NET.Extensions.Sdk.ImportConflictPolicy.KeepMine = 0 -> DemoViewer.NET.Extensions.Sdk.ImportConflictPolicy
+DemoViewer.NET.Extensions.Sdk.ImportConflictPolicy.TakeImported = 1 -> DemoViewer.NET.Extensions.Sdk.ImportConflictPolicy
+DemoViewer.NET.Extensions.Sdk.PortableOwnPath
+DemoViewer.NET.Extensions.Sdk.PortableOwnPath.<Clone>$() -> DemoViewer.NET.Extensions.Sdk.PortableOwnPath!
+DemoViewer.NET.Extensions.Sdk.PortableOwnPath.Deconstruct(out DemoViewer.NET.Extensions.Sdk.StoreRoot Root, out string! Path) -> void
+DemoViewer.NET.Extensions.Sdk.PortableOwnPath.Equals(DemoViewer.NET.Extensions.Sdk.PortableOwnPath? other) -> bool
+DemoViewer.NET.Extensions.Sdk.PortableOwnPath.Path.get -> string!
+DemoViewer.NET.Extensions.Sdk.PortableOwnPath.Path.init -> void
+DemoViewer.NET.Extensions.Sdk.PortableOwnPath.PortableOwnPath(DemoViewer.NET.Extensions.Sdk.StoreRoot Root, string! Path) -> void
+DemoViewer.NET.Extensions.Sdk.PortableOwnPath.Root.get -> DemoViewer.NET.Extensions.Sdk.StoreRoot
+DemoViewer.NET.Extensions.Sdk.PortableOwnPath.Root.init -> void
+override DemoViewer.NET.Extensions.Sdk.PortableOwnPath.Equals(object? obj) -> bool
+override DemoViewer.NET.Extensions.Sdk.PortableOwnPath.GetHashCode() -> int
+override DemoViewer.NET.Extensions.Sdk.PortableOwnPath.ToString() -> string!
+static DemoViewer.NET.Extensions.Sdk.PortableOwnPath.operator !=(DemoViewer.NET.Extensions.Sdk.PortableOwnPath? left, DemoViewer.NET.Extensions.Sdk.PortableOwnPath? right) -> bool
+static DemoViewer.NET.Extensions.Sdk.PortableOwnPath.operator ==(DemoViewer.NET.Extensions.Sdk.PortableOwnPath? left, DemoViewer.NET.Extensions.Sdk.PortableOwnPath? right) -> bool
+DemoViewer.NET.Extensions.Sdk.IExtensionDataPortability
+DemoViewer.NET.Extensions.Sdk.IExtensionDataPortability.FeatureId.get -> string!
+DemoViewer.NET.Extensions.Sdk.IExtensionDataPortability.MergeAsync(DemoViewer.NET.Extensions.Sdk.IExtensionImport! import, System.Threading.CancellationToken ct) -> System.Threading.Tasks.Task<DemoViewer.NET.Extensions.Sdk.ExtensionImportResult!>!
+DemoViewer.NET.Extensions.Sdk.IExtensionDataPortability.OwnPaths.get -> System.Collections.Generic.IReadOnlyList<DemoViewer.NET.Extensions.Sdk.PortableOwnPath!>!
+DemoViewer.NET.Extensions.Sdk.IExtensionImport
+DemoViewer.NET.Extensions.Sdk.IExtensionImport.DemoSha256s.get -> System.Collections.Generic.IReadOnlySet<string!>!
+DemoViewer.NET.Extensions.Sdk.IExtensionImport.Policy.get -> DemoViewer.NET.Extensions.Sdk.ImportConflictPolicy
+DemoViewer.NET.Extensions.Sdk.IExtensionImport.Report(string! line) -> void
+DemoViewer.NET.Extensions.Sdk.IExtensionImport.Staged(string! storeId) -> DemoViewer.NET.Extensions.Sdk.IExtensionFolder?
+DemoViewer.NET.Extensions.Sdk.IExtensionImport.StagedOwn(DemoViewer.NET.Extensions.Sdk.StoreRoot root) -> DemoViewer.NET.Extensions.Sdk.IExtensionFolder?
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.<Clone>$() -> DemoViewer.NET.Extensions.Sdk.ExtensionImportResult!
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Added.get -> int
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Added.init -> void
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Conflicts.get -> int
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Conflicts.init -> void
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Deconstruct(out int Added, out int Merged, out int Skipped, out int Conflicts) -> void
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Equals(DemoViewer.NET.Extensions.Sdk.ExtensionImportResult? other) -> bool
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.ExtensionImportResult(int Added, int Merged, int Skipped, int Conflicts) -> void
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Merged.get -> int
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Merged.init -> void
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Skipped.get -> int
+DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Skipped.init -> void
+override DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.Equals(object? obj) -> bool
+override DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.GetHashCode() -> int
+override DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.ToString() -> string!
+static DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.operator !=(DemoViewer.NET.Extensions.Sdk.ExtensionImportResult? left, DemoViewer.NET.Extensions.Sdk.ExtensionImportResult? right) -> bool
+static DemoViewer.NET.Extensions.Sdk.ExtensionImportResult.operator ==(DemoViewer.NET.Extensions.Sdk.ExtensionImportResult? left, DemoViewer.NET.Extensions.Sdk.ExtensionImportResult? right) -> bool
+DemoViewer.NET.Extensions.Sdk.IExtensionContributions.DataPortability(DemoViewer.NET.Extensions.Sdk.IExtensionDataPortability! portability) -> void
+DemoViewer.NET.Extensions.Sdk.IExtensionContributions.DataImported(System.Action! afterImport) -> void

@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 
 #endregion
 
@@ -86,6 +87,79 @@ public sealed class VetoHistoryStore
             Changed?.Invoke();
         }
     }
+
+    /// <summary>
+    ///     Folds another machine's veto steps in by id, each filed under the team its opponent landed on. A step both
+    ///     hold in different versions keeps this machine's unless the user asked for the imported one; a step is not
+    ///     something to hold twice, so keep both keeps this machine's too. A second import of the same file changes
+    ///     nothing. UI thread, like every other mutator.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the store, holding <see cref="FileName" />; read only.</param>
+    /// <param name="teams">Where each imported team landed.</param>
+    /// <param name="ledger">The policy, the report and the counts.</param>
+    public void Import(IExtensionFolder? staged, TeamIdMap teams, ImportLedger ledger)
+    {
+        ArgumentNullException.ThrowIfNull(teams);
+        ArgumentNullException.ThrowIfNull(ledger);
+        if (ledger.ReadJson<VetoHistoryFile>(staged, FileName, VetoHistoryFile.JsonOptions) is not { } file)
+        {
+            return;
+        }
+
+        if (file.SchemaVersion > VetoHistoryFile.CurrentSchema || _refused)
+        {
+            ledger.Report(_refused
+                ? $"no veto history was imported: {FileProblem}"
+                : $"{FileName} in the bundle is newer than this build reads; no veto history was imported");
+            return;
+        }
+
+        bool changed = false;
+        foreach (VetoEntry entry in file.Entries)
+        {
+            VetoEntry incoming = new()
+            {
+                Id = entry.Id,
+                OpponentTeamId = teams.Map(entry.OpponentTeamId),
+                Order = entry.Order,
+                Map = entry.Map,
+                Action = entry.Action,
+                ByOpponent = entry.ByOpponent,
+                Note = entry.Note
+            };
+            int at = _entries.FindIndex(e => e.Id == incoming.Id);
+            if (at < 0)
+            {
+                _entries.Add(incoming);
+                ledger.CountAdded();
+                changed = true;
+            }
+            else if (Same(_entries[at], incoming))
+            {
+                ledger.CountSkipped();
+            }
+            else
+            {
+                ledger.CountConflict();
+                if (ledger.Policy == ImportConflictPolicy.TakeImported)
+                {
+                    _entries[at] = incoming;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+        {
+            Save();
+            Changed?.Invoke();
+        }
+    }
+
+    private static bool Same(VetoEntry a, VetoEntry b) =>
+        a.OpponentTeamId == b.OpponentTeamId && a.Order == b.Order && a.Action == b.Action
+        && a.ByOpponent == b.ByOpponent && string.Equals(a.Map, b.Map, StringComparison.Ordinal)
+        && string.Equals(a.Note, b.Note, StringComparison.Ordinal);
 
     private void Load()
     {

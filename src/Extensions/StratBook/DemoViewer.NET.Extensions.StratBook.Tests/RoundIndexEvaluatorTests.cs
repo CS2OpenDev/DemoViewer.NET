@@ -29,10 +29,10 @@ public class RoundIndexEvaluatorTests
     private static ParsedDemo Parse() => RoundIndexTestData.Demo(lastTick: 5000);
 
     private static (DemoCacheStore Cache, RoundIndexStore Store, RoundIndexEvaluator Evaluator) Wire(
-        bool background = true, RoundFactsRows? facts = null, bool withFacts = true)
+        bool background = true, RoundFactsRows? facts = null, bool withFacts = true, string? sha = "abc")
     {
         DemoCacheStore cache = new(null);
-        cache.Upsert(ParsedRecord(Demo, sha: "abc", facts: withFacts ? facts ?? TwoRounds() : null));
+        cache.Upsert(ParsedRecord(Demo, sha: sha, facts: withFacts ? facts ?? TwoRounds() : null));
         RoundIndexStore store = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
         RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), store, sources, () => background,
@@ -128,7 +128,8 @@ public class RoundIndexEvaluatorTests
         {
             await Assert.That(document).IsNotNull();
             await Assert.That(document!.Demo.Sha256).IsEqualTo("abc");
-            await Assert.That(document.Demo.StableKey).IsEqualTo(DemoCacheStore.StableKey(Demo));
+            await Assert.That(document.Demo.StableKey).IsEqualTo("")
+                .Because("a hashed demo's files carry no path key, so they read the same on another machine");
             await Assert.That(document.Demo.FileName).IsEqualTo("match.dem");
             await Assert.That(document.Rounds.Count).IsEqualTo(2);
             await Assert.That(document.Fingerprint)
@@ -141,6 +142,8 @@ public class RoundIndexEvaluatorTests
             await Assert.That(indexed.Count).IsEqualTo(1);
             await Assert.That(indexed[0].DemoPath).IsEqualTo(Demo);
             await Assert.That(indexed[0].DemoSha256).IsEqualTo("abc");
+            await Assert.That(indexed[0].DemoStableKey).IsEqualTo(DemoCacheStore.StableKey(Demo))
+                .Because("the event is in memory and still joins by the path key");
             await Assert.That(indexed[0].Map).IsEqualTo("de_nuke");
             await Assert.That(indexed[0].ComputedAtTicks).IsEqualTo(cache.RoundIndexComputedAtTicks(Demo));
             await Assert.That(evaluator.Wants(Demo)).IsFalse();
@@ -150,6 +153,21 @@ public class RoundIndexEvaluatorTests
         // A second pass sees a current index and writes nothing.
         evaluator.Evaluate(Demo, Parse());
         await Assert.That(written.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Evaluate_OnAnUnhashedDemo_StoresThePathKey_UntilTheHashExists()
+    {
+        (_, RoundIndexStore store, RoundIndexEvaluator evaluator) = Wire(sha: null);
+
+        evaluator.Evaluate(Demo, Parse());
+        RoundIndexDocument document = store.TryRead(Demo)!;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(document.Demo.Sha256).IsNull();
+            await Assert.That(document.Demo.StableKey).IsEqualTo(DemoCacheStore.StableKey(Demo));
+        }
     }
 
     [Test]

@@ -125,7 +125,10 @@ public static class GrenadeLineups
     /// <param name="map">The map, as the headers spell it.</param>
     /// <param name="throws">Every loaded throw on the map, all kinds.</param>
     /// <param name="store">The map's anchors; new ones are appended.</param>
-    /// <param name="mint">False while the library is still loading: leftovers stay singles and nothing is stored.</param>
+    /// <param name="mint">
+    ///     False while the library is still loading: leftovers stay singles and nothing is stored. A cluster with
+    ///     no hashed member never mints either.
+    /// </param>
     /// <returns>Throw key to lineup id, and whether an anchor was added.</returns>
     public static (Dictionary<string, Guid> Assignment, bool Minted) Assign(string map,
         IReadOnlyList<IndexedGrenade> throws,
@@ -160,9 +163,10 @@ public static class GrenadeLineups
 
             foreach (List<IndexedGrenade> cluster in ClusterLeftovers(leftovers))
             {
-                if (mint && cluster.Count >= 2)
+                // The seed names the anchor and is hashed into its id, so it must be a content key: a path key
+                // would mint a different id for the same throws on another machine. Unhashed clusters wait.
+                if (mint && cluster.Count >= 2 && cluster.Find(c => c.Demo.Sha256 is not null) is { } seed)
                 {
-                    IndexedGrenade seed = cluster[0];
                     LineupAnchor anchor = new(AnchorId(map, kind.Key, seed.Key), kind.Key,
                         Mean(cluster.Select(c => c.Origin)), Mean(cluster.Select(c => c.Landing)), seed.Key);
                     store.Anchors.Add(anchor);
@@ -186,6 +190,25 @@ public static class GrenadeLineups
 
         return (assignment, minted);
     }
+
+    /// <summary>
+    ///     Whether two anchors of one kind name the same lineup: the release points within the standing spot
+    ///     radius and the landings within the lineup's landing radius. The tight spot radius, not the running
+    ///     one, because an anchor does not record how it was thrown and two lineups merged by mistake cannot be
+    ///     parted again.
+    /// </summary>
+    /// <param name="a">One anchor.</param>
+    /// <param name="b">The other.</param>
+    public static bool SameSpot(LineupAnchor a, LineupAnchor b)
+    {
+        ArgumentNullException.ThrowIfNull(a);
+        ArgumentNullException.ThrowIfNull(b);
+        return a.Kind == b.Kind && Near(a.Origin, b.Origin, SpotRadius, SpotHeight)
+            && Near(a.Landing, b.Landing, LineupLandingRadius, LandingHeight);
+    }
+
+    /// <summary>The planar distance between two anchors' release points.</summary>
+    internal static float SpotDistance(LineupAnchor a, LineupAnchor b) => Planar(a.Origin, b.Origin);
 
     /// <summary>
     ///     Maps every grid id (<see cref="GrenadeIndex.Cluster" />, v1) to exactly one lineup: the one that

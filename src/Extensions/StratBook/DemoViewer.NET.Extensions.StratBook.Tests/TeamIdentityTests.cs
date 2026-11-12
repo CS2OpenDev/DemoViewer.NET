@@ -1,6 +1,7 @@
 #region
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -658,6 +659,89 @@ public class TeamIdentityTests
             await Assert.That(teams.GetAssignment("/d/a2.dem")!.T.TeamId).IsNull().Because("not a team");
             await Assert.That(teams.DemosOf(team).Select(d => d.Path))
                 .IsEquivalentTo(["/d/x.dem", "/d/a1.dem"], CollectionOrdering.Matching);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    // A demo hashed while the service was off left its override on the path key. The next load moves it onto
+    // the hash and writes teams.json once attached; a detached service writes nothing; a second load is a no-op.
+    [Test]
+    public async Task APathKeyedOverride_MovesToTheHashOnLoad_AndIsSavedOnAttach()
+    {
+        string root = TempRoot();
+        try
+        {
+            (DemoCacheStore cache, TeamIdentityService teams) = Fresh(root);
+            await Seed(cache, teams,
+                Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/x.dem", 3, Ids(31, 32, 33, 34, 35), Strangers()));
+            Guid team = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+            teams.Override("/d/x.dem", 2, team);
+            teams.Dispose();
+
+            // The hash arrives in the index while teams.json still names the path.
+            string teamsPath = Path.Combine(root, "teams.json");
+            string indexPath = Path.Combine(root, "cache", "team-index.json");
+            JsonNode index = JsonNode.Parse(await File.ReadAllTextAsync(indexPath))!;
+            index["demos"]![DemoCacheStore.StableKey("/d/x.dem")]!["sha256"] = "ab12";
+            await File.WriteAllTextAsync(indexPath, index.ToJsonString());
+            string before = await File.ReadAllTextAsync(teamsPath);
+
+            TeamIdentityService detached = new(TestFiles.Teams(root), cache.Library(), run: _inline,
+                loadAtStart: false);
+            await Assert.That(await File.ReadAllTextAsync(teamsPath)).IsEqualTo(before)
+                .Because("a detached service has read nothing and writes nothing");
+
+            detached.Attach();
+            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(teamsPath),
+                TeamsFile.JsonOptions)!;
+            using (Assert.Multiple())
+            {
+                await Assert.That(file.Overrides.Single().DemoSha256).IsEqualTo("ab12");
+                await Assert.That(file.Overrides.Single().DemoStableKey).IsNull();
+                await Assert.That(file.Overrides.Single().TeamId).IsEqualTo(team);
+            }
+
+            detached.Dispose();
+            string upgraded = await File.ReadAllTextAsync(teamsPath);
+            DateTime written = File.GetLastWriteTimeUtc(teamsPath);
+            using TeamIdentityService again = new(TestFiles.Teams(root), cache.Library(), run: _inline);
+            using (Assert.Multiple())
+            {
+                await Assert.That(await File.ReadAllTextAsync(teamsPath)).IsEqualTo(upgraded);
+                await Assert.That(File.GetLastWriteTimeUtc(teamsPath)).IsEqualTo(written)
+                    .Because("nothing left to upgrade, so the second load does not write");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    // An override whose demo never got a hash stays on its path key: the demo may be on a drive that is offline.
+    [Test]
+    public async Task APathKeyedOverride_WithNoHashYet_IsKeptAsItIs()
+    {
+        string root = TempRoot();
+        try
+        {
+            (DemoCacheStore cache, TeamIdentityService teams) = Fresh(root);
+            await Seed(cache, teams,
+                Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/x.dem", 3, Ids(41, 42, 43, 44, 45), Strangers()));
+            teams.Override("/d/x.dem", 2, teams.TeamOnSide("/d/a1.dem", 2)!.Id);
+            teams.Dispose();
+            string before = await File.ReadAllTextAsync(Path.Combine(root, "teams.json"));
+
+            using TeamIdentityService again = new(TestFiles.Teams(root), cache.Library(), run: _inline);
+            await Assert.That(again.IsLoaded).IsTrue();
+            await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, "teams.json"))).IsEqualTo(before);
         }
         finally
         {

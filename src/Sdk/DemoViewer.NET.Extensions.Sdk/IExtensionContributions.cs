@@ -86,6 +86,26 @@ public interface IExtensionContributions
     /// </summary>
     void DataDeleted(Action afterDelete);
 
+    /// <summary>
+    ///     The extension's side of Library Transfer. Without one, a transfer carries only the declared stores, and
+    ///     the host merges each of them file by file.
+    ///     <para>
+    ///         Defaulted to a no-op, so a host written before this member transfers none of the extension's data.
+    ///     </para>
+    /// </summary>
+    void DataPortability(IExtensionDataPortability portability)
+    {
+    }
+
+    /// <summary>
+    ///     Runs on the UI thread after an import finished every merge: reload what is held in memory, so the
+    ///     extension shows what was imported.
+    ///     <para>Defaulted to a no-op, for a host written before this member, which imports nothing.</para>
+    /// </summary>
+    void DataImported(Action afterImport)
+    {
+    }
+
     /// <summary>How many demos switching the extension back on will re-index, for the notice Settings shows.</summary>
     void ReindexEstimate(IReindexEstimate estimate);
 

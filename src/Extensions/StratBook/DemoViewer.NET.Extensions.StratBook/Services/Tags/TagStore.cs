@@ -44,7 +44,7 @@ public sealed class TagStore
     public const int SchemaVersion = 1;
 
     /// <summary>The sidecar extension, after the hash.</summary>
-    private const string SidecarExtension = ".dvtag.json";
+    internal const string SidecarExtension = ".dvtag.json";
 
     /// <summary>The reserved human label group that links an instance to a strat.</summary>
     public const string StratGroup = "strat";
@@ -53,7 +53,7 @@ public sealed class TagStore
     public const int VerdictsSchemaVersion = 1;
 
     /// <summary>The verdicts file extension, after the hash.</summary>
-    private const string VerdictsExtension = ".verdicts.json";
+    internal const string VerdictsExtension = ".verdicts.json";
 
     private readonly Dictionary<string, TagSession> _checkedOut = new(StringComparer.Ordinal);
     private readonly Lock _gate = new();
@@ -109,9 +109,9 @@ public sealed class TagStore
     }
 
     // Relative to the store folder, which is the only thing the host resolves paths against.
-    private const string IndexFileName = "index.json";
-    private const string DemosFolderName = "demos";
-    private const string VerdictsFolderName = "verdicts";
+    internal const string IndexFileName = "index.json";
+    internal const string DemosFolderName = "demos";
+    internal const string VerdictsFolderName = "verdicts";
 
     /// <summary>
     ///     Raised through the post delegate after a save or a delete, with the hash that changed, or once
@@ -521,6 +521,297 @@ public sealed class TagStore
         }
     }
 
+    /// <summary>
+    ///     Imports one demo's tag document and verdicts from a staged Library Transfer bundle laid out like
+    ///     this store (<c>demos/</c>, <c>verdicts/</c>). See the text overload for the rules.
+    /// </summary>
+    /// <param name="sha256">Lowercase-hex SHA-256 of the demo.</param>
+    /// <param name="staged">The bundle's read-only copy of the tags store.</param>
+    /// <param name="policy">What to do when this machine already holds a different copy.</param>
+    public TagImportResult Import(string sha256, IExtensionFolder staged, ImportConflictPolicy policy)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sha256);
+        ArgumentNullException.ThrowIfNull(staged);
+        if (!IsSha256(sha256))
+        {
+            return TagImportResult.NotAHash(sha256);
+        }
+
+        string key = Normalize(sha256);
+        string? tags;
+        string? verdicts;
+        try
+        {
+            tags = FolderText.Read(staged, SidecarIn(key));
+            verdicts = FolderText.Read(staged, VerdictsIn(key));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return new TagImportResult(TagImportOutcome.Refused, TagImportOutcome.Refused,
+                [$"tags for {key}: the bundle's copy could not be read"]);
+        }
+
+        return Import(key, tags, verdicts, policy);
+    }
+
+    /// <summary>
+    ///     Imports one demo's tag document and verdicts from another machine. Never throws for I/O.
+    ///     <list type="bullet">
+    ///         <item>
+    ///             A demo whose tagger is open is skipped whole: the session is the single writer, and its next
+    ///             autosave would overwrite whatever this wrote.
+    ///         </item>
+    ///         <item>
+    ///             An imported file is checked as a load checks it: it must parse and name this demo. One that
+    ///             names another demo is refused, never written under this hash.
+    ///         </item>
+    ///         <item>
+    ///             A local file that is unreadable or names another demo is never overwritten, whatever the
+    ///             policy, for the reason <see cref="Save" /> declines it.
+    ///         </item>
+    ///         <item>
+    ///             <see cref="ImportConflictPolicy.KeepMine" /> keeps a local file whole and writes the imported
+    ///             one only where there is none. <see cref="ImportConflictPolicy.TakeImported" /> replaces it.
+    ///             <see cref="ImportConflictPolicy.KeepBoth" /> adds the instances whose id is new and the
+    ///             verdicts whose key is new; a clash keeps the local one. KeepBoth keeps the local file when
+    ///             the two were written against different parses (the ticks would not line up) or the
+    ///             imported one by a newer build.
+    ///         </item>
+    ///     </list>
+    ///     Re-importing the same files changes nothing. The index row is refreshed through <see cref="Save" />;
+    ///     the caller calls <see cref="SaveIndex" /> once after the whole import, as a session does on detach.
+    /// </summary>
+    /// <param name="sha256">Lowercase-hex SHA-256 of the demo.</param>
+    /// <param name="tagsJson">The imported <c>.dvtag.json</c> text, or null when the bundle has none.</param>
+    /// <param name="verdictsJson">The imported <c>.verdicts.json</c> text, or null when the bundle has none.</param>
+    /// <param name="policy">What to do when this machine already holds a different copy.</param>
+    public TagImportResult Import(string sha256, string? tagsJson, string? verdictsJson, ImportConflictPolicy policy)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sha256);
+
+        // The hash comes from a bundle and becomes a file name, so it is checked rather than trusted.
+        if (!IsSha256(sha256))
+        {
+            return TagImportResult.NotAHash(sha256);
+        }
+
+        string key = Normalize(sha256);
+        if (tagsJson is null && verdictsJson is null)
+        {
+            return new TagImportResult(TagImportOutcome.None, TagImportOutcome.None, []);
+        }
+
+        List<string> notes = [];
+        lock (_rmwGate)
+        {
+            bool open;
+            lock (_gate)
+            {
+                open = _checkedOut.ContainsKey(key);
+            }
+
+            if (open)
+            {
+                notes.Add($"tags for {key}: skipped, the demo is open in the Round Tagger");
+                TagImportOutcome skipped = TagImportOutcome.CheckedOut;
+                return new TagImportResult(tagsJson is null ? TagImportOutcome.None : skipped,
+                    verdictsJson is null ? TagImportOutcome.None : skipped, notes);
+            }
+
+            TagImportOutcome tags = tagsJson is null
+                ? TagImportOutcome.None
+                : ImportDocument(key, tagsJson, policy, notes);
+            TagImportOutcome verdicts = verdictsJson is null
+                ? TagImportOutcome.None
+                : ImportVerdicts(key, verdictsJson, policy, notes);
+            return new TagImportResult(tags, verdicts, notes);
+        }
+    }
+
+    // Under _rmwGate.
+    private TagImportOutcome ImportDocument(string key, string json, ImportConflictPolicy policy, List<string> notes)
+    {
+        TagDocument? imported = Parse(json);
+        if (imported is null)
+        {
+            notes.Add($"tags for {key}: the imported file could not be read");
+            return TagImportOutcome.Refused;
+        }
+
+        if (!string.Equals(Normalize(imported.Demo.Sha256), key, StringComparison.Ordinal))
+        {
+            notes.Add($"tags for {key}: the imported file names another demo");
+            return TagImportOutcome.Refused;
+        }
+
+        imported.Demo.Sha256 = key;
+        TagLoadResult local = Load(key, ClockIdentity.Unknown);
+        if (local.Unreadable || local.DemoMismatch)
+        {
+            notes.Add($"tags for {key}: the local file cannot be read or names another demo, so it was left alone");
+            return TagImportOutcome.Refused;
+        }
+
+        if (local.Document is not { } mine)
+        {
+            return Saved(key, imported, TagImportOutcome.Added, notes);
+        }
+
+        if (string.Equals(Serialize(mine), Serialize(imported), StringComparison.Ordinal))
+        {
+            return TagImportOutcome.Unchanged;
+        }
+
+        switch (policy)
+        {
+            case ImportConflictPolicy.TakeImported:
+                return Saved(key, imported, TagImportOutcome.Replaced, notes);
+
+            case ImportConflictPolicy.KeepBoth:
+                if (!mine.Clock.ToClock().Matches(imported.Clock.ToClock()))
+                {
+                    notes.Add($"tags for {key}: kept this machine's copy, the imported one is from a different parse");
+                    return TagImportOutcome.KeptMine;
+                }
+
+                if (imported.SchemaVersion > SchemaVersion)
+                {
+                    notes.Add($"tags for {key}: kept this machine's copy, the imported one is from a newer build");
+                    return TagImportOutcome.KeptMine;
+                }
+
+                HashSet<Guid> known = [.. mine.Instances.Select(i => i.Id)];
+                List<TagInstance> added = [.. imported.Instances.Where(i => known.Add(i.Id))];
+                if (added.Count == 0)
+                {
+                    return TagImportOutcome.Unchanged;
+                }
+
+                mine.Instances.AddRange(added);
+                return Saved(key, mine, TagImportOutcome.Merged, notes);
+
+            default:
+                notes.Add($"tags for {key}: kept this machine's copy");
+                return TagImportOutcome.KeptMine;
+        }
+    }
+
+    // Under _rmwGate.
+    private TagImportOutcome ImportVerdicts(string key, string json, ImportConflictPolicy policy, List<string> notes)
+    {
+        SuggestionVerdictDocument? imported;
+        try
+        {
+            imported = JsonSerializer.Deserialize(json, TagJsonContext.Default.SuggestionVerdictDocument);
+        }
+        catch (JsonException)
+        {
+            imported = null;
+        }
+
+        if (imported?.Demo is not { Sha256.Length: > 0 } demo)
+        {
+            notes.Add($"verdicts for {key}: the imported file could not be read");
+            return TagImportOutcome.Refused;
+        }
+
+        if (!string.Equals(Normalize(demo.Sha256), key, StringComparison.Ordinal))
+        {
+            notes.Add($"verdicts for {key}: the imported file names another demo");
+            return TagImportOutcome.Refused;
+        }
+
+        imported.Demo.Sha256 = key;
+        bool exists;
+        if (_folder is null)
+        {
+            lock (_gate)
+            {
+                exists = _memoryVerdicts.ContainsKey(key);
+            }
+        }
+        else
+        {
+            exists = _folder.FileExists(VerdictsIn(key));
+        }
+
+        if (LoadVerdicts(key) is not { } mine)
+        {
+            notes.Add($"verdicts for {key}: the local file cannot be read or names another demo, so it was left alone");
+            return TagImportOutcome.Refused;
+        }
+
+        if (!exists)
+        {
+            return WrittenVerdicts(key, imported, TagImportOutcome.Added, notes);
+        }
+
+        if (string.Equals(SerializeVerdicts(mine), SerializeVerdicts(imported), StringComparison.Ordinal))
+        {
+            return TagImportOutcome.Unchanged;
+        }
+
+        switch (policy)
+        {
+            case ImportConflictPolicy.TakeImported:
+                return WrittenVerdicts(key, imported, TagImportOutcome.Replaced, notes);
+
+            case ImportConflictPolicy.KeepBoth:
+                if (imported.SchemaVersion > VerdictsSchemaVersion)
+                {
+                    notes.Add($"verdicts for {key}: kept this machine's copy, the imported one is from a newer build");
+                    return TagImportOutcome.KeptMine;
+                }
+
+                bool added = false;
+                foreach ((string proposal, SuggestionVerdict verdict) in imported.Verdicts)
+                {
+                    added |= mine.Verdicts.TryAdd(proposal, verdict);
+                }
+
+                return added
+                    ? WrittenVerdicts(key, mine, TagImportOutcome.Merged, notes)
+                    : TagImportOutcome.Unchanged;
+
+            default:
+                notes.Add($"verdicts for {key}: kept this machine's copy");
+                return TagImportOutcome.KeptMine;
+        }
+    }
+
+    // Under _rmwGate.
+    private TagImportOutcome Saved(string key, TagDocument document, TagImportOutcome outcome, List<string> notes)
+    {
+        if (Save(document))
+        {
+            return outcome;
+        }
+
+        notes.Add($"tags for {key}: the write failed");
+        return TagImportOutcome.Failed;
+    }
+
+    // Under _rmwGate.
+    private TagImportOutcome WrittenVerdicts(string key, SuggestionVerdictDocument document, TagImportOutcome outcome,
+        List<string> notes)
+    {
+        if (WriteVerdicts(key, document))
+        {
+            return outcome;
+        }
+
+        notes.Add($"verdicts for {key}: the write failed");
+        return TagImportOutcome.Failed;
+    }
+
+    private static string Serialize(TagDocument document) =>
+        JsonSerializer.Serialize(document, TagJsonContext.Default.TagDocument);
+
+    private static string SerializeVerdicts(SuggestionVerdictDocument document) =>
+        JsonSerializer.Serialize(document, TagJsonContext.Default.SuggestionVerdictDocument);
+
+    private static bool IsSha256(string value) => value.Length == 64 && value.All(char.IsAsciiHexDigit);
+
     /// <summary>Deletes a document and its index row. Best-effort; false when there was nothing to delete.</summary>
     /// <param name="sha256">Lowercase-hex SHA-256 of the demo.</param>
     public bool Delete(string sha256)
@@ -894,4 +1185,45 @@ public sealed record TagLoadResult(
 {
     /// <summary>Nothing stored, nothing wrong.</summary>
     public static TagLoadResult Empty() => new(null, false, false, false, TagStore.SchemaVersion);
+}
+
+/// <summary>What <see cref="TagStore.Import(string, string?, string?, ImportConflictPolicy)" /> did with one file.</summary>
+public enum TagImportOutcome
+{
+    /// <summary>The bundle had no such file.</summary>
+    None,
+
+    /// <summary>This machine had none; the imported file was written.</summary>
+    Added,
+
+    /// <summary>The imported file replaced a different local one.</summary>
+    Replaced,
+
+    /// <summary>The imported instances or verdicts that were new here were added.</summary>
+    Merged,
+
+    /// <summary>Nothing to do: the same file, or nothing new in it.</summary>
+    Unchanged,
+
+    /// <summary>The copies differ and the local one was kept.</summary>
+    KeptMine,
+
+    /// <summary>The demo is open in the Round Tagger.</summary>
+    CheckedOut,
+
+    /// <summary>The imported file is invalid, or the local one may not be overwritten.</summary>
+    Refused,
+
+    /// <summary>The write failed; the local file stands.</summary>
+    Failed
+}
+
+/// <summary>The outcome of importing one demo's tags.</summary>
+/// <param name="Tags">What happened to the <c>.dvtag.json</c> document.</param>
+/// <param name="Verdicts">What happened to the <c>.verdicts.json</c> file.</param>
+/// <param name="Notes">Lines for the import report: every file that was kept, skipped, refused or failed.</param>
+public sealed record TagImportResult(TagImportOutcome Tags, TagImportOutcome Verdicts, IReadOnlyList<string> Notes)
+{
+    internal static TagImportResult NotAHash(string sha256) =>
+        new(TagImportOutcome.Refused, TagImportOutcome.Refused, [$"tags: \"{sha256}\" is not a demo hash"]);
 }
