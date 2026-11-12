@@ -25,7 +25,7 @@ DemoViewer.NET.Modules.Abstractions.IModuleContext.DemoPath.get -> string?
 DemoViewer.NET.Modules.Abstractions.IModuleContext.DemoReset -> System.Action!
 DemoViewer.NET.Modules.Abstractions.IModuleContext.DemoSha256.get -> string?
 DemoViewer.NET.Modules.Abstractions.IModuleContext.Entities.get -> DemoViewer.NET.Modules.Abstractions.IReadOnlyEntityView!
-DemoViewer.NET.Modules.Abstractions.IModuleContext.EventFrames(string! eventName) -> System.Collections.Generic.IReadOnlyList<int>!
+DemoViewer.NET.Modules.Abstractions.IModuleContext.EventFrames(string? eventName) -> System.Collections.Generic.IReadOnlyList<int>!
 DemoViewer.NET.Modules.Abstractions.IModuleContext.Features.get -> DemoViewer.NET.Modules.Abstractions.IModuleFeatureGate?
 DemoViewer.NET.Modules.Abstractions.IModuleContext.FirstTick.get -> int
 DemoViewer.NET.Modules.Abstractions.IModuleContext.FrameIndexAtTick(int tick) -> int
@@ -51,7 +51,7 @@ DemoViewer.NET.Modules.Abstractions.IModuleContext.TickRate.get -> int
 DemoViewer.NET.Modules.Abstractions.IModuleContext.TotalFrames.get -> int
 DemoViewer.NET.Modules.Abstractions.IModuleFeatureGate
 DemoViewer.NET.Modules.Abstractions.IModuleFeatureGate.Changed -> System.Action?
-DemoViewer.NET.Modules.Abstractions.IModuleFeatureGate.IsEnabled(string! featureId) -> bool
+DemoViewer.NET.Modules.Abstractions.IModuleFeatureGate.IsEnabled(string? featureId) -> bool
 DemoViewer.NET.Modules.Abstractions.IModuleHost
 DemoViewer.NET.Modules.Abstractions.IModuleHost.Context.get -> DemoViewer.NET.Modules.Abstractions.IModuleContext!
 DemoViewer.NET.Modules.Abstractions.IModuleHost.HasCapability(string! capability) -> bool

@@ -9,9 +9,14 @@ DIRS=$(bash scripts/sdk-packages.sh)
 for dir in $DIRS; do
     shipped="$dir/PublicAPI.Shipped.txt"
     unshipped="$dir/PublicAPI.Unshipped.txt"
+    # A `*REMOVED*X` line in Unshipped means X leaves the shipped surface, so it deletes X from Shipped
+    # instead of being copied across.
     {
         echo '#nullable enable'
-        { grep -v '^#nullable' "$shipped" || true; grep -v '^#nullable' "$unshipped" || true; } | grep -v '^$' | sort -u
+        { grep -v '^#nullable' "$shipped" || true; grep -v '^#nullable' "$unshipped" || true; } | grep -v '^$' \
+            | awk '/^\*REMOVED\*/ { gone[substr($0, 10)] = 1; next } { keep[$0] = 1 }
+                   END { for (k in keep) if (!(k in gone)) print k }' \
+            | LC_ALL=C sort -u
     } > "$shipped.new"
     mv "$shipped.new" "$shipped"
     echo '#nullable enable' > "$unshipped"
