@@ -85,6 +85,21 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     /// <summary>False until teams.json and the index have been read; the tabs show a loading line meanwhile.</summary>
     public bool IsLoaded => _load.IsDone;
 
+    /// <summary>
+    ///     False until the pack's lifecycle attaches the service. Detached, it reads nothing and saves nothing, so a
+    ///     merge into it would be lost.
+    /// </summary>
+    internal bool IsAttached
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _attached;
+            }
+        }
+    }
+
     /// <param name="files">The user's file and the derived index, or null for a session-only store (the browser, tests).</param>
     /// <param name="library">The demo library the side keys come from.</param>
     /// <param name="roundFacts">The per-round rows <see cref="SideAtRound" /> joins; null answers null.</param>

@@ -26,7 +26,7 @@ namespace DemoViewer.NET.AppTests.Transfer;
 ///     source is not touched.
 /// </summary>
 [NotInParallel]
-public class TransferRoundTripTests
+public partial class TransferRoundTripTests
 {
     private const string Ruleset = "core";
     private const string FactsFingerprint = "fp-core";
@@ -72,7 +72,7 @@ public class TransferRoundTripTests
     }
 
     private static async Task RoundTripAsync(TempFolders temp, string demo, string libraryA,
-        Action<DemoCacheRecord>? fill)
+        Action<DemoCacheRecord>? fill, StratBookLeg? stratBook = null, string? configB = null)
     {
         // Machine A: an analysed demo with user data in the config root.
         string configA = temp.New();
@@ -80,23 +80,24 @@ public class TransferRoundTripTests
         using Library b = new(temp.New(), new DemoCacheStore(Path.Combine(temp.New(), "cache")));
         DemoCacheStore storeA = new(Path.Combine(configA, "cache"));
         string sha = Seed(storeA, configA, demo, b.Reader.WindowBytes, fill);
+        stratBook?.Populate(configA, sha);
         Dictionary<string, string> configBefore = Snapshot(configA);
         (long Length, DateTime Written) demoBefore = (new FileInfo(demo).Length, File.GetLastWriteTimeUtc(demo));
 
         TransferExporter exporter = new(storeA, null,
-            new TransferSources(configA, () => [libraryA], () => _environment),
+            new TransferSources(configA, () => [libraryA], () => _environment, stratBook is null ? null : stratBook.Sources),
             new TransferTarget(_ => new TransferDriveInfo("NTFS", long.MaxValue / 2)));
         ExportPlan plan = await exporter.PlanAsync(ExportRequest.All(outRoot, false), CancellationToken.None);
         TransferSummary exported = await exporter.RunAsync(plan, null, CancellationToken.None);
 
         // Machine B: an empty library, then the bundle, then the demo file itself.
-        string configB = temp.New();
+        configB ??= temp.New();
         string libraryB = temp.New();
         await b.Service.AddFoldersAsync([libraryB]);
         GraphBreakpointStore breakpointsB = new(Path.Combine(configB, "GraphBreakpoints.v2.json"));
         ReviewQueue reviewB = new(null);
         TransferImporter importer = new(b.Store, configB, breakpointsB, reviewB, b.Service,
-            environment: () => _environment);
+            environment: () => _environment, extensions: stratBook?.Host(configB));
         ImportPreview preview = await importer.PreviewAsync(plan.BundleFolder, CancellationToken.None);
         TransferSummary imported = await importer.RunAsync(ImportRequest.DataOnly(plan.BundleFolder), preview, null,
             CancellationToken.None);
@@ -121,7 +122,8 @@ public class TransferRoundTripTests
             await Assert.That((new FileInfo(demo).Length, File.GetLastWriteTimeUtc(demo))).IsEqualTo(demoBefore);
             await Assert.That(preview.Entries.Single().Status).IsEqualTo(ImportEntryStatus.New);
             await Assert.That(preview.AnyStale).IsFalse().Because("both machines run the same rules");
-            await Assert.That(imported.Transferred.Select(i => i.Sha256 ?? "")).IsEquivalentTo([sha]);
+            await Assert.That(imported.Transferred.Where(i => i.Sha256 is not null).Select(i => i.Sha256!))
+                .IsEquivalentTo([sha]);
 
             await Assert.That(b.Store.LocationOf(copied)?.ContentId).IsEqualTo(sha)
                 .Because("the copy attaches to the imported row by its fingerprint");
@@ -147,6 +149,11 @@ public class TransferRoundTripTests
                 .IsEquivalentTo(["g:kill"]);
             await Assert.That(reviewB.Clips.Single().Sha256).IsEqualTo(sha);
             await Assert.That(reviewB.Clips.Single().DemoPath).IsEqualTo("");
+        }
+
+        if (stratBook is not null)
+        {
+            await stratBook.AssertArrivedAsync(configB, sha, imported);
         }
     }
 

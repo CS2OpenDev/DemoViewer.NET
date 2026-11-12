@@ -22,7 +22,7 @@ namespace DemoViewer.NET.Services.Transfer;
 ///     <c>.dem</c> copies. The library rescan runs after the item, so a copied demo attaches to its imported row
 ///     by fingerprint and is never parsed for data it already has.
 /// </summary>
-internal sealed class TransferImporter : ITransferImporter
+internal sealed partial class TransferImporter : ITransferImporter
 {
     private const int CopyBufferBytes = 1 << 20;
     private const string LegacyRecordSuffix = ".json";
@@ -34,6 +34,7 @@ internal sealed class TransferImporter : ITransferImporter
     private readonly Func<TransferEnvironment>? _environment;
     private readonly Func<string, ExtensionDemoDataStore?>? _extensionData;
     private readonly string? _extensionDataRoot;
+    private readonly TransferExtensionHost? _extensions;
     private readonly DemoLibraryService? _library;
     private readonly IDemoProcessingQueue? _queue;
     private readonly ReviewQueue? _review;
@@ -55,11 +56,13 @@ internal sealed class TransferImporter : ITransferImporter
     /// <param name="currency">How a merge tells current data here; null compares schemas and states only.</param>
     /// <param name="onUi">Runs UI-thread work (the review queue, the library's folders); inline when null.</param>
     /// <param name="target">The destination checks for the <c>.dem</c> copies.</param>
+    /// <param name="extensions">The extensions whose stores an import merges into; null skips every store.</param>
     public TransferImporter(DemoCacheStore cache, string? annotationsRoot = null,
         GraphBreakpointStore? breakpoints = null, ReviewQueue? review = null, DemoLibraryService? library = null,
         IDemoProcessingQueue? queue = null, Func<string, ExtensionDemoDataStore?>? extensionData = null,
         string? extensionDataRoot = null, Func<TransferEnvironment>? environment = null,
-        DemoImportCurrency? currency = null, Func<Func<Task>, Task>? onUi = null, TransferTarget? target = null)
+        DemoImportCurrency? currency = null, Func<Func<Task>, Task>? onUi = null, TransferTarget? target = null,
+        TransferExtensionHost? extensions = null)
     {
         ArgumentNullException.ThrowIfNull(cache);
         _cache = cache;
@@ -74,6 +77,7 @@ internal sealed class TransferImporter : ITransferImporter
         _currency = currency;
         _onUi = onUi ?? (static f => f());
         _target = target ?? new TransferTarget();
+        _extensions = extensions;
     }
 
     /// <inheritdoc />
@@ -127,8 +131,8 @@ internal sealed class TransferImporter : ITransferImporter
             await JoinLibraryAsync(run).ConfigureAwait(false);
         }
 
-        return new TransferSummary([.. run.Items.Values], [.. preview.Warnings, .. run.Warnings], bundle,
-            run.Cancelled);
+        return new TransferSummary([.. run.Items.Values, .. run.ExtensionItems],
+            [.. preview.Warnings, .. run.Warnings], bundle, run.Cancelled);
     }
 
     private async Task ImportOnQueueAsync(Run run, IProgress<TransferProgress>? progress, CancellationToken ct)
@@ -150,7 +154,7 @@ internal sealed class TransferImporter : ITransferImporter
 
                 try
                 {
-                    await Task.Run(() => Import(run, relay, job.CancellationToken), job.CancellationToken)
+                    await Task.Run(() => ImportAsync(run, relay, job.CancellationToken), job.CancellationToken)
                         .ConfigureAwait(false);
                     return true;
                 }
@@ -165,7 +169,7 @@ internal sealed class TransferImporter : ITransferImporter
         }
         else
         {
-            await Task.Run(() => Import(run, progress, ct), ct).ConfigureAwait(false);
+            await Task.Run(() => ImportAsync(run, progress, ct), ct).ConfigureAwait(false);
         }
     }
 
@@ -184,7 +188,8 @@ internal sealed class TransferImporter : ITransferImporter
             throw new TransferManifestException(refusal);
         }
 
-        foreach (TransferFile file in manifest.Demos.SelectMany(d => d.Files).Concat(manifest.Shared))
+        foreach (TransferFile file in manifest.Demos.SelectMany(d => d.Files).Concat(manifest.Shared)
+                     .Concat(LibraryFiles(manifest)))
         {
             CheckOnDisk(bundle, file.Path, file.Size);
         }
@@ -213,12 +218,14 @@ internal sealed class TransferImporter : ITransferImporter
                 + "processed meanwhile may keep its own data instead of the imported data."));
         }
 
+        warnings.AddRange(UnavailableExtensions(manifest));
+
         Dictionary<string, List<PersistedGraphBreakpoint>> theirBreakpoints = ReadBreakpoints(bundle, manifest);
         IReadOnlyDictionary<string, List<PersistedGraphBreakpoint>> myBreakpoints =
             _breakpoints?.LoadAll() ?? new Dictionary<string, List<PersistedGraphBreakpoint>>();
 
         List<ImportPreviewEntry> entries = [];
-        long dataBytes = manifest.Shared.Sum(f => f.Size);
+        long dataBytes = manifest.Shared.Sum(f => f.Size) + LibraryFiles(manifest).Sum(f => f.Size);
         long demBytes = 0;
         foreach (TransferDemo demo in manifest.Demos)
         {
@@ -272,7 +279,7 @@ internal sealed class TransferImporter : ITransferImporter
 
     // ── Import ───────────────────────────────────────────────────────────────
 
-    private void Import(Run run, IProgress<TransferProgress>? progress, CancellationToken ct)
+    private async Task ImportAsync(Run run, IProgress<TransferProgress>? progress, CancellationToken ct)
     {
         TransferManifest manifest = run.Preview.Manifest;
         Dictionary<string, List<PersistedGraphBreakpoint>> breakpoints = [];
@@ -319,6 +326,12 @@ internal sealed class TransferImporter : ITransferImporter
         if (!run.Cancelled)
         {
             ImportBreakpoints(run, breakpoints);
+            // After the rows, so an extension's merge sees the demos; before the copies, which the rescan follows.
+            await ImportExtensionsAsync(run, ct).ConfigureAwait(false);
+        }
+
+        if (!run.Cancelled)
+        {
             CopyDemFiles(run, progress, bytesTotal, ct);
         }
 
@@ -357,8 +370,9 @@ internal sealed class TransferImporter : ITransferImporter
                         when TransferLayout.DemoFileRest(fileName) is not null:
                         siblings.Add(file);
                         break;
-                    case [TransferLayout.ExtensionDirectory, _, TransferLayout.StoresDirectory, ..]:
-                        run.SkippedStores = true;
+                    // A store file is at least a store id and a name deep, so a facet named "stores" still reads as one.
+                    // Store files are merged with the extension's other stores once every row is in.
+                    case [TransferLayout.ExtensionDirectory, _, TransferLayout.StoresDirectory, _, _, ..]:
                         break;
                     case [TransferLayout.ExtensionDirectory, var extension, var facet, _]:
                         if (!facets.TryGetValue((extension, facet), out List<TransferFile>? list))
@@ -832,7 +846,7 @@ internal sealed class TransferImporter : ITransferImporter
     }
 
     // The file's bytes, checked against its manifest entry as they are read: no separate verify pass.
-    private static byte[] ReadVerified(string bundle, TransferFile file)
+    internal static byte[] ReadVerified(string bundle, TransferFile file)
     {
         byte[] bytes = File.ReadAllBytes(TransferLayout.FullPath(bundle, file.Path));
         if (bytes.LongLength != file.Size
@@ -880,20 +894,8 @@ internal sealed class TransferImporter : ITransferImporter
         public string? Destination { get; set; }
         public bool Cancelled { get; set; }
 
-        public bool SkippedStores
-        {
-            get;
-            set
-            {
-                if (value && !field)
-                {
-                    Warnings.Add(new TransferWarning(TransferWarningKind.Other,
-                        "Extension stores in this bundle are not imported by this version."));
-                }
-
-                field = value;
-            }
-        }
+        // One line per extension whose stores the bundle carries.
+        public List<TransferSummaryItem> ExtensionItems { get; } = [];
     }
 
     private static string BundleFileName(TransferFile file) => file.Path[(file.Path.LastIndexOf('/') + 1)..];

@@ -4,6 +4,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Transfer;
 
@@ -22,6 +23,7 @@ internal sealed class BundleBuilder(string root)
 
     private readonly List<TransferDemo> _demos = [];
     private readonly List<TransferFile> _shared = [];
+    private readonly List<TransferExtensionFile> _extensionData = [];
 
     public string Root { get; } = root;
 
@@ -52,6 +54,32 @@ internal sealed class BundleBuilder(string root)
 
     public void Shared(string fileName, byte[] bytes) => _shared.Add(File(TransferLayout.SharedFile(fileName), bytes));
 
+    /// <summary>A per-demo store file, described in the manifest; list the returned entry among the demo's files.</summary>
+    public TransferFile DemoStore(string sha, string extensionId, string storeId, StoreRoot root, string relative,
+        byte[] bytes)
+    {
+        TransferFile file = File(TransferLayout.ExtensionStoreFile(sha, extensionId, storeId, relative), bytes);
+        _extensionData.Add(new TransferExtensionFile(file.Path, file.Size, file.Sha256, extensionId, storeId, root,
+            StorePortability.PerDemo, relative, sha));
+        return file;
+    }
+
+    /// <summary>A file of a library-wide store.</summary>
+    public void LibraryStore(string extensionId, string storeId, StoreRoot root, string relative, byte[] bytes)
+    {
+        TransferFile file = File(TransferLayout.LibraryStoreFile(extensionId, storeId, relative), bytes);
+        _extensionData.Add(new TransferExtensionFile(file.Path, file.Size, file.Sha256, extensionId, storeId, root,
+            StorePortability.LibraryWide, relative, null));
+    }
+
+    /// <summary>A file of an extension's own folder under <paramref name="root" />.</summary>
+    public void LibraryOwn(string extensionId, StoreRoot root, string relative, byte[] bytes)
+    {
+        TransferFile file = File(TransferLayout.LibraryOwnFile(extensionId, root, relative), bytes);
+        _extensionData.Add(new TransferExtensionFile(file.Path, file.Size, file.Sha256, extensionId, null, root,
+            StorePortability.LibraryWide, relative, null));
+    }
+
     public void Demo(string sha, string name, long size, IReadOnlyList<TransferFile> files,
         DemoContentFingerprint? fingerprint = null, TransferDemFile? dem = null) =>
         _demos.Add(new TransferDemo(sha, name, size, files,
@@ -68,7 +96,7 @@ internal sealed class BundleBuilder(string root)
         Extensions = [],
         Demos = [.. _demos],
         Shared = [.. _shared],
-        ExtensionData = []
+        ExtensionData = [.. _extensionData]
     };
 
     public TransferManifest Write(string? appVersion = null, IReadOnlyList<string>? rulesets = null)

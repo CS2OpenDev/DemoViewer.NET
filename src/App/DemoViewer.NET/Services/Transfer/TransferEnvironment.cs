@@ -61,7 +61,8 @@ public sealed record TransferEnvironment(
     /// <summary>
     ///     Null when everything <paramref name="manifest" />'s data was computed under is also in force here, else
     ///     what differs, in user terms. Rules or extensions this machine has on top are not a difference: they only
-    ///     add work, they do not make the imported data stale.
+    ///     add work, they do not make the imported data stale. An extension the bundle carries only stores of is
+    ///     not compared either: what the user made is not computed, so no version makes it stale.
     /// </summary>
     /// <param name="manifest">The bundle's manifest.</param>
     public string? DifferenceFrom(TransferManifest manifest)
@@ -71,10 +72,21 @@ public sealed record TransferEnvironment(
         int rules = manifest.RulesetIdentities.Count(id => !here.Contains(id));
         Dictionary<string, string?> versions = Extensions.GroupBy(e => e.Id, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First().Version, StringComparer.Ordinal);
+        HashSet<string> computed = new(StringComparer.Ordinal);
+        foreach (TransferFile file in manifest.Demos.SelectMany(d => d.Files))
+        {
+            if (file.Path.Split('/') is [_, _, TransferLayout.ExtensionDirectory, var id, var facet, ..]
+                && facet != TransferLayout.StoresDirectory)
+            {
+                computed.Add(id);
+            }
+        }
+
         List<string> extensions =
         [
-            .. manifest.Extensions.Where(e => !versions.TryGetValue(e.Id, out string? version)
-                    || !string.Equals(version, e.Version, StringComparison.Ordinal))
+            .. manifest.Extensions.Where(e => computed.Contains(e.Id)
+                    && (!versions.TryGetValue(e.Id, out string? version)
+                        || !string.Equals(version, e.Version, StringComparison.Ordinal)))
                 .Select(e => e.Id)
         ];
         if (rules == 0 && extensions.Count == 0)
