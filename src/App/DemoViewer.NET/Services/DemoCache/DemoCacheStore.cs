@@ -1559,12 +1559,17 @@ public sealed partial class DemoCacheStore
     /// </summary>
     /// <param name="nowUtc">The current time, UTC.</param>
     /// <param name="grace">How long an orphaned row is kept.</param>
-    /// <param name="importedGrace">How long a never-listed imported row is kept; <paramref name="grace" /> when null.</param>
+    /// <param name="importedGrace">
+    ///     How long a never-listed imported row is kept; never less than <paramref name="grace" />, which it is
+    ///     when null.
+    /// </param>
     /// <returns>How many rows went.</returns>
     public int ExpireOrphans(DateTime nowUtc, TimeSpan grace, TimeSpan? importedGrace = null)
     {
         long cutoff = (nowUtc - grace).Ticks;
-        long importedCutoff = (nowUtc - (importedGrace ?? grace)).Ticks;
+        // An imported row waits for its demo at least as long as any orphan does, whatever the two settings say.
+        TimeSpan imported = importedGrace is { } longer && longer > grace ? longer : grace;
+        long importedCutoff = (nowUtc - imported).Ticks;
         List<DemoCacheIndexEntry> gone = [];
         using (BeginBatch())
         {

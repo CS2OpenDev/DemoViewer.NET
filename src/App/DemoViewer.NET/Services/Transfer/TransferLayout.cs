@@ -133,11 +133,14 @@ public static class TransferLayout
 
     /// <summary>
     ///     True for a name that may be one segment of a bundle path: 1 to 100 characters of ASCII letters,
-    ///     digits, <c>.</c>, <c>_</c> and <c>-</c>, not <c>.</c> or <c>..</c>.
+    ///     digits, <c>.</c>, <c>_</c> and <c>-</c>, not ending in <c>.</c> and not a Windows device name, so a
+    ///     bundle made anywhere can be written and read on Windows.
     /// </summary>
     public static bool IsPortableSegment(string? value)
     {
-        if (string.IsNullOrEmpty(value) || value.Length > 100 || value is "." or "..")
+        // Windows trims a trailing dot, so "x." and "x" would be one file, and "." and ".." end in one too.
+        if (string.IsNullOrEmpty(value) || value.Length > 100 || value.EndsWith('.')
+            || PortableFileName.IsReservedDeviceName(value))
         {
             return false;
         }

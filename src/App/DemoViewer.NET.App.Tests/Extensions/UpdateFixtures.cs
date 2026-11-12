@@ -195,7 +195,16 @@ internal static class UpdateFixtures
                 : new InlineHandle(Task.Run(() => request.RunAsync(new Context())));
         }
 
-        public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
+        /// <summary>What <see cref="Snapshot" /> answers; empty unless a test fills it.</summary>
+        public List<DemoQueueItemSnapshot> Snapshots { get; } = [];
+
+        public IReadOnlyList<DemoQueueItemSnapshot> Snapshot()
+        {
+            lock (Snapshots)
+            {
+                return [.. Snapshots];
+            }
+        }
 
         public void RemoveByUser(Guid itemId)
         {

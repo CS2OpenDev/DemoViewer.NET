@@ -93,11 +93,13 @@ public sealed partial class DemoCacheStore
             bool changed;
             if (local is null)
             {
-                // A row whose record does not read has nothing to keep: the import stands in for it.
+                // A row whose record does not read has nothing to keep but where its demo is: the import stands in
+                // for the rest. Rebuilding the index from records must still find a listed demo's path.
                 result = imported;
-                result.Path = "";
-                result.ModifiedTicks = 0;
-                result.Locations = [];
+                result.Path = row?.Path ?? "";
+                result.Size = row?.Size ?? result.Size;
+                result.ModifiedTicks = row?.ModifiedTicks ?? 0;
+                result.Locations = row?.Locations ?? [];
                 result.ContentFingerprint = fingerprint ?? result.ContentFingerprint;
                 taken = [.. result.PackStamps.Select(s => s.Id)];
                 changed = true;

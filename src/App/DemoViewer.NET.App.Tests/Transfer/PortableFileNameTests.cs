@@ -78,6 +78,20 @@ public class PortableFileNameTests
     }
 
     [Test]
+    [Arguments("net.demoviewer.pack.stratbook", true)]
+    [Arguments("rounds", true)]
+    [Arguments("COM10.json", true)]
+    [Arguments("auxiliary.json", true)]
+    [Arguments("aux", false)]
+    [Arguments("con", false)]
+    [Arguments("nul.json", false)]
+    [Arguments("LPT1.json.gz", false)]
+    [Arguments("x.", false)]
+    [Arguments("..", false)]
+    public async Task ABundleSegment_IsOneWindowsCanCreate(string segment, bool portable) =>
+        await Assert.That(TransferLayout.IsPortableSegment(segment)).IsEqualTo(portable);
+
+    [Test]
     public async Task MakeUnique_OnAMaximalName_StaysWithinTheLimit()
     {
         string name = new string('a', PortableFileName.MaxUtf8Bytes - 4) + ".dem";

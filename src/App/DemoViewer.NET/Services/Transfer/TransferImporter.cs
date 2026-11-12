@@ -330,11 +330,11 @@ internal sealed class TransferImporter : ITransferImporter
         string sha = demo.Sha256;
         string name = demo.OriginalFileName;
         List<string> notes = [];
-        bool added = false, merged = false;
+        bool added = false, merged = false, stepFailed = false;
+        TransferFile? record = null;
         try
         {
             string prefix = TransferLayout.DemoFolder(sha) + "/";
-            TransferFile? record = null;
             List<TransferFile> siblings = [];
             Dictionary<(string Extension, string Facet), List<TransferFile>> facets = [];
             TransferFile? annotations = null;
@@ -404,12 +404,19 @@ internal sealed class TransferImporter : ITransferImporter
                     continue;
                 }
 
+                // Each step after the record stands alone: the record is in by now, and one bad facet must not
+                // cost the demo its other data, its annotations or its breakpoints.
                 try
                 {
                     merged |= store.Import(sha, facet,
                     [
                         .. files.Select(f => new KeyValuePair<string, byte[]>(StoreFileName(sha, f), Read(run, f)))
                     ]);
+                }
+                catch (Exception ex) when (IsStepFailure(ex))
+                {
+                    stepFailed = true;
+                    notes.Add($"{extension} {facet} data was not imported: {ex.Message}");
                 }
                 finally
                 {
@@ -422,16 +429,29 @@ internal sealed class TransferImporter : ITransferImporter
 
             if (annotations is not null)
             {
-                merged |= ImportAnnotations(run, sha, annotations, notes);
+                try
+                {
+                    merged |= ImportAnnotations(run, sha, annotations, notes);
+                }
+                catch (Exception ex) when (IsStepFailure(ex))
+                {
+                    stepFailed = true;
+                    notes.Add("annotations were not imported: " + ex.Message);
+                }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
-                                       or ArgumentException or JsonException)
+        catch (Exception ex) when (IsStepFailure(ex))
         {
             return new TransferSummaryItem(sha, name, TransferOutcome.Failed, ex.Message);
         }
 
         string? reason = notes.Count > 0 ? string.Join("; ", notes) : null;
+        if (!added && !merged && stepFailed && record is null)
+        {
+            // No record and nothing else made it: there is nothing of this demo here to keep.
+            return new TransferSummaryItem(sha, name, TransferOutcome.Failed, reason);
+        }
+
         if (!added && !merged)
         {
             return new TransferSummaryItem(sha, name, TransferOutcome.Skipped,
@@ -445,6 +465,10 @@ internal sealed class TransferImporter : ITransferImporter
             : TransferOutcome.Merged;
         return new TransferSummaryItem(sha, name, outcome, reason);
     }
+
+    private static bool IsStepFailure(Exception ex) =>
+        ex is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException
+            or JsonException;
 
     // The loaded extension's store, or one over its folder for an extension that is not loaded, which the
     // caller lets go of after the import.
@@ -670,7 +694,7 @@ internal sealed class TransferImporter : ITransferImporter
                 return;
             }
 
-            string name = names.Claim(demo.OriginalFileName);
+            string name = names.Claim(WithDemExtension(demo.OriginalFileName));
             try
             {
                 CopyDem(run, demo, Path.Combine(destination, name), progress, bytesTotal, ct);
@@ -693,6 +717,14 @@ internal sealed class TransferImporter : ITransferImporter
                     $"{demo.OriginalFileName} was not copied: {ex.Message}", Sha256: demo.Sha256));
             }
         }
+    }
+
+    // The manifest's name is the source's word only: whatever it says, the copy is a .dem, so the library lists it
+    // and nothing lands with an extension the shell would run.
+    internal static string WithDemExtension(string? originalName)
+    {
+        string name = PortableFileName.Sanitize(originalName);
+        return name.EndsWith(".dem", StringComparison.OrdinalIgnoreCase) ? name : name + ".dem";
     }
 
     // Streams to a hidden temporary name, hashing as it goes, and takes the real name only once the bytes are

@@ -127,15 +127,23 @@ internal sealed class FakeImporter : ITransferImporter
 
     public TaskCompletionSource? Gate { get; set; }
 
-    public Task<ImportPreview> PreviewAsync(string bundleFolder, CancellationToken ct)
+    /// <summary>When set, a preview waits on it before answering.</summary>
+    public TaskCompletionSource? PreviewGate { get; set; }
+
+    public async Task<ImportPreview> PreviewAsync(string bundleFolder, CancellationToken ct)
     {
+        if (PreviewGate is not null)
+        {
+            await PreviewGate.Task.WaitAsync(ct);
+        }
+
         if (Refusal is not null)
         {
             throw new TransferManifestException(Refusal);
         }
 
-        return Task.FromResult(PreviewFor?.Invoke(bundleFolder) ?? TransferWizardFakes.Preview(bundleFolder,
-            [TransferWizardFakes.Entry(TransferWizardFakes.Demo('a', "a.dem", "de_dust2", false))]));
+        return PreviewFor?.Invoke(bundleFolder) ?? TransferWizardFakes.Preview(bundleFolder,
+            [TransferWizardFakes.Entry(TransferWizardFakes.Demo('a', "a.dem", "de_dust2", false))]);
     }
 
     public async Task<TransferSummary> RunAsync(ImportRequest request, ImportPreview preview,

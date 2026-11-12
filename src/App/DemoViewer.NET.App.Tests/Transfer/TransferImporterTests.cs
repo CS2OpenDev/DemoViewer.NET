@@ -349,6 +349,77 @@ public class TransferImporterTests
     }
 
     [Test]
+    public async Task ABadFacet_IsReportedOnItsOwn_AndTheDemosOtherDataStillImports()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string config = temp.New();
+        string extData = temp.New();
+        const string Extension = "dev.example.data";
+        OneDemo(root, (b, files) =>
+        {
+            // A part with no main payload: the store refuses this facet.
+            files.Add(b.File(TransferLayout.ExtensionFacetFile(Sha, Extension, "broken", TransferLayout.DemoFileName(".positions.json.gz")),
+                BundleBuilder.FacetFile("broken", "positions", 2, "fp", Sha, @"D:\source\match.dem", "part")));
+            files.Add(b.File(TransferLayout.ExtensionFacetFile(Sha, Extension, "rounds", TransferLayout.DemoFileName(".json.gz")),
+                BundleBuilder.FacetFile("rounds", null, 2, "fp", Sha, @"D:\source\match.dem", "payload")));
+            files.Add(b.Annotations(Sha, "theirs"));
+        }).Write();
+        DemoCacheStore cache = new(null);
+        ExtensionDemoDataStore live = new(Extension, Path.Combine(extData, Extension), cache, a => a(), "1.0.0");
+        TransferImporter importer = new(cache, config, extensionData: id => id == Extension ? live : null);
+
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        TransferSummary summary = await importer.RunAsync(ImportRequest.DataOnly(root), preview, null,
+            CancellationToken.None);
+        TransferSummaryItem item = summary.Items.Single();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(item.Outcome).IsEqualTo(TransferOutcome.Transferred);
+            await Assert.That(item.Reason).Contains("broken data was not imported");
+            await Assert.That(cache.HoldsContent(Sha)).IsTrue();
+            await Assert.That(File.Exists(Path.Combine(extData, Extension, ExtensionDemoDataStore.DirectoryName,
+                "rounds", Sha + ".json.gz"))).IsTrue();
+            await Assert.That(BundleBuilder.ElementIds(AnnotationStore.AppDataFile(config, Sha)))
+                .IsEquivalentTo(["theirs"]);
+        }
+
+        live.StopFollowingLibrary();
+    }
+
+    [Test]
+    [Arguments("update.exe", "update.exe.dem")]
+    [Arguments("notes", "notes.dem")]
+    [Arguments("match.DEM", "match.DEM")]
+    [Arguments("con", "_con.dem")]
+    [Arguments("", "demo.dem")]
+    public async Task ACopiedDemo_IsAlwaysNamedDotDem(string original, string expected) =>
+        await Assert.That(TransferImporter.WithDemExtension(original)).IsEqualTo(expected);
+
+    [Test]
+    public async Task ACopiedDemoWithAForeignExtension_LandsAsADem()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string destination = temp.New("Demos");
+        byte[] bytes = new byte[300];
+        new Random(4).NextBytes(bytes);
+        BundleBuilder bundle = new(root);
+        string sha = BundleBuilder.Sha(bytes);
+        bundle.Demo(sha, "run.bat", bytes.Length, [], dem: bundle.Dem(sha, bytes));
+        bundle.Write();
+        TransferImporter importer = new(new DemoCacheStore(null));
+
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        await importer.RunAsync(new ImportRequest(root, ConflictPolicy.KeepMine, new HashSet<string> { sha },
+            destination, false), preview, null, CancellationToken.None);
+
+        await Assert.That(Directory.EnumerateFiles(destination).Select(f => Path.GetFileName(f)!))
+            .IsEquivalentTo(["run.bat.dem"]);
+    }
+
+    [Test]
     public async Task CopiedDemos_GetPortableUniqueNames_AndOneTheLibraryHasIsNotCopied()
     {
         using TempFolders temp = new();

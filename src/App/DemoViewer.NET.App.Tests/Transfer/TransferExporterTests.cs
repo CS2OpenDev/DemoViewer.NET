@@ -200,6 +200,31 @@ public class TransferExporterTests
     }
 
     [Test]
+    public async Task ADemoQueuedAfterThePlan_IsStillReportedAsBeingProcessed()
+    {
+        using Fixture fx = Fixture.Populated();
+        UpdateFixtures.RecordingQueue queue = new();
+        TransferExporter exporter = new(new DemoCacheStore(fx.CacheRoot), queue, fx.Sources, Fixture.Target());
+        ExportPlan plan = await exporter.PlanAsync(ExportRequest.All(fx.OutRoot, false), CancellationToken.None);
+        ExportEntryStatus planned = plan.Entries.Single(e => e.Sha256 == fx.ShaB).Status;
+        lock (queue.Snapshots)
+        {
+            queue.Snapshots.Add(new DemoQueueItemSnapshot(Guid.NewGuid(), fx.DemB, "b.dem", ["library"],
+                DemoJobPriority.Background, DemoQueueItemState.Running, null));
+        }
+
+        TransferSummary summary = await exporter.RunAsync(plan, null, CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(30));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(planned).IsEqualTo(ExportEntryStatus.Included);
+            await Assert.That(summary.Items.Single(i => i.Sha256 == fx.ShaB).Reason).Contains("being processed");
+            await Assert.That(summary.Items.Single(i => i.Sha256 == fx.ShaA).Reason).IsNull();
+        }
+    }
+
+    [Test]
     public async Task TheRun_IsAQueuedDataTransfer()
     {
         using Fixture fx = Fixture.Populated();

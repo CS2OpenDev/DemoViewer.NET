@@ -46,6 +46,7 @@ public sealed partial class ImportWizardViewModel : TransferWizardViewModel
 
     // Bumped per bundle load, so a slow preview of a folder the user has since replaced is dropped.
     private int _loadGeneration;
+    private string? _loadingFolder;
 
     [ObservableProperty]
     private int _currentStep;
@@ -297,9 +298,18 @@ public sealed partial class ImportWizardViewModel : TransferWizardViewModel
     // A new path drops the old preview: Next must not carry on with a bundle that is no longer named.
     partial void OnBundleFolderChanged(string value)
     {
-        if (Preview is not null && !string.Equals(Preview.BundleFolder, value.Trim(), StringComparison.Ordinal))
+        string folder = value.Trim();
+        if (Preview is not null && !string.Equals(Preview.BundleFolder, folder, StringComparison.Ordinal))
         {
             SetPreview(null);
+        }
+
+        // Nor may a load still running for the old path land afterwards.
+        if (IsLoadingBundle && !string.Equals(_loadingFolder, folder, StringComparison.Ordinal))
+        {
+            _loadGeneration++;
+            _loadingFolder = null;
+            IsLoadingBundle = false;
         }
 
         BundleError = null;
@@ -363,6 +373,7 @@ public sealed partial class ImportWizardViewModel : TransferWizardViewModel
             return;
         }
 
+        _loadingFolder = folder;
         IsLoadingBundle = true;
         try
         {

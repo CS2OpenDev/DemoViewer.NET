@@ -543,6 +543,34 @@ public class TransferWizardViewModelTests
         }
     }
 
+    [Test]
+    public async Task Import_ChangingTheFolderDuringALoad_DiscardsThatLoad()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            FakeImporter importer = new() { PreviewGate = new TaskCompletionSource() };
+            ImportWizardViewModel vm = NewImport(importer);
+            vm.BundleFolder = dir;
+            Task load = vm.LoadBundleAsync(dir);
+            await WaitFor(() => vm.IsLoadingBundle);
+            vm.BundleFolder = dir + "-other";
+            importer.PreviewGate.SetResult();
+            await load;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.HasPreview).IsFalse().Because("the loaded bundle is no longer the one named");
+                await Assert.That(vm.CanGoNext).IsFalse();
+                await Assert.That(vm.IsLoadingBundle).IsFalse();
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     private static async Task WaitFor(Func<bool> condition)
     {
         for (int i = 0; i < 500 && !condition(); i++)

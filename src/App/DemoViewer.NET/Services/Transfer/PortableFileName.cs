@@ -56,14 +56,24 @@ public static class PortableFileName
             return fallback;
         }
 
-        int dot = result.IndexOf('.', StringComparison.Ordinal);
-        string stem = dot < 0 ? result : result[..dot];
-        if (_reserved.Contains(stem.TrimEnd(' ')))
+        if (IsReservedDeviceName(result))
         {
             result = "_" + result;
         }
 
         return Truncate(result, MaxUtf8Bytes);
+    }
+
+    /// <summary>
+    ///     True when the part of <paramref name="name" /> before its first dot is a Windows device name such as
+    ///     <c>CON</c>, <c>nul</c> or <c>COM1</c>, which Windows will not create as a file in any case.
+    /// </summary>
+    public static bool IsReservedDeviceName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        int dot = name.IndexOf('.', StringComparison.Ordinal);
+        string stem = dot < 0 ? name : name[..dot];
+        return _reserved.Contains(stem.TrimEnd(' '));
     }
 
     /// <summary>

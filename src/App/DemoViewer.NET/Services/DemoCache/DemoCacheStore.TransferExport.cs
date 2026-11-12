@@ -38,42 +38,54 @@ public sealed partial class DemoCacheStore
     internal T SnapshotFiles<T>(string sha256, Func<IReadOnlyList<DemoCacheFile>, T> read)
     {
         ArgumentNullException.ThrowIfNull(read);
-        List<string> keys;
+        while (true)
+        {
+            List<string> keys = SnapshotKeys(sha256);
+            if (keys.Count == 0)
+            {
+                return read([]);
+            }
+
+            object[] stripes = [.. keys.Select(StripeIndex).Distinct().Order().Select(i => _fileStripes[i])];
+            EnterAll(stripes);
+            try
+            {
+                // A settle, a key release or a new write key between the listing of the keys and the locks moves
+                // the files under a key the list does not name, so the list is only good if it still holds.
+                if (!SnapshotKeys(sha256).SequenceEqual(keys, StringComparer.Ordinal))
+                {
+                    continue;
+                }
+
+                return read(ListFiles(keys));
+            }
+            finally
+            {
+                ExitAll(stripes);
+            }
+        }
+    }
+
+    // The keys the row's files may sit under, in read order; none when the content has no listed, hashed row.
+    private List<string> SnapshotKeys(string sha256)
+    {
         lock (_gate)
         {
             if (CacheRoot is null || string.IsNullOrEmpty(sha256)
                                   || !_rows.TryGetValue(sha256, out DemoCacheIndexEntry? row)
                                   || IsProvisional(row) || row.IsOrphaned)
             {
-                keys = [];
+                return [];
             }
-            else
-            {
-                // The read order: the current write key, then the row's own, then any older key. A settle moves
-                // the write key's files to the row's own key first, so a later key holds the lesser copy.
-                List<string> writeKeys = WriteKeys(row);
-                keys =
-                [
-                    .. writeKeys.Take(1).Append(FileKeyOf(row)).Concat(writeKeys.Skip(1))
-                        .Distinct(StringComparer.Ordinal)
-                ];
-            }
-        }
 
-        if (keys.Count == 0)
-        {
-            return read([]);
-        }
-
-        object[] stripes = [.. keys.Select(StripeIndex).Distinct().Order().Select(i => _fileStripes[i])];
-        EnterAll(stripes);
-        try
-        {
-            return read(ListFiles(keys));
-        }
-        finally
-        {
-            ExitAll(stripes);
+            // The read order: the current write key, then the row's own, then any older key. A settle moves the
+            // write key's files to the row's own key first, so a later key holds the lesser copy.
+            List<string> writeKeys = WriteKeys(row);
+            return
+            [
+                .. writeKeys.Take(1).Append(FileKeyOf(row)).Concat(writeKeys.Skip(1))
+                    .Distinct(StringComparer.Ordinal)
+            ];
         }
     }
 

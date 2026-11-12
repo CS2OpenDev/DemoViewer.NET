@@ -228,6 +228,17 @@ internal sealed class TransferPlanner(
         }
     }
 
+    /// <summary>
+    ///     True when the queue holds any of <paramref name="paths" /> now, waiting or running. The run asks again
+    ///     as it reaches each demo: one queued after the plan was made is just as likely to change mid-copy.
+    /// </summary>
+    public bool IsInFlight(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        HashSet<string> inFlight = InFlightPaths();
+        return inFlight.Count > 0 && paths.Any(inFlight.Contains);
+    }
+
     // Demos the queue holds, waiting or running: their data may change while the export copies it.
     private HashSet<string> InFlightPaths()
     {

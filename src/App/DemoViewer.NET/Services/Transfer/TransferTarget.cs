@@ -165,6 +165,13 @@ public sealed class TransferTarget(Func<string, TransferDriveInfo?>? driveInfo =
     {
         try
         {
+            if (OperatingSystem.IsWindows() && IsBehindLink(folder))
+            {
+                // Windows lists drive letters only, so a volume mounted in a folder, or a junction to another
+                // drive, would be read as the letter's drive. Unknown space is a warning; a wrong answer is not.
+                return null;
+            }
+
             DriveInfo? best = null;
             foreach (DriveInfo drive in DriveInfo.GetDrives())
             {
@@ -183,6 +190,21 @@ public sealed class TransferTarget(Func<string, TransferDriveInfo?>? driveInfo =
         {
             return null;
         }
+    }
+
+    // True when the folder or a folder above it is a mount point, junction or symbolic link. A cloud-sync
+    // placeholder is a reparse point too, but not a link, so it does not count.
+    internal static bool IsBehindLink(string folder)
+    {
+        for (DirectoryInfo? dir = new(folder); dir is not null; dir = dir.Parent)
+        {
+            if (dir.Exists && dir.Attributes.HasFlag(FileAttributes.ReparsePoint) && dir.LinkTarget is not null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TryDelete(string path)

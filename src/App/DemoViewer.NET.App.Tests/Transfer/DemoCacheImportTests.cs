@@ -211,6 +211,55 @@ public class DemoCacheImportTests
     }
 
     [Test]
+    public async Task AnImportedRow_IsNeverSweptBeforeAnOrdinaryOrphan()
+    {
+        DateTime now = DateTime.UtcNow;
+        DemoCacheStore store = new(null);
+        store.ImportContent(Sha, Fingerprint(4096), RecordBytes(BundleBuilder.ParsedRecord(Sha, 4096)), [],
+            nowUtc: now);
+
+        // The orphan grace raised past the imported one: the imported row gets the longer of the two.
+        await Assert.That(store.ExpireOrphans(now + TimeSpan.FromDays(100), TimeSpan.FromDays(180), _importedGrace))
+            .IsEqualTo(0);
+        await Assert.That(store.ExpireOrphans(now + TimeSpan.FromDays(181), TimeSpan.FromDays(180), _importedGrace))
+            .IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AListedRowWhoseRecordDoesNotRead_KeepsItsPath_WhenTheImportReplacesIt()
+    {
+        using TempFolders temp = new();
+        string cache = temp.New();
+        string demo = Path.Combine(temp.New(), "match.dem");
+        DemoCacheStore store = new(cache);
+        store.Upsert(new DemoCacheRecord
+        {
+            Path = demo, Size = 4096, ModifiedTicks = 1234, Sha256 = Sha,
+            Locations = [new DemoLocation(demo, true, 4096, 1234, 1)]
+        });
+        store.SaveIndex();
+        foreach (string file in Directory.EnumerateFiles(Path.Combine(cache, "demos")))
+        {
+            File.WriteAllBytes(file, [1, 2, 3]);
+        }
+
+        DemoCacheStore reloaded = new(cache);
+        DemoImportResult result = reloaded.ImportContent(Sha, Fingerprint(4096),
+            RecordBytes(BundleBuilder.ParsedRecord(Sha, 4096)), []);
+        DemoCacheRecord? record = new DemoCacheStore(cache).TryLoadRecord(demo);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(result.Outcome).IsEqualTo(DemoImportOutcome.Added);
+            await Assert.That(record?.Path).IsEqualTo(demo)
+                .Because("an index rebuilt from records must still list the demo");
+            await Assert.That(record?.ModifiedTicks).IsEqualTo(1234);
+            await Assert.That(record?.Locations.Select(l => l.Path) ?? []).IsEquivalentTo([demo]);
+            await Assert.That(record?.Parse.Schema ?? 0).IsGreaterThan(0);
+        }
+    }
+
+    [Test]
     public async Task ARecordOfOtherContent_IsRefused()
     {
         DemoCacheStore store = new(null);

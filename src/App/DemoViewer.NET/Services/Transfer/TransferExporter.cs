@@ -243,6 +243,9 @@ public sealed class TransferExporter : ITransferExporter
                     "It left the library before the export reached it.");
             }
 
+            IReadOnlyList<string> paths = owner._planner.PathsOf(sha);
+            bool busy = entry.Status == ExportEntryStatus.InFlight
+                        || owner._planner.IsInFlight(paths.Append(row.Path));
             List<TransferFile> files = owner._cache.SnapshotFiles<List<TransferFile>?>(sha, snapshot =>
             {
                 // Siblings come first and the record last (the order SnapshotFiles gives), so a demo written to
@@ -271,7 +274,6 @@ public sealed class TransferExporter : ITransferExporter
             }
 
             files.AddRange(ExtensionFiles(sha));
-            IReadOnlyList<string> paths = owner._planner.PathsOf(sha);
             if (plan.Request.IncludeUserData && owner._planner.AnnotationsOf(sha, paths) is { } annotations)
             {
                 // The annotation editor may hold it open for writing.
@@ -282,7 +284,9 @@ public sealed class TransferExporter : ITransferExporter
                 ? TransferFingerprint.From(fp)
                 : null;
             TransferDemFile? dem = null;
-            string? reason = entry.Status == ExportEntryStatus.InFlight
+            // Queued or started while it was copied counts too: the copy may hold a mix of before and after.
+            busy = busy || owner._planner.IsInFlight(paths.Append(row.Path));
+            string? reason = busy
                 ? "It was being processed; it was exported as it stood."
                 : null;
             if (plan.Request.IncludeDemFiles)
