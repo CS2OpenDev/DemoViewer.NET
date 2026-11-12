@@ -1,6 +1,8 @@
 #region
 
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 
 #endregion
 
@@ -19,6 +21,8 @@ namespace DemoViewer.NET.Services.Transfer;
 ///       data/&lt;sha&gt;/ext/&lt;extId&gt;/stores/&lt;storeId&gt;/&lt;relpath&gt;   declared per-demo stores
 ///       data/&lt;sha&gt;/annotations.dvann.json
 ///       shared/graph-breakpoints.json, shared/review-queue.json
+///       library/&lt;extId&gt;/stores/&lt;storeId&gt;/&lt;relpath&gt;     declared library-wide stores, whole
+///       library/&lt;extId&gt;/own/&lt;config|cache&gt;/&lt;relpath&gt;   files of the extension's own folders
 ///       dem/&lt;sha&gt;.dem                             optional
 ///     </code>
 /// </summary>
@@ -50,6 +54,21 @@ public static class TransferLayout
 
     /// <summary>The review-queue entries of the exported demos.</summary>
     public const string ReviewQueueFileName = "review-queue.json";
+
+    /// <summary>
+    ///     The folder for extension data about the whole library: one subfolder per extension id, carried whole
+    ///     whichever demos are exported.
+    /// </summary>
+    public const string LibraryDirectory = "library";
+
+    /// <summary>Under an extension's library folder: the files of its own folders, one subfolder per root.</summary>
+    public const string OwnDirectory = "own";
+
+    /// <summary>
+    ///     The start of a store file's bundle name when its path has a segment that is not portable (a user's
+    ///     palette name, say): the rest is a hash of the path, and the manifest keeps the original.
+    /// </summary>
+    public const string HashedNamePrefix = "_h.";
 
     /// <summary>The folder holding the optional <c>.dem</c> copies.</summary>
     public const string DemDirectory = "dem";
@@ -170,20 +189,61 @@ public static class TransferLayout
     /// <summary>
     ///     <c>data/&lt;sha&gt;/ext/&lt;extensionId&gt;/stores/&lt;storeId&gt;/&lt;relativePath&gt;</c>, with
     ///     <paramref name="relativePath" /> relative to the store's root, so the store's folder is laid out as
-    ///     <see cref="IExtensionImport.Staged" /> hands it to the extension. Every segment of it (<c>/</c> or
-    ///     <c>\</c> separated) must be portable.
+    ///     <see cref="IExtensionImport.Staged" /> hands it to the extension. A path with a segment that is not
+    ///     portable goes under its hashed name (<see cref="StoreRelativeName" />).
     /// </summary>
-    public static string ExtensionStoreFile(string sha256, string extensionId, string storeId, string relativePath)
+    /// <exception cref="ArgumentException">An id is not portable, or <paramref name="relativePath" /> is not a safe relative path.</exception>
+    public static string ExtensionStoreFile(string sha256, string extensionId, string storeId, string relativePath) =>
+        ExtensionFolder(sha256, extensionId) + "/" + StoresDirectory + "/" + Segment(storeId) + "/"
+        + StoreRelativeName(relativePath);
+
+    /// <summary>
+    ///     <c>library/&lt;extensionId&gt;/stores/&lt;storeId&gt;/&lt;relativePath&gt;</c>, for a library-wide
+    ///     store, named as <see cref="ExtensionStoreFile" /> names a per-demo one.
+    /// </summary>
+    /// <exception cref="ArgumentException">An id is not portable, or <paramref name="relativePath" /> is not a safe relative path.</exception>
+    public static string LibraryStoreFile(string extensionId, string storeId, string relativePath) =>
+        LibraryDirectory + "/" + Segment(extensionId) + "/" + StoresDirectory + "/" + Segment(storeId) + "/"
+        + StoreRelativeName(relativePath);
+
+    /// <summary>
+    ///     <c>library/&lt;extensionId&gt;/own/&lt;config|cache&gt;/&lt;relativePath&gt;</c>, with
+    ///     <paramref name="relativePath" /> relative to the extension's own folder under <paramref name="root" />.
+    /// </summary>
+    /// <exception cref="ArgumentException">The id or root is not valid, or <paramref name="relativePath" /> is not a safe relative path.</exception>
+    public static string LibraryOwnFile(string extensionId, StoreRoot root, string relativePath) =>
+        LibraryDirectory + "/" + Segment(extensionId) + "/" + OwnDirectory + "/" + RootName(root) + "/"
+        + StoreRelativeName(relativePath);
+
+    /// <summary>The folder an own root's files sit in: <c>config</c> or <c>cache</c>.</summary>
+    /// <exception cref="ArgumentException"><paramref name="root" /> is not a defined root.</exception>
+    public static string RootName(StoreRoot root) => root switch
     {
-        ArgumentException.ThrowIfNullOrEmpty(relativePath);
-        string[] segments = relativePath.Split('/', '\\');
-        foreach (string segment in segments)
+        StoreRoot.Config => "config",
+        StoreRoot.Cache => "cache",
+        _ => throw new ArgumentException($"'{root}' is not a store root.", nameof(root))
+    };
+
+    /// <summary>
+    ///     A store file's path below its store folder in the bundle: <paramref name="relativePath" /> with
+    ///     <c>/</c> separators when every segment is portable, else <see cref="HashedNamePrefix" /> and the first
+    ///     32 hex digits of the SHA-256 of that <c>/</c>-separated path.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="relativePath" /> is not a safe relative path.</exception>
+    public static string StoreRelativeName(string relativePath)
+    {
+        ArgumentNullException.ThrowIfNull(relativePath);
+        if (PathSafety.SafeRelativePath(relativePath) is null || relativePath.EndsWith('/')
+                                                              || relativePath.EndsWith('\\'))
         {
-            Segment(segment);
+            throw new ArgumentException($"'{relativePath}' is not a safe relative path.", nameof(relativePath));
         }
 
-        return ExtensionFolder(sha256, extensionId) + "/" + StoresDirectory + "/" + Segment(storeId) + "/"
-            + string.Join('/', segments);
+        string[] segments = relativePath.Split('/', '\\');
+        string joined = string.Join('/', segments);
+        return segments.All(IsPortableSegment)
+            ? joined
+            : HashedNamePrefix + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(joined)))[..32];
     }
 
     /// <summary><c>data/&lt;sha&gt;/annotations.dvann.json</c>.</summary>

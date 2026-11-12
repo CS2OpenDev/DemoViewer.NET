@@ -790,6 +790,22 @@ public class App : Application
     internal static ServiceProvider BuildServices(IWindowService windowService) =>
         BuildServices(windowService, FeaturePacks.Compatible);
 
+    // What the enabled extensions carry in a transfer, read when an export is planned or its wizard opens.
+    private static IReadOnlyList<TransferExtensionSource> TransferExtensionSources(IServiceProvider sp)
+    {
+        if (sp.GetService<PackContributionSet>() is not { } set)
+        {
+            return [];
+        }
+
+        IFeatureGate? gate = sp.GetService<IFeatureGate>();
+        return
+        [
+            .. set.DataTransfers.Where(t => gate?.IsEnabled(t.FeatureId) != false).Select(t => t.ToSource())
+                .Where(s => s.Stores.Count > 0 || s.OwnPaths.Count > 0)
+        ];
+    }
+
     /// <summary>
     ///     <see cref="BuildServices(IWindowService)" /> over an explicit pack list. The packs' descriptors
     ///     join the <see cref="FeatureCatalog" /> here, once; each pack then registers its services and,
@@ -942,7 +958,8 @@ public class App : Application
                 () => [.. library.Entries],
                 () => [.. library.Folders],
                 () => queue.QueuedCount + queue.RunningCount,
-                path => Services?.GetService<MainViewModel>()?.OpenOutputFolder(path));
+                path => Services?.GetService<MainViewModel>()?.OpenOutputFolder(path),
+                () => [.. TransferExtensionSources(sp).Where(s => s.HasLibraryData).Select(s => s.Label)]);
         });
 
         // The host window service instance (desktop real / browser no-op), resolved by MainViewModel.
@@ -1298,7 +1315,8 @@ public class App : Application
             sp.GetRequiredService<IDemoProcessingQueue>(),
             new TransferSources(AppPaths.ConfigRoot,
                 () => sp.GetRequiredService<SettingsService>().Current.Library.Folders,
-                () => TransferEnvironment.Local(sp.GetRequiredService<MergedRulesBuild>(), packs))));
+                () => TransferEnvironment.Local(sp.GetRequiredService<MergedRulesBuild>(), packs),
+                () => TransferExtensionSources(sp))));
         // Library transfer import: cache rows through the store so the orphan sweep keeps them, per-demo extension
         // data through the loaded extension's own store, user data into the stores that own it.
         services.AddSingleton<ITransferImporter>(sp => new TransferImporter(

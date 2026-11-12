@@ -63,11 +63,12 @@ internal sealed class BundleBuilder(string root)
         AppVersion = appVersion ?? TransferManifest.CurrentAppVersion,
         CreatedUtc = DateTime.UtcNow,
         SourceOs = "test",
-        Options = new TransferManifestOptions(_demos.Any(d => d.Dem is not null), true, false),
+        Options = new TransferManifestOptions(_demos.Any(d => d.Dem is not null), true, false, false),
         RulesetIdentities = rulesets ?? [],
         Extensions = [],
         Demos = [.. _demos],
-        Shared = [.. _shared]
+        Shared = [.. _shared],
+        ExtensionData = []
     };
 
     public TransferManifest Write(string? appVersion = null, IReadOnlyList<string>? rulesets = null)

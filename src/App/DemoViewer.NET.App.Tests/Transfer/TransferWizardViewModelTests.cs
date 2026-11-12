@@ -124,6 +124,55 @@ public class TransferWizardViewModelTests
     }
 
     [Test]
+    public async Task Export_LibraryDataOption_NamesTheContributingExtensions_AndTheReviewShowsItsSize()
+    {
+        FakeExporter exporter = new()
+        {
+            PlanFor = request => FakeExporter.PlanOf(request,
+            [
+                new ExportPlanEntry(Sha('a'), "/demos/a.dem", "a.dem", "de_dust2", ExportEntryStatus.Included, 10, 0)
+            ]) with
+            {
+                LibraryBytes = request.IncludeLibraryData ? 5_000_000 : 0
+            }
+        };
+        ExportWizardViewModel vm = new(exporter, () => _library, Inline, null, _ => { },
+            () => new DateTime(2026, 11, 11, 15, 30, 0), ["Strat Book", "Rule Canvas"]);
+        ExportWizardViewModel without = NewExport(new FakeExporter());
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.HasLibraryDataOption).IsTrue();
+            await Assert.That(vm.IncludeLibraryData).IsTrue().Because("library data is on by default");
+            await Assert.That(vm.LibraryDataSourcesText).StartsWith("From Strat Book, Rule Canvas.");
+            await Assert.That(vm.BuildRequest().IncludeLibraryData).IsTrue();
+            await Assert.That(without.HasLibraryDataOption).IsFalse()
+                .Because("with no extension carrying library data there is nothing to offer");
+            await Assert.That(without.BuildRequest().IncludeLibraryData).IsFalse();
+        }
+
+        vm.DestinationFolder = "/media/usb";
+        vm.CurrentStep = 2;
+        await vm.NextCommand.ExecuteAsync(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.IsReviewStep).IsTrue();
+            await Assert.That(exporter.Requests.Single().IncludeLibraryData).IsTrue();
+            await Assert.That(vm.ShowLibraryDataSize).IsTrue();
+            await Assert.That(vm.LibraryDataSizeText).StartsWith("Extension library data: about ");
+        }
+
+        vm.BackCommand.Execute(null);
+        vm.IncludeLibraryData = false;
+        await vm.NextCommand.ExecuteAsync(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(exporter.Requests[^1].IncludeLibraryData).IsFalse();
+            await Assert.That(vm.ShowLibraryDataSize).IsFalse();
+        }
+    }
+
+    [Test]
     public async Task Export_SearchAndMapChips_FilterTheList_AndSelectAllTicksOnlyWhatIsShown()
     {
         ExportWizardViewModel vm = NewExport(new FakeExporter());

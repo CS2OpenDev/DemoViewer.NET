@@ -139,6 +139,14 @@
                                    Text="Annotations, graph breakpoints and review-queue entries for the exported demos." />
                     </StackPanel>
                 </Border>
+                <Border Classes="card" Padding="12,10" IsVisible="{Binding HasLibraryDataOption}">
+                    <StackPanel Spacing="4">
+                        <CheckBox Content="Include extension library data (strats, teams, lineups, notes…)"
+                                  IsChecked="{Binding IncludeLibraryData, Mode=TwoWay}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
+                                   Text="{Binding LibraryDataSourcesText}" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
 
             <!-- Destination -->
@@ -173,6 +181,9 @@
                                        Text="{Binding ReviewHeadline}" TextWrapping="Wrap" />
                             <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
                                        Text="{Binding ReviewBytesText}" />
+                            <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                                       IsVisible="{Binding ShowLibraryDataSize}"
+                                       Text="{Binding LibraryDataSizeText}" />
                             <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}"
                                        IsVisible="{Binding HasMissing}"
                                        Text="{Binding MissingCount, StringFormat='{}{0} demo files are missing and are left out.'}" />

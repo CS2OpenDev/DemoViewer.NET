@@ -19,7 +19,8 @@ public sealed class DataTransferLauncher(
     Func<IReadOnlyList<DemoEntry>> libraryDemos,
     Func<IReadOnlyList<string>> libraryFolders,
     Func<int>? demosInFlight = null,
-    Action<string>? openFolder = null)
+    Action<string>? openFolder = null,
+    Func<IReadOnlyList<string>>? libraryDataExtensions = null)
 {
     /// <summary>False on the browser head, which has no file system to export from or import into.</summary>
     public static bool IsSupported => !OperatingSystem.IsBrowser();
@@ -33,7 +34,8 @@ public sealed class DataTransferLauncher(
         }
 
         windows.ShowExportWizard(() =>
-            new ExportWizardViewModel(service, libraryDemos, demosInFlight: demosInFlight, openFolder: openFolder));
+            new ExportWizardViewModel(service, libraryDemos, demosInFlight: demosInFlight, openFolder: openFolder,
+                libraryDataExtensions: libraryDataExtensions?.Invoke()));
     }
 
     /// <summary>Opens the import wizard, or brings the open one forward.</summary>

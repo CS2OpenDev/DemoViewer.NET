@@ -67,6 +67,10 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
     [ObservableProperty]
     private bool _includeUserData = true;
 
+    /// <summary>The extensions' library-wide data (strats, teams, lineups, notes). On by default.</summary>
+    [ObservableProperty]
+    private bool _includeLibraryData = true;
+
     /// <summary>The folder the bundle folder is created in.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BundleFolderPreview))]
@@ -89,6 +93,8 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
     [NotifyPropertyChangedFor(nameof(ReviewBytesText))]
     [NotifyPropertyChangedFor(nameof(PlanWarnings))]
     [NotifyPropertyChangedFor(nameof(HasPlanWarnings))]
+    [NotifyPropertyChangedFor(nameof(ShowLibraryDataSize))]
+    [NotifyPropertyChangedFor(nameof(LibraryDataSizeText))]
     private ExportPlan? _plan;
 
     /// <param name="exporter">Plans and runs the export.</param>
@@ -97,19 +103,22 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
     /// <param name="demosInFlight">How many demos the processing queue holds right now.</param>
     /// <param name="openFolder">Opens the finished bundle in the file manager.</param>
     /// <param name="now">The clock for the bundle folder name.</param>
+    /// <param name="libraryDataExtensions">The names of the enabled extensions that carry library-wide data.</param>
     public ExportWizardViewModel(
         ITransferExporter exporter,
         Func<IReadOnlyList<DemoEntry>> libraryDemos,
         Action<Action>? post = null,
         Func<int>? demosInFlight = null,
         Action<string>? openFolder = null,
-        Func<DateTime>? now = null)
+        Func<DateTime>? now = null,
+        IReadOnlyList<string>? libraryDataExtensions = null)
         : base(post, demosInFlight, openFolder)
     {
         ArgumentNullException.ThrowIfNull(exporter);
         ArgumentNullException.ThrowIfNull(libraryDemos);
         _exporter = exporter;
         _now = now ?? (() => DateTime.Now);
+        LibraryDataExtensions = libraryDataExtensions ?? [];
 
         IReadOnlyList<DemoEntry> demos = libraryDemos();
         Rows = [.. demos.Select(e => new TransferDemoRowViewModel(e))];
@@ -168,6 +177,24 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
             return $"Adds about {Bytes(chosen.Sum(r => r.SizeBytes))}.";
         }
     }
+
+    /// <summary>The enabled extensions that carry library-wide data, by name.</summary>
+    public IReadOnlyList<string> LibraryDataExtensions { get; }
+
+    /// <summary>The Options step shows the library data choice only when some extension has any.</summary>
+    public bool HasLibraryDataOption => LibraryDataExtensions.Count > 0;
+
+    /// <summary>The Options step's note under the library data checkbox: who contributes and how it travels.</summary>
+    public string LibraryDataSourcesText =>
+        $"From {string.Join(", ", LibraryDataExtensions)}. Carried whole, even when only some demos are exported.";
+
+    /// <summary>The Review step shows the library data size when the plan carries any.</summary>
+    public bool ShowLibraryDataSize => Plan is { Request.IncludeLibraryData: true, LibraryBytes: > 0 };
+
+    /// <summary>"Extension library data: about 2.1 MB."</summary>
+    public string LibraryDataSizeText => Plan is { } plan
+        ? $"Extension library data: about {Bytes(plan.LibraryBytes)}."
+        : "";
 
     /// <summary>The bundle folder a run would create, for the Destination step.</summary>
     public string BundleFolderPreview => string.IsNullOrWhiteSpace(DestinationFolder)
@@ -437,10 +464,11 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
     public ExportRequest BuildRequest()
     {
         string destination = DestinationFolder.Trim();
+        bool library = IncludeLibraryData && HasLibraryDataOption;
         return ExportAll
-            ? ExportRequest.All(destination, IncludeDemFiles, IncludeUserData)
+            ? ExportRequest.All(destination, IncludeDemFiles, IncludeUserData, library)
             : ExportRequest.Chosen([.. Rows.Where(r => r.IsChecked).Select(r => r.Key)], destination,
-                IncludeDemFiles, IncludeUserData);
+                IncludeDemFiles, IncludeUserData, library);
     }
 
     private async Task<bool> PlanNowAsync()

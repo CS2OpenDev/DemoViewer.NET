@@ -83,9 +83,14 @@ public sealed class TransferExporter : ITransferExporter
 
     private ExportPlan Plan(ExportRequest request, CancellationToken ct)
     {
-        (List<ExportPlanEntry> entries, List<TransferWarning> warnings, long sharedBytes) = _planner.Plan(request, ct);
+        IReadOnlyList<TransferExtensionSource> extensions = _planner.ExtensionSources();
+        (List<ExportPlanEntry> entries, List<TransferWarning> warnings, long sharedBytes, long libraryBytes) =
+            _planner.Plan(request, extensions, ct);
         string bundle = BundleFolderFor(request.DestinationFolder);
-        ExportPlan plan = new(request, bundle, entries, sharedBytes, warnings);
+        ExportPlan plan = new(request, bundle, entries, sharedBytes, warnings)
+        {
+            LibraryBytes = libraryBytes, ExtensionSources = extensions
+        };
         TransferTargetCheck check = _target.Check(request.DestinationFolder, plan.TotalBytes, plan.LargestFileBytes,
             _planner.ProtectedRoots());
         return plan with { Warnings = [.. check.Warnings, .. warnings] };
@@ -149,6 +154,11 @@ public sealed class TransferExporter : ITransferExporter
             ct.ThrowIfCancellationRequested();
             List<TransferFile> shared = request.IncludeUserData ? run.ExportShared() : [];
             ct.ThrowIfCancellationRequested();
+            if (request.IncludeLibraryData)
+            {
+                run.ExportLibrary();
+                ct.ThrowIfCancellationRequested();
+            }
 
             TransferManifest manifest = new()
             {
@@ -157,11 +167,12 @@ public sealed class TransferExporter : ITransferExporter
                 CreatedUtc = _time.GetUtcNow().UtcDateTime,
                 SourceOs = RuntimeInformation.OSDescription,
                 Options = new TransferManifestOptions(request.IncludeDemFiles, request.IncludeUserData,
-                    request.AllDemos),
+                    request.AllDemos, request.IncludeLibraryData),
                 RulesetIdentities = [.. (_sources.Environment?.Invoke().RulesetIdentities ?? [])],
                 Extensions = run.ExtensionVersions(),
                 Demos = run.Demos,
-                Shared = shared
+                Shared = shared,
+                ExtensionData = run.ExtensionData
             };
             manifest.Write(bundle);
             warnings.AddRange(run.Warnings);
@@ -190,10 +201,15 @@ public sealed class TransferExporter : ITransferExporter
             owner._planner.ExtensionRoots();
 
         private readonly HashSet<string> _skippedExtensions = new(StringComparer.Ordinal);
+        private readonly ExtensionStoreFiles _stores = owner._planner.Stores;
+        private bool _warnedStoresFacet;
         private long _bytesDone;
         private int _demosDone;
 
         public List<TransferDemo> Demos { get; } = [];
+
+        /// <summary>Every store and own file copied so far, per-demo and library-wide.</summary>
+        public List<TransferExtensionFile> ExtensionData { get; } = [];
         public List<TransferSummaryItem> Items { get; } = [];
         public List<TransferWarning> Warnings { get; } = [];
 
@@ -273,7 +289,9 @@ public sealed class TransferExporter : ITransferExporter
                     "Its analysis was removed before the export reached it.");
             }
 
-            files.AddRange(ExtensionFiles(sha));
+            // Store entries join the manifest only with their demo, so a demo that fails later leaves none behind.
+            List<TransferExtensionFile> storeEntries = [];
+            files.AddRange(ExtensionFiles(sha, storeEntries));
             if (plan.Request.IncludeUserData && owner._planner.AnnotationsOf(sha, paths) is { } annotations)
             {
                 // The annotation editor may hold it open for writing.
@@ -308,6 +326,7 @@ public sealed class TransferExporter : ITransferExporter
             }
 
             exported.Add(sha);
+            ExtensionData.AddRange(storeEntries);
             Demos.Add(new TransferDemo(sha, Path.GetFileName(row.Path), row.Size, files, fingerprint, row.Map,
                 row.MatchTimeUtcTicks is { } ticks ? new DateTime(ticks, DateTimeKind.Utc) : null, dem));
             return new TransferSummaryItem(sha, entry.DisplayName, TransferOutcome.Transferred, reason);
@@ -361,7 +380,8 @@ public sealed class TransferExporter : ITransferExporter
             }
         }
 
-        private List<TransferFile> ExtensionFiles(string sha)
+        // The demo's facet files, then its per-demo store files, whose manifest entries go to entries.
+        private List<TransferFile> ExtensionFiles(string sha, List<TransferExtensionFile> entries)
         {
             List<TransferFile> files = [];
             foreach ((string extensionId, string root) in _extensions)
@@ -372,20 +392,27 @@ public sealed class TransferExporter : ITransferExporter
                     continue;
                 }
 
-                if (!TransferLayout.IsPortableSegment(extensionId))
+                if (!PortableExtension(extensionId))
                 {
-                    if (_skippedExtensions.Add(extensionId))
-                    {
-                        Warnings.Add(new TransferWarning(TransferWarningKind.Other,
-                            $"The data of the extension '{extensionId}' cannot be carried: its id is not a portable "
-                            + "folder name."));
-                    }
-
                     continue;
                 }
 
                 foreach (DemoDataFile file in data)
                 {
+                    // A facet named like the stores folder would be read back as store files.
+                    if (string.Equals(file.Facet, TransferLayout.StoresDirectory, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!_warnedStoresFacet)
+                        {
+                            _warnedStoresFacet = true;
+                            Warnings.Add(new TransferWarning(TransferWarningKind.Other,
+                                $"The '{file.Facet}' data of the extension '{extensionId}' was left out: the name "
+                                + "is reserved in a transfer bundle."));
+                        }
+
+                        continue;
+                    }
+
                     if (BundleName(file.FullPath, () => TransferLayout.ExtensionFacetFile(sha, extensionId, file.Facet,
                             TransferLayout.DemoFileName(file.Rest))) is not { } relative)
                     {
@@ -416,7 +443,89 @@ public sealed class TransferExporter : ITransferExporter
                 }
             }
 
+            foreach (TransferExtensionSource source in plan.ExtensionSources)
+            {
+                if (PortableExtension(source.ExtensionId))
+                {
+                    files.AddRange(CopyStoreFiles(_stores.PerDemo(source, sha), entries));
+                }
+            }
+
             return files;
+        }
+
+        /// <summary>
+        ///     The enabled extensions' library-wide stores and own files, whole: a subset export still carries every
+        ///     strat, team and lineup, since they are not keyed by demo.
+        /// </summary>
+        public void ExportLibrary()
+        {
+            foreach (TransferExtensionSource source in plan.ExtensionSources)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (!PortableExtension(source.ExtensionId))
+                {
+                    continue;
+                }
+
+                Report(source.Label);
+                CopyStoreFiles(_stores.LibraryWide(source), ExtensionData);
+            }
+        }
+
+        // Byte copies, each with its manifest entry added to entries. A file that cannot be read is left out
+        // with a word, not the whole demo or library: the store keeps working on this machine either way.
+        private List<TransferFile> CopyStoreFiles(List<ExtensionStoreSource> sources,
+            List<TransferExtensionFile> entries)
+        {
+            List<TransferFile> copied = [];
+            foreach (ExtensionStoreSource source in sources)
+            {
+                if (BundleName(source.FullPath, source.BundlePath) is not { } relative)
+                {
+                    continue;
+                }
+
+                TransferFile file;
+                try
+                {
+                    // The owner may hold the file open for appending (a strat's history log).
+                    file = CopyData(source.FullPath, relative, FileShare.ReadWrite);
+                }
+                catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+                {
+                    continue; // removed since it was listed
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Warnings.Add(new TransferWarning(TransferWarningKind.Other,
+                        $"{Path.GetFileName(source.FullPath)} could not be read, so it was left out: {ex.Message}"));
+                    continue;
+                }
+
+                copied.Add(file);
+                entries.Add(source.Entry(file));
+                _extensionVersions.TryAdd(source.ExtensionId, new Dictionary<string, int>(StringComparer.Ordinal));
+            }
+
+            return copied;
+        }
+
+        private bool PortableExtension(string extensionId)
+        {
+            if (TransferLayout.IsPortableSegment(extensionId))
+            {
+                return true;
+            }
+
+            if (_skippedExtensions.Add(extensionId))
+            {
+                Warnings.Add(new TransferWarning(TransferWarningKind.Other,
+                    $"The data of the extension '{extensionId}' cannot be carried: its id is not a portable "
+                    + "folder name."));
+            }
+
+            return false;
         }
 
         /// <summary>One entry per extension whose data was exported, with the version most of it was written by.</summary>

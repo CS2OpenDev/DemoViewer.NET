@@ -26,7 +26,7 @@ public class TransferManifestTests
         AppVersion = "0.10.1+abc",
         CreatedUtc = new DateTime(2026, 11, 11, 15, 30, 0, DateTimeKind.Utc),
         SourceOs = "Microsoft Windows 10.0.26300",
-        Options = new TransferManifestOptions(true, true, false),
+        Options = new TransferManifestOptions(true, true, false, true),
         RulesetIdentities = ["core@1"],
         Extensions = [new TransferExtensionVersion("net.cs2opendev.stratbook", "1.2.0")],
         Demos =
@@ -36,14 +36,27 @@ public class TransferManifestTests
                     new TransferFile(TransferLayout.CacheFile(ShaA, ShaA + ".json.gz"), 10, ShaB),
                     new TransferFile(TransferLayout.ExtensionFacetFile(ShaA, "net.ext", "facet", ShaA + ".json.gz"),
                         20, ShaC),
-                    new TransferFile(TransferLayout.AnnotationsFile(ShaA), 5, ShaB)
+                    new TransferFile(TransferLayout.AnnotationsFile(ShaA), 5, ShaB),
+                    new TransferFile(TransferLayout.ExtensionStoreFile(ShaA, "net.ext", "tags", TagsPath), 7, ShaC)
                 ],
                 new TransferFingerprint(1000, 262144, ShaB, ShaC), "de_mirage",
                 new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc), new TransferDemFile(TransferLayout.DemFile(ShaA), 1000)),
             new TransferDemo(ShaB, "plain.dem", 2000, [])
         ],
-        Shared = [new TransferFile(TransferLayout.SharedFile(TransferLayout.GraphBreakpointsFileName), 3, ShaA)]
+        Shared = [new TransferFile(TransferLayout.SharedFile(TransferLayout.GraphBreakpointsFileName), 3, ShaA)],
+        ExtensionData =
+        [
+            new TransferExtensionFile(TransferLayout.ExtensionStoreFile(ShaA, "net.ext", "tags", TagsPath), 7, ShaC,
+                "net.ext", "tags", StoreRoot.Config, StorePortability.PerDemo, TagsPath, ShaA),
+            new TransferExtensionFile(TransferLayout.LibraryStoreFile("net.ext", "palettes", PalettePath), 4, ShaB,
+                "net.ext", "palettes", StoreRoot.Config, StorePortability.LibraryWide, PalettePath, null),
+            new TransferExtensionFile(TransferLayout.LibraryOwnFile("net.ext", StoreRoot.Cache, "lineups.json.gz"), 9,
+                ShaA, "net.ext", null, StoreRoot.Cache, StorePortability.LibraryWide, "lineups.json.gz", null)
+        ]
     };
+
+    private const string TagsPath = "tags/demos/" + ShaA + ".dvtag.json";
+    private const string PalettePath = "palettes/My Palette.tagpalette.json";
 
     private static JsonObject SampleJson() => JsonNode.Parse(Sample().ToJsonBytes())!.AsObject();
 
@@ -232,6 +245,109 @@ public class TransferManifestTests
                 .Throws<ArgumentException>();
             await Assert.That(() => TransferLayout.FullPath(Path.GetTempPath(), "../x")).Throws<ArgumentException>();
         }
+    }
+
+    [Test]
+    public async Task ExtensionData_RoundTrips_WithANonPortableNameHashed_AndTheOriginalKept()
+    {
+        TransferManifest written = Sample();
+        TransferManifest read = TransferManifest.Parse(written.ToJsonBytes());
+        string json = Encoding.UTF8.GetString(written.ToJsonBytes());
+        TransferExtensionFile palette = read.ExtensionData[1];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(read.ExtensionData).IsEquivalentTo(written.ExtensionData);
+            await Assert.That(read.Options.IncludeLibraryData).IsTrue();
+            await Assert.That(json).Contains("\"portability\": \"perDemo\"");
+            await Assert.That(json).Contains("\"root\": \"cache\"");
+            await Assert.That(palette.RelativePath).IsEqualTo(PalettePath);
+            await Assert.That(palette.Path).StartsWith("library/net.ext/stores/palettes/" + TransferLayout.HashedNamePrefix);
+            await Assert.That(palette.Path.All(c => c < 0x80 && c != ' ')).IsTrue();
+            await Assert.That(read.ExtensionData[2].Path).IsEqualTo("library/net.ext/own/cache/lineups.json.gz");
+            await Assert.That(TransferLayout.StoreRelativeName("a/b.json")).IsEqualTo("a/b.json");
+            await Assert.That(TransferLayout.StoreRelativeName("a\\b.json")).IsEqualTo("a/b.json");
+            await Assert.That(TransferLayout.StoreRelativeName("A B.json"))
+                .IsNotEqualTo(TransferLayout.StoreRelativeName("a b.json"));
+        }
+    }
+
+    [Test]
+    [Arguments("traversal", "")]
+    [Arguments("backslash", "")]
+    [Arguments("moved", "")]
+    [Arguments("not-in-demo", "")]
+    [Arguments("undescribed", "describe")]
+    [Arguments("case-duplicate", "differing only by case")]
+    [Arguments("portability-none", "")]
+    [Arguments("portability-number", "damaged")]
+    [Arguments("per-demo-without-demo", "")]
+    [Arguments("unknown-demo", "")]
+    [Arguments("hostile-extension", "")]
+    [Arguments("own-with-demo", "")]
+    [Arguments("bad-root", "damaged")]
+    public async Task AHostileExtensionDataEntry_IsRefused(string change, string expected)
+    {
+        JsonObject json = SampleJson();
+        JsonArray data = json["extensionData"]!.AsArray();
+        JsonObject perDemo = data[0]!.AsObject();
+        JsonObject library = data[1]!.AsObject();
+        JsonObject own = data[2]!.AsObject();
+        switch (change)
+        {
+            case "traversal":
+                library["relativePath"] = "../../evil.json";
+                break;
+            case "backslash":
+                library["relativePath"] = "palettes\\x.json";
+                library["path"] = TransferLayout.LibraryStoreFile("net.ext", "palettes", "palettes\\x.json");
+                break;
+            case "moved":
+                // A path that does not follow from the entry would let it overwrite another store's file.
+                library["path"] = "library/net.ext/stores/teams/teams.json";
+                break;
+            case "not-in-demo":
+                json["demos"]![0]!["files"]!.AsArray().RemoveAt(3);
+                break;
+            case "undescribed":
+                data.RemoveAt(0);
+                break;
+            case "case-duplicate":
+                string upper = PalettePath.ToUpperInvariant();
+                data.Add(new JsonObject
+                {
+                    ["path"] = TransferLayout.LibraryStoreFile("net.ext", "palettes", upper), ["size"] = 4,
+                    ["sha256"] = ShaB, ["extensionId"] = "net.ext", ["storeId"] = "palettes", ["root"] = "config",
+                    ["portability"] = "libraryWide", ["relativePath"] = upper, ["demoSha256"] = null
+                });
+                break;
+            case "portability-none":
+                library["portability"] = "none";
+                break;
+            case "portability-number":
+                library["portability"] = 2;
+                break;
+            case "per-demo-without-demo":
+                perDemo["demoSha256"] = null;
+                break;
+            case "unknown-demo":
+                perDemo["demoSha256"] = ShaC;
+                perDemo["path"] = TransferLayout.ExtensionStoreFile(ShaC, "net.ext", "tags", TagsPath);
+                break;
+            case "hostile-extension":
+                own["extensionId"] = "..";
+                break;
+            case "own-with-demo":
+                own["demoSha256"] = ShaA;
+                break;
+            case "bad-root":
+                own["root"] = "elsewhere";
+                break;
+        }
+
+        string refusal = RefusalOf(json);
+        await Assert.That(refusal).IsNotEmpty().Because(change);
+        await Assert.That(refusal).Contains(expected);
     }
 
     [Test]
