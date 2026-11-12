@@ -30,6 +30,12 @@ internal sealed class HostDataTransfer
                 _pack.Guard.Run("data portability", () => portability.FeatureId, null))
             : _pack.Pack.FeatureId;
 
+    /// <summary>The extension's name as its master switch shows it, for the import summary.</summary>
+    public string Label =>
+        _pack.Guard.Run("feature list",
+            () => _pack.Pack.Features.FirstOrDefault(f => f.Id == _pack.Pack.FeatureId)?.Label, null)
+        ?? _pack.Pack.Id;
+
     /// <summary>The accepted stores that travel, in declaration order.</summary>
     public IReadOnlyList<StoreDescriptor> Stores =>
         [.. _pack.Stores.Where(s => s.Portability != StorePortability.None)];

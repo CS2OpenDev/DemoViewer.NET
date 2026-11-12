@@ -19,6 +19,8 @@ namespace DemoViewer.NET.Services.Transfer;
 ///       data/&lt;sha&gt;/ext/&lt;extId&gt;/stores/&lt;storeId&gt;/&lt;relpath&gt;   declared per-demo stores
 ///       data/&lt;sha&gt;/annotations.dvann.json
 ///       shared/graph-breakpoints.json, shared/review-queue.json
+///       shared/ext/&lt;extId&gt;/stores/&lt;storeId&gt;/&lt;relpath&gt;   declared library-wide stores
+///       shared/ext/&lt;extId&gt;/own/config|cache/&lt;path&gt;     files of its own folders the extension named
 ///       dem/&lt;sha&gt;.dem                             optional
 ///     </code>
 /// </summary>
@@ -38,6 +40,9 @@ public static class TransferLayout
 
     /// <summary>Under an extension's folder: its declared per-demo user stores, beside its facet folders.</summary>
     public const string StoresDirectory = "stores";
+
+    /// <summary>Under an extension's shared folder: the files of its own folders it named, by root.</summary>
+    public const string OwnDirectory = "own";
 
     /// <summary>A demo's annotations file.</summary>
     public const string AnnotationsFileName = "annotations.dvann.json";
@@ -173,18 +178,43 @@ public static class TransferLayout
     ///     <see cref="IExtensionImport.Staged" /> hands it to the extension. Every segment of it (<c>/</c> or
     ///     <c>\</c> separated) must be portable.
     /// </summary>
-    public static string ExtensionStoreFile(string sha256, string extensionId, string storeId, string relativePath)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(relativePath);
-        string[] segments = relativePath.Split('/', '\\');
-        foreach (string segment in segments)
-        {
-            Segment(segment);
-        }
+    public static string ExtensionStoreFile(string sha256, string extensionId, string storeId, string relativePath) =>
+        ExtensionFolder(sha256, extensionId) + "/" + StoresDirectory + "/" + Segment(storeId) + "/"
+        + Relative(relativePath);
 
-        return ExtensionFolder(sha256, extensionId) + "/" + StoresDirectory + "/" + Segment(storeId) + "/"
-            + string.Join('/', segments);
-    }
+    /// <summary>
+    ///     <c>shared/ext/&lt;extensionId&gt;/stores/&lt;storeId&gt;/&lt;relativePath&gt;</c>: a library-wide store's
+    ///     file, laid out as <see cref="ExtensionStoreFile" /> lays out a per-demo one.
+    /// </summary>
+    public static string SharedExtensionStoreFile(string extensionId, string storeId, string relativePath) =>
+        SharedExtensionFolder(extensionId) + "/" + StoresDirectory + "/" + Segment(storeId) + "/"
+        + Relative(relativePath);
+
+    /// <summary>
+    ///     <c>shared/ext/&lt;extensionId&gt;/own/&lt;config|cache&gt;/&lt;relativePath&gt;</c>: a file of the extension's
+    ///     own folder under <paramref name="root" />, relative to that folder, as
+    ///     <see cref="IExtensionImport.StagedOwn" /> hands it back.
+    /// </summary>
+    public static string SharedExtensionOwnFile(string extensionId, StoreRoot root, string relativePath) =>
+        SharedExtensionFolder(extensionId) + "/" + OwnDirectory + "/" + OwnRootName(root) + "/"
+        + Relative(relativePath);
+
+    /// <summary>The bundle folder name of an own folder's root: <c>config</c> or <c>cache</c>.</summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="root" /> is not a defined value.</exception>
+    public static string OwnRootName(StoreRoot root) => root switch
+    {
+        StoreRoot.Config => "config",
+        StoreRoot.Cache => "cache",
+        _ => throw new ArgumentOutOfRangeException(nameof(root), root, null)
+    };
+
+    /// <summary>The root an <see cref="OwnRootName" /> names, or null for any other name.</summary>
+    public static StoreRoot? OwnRoot(string name) => name switch
+    {
+        "config" => StoreRoot.Config,
+        "cache" => StoreRoot.Cache,
+        _ => null
+    };
 
     /// <summary><c>data/&lt;sha&gt;/annotations.dvann.json</c>.</summary>
     public static string AnnotationsFile(string sha256) => DemoFolder(sha256) + "/" + AnnotationsFileName;
@@ -207,6 +237,22 @@ public static class TransferLayout
 
     private static string ExtensionFolder(string sha256, string extensionId) =>
         DemoFolder(sha256) + "/" + ExtensionDirectory + "/" + Segment(extensionId);
+
+    private static string SharedExtensionFolder(string extensionId) =>
+        SharedDirectory + "/" + ExtensionDirectory + "/" + Segment(extensionId);
+
+    // A path of several segments, each portable, joined with '/'.
+    private static string Relative(string relativePath)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(relativePath);
+        string[] segments = relativePath.Split('/', '\\');
+        foreach (string segment in segments)
+        {
+            Segment(segment);
+        }
+
+        return string.Join('/', segments);
+    }
 
     private static string Sha(string sha256) =>
         IsSha256(sha256)

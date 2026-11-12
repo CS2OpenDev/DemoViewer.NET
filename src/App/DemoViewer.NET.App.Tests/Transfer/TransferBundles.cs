@@ -52,6 +52,9 @@ internal sealed class BundleBuilder(string root)
 
     public void Shared(string fileName, byte[] bytes) => _shared.Add(File(TransferLayout.SharedFile(fileName), bytes));
 
+    /// <summary>A file anywhere under the shared folder, such as an extension's library-wide store.</summary>
+    public void SharedAt(string relative, byte[] bytes) => _shared.Add(File(relative, bytes));
+
     public void Demo(string sha, string name, long size, IReadOnlyList<TransferFile> files,
         DemoContentFingerprint? fingerprint = null, TransferDemFile? dem = null) =>
         _demos.Add(new TransferDemo(sha, name, size, files,

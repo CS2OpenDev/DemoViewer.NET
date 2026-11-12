@@ -1329,7 +1329,11 @@ public class App : Application
                     && sp.GetRequiredService<StampedFacts>().Fingerprint(rulesetId, tickRate) is { } fingerprint
                         ? stamp.IsCurrent(StampedFacts.Schema, fingerprint)
                         : null),
-            f => Dispatcher.UIThread.InvokeAsync(f)));
+            f => Dispatcher.UIThread.InvokeAsync(f),
+            extensions: new TransferExtensionHost(
+                () => sp.GetService<PackContributionSet>()?.DataTransfers ?? [],
+                featureId => sp.GetRequiredService<IFeatureGate>().IsEnabled(featureId),
+                AppPaths.ConfigRoot, AppPaths.DemoCacheDir)));
         // The "one parse, many evaluators" scheduler: the single submitter that asks the registered passes
         // about a demo and submits them together as ONE visit, so the demo is read once. Library,
         // Highlights and Round Facts are core, always on the visit; a pack's passes come from a PassRegistry built over its

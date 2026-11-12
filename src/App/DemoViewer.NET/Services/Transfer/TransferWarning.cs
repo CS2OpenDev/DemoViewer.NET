@@ -39,6 +39,12 @@ public enum TransferWarningKind
     /// <summary>A shared file (breakpoints, review queue) could not be read and is left out.</summary>
     SharedFileSkipped,
 
+    /// <summary>
+    ///     The bundle carries stores of an extension that is not installed or is switched off here; that data is
+    ///     skipped.
+    /// </summary>
+    ExtensionUnavailable,
+
     /// <summary>Anything else.</summary>
     Other
 }
