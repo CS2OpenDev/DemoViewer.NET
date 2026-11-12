@@ -11,6 +11,7 @@ using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Transfer;
+using Microsoft.Extensions.DependencyInjection;
 
 #endregion
 
@@ -26,6 +27,7 @@ public class TransferExporterTests
 {
     private const string Sibling = ".player_round.facts.player_round.json.gz";
     private const string ExtensionId = "net.demoviewer.pack.stratbook";
+    private const string StoresExtensionId = "dev.example.lib";
     private static readonly string[] _rootEntries = ["config", "library", "out"];
 
     [Test]
@@ -56,6 +58,84 @@ public class TransferExporterTests
                 .IsTrue();
             await Assert.That(Directory.EnumerateFiles(plan.BundleFolder, "*.tmp", SearchOption.AllDirectories))
                 .IsEmpty();
+            await Assert.That(TransferManifest.Read(plan.BundleFolder).ExtensionData.Select(e => e.Portability)
+                    .Distinct())
+                .IsEquivalentTo(new[] { StorePortability.PerDemo, StorePortability.LibraryWide }.AsEnumerable())
+                .Because("the fake pack's per-demo, library-wide and own files were all copied, read only");
+        }
+    }
+
+    [Test]
+    public async Task ASubsetExport_CarriesOnlyTheChosenDemosStoreFiles_ButTheLibraryStoresWhole()
+    {
+        using Fixture fx = Fixture.Populated();
+        TransferExporter exporter = fx.Exporter(new DemoCacheStore(fx.CacheRoot));
+        ExportPlan plan = await exporter.PlanAsync(ExportRequest.Chosen([fx.ShaA], fx.OutRoot, false, false),
+            CancellationToken.None);
+        TransferSummary summary = await exporter.RunAsync(plan, null, CancellationToken.None);
+        string bundle = plan.BundleFolder;
+        TransferManifest manifest = TransferManifest.Read(bundle);
+        TransferExtensionFile[] perDemo =
+            [.. manifest.ExtensionData.Where(e => e.Portability == StorePortability.PerDemo)];
+        TransferExtensionFile[] library =
+            [.. manifest.ExtensionData.Where(e => e.Portability == StorePortability.LibraryWide)];
+        string note = $"{StoresExtensionId}-notes/demos/{fx.ShaA}.note.json";
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Failed).IsEmpty();
+            await Assert.That(perDemo.Select(e => (e.StoreId, e.RelativePath, e.DemoSha256)))
+                .IsEquivalentTo(new[] { ((string?)"notes", note, (string?)fx.ShaA) }.AsEnumerable())
+                .Because("B's note stays behind: only the chosen demo's per-demo files go");
+            await Assert.That(manifest.Demos.Single().Files.Select(f => f.Path))
+                .Contains(TransferLayout.ExtensionStoreFile(fx.ShaA, StoresExtensionId, "notes", note));
+            await Assert.That(library.Select(e => (e.StoreId, e.Root, e.RelativePath)).Order()).IsEquivalentTo(new[]
+            {
+                ((string?)"library", StoreRoot.Config, $"{StoresExtensionId}-library/a.json"),
+                ("library", StoreRoot.Config, $"{StoresExtensionId}-library/sub/b.json"),
+                ("library", StoreRoot.Config, $"{StoresExtensionId}-library/My Palette.json"),
+                ("cache-library", StoreRoot.Cache, $"{StoresExtensionId}-cache.json"),
+                (null, StoreRoot.Config, "state.json"),
+                (null, StoreRoot.Cache, "lineups.json.gz")
+            }.Order()).Because("the library stores go whole, without the excluded index, trash or undeclared files");
+            await Assert.That(library.Single(e => e.RelativePath.EndsWith("My Palette.json", StringComparison.Ordinal))
+                    .Path)
+                .StartsWith($"library/{StoresExtensionId}/stores/library/{TransferLayout.HashedNamePrefix}");
+            await Assert.That(plan.LibraryBytes).IsEqualTo(library.Sum(e => e.Size));
+            await Assert.That(plan.Entries.Single().DataBytes).IsGreaterThanOrEqualTo(perDemo.Single().Size);
+            await Assert.That(manifest.Options.IncludeLibraryData).IsTrue();
+        }
+
+        // Every store file is in the bundle as the source has it.
+        foreach (TransferExtensionFile entry in manifest.ExtensionData)
+        {
+            string source = entry.StoreId is null
+                ? fx.OwnFile(entry.Root, entry.RelativePath)
+                : Path.Combine(entry.Root == StoreRoot.Config ? fx.ConfigRoot : fx.CacheRoot, entry.RelativePath);
+            byte[] copied = await File.ReadAllBytesAsync(TransferLayout.FullPath(bundle, entry.Path));
+            await Assert.That(copied).IsEquivalentTo(await File.ReadAllBytesAsync(source)).Because(entry.Path);
+            await Assert.That(Convert.ToHexStringLower(SHA256.HashData(copied))).IsEqualTo(entry.Sha256);
+        }
+    }
+
+    [Test]
+    public async Task WithoutLibraryData_OnlyPerDemoStoreFilesGo()
+    {
+        using Fixture fx = Fixture.Populated();
+        TransferExporter exporter = fx.Exporter(new DemoCacheStore(fx.CacheRoot));
+        ExportPlan plan = await exporter.PlanAsync(
+            ExportRequest.All(fx.OutRoot, false, includeLibraryData: false), CancellationToken.None);
+        await exporter.RunAsync(plan, null, CancellationToken.None);
+        TransferManifest manifest = TransferManifest.Read(plan.BundleFolder);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(plan.LibraryBytes).IsEqualTo(0);
+            await Assert.That(manifest.Options.IncludeLibraryData).IsFalse();
+            await Assert.That(manifest.ExtensionData.Select(e => e.DemoSha256).Order())
+                .IsEquivalentTo(new string?[] { fx.ShaA, fx.ShaB }.Order());
+            await Assert.That(Directory.Exists(Path.Combine(plan.BundleFolder, TransferLayout.LibraryDirectory)))
+                .IsFalse();
         }
     }
 
@@ -78,7 +158,7 @@ public class TransferExporterTests
         {
             await Assert.That(Path.GetFileName(bundle)).StartsWith(TransferLayout.BundleNamePrefix);
             await Assert.That(TransferManifest.CheckAppVersion(manifest)).IsNull();
-            await Assert.That(manifest.Options).IsEqualTo(new TransferManifestOptions(true, true, true));
+            await Assert.That(manifest.Options).IsEqualTo(new TransferManifestOptions(true, true, true, true));
             await Assert.That(manifest.Demos.Count).IsEqualTo(3);
             await Assert.That(aPaths).Contains($"data/{fx.ShaA}/cache/demo.json.gz");
             await Assert.That(aPaths).Contains($"data/{fx.ShaA}/cache/demo{Sibling}");
@@ -95,7 +175,10 @@ public class TransferExporterTests
             await Assert.That(a.Dem).IsEqualTo(new TransferDemFile(TransferLayout.DemFile(fx.ShaA), a.SizeBytes));
             await Assert.That(plain.Files).IsEmpty().Because("a demo not hashed yet carries no data");
             await Assert.That(plain.Dem).IsNotNull().Because("its .dem still travels as a plain demo");
-            await Assert.That(manifest.Extensions.Single()).IsEqualTo(new TransferExtensionVersion(ExtensionId, "9.9.9"));
+            await Assert.That(manifest.Extensions).IsEquivalentTo(new[]
+            {
+                new TransferExtensionVersion(StoresExtensionId), new TransferExtensionVersion(ExtensionId, "9.9.9")
+            }.AsEnumerable()).Because("an extension that carries only stores is listed too, with no version");
             await Assert.That(manifest.RulesetIdentities).IsEquivalentTo(["facts:core:identity-core"])
                 .Because("the manifest records this machine's rules in the shape import compares against");
             await Assert.That(summary.Transferred.Count).IsEqualTo(3);
@@ -412,7 +495,12 @@ public class TransferExporterTests
         public string ShaC { get; private set; } = "";
 
         public TransferSources Sources => new(ConfigRoot, () => [LibraryRoot],
-            () => new TransferEnvironment(["facts:core:identity-core"], []));
+            () => new TransferEnvironment(["facts:core:identity-core"], []), () => [StoresPack.Source()]);
+
+        public string OwnFile(StoreRoot root, string relative) => root == StoreRoot.Config
+            ? Path.Combine(ConfigRoot, ExtensionFolders.DataDirectoryName, StoresExtensionId, relative)
+            : Path.Combine(CacheRoot, ExtensionFolders.DataDirectoryName, StoresExtensionId,
+                ExtensionFolders.OwnCacheDirectoryName, relative);
 
         public void Dispose()
         {
@@ -485,6 +573,7 @@ public class TransferExporterTests
                   ]
                 }
                 """);
+            fx.WriteStores(other);
             // The source's files settle into the past, so a rewrite of any of them would show.
             DateTime past = DateTime.UtcNow.AddMinutes(-10);
             foreach (string file in Directory.EnumerateFiles(fx.Root, "*", SearchOption.AllDirectories))
@@ -493,6 +582,42 @@ public class TransferExporterTests
             }
 
             return fx;
+        }
+
+        // The fake pack's files: what travels, and beside it what must stay (excluded, undeclared, not portable).
+        private void WriteStores(string otherSha)
+        {
+            void Write(string root, string relative, string text)
+            {
+                string path = Path.Combine(root, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, text);
+            }
+
+            string notes = StoresExtensionId + "-notes/demos/";
+            Write(ConfigRoot, notes + ShaA + ".note.json", "note of a");
+            Write(ConfigRoot, notes + ShaB + ".note.json", "note of b");
+            Write(ConfigRoot, notes + otherSha + ".note.json", "note of a demo not in the library");
+            Write(ConfigRoot, StoresExtensionId + "-notes/index.json", "derived");
+            string library = StoresExtensionId + "-library/";
+            Write(ConfigRoot, library + "a.json", "library a");
+            Write(ConfigRoot, library + "sub/b.json", "library b");
+            Write(ConfigRoot, library + "My Palette.json", "a name with a space");
+            Write(ConfigRoot, library + "index.json", "derived");
+            Write(ConfigRoot, library + "sub/index.json", "derived too");
+            Write(ConfigRoot, library + ".trash/old.json", "deleted");
+            Write(ConfigRoot, StoresExtensionId + "-local.json", "stays on this machine");
+            Write(CacheRoot, StoresExtensionId + "-cache.json", "library on the cache root");
+            File.WriteAllText(OwnFileFor(StoreRoot.Config, "state.json"), "own state");
+            File.WriteAllText(OwnFileFor(StoreRoot.Config, "derived.json"), "own but not listed");
+            File.WriteAllText(OwnFileFor(StoreRoot.Cache, "lineups.json.gz"), "own lineups");
+        }
+
+        private string OwnFileFor(StoreRoot root, string relative)
+        {
+            string path = OwnFile(root, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            return path;
         }
 
         private static string WriteDem(string path, int seed, int length)
@@ -523,6 +648,59 @@ public class TransferExporterTests
             }
 
             return record;
+        }
+    }
+
+    /// <summary>
+    ///     An extension pack that declares a per-demo store, two library-wide stores (one per root), a store that
+    ///     stays, and two own paths, read through the host's real enumeration as the app hands it to the exporter.
+    /// </summary>
+    private sealed class StoresPack : IExtension, IExtensionDataPortability
+    {
+        private static readonly StoreDescriptor[] _stores =
+        [
+            new("notes", "Notes", StoreRoot.Config, [StoresExtensionId + "-notes"], true)
+            {
+                Portability = StorePortability.PerDemo,
+                DemoKeyedPaths = [StoresExtensionId + "-notes/demos/{sha256}.note.json"],
+                PortableExcludes = ["index.json"]
+            },
+            new("library", "Library", StoreRoot.Config, [StoresExtensionId + "-library"], true)
+            {
+                Portability = StorePortability.LibraryWide, ExtensionMerges = true,
+                PortableExcludes = ["index.json", ".trash"]
+            },
+            new("cache-library", "Cache library", StoreRoot.Cache, [StoresExtensionId + "-cache.json"], true)
+            {
+                Portability = StorePortability.LibraryWide
+            },
+            new("local", "Local", StoreRoot.Config, [StoresExtensionId + "-local.json"], false)
+        ];
+
+        public string Id => StoresExtensionId;
+        public string FeatureId => "pack." + StoresExtensionId;
+        public IEnumerable<ExtensionFeature> Features => [];
+        public IEnumerable<StoreDescriptor> Stores => _stores;
+
+        public IReadOnlyList<PortableOwnPath> OwnPaths { get; } =
+            [new(StoreRoot.Config, "state.json"), new(StoreRoot.Cache, "lineups.json.gz")];
+
+        public void Register(IServiceCollection services)
+        {
+        }
+
+        public void Contribute(IExtensionContributions contributions, IServiceProvider services) =>
+            contributions.DataPortability(this);
+
+        public Task<ExtensionImportResult> MergeAsync(IExtensionImport import, CancellationToken ct) =>
+            throw new InvalidOperationException("An export runs no extension code.");
+
+        public static TransferExtensionSource Source()
+        {
+            StoresPack pack = new();
+            PackContributions contributions = new(pack, () => null!, guard: ExtensionGuard.Standalone(pack));
+            pack.Contribute(contributions, new ServiceCollection().BuildServiceProvider());
+            return new HostDataTransfer(contributions).ToSource();
         }
     }
 

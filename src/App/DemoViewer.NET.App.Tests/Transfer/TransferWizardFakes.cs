@@ -39,11 +39,12 @@ internal static class TransferWizardFakes
         AppVersion = "0.10.1",
         CreatedUtc = new DateTime(2026, 11, 11, 15, 30, 0, DateTimeKind.Utc),
         SourceOs = "Windows",
-        Options = new TransferManifestOptions(demos.Any(d => d.Dem is not null), true, true),
+        Options = new TransferManifestOptions(demos.Any(d => d.Dem is not null), true, true, false),
         RulesetIdentities = ["core@1"],
         Extensions = [],
         Demos = demos,
-        Shared = []
+        Shared = [],
+        ExtensionData = []
     };
 
     public static ImportPreview Preview(string folder, IReadOnlyList<ImportPreviewEntry> entries,

@@ -27,7 +27,8 @@ public sealed record TransferManifest
         WriteIndented = true,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         RespectNullableAnnotations = true,
-        RespectRequiredConstructorParameters = true
+        RespectRequiredConstructorParameters = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, false) }
     };
 
     /// <summary>Always <see cref="FormatIdValue" />.</summary>
@@ -59,6 +60,13 @@ public sealed record TransferManifest
 
     /// <summary>The files under <see cref="TransferLayout.SharedDirectory" />.</summary>
     public required IReadOnlyList<TransferFile> Shared { get; init; }
+
+    /// <summary>
+    ///     Every file of an extension's declared stores and own folders: the per-demo ones, which their demo's
+    ///     <see cref="TransferDemo.Files" /> also lists, and the library-wide ones under
+    ///     <see cref="TransferLayout.LibraryDirectory" />, which only this lists.
+    /// </summary>
+    public required IReadOnlyList<TransferExtensionFile> ExtensionData { get; init; }
 
     /// <summary>The informational version of this build, which <see cref="AppVersion" /> must equal to import.</summary>
     public static string CurrentAppVersion { get; } =
@@ -230,7 +238,108 @@ public sealed record TransferManifest
             paths.Add(file.Path);
         }
 
+        string? extensionProblem = CheckExtensionData(paths);
+        if (extensionProblem is not null)
+        {
+            return extensionProblem;
+        }
+
         string? duplicate = PathSafety.FindCaseDuplicate(paths);
+        return duplicate is null ? null : $"'{duplicate}' is listed twice, or twice differing only by case";
+    }
+
+    // Each store or own file must sit exactly where its extension, store and relative path put it, so an entry
+    // can never point an import at another store's file; a per-demo one must be a file of its demo, and every
+    // store file a demo lists must be described here.
+    private string? CheckExtensionData(List<string> paths)
+    {
+        Dictionary<string, TransferDemo> demos = Demos.ToDictionary(d => d.Sha256, StringComparer.Ordinal);
+        HashSet<string> described = new(StringComparer.Ordinal);
+        List<string> keys = [];
+        foreach (TransferExtensionFile file in ExtensionData)
+        {
+            string? problem = CheckFile(new TransferFile(file.Path, file.Size, file.Sha256));
+            if (problem is not null)
+            {
+                return problem;
+            }
+
+            if (!TransferLayout.IsPortableSegment(file.ExtensionId)
+                || file.StoreId is { } id && !TransferLayout.IsPortableSegment(id))
+            {
+                return $"'{file.Path}' names an extension or store id that is not portable";
+            }
+
+            if (!Enum.IsDefined(file.Root) || file.RelativePath.Contains('\\', StringComparison.Ordinal))
+            {
+                return $"'{file.Path}' has a malformed root or relative path";
+            }
+
+            string? expected;
+            try
+            {
+                expected = (file.Portability, file.StoreId, file.DemoSha256) switch
+                {
+                    (StorePortability.PerDemo, { } store, { } sha) =>
+                        TransferLayout.ExtensionStoreFile(sha, file.ExtensionId, store, file.RelativePath),
+                    (StorePortability.LibraryWide, { } store, null) =>
+                        TransferLayout.LibraryStoreFile(file.ExtensionId, store, file.RelativePath),
+                    (StorePortability.LibraryWide, null, null) =>
+                        TransferLayout.LibraryOwnFile(file.ExtensionId, file.Root, file.RelativePath),
+                    _ => null
+                };
+            }
+            catch (ArgumentException)
+            {
+                return $"'{file.RelativePath}' is not a safe relative path";
+            }
+
+            if (expected is null)
+            {
+                return $"'{file.Path}' has a portability that does not fit its store and demo";
+            }
+
+            if (!string.Equals(file.Path, expected, StringComparison.Ordinal))
+            {
+                return $"'{file.Path}' is not where '{file.RelativePath}' belongs ('{expected}')";
+            }
+
+            if (file.DemoSha256 is { } demoSha)
+            {
+                if (!demos.TryGetValue(demoSha, out TransferDemo? demo)
+                    || !demo.Files.Contains(new TransferFile(file.Path, file.Size, file.Sha256)))
+                {
+                    return $"'{file.Path}' is not a file of demo {demoSha}";
+                }
+
+                described.Add(file.Path);
+            }
+            else
+            {
+                paths.Add(file.Path);
+            }
+
+            keys.Add(file.ExtensionId + "/" + (file.StoreId is { } storeId
+                ? TransferLayout.StoresDirectory + "/" + storeId
+                : TransferLayout.OwnDirectory + "/" + TransferLayout.RootName(file.Root)) + "/"
+                + (file.DemoSha256 ?? "") + "/" + file.RelativePath);
+        }
+
+        foreach (TransferDemo demo in Demos)
+        {
+            foreach (TransferFile file in demo.Files)
+            {
+                string[] parts = file.Path.Split('/');
+                if (parts is [_, _, TransferLayout.ExtensionDirectory, _, TransferLayout.StoresDirectory, ..]
+                    && !described.Contains(file.Path))
+                {
+                    return $"'{file.Path}' is a store file the manifest does not describe";
+                }
+            }
+        }
+
+        // Hashed names differ for paths that differ only by case, so the originals are compared too.
+        string? duplicate = PathSafety.FindCaseDuplicate(keys);
         return duplicate is null ? null : $"'{duplicate}' is listed twice, or twice differing only by case";
     }
 
@@ -256,7 +365,44 @@ public sealed record TransferManifest
 /// <param name="IncludeDemFiles">The bundle carries <c>.dem</c> copies under <see cref="TransferLayout.DemDirectory" />.</param>
 /// <param name="IncludeUserData">The bundle carries annotations, breakpoints and review-queue entries.</param>
 /// <param name="AllDemos">The whole library was exported, not a chosen set.</param>
-public sealed record TransferManifestOptions(bool IncludeDemFiles, bool IncludeUserData, bool AllDemos);
+/// <param name="IncludeLibraryData">The bundle carries the extensions' library-wide stores and own files.</param>
+public sealed record TransferManifestOptions(
+    bool IncludeDemFiles,
+    bool IncludeUserData,
+    bool AllDemos,
+    bool IncludeLibraryData);
+
+/// <summary>
+///     A file of an extension's declared store or own folder in the bundle. Its bundle path follows from the other
+///     members (<see cref="TransferLayout.ExtensionStoreFile" />, <see cref="TransferLayout.LibraryStoreFile" />,
+///     <see cref="TransferLayout.LibraryOwnFile" />), so a name that is not portable is hashed there and kept
+///     whole in <see cref="RelativePath" />.
+/// </summary>
+/// <param name="Path">Bundle-relative, <c>/</c>-separated.</param>
+/// <param name="Size">Its length in bytes.</param>
+/// <param name="Sha256">Lowercase-hex SHA-256 of its bytes.</param>
+/// <param name="ExtensionId">The extension that declared it.</param>
+/// <param name="StoreId">The declared store, or null for a file of the extension's own folder.</param>
+/// <param name="Root">The store's root, or the root of the own folder.</param>
+/// <param name="Portability">
+///     <see cref="StorePortability.PerDemo" /> for a demo-keyed store file, else
+///     <see cref="StorePortability.LibraryWide" />.
+/// </param>
+/// <param name="RelativePath">
+///     The original path, <c>/</c>-separated: relative to the store's root for a store, relative to the own
+///     folder for an own file.
+/// </param>
+/// <param name="DemoSha256">The demo a per-demo file belongs to; null otherwise.</param>
+public sealed record TransferExtensionFile(
+    string Path,
+    long Size,
+    string Sha256,
+    string ExtensionId,
+    string? StoreId,
+    StoreRoot Root,
+    StorePortability Portability,
+    string RelativePath,
+    string? DemoSha256);
 
 /// <summary>An extension whose data the bundle carries.</summary>
 public sealed record TransferExtensionVersion(string Id, string? Version = null);

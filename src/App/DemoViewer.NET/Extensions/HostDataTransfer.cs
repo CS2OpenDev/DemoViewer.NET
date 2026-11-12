@@ -1,3 +1,9 @@
+#region
+
+using DemoViewer.NET.Services.Transfer;
+
+#endregion
+
 namespace DemoViewer.NET.Extensions;
 
 /// <summary>
@@ -29,6 +35,18 @@ internal sealed class HostDataTransfer
             ? _pack.Guard.OwnFeature("data portability",
                 _pack.Guard.Run("data portability", () => portability.FeatureId, null))
             : _pack.Pack.FeatureId;
+
+    /// <summary>The extension's own name, as its master switch shows it.</summary>
+    public string Label =>
+        _pack.Guard.Run("feature list",
+            () => _pack.Pack.Features.FirstOrDefault(f => f.Id == _pack.Pack.FeatureId)?.Label, null)
+        ?? _pack.Pack.Id;
+
+    /// <summary>
+    ///     What the exporter copies for the extension: a plain snapshot of the stores and own paths, so the copy
+    ///     itself never calls into the extension.
+    /// </summary>
+    public TransferExtensionSource ToSource() => new(_pack.Pack.Id, Label, Stores, OwnPaths);
 
     /// <summary>The accepted stores that travel, in declaration order.</summary>
     public IReadOnlyList<StoreDescriptor> Stores =>

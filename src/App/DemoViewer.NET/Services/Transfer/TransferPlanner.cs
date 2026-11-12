@@ -19,10 +19,14 @@ namespace DemoViewer.NET.Services.Transfer;
 ///     This machine's rules and extensions, recorded in the manifest in the shape import compares against; null
 ///     records none, so import has nothing to call stale.
 /// </param>
+/// <param name="Extensions">
+///     What each enabled extension declared for transfer, read once per plan; null carries no extension stores.
+/// </param>
 public sealed record TransferSources(
     string? ConfigRoot,
     Func<IReadOnlyList<string>> LibraryRoots,
-    Func<TransferEnvironment>? Environment = null)
+    Func<TransferEnvironment>? Environment = null,
+    Func<IReadOnlyList<TransferExtensionSource>>? Extensions = null)
 {
     /// <summary>Breakpoints, as <see cref="AppPaths.GraphBreakpointsFile" /> names them under the config root.</summary>
     // Not read through AppPaths: its resolve migrates legacy files, and an export writes nothing at the source.
@@ -46,6 +50,12 @@ internal sealed class TransferPlanner(
 
     /// <summary>The cache root the store reads, or null for an in-memory store.</summary>
     public string? CacheRoot => cache.CacheRoot;
+
+    /// <summary>Lists the extensions' store and own files under the config and cache roots.</summary>
+    public ExtensionStoreFiles Stores => new(sources.ConfigRoot, CacheRoot);
+
+    /// <summary>What the enabled extensions declared for transfer, as they declare it now.</summary>
+    public IReadOnlyList<TransferExtensionSource> ExtensionSources() => sources.Extensions?.Invoke() ?? [];
 
     /// <summary>Every extension's per-demo data folder, with the extension's id.</summary>
     public IReadOnlyList<(string ExtensionId, string Root)> ExtensionRoots()
@@ -122,14 +132,19 @@ internal sealed class TransferPlanner(
             ]
             : [];
 
-    /// <summary>The entries and warnings for <paramref name="request" />, in library order.</summary>
-    public (List<ExportPlanEntry> Entries, List<TransferWarning> Warnings, long SharedBytes) Plan(
-        ExportRequest request, CancellationToken ct)
+    /// <summary>
+    ///     The entries and warnings for <paramref name="request" />, in library order, with the bytes of the shared
+    ///     files and of <paramref name="extensionSources" />' library-wide data.
+    /// </summary>
+    public (List<ExportPlanEntry> Entries, List<TransferWarning> Warnings, long SharedBytes, long LibraryBytes)
+        Plan(ExportRequest request, IReadOnlyList<TransferExtensionSource> extensionSources, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(extensionSources);
         IReadOnlyList<DemoCacheIndexEntry> contents = cache.Contents;
         HashSet<string> inFlight = InFlightPaths();
         IReadOnlyList<(string ExtensionId, string Root)> extensions = ExtensionRoots();
+        ExtensionStoreFiles stores = Stores;
 
         List<ExportPlanEntry> entries = [];
         HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
@@ -154,17 +169,21 @@ internal sealed class TransferPlanner(
             }
 
             entries.Add(row.Sha256 is { Length: > 0 }
-                ? Hashed(row, request, inFlight, extensions)
+                ? Hashed(row, request, inFlight, extensions, sha => extensionSources.Sum(s =>
+                    stores.PerDemo(s, sha).Sum(f => f.Size)))
                 : new ExportPlanEntry(null, row.Path, DisplayName(row.Path), row.Map, ExportEntryStatus.NotHashed, 0,
                     request.IncludeDemFiles ? _demLength(row.Path) ?? 0 : 0));
         }
 
         long sharedBytes = request.IncludeUserData ? SharedSources().Sum(s => FileLength(s.Source) ?? 0) : 0;
-        return (entries, Warnings(entries, request), sharedBytes);
+        long libraryBytes = request.IncludeLibraryData
+            ? extensionSources.Sum(s => stores.LibraryWide(s).Sum(f => f.Size))
+            : 0;
+        return (entries, Warnings(entries, request), sharedBytes, libraryBytes);
     }
 
     private ExportPlanEntry Hashed(DemoCacheIndexEntry row, ExportRequest request, HashSet<string> inFlight,
-        IReadOnlyList<(string ExtensionId, string Root)> extensions)
+        IReadOnlyList<(string ExtensionId, string Root)> extensions, Func<string, long> storeBytes)
     {
         string sha = row.Sha256!.ToLowerInvariant();
         IReadOnlyList<DemoCacheFile> files = cache.SnapshotFiles(sha);
@@ -175,7 +194,8 @@ internal sealed class TransferPlanner(
 
         IReadOnlyList<string> paths = PathsOf(sha);
         long data = files.Sum(f => f.Size)
-                    + extensions.Sum(e => ExtensionDemoDataStore.FilesFor(e.Root, sha).Sum(f => f.Size));
+                    + extensions.Sum(e => ExtensionDemoDataStore.FilesFor(e.Root, sha).Sum(f => f.Size))
+                    + storeBytes(sha);
         if (request.IncludeUserData && AnnotationsOf(sha, paths) is { } annotations)
         {
             data += FileLength(annotations) ?? 0;

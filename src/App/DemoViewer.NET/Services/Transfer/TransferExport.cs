@@ -9,21 +9,27 @@ namespace DemoViewer.NET.Services.Transfer;
 /// <param name="IncludeDemFiles">Copy the <c>.dem</c> files too.</param>
 /// <param name="IncludeUserData">Carry annotations, breakpoints and review-queue entries.</param>
 /// <param name="DestinationFolder">The folder the user picked; the bundle folder is created inside it.</param>
+/// <param name="IncludeLibraryData">
+///     Carry the extensions' library-wide stores and own files (strats, teams, lineups, notes), whole even when
+///     only some demos are chosen. Per-demo stores go with their demo either way.
+/// </param>
 public sealed record ExportRequest(
     bool AllDemos,
     IReadOnlyList<string> DemoKeys,
     bool IncludeDemFiles,
     bool IncludeUserData,
-    string DestinationFolder)
+    string DestinationFolder,
+    bool IncludeLibraryData = true)
 {
     /// <summary>A request for the whole library.</summary>
-    public static ExportRequest All(string destinationFolder, bool includeDemFiles, bool includeUserData = true) =>
-        new(true, [], includeDemFiles, includeUserData, destinationFolder);
+    public static ExportRequest All(string destinationFolder, bool includeDemFiles, bool includeUserData = true,
+        bool includeLibraryData = true) =>
+        new(true, [], includeDemFiles, includeUserData, destinationFolder, includeLibraryData);
 
     /// <summary>A request for <paramref name="demoKeys" />.</summary>
     public static ExportRequest Chosen(IReadOnlyList<string> demoKeys, string destinationFolder,
-        bool includeDemFiles, bool includeUserData = true) =>
-        new(false, demoKeys, includeDemFiles, includeUserData, destinationFolder);
+        bool includeDemFiles, bool includeUserData = true, bool includeLibraryData = true) =>
+        new(false, demoKeys, includeDemFiles, includeUserData, destinationFolder, includeLibraryData);
 }
 
 /// <summary>Whether and how a demo goes into the bundle.</summary>
@@ -88,8 +94,20 @@ public sealed record ExportPlan(
     long SharedBytes,
     IReadOnlyList<TransferWarning> Warnings)
 {
+    /// <summary>
+    ///     The bytes of the extensions' library-wide stores and own files, when the request carries them. Part of
+    ///     <see cref="TotalBytes" />.
+    /// </summary>
+    public long LibraryBytes { get; init; }
+
+    /// <summary>
+    ///     What each enabled extension declared for transfer, read once when the plan was made, so the run copies
+    ///     by this list and never asks an extension again.
+    /// </summary>
+    public IReadOnlyList<TransferExtensionSource> ExtensionSources { get; init; } = [];
+
     /// <summary>Everything the export writes.</summary>
-    public long TotalBytes => Entries.Sum(e => e.TotalBytes) + SharedBytes;
+    public long TotalBytes => Entries.Sum(e => e.TotalBytes) + SharedBytes + LibraryBytes;
 
     /// <summary>The largest single file, for the FAT32 check: the biggest <c>.dem</c>, else the biggest data total.</summary>
     public long LargestFileBytes => Entries.Count == 0 ? 0 : Entries.Max(e => Math.Max(e.DemBytes, e.DataBytes));
