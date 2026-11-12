@@ -1,54 +1,49 @@
-## What's new in 0.10.0
+## What's new in 0.11.0
 
-Your own themes, a clear warning before anything touches your CS2 install, a first-run setup that
-actually fills your library, and a switch for the app's automatic update checks.
+Carry your analysis between computers, a Scouting Report for the teams you play, and first-party
+extensions you can install and remove from Settings.
 
-**Theme Customization.** Settings > Theme > **Customize…** opens a window where you can make your own
-copy of any theme and change every colour in it, with a live preview of panels, lists, the stats
-table, the 2D map, the rule editor and the analysis graph. Turn on **Apply to the app while editing**
-to see the change across the whole app before you save, and Cancel puts everything back. Light,
-Dark, High Contrast and E-Girl are built in and marked with a **Built-in** chip; they can't be
-changed, only copied. Your copies are plain JSON files in your themes folder, and complete examples
-of all four built-ins are in `samples/Themes` in the repository.
+**Move your library between computers.** Settings > Data transfer has **Export…** and **Import…**.
+Analyse your demos on the computer with the fast connection to your demo storage, export to a
+portable drive, and import on your laptop: the stats, highlights, round facts, annotations and
+review clips come with them, so nothing is analysed again. Pick every demo or choose them by
+search, map or team, and decide whether to copy the `.dem` files too. Your Strat Book library
+travels as well (strats with their history, teams, lineups and clips, notes, tags, veto history and
+team ranks) and merges with what is already there. When both computers changed the same thing,
+**Keep mine** is the default, with **Take imported** and **Keep both** available. A strat edited on
+one computer and synced back and forth fast-forwards instead of conflicting. The export only reads
+from your library; it never changes it. Both computers need to run the same version of the app.
 
-**Themes from older versions keep working.** A theme that leaves out a colour, including colours
-added in later versions, uses its base theme's value instead of failing. If your selected theme is
-missing colours the app says so once, and **Fix in Theme Customization** opens the editor with only
-the missing colours listed and a **Fill missing from base** button. A theme file that doesn't load
-is listed in Settings with the reason.
+**The Scouting Report replaces the Opponent Dossier.** One page per opponent: record, ranks and
+head-to-head, the roster and map pool, then the map in view with a CT/T switch and a buy filter.
+Toggle layers onto the map (setups, AWP routes, opening duels, utility, retakes and saves, plants,
+lurks, rotations and detected strats) and hover or click a mark to see what it is and the rounds
+behind it. Every number opens its rounds in Review. Star what matters and export a one-pager or the
+full report as HTML or Markdown. Your Dossier notes and review clips carry over.
 
-**A warning before Live Sync or Reels start CS2.** Both launch CS2 with `-insecure`, which turns VAC
-off for that session, and both temporarily patch your CS2 install. The app now says so before the
-first launch, with what it changes and that it restores everything afterwards, and keeps a one-line
-reminder next to the launch button. You can tell it not to ask again.
+**Install first-party extensions the app doesn't ship.** Settings lists **Available extensions** with
+Install, and installed ones get Update and Remove. Signed updates can be staged automatically at
+launch; turn that off with the new extension auto-update toggle.
 
-**Recovering a CS2 install after a crash.** If the app or CS2 stopped while the install was patched,
-every profile now sees a banner offering to restore it, not only the developer profile. Restoring
-needs CS2 closed, and Live Sync and Reels put the install back themselves before launching
-again.
+**Fixes.** Switching away from the 2D map with unsaved drawings no longer hangs the app. The game
+clock in 2D video exports matches the live view on GOTV demos. Round scores are right for demos that
+start recording after round 1 and for matches where a backup restore took a round back. Grenades
+thrown by a player who dies mid-throw keep their thrower. Map floors read Upper and Lower.
 
-**First-run setup fills your library.** Folders you added in the setup wizard didn't reach the
-Library tab, so you had to add them again. The library now follows folder changes from Settings and
-the wizard and scans the new folders straight away.
-
-**A walkthrough that matches your profile.** The tour only visits the parts of the app your profile
-shows, and now covers Player Overview, the report-an-error button, drawing on the 2D map and
-exporting it, the Strat Book and writing your own rules.
-
-**Turn off automatic update checks.** Settings > Updates has **Check for updates automatically**,
-on by default. Off, the app makes no update requests of its own: no check at launch, no release notes
-fetched for the What's New window, and no extension update check when Settings opens. The **Check**
-buttons still work when you want them.
-
-**Smaller fixes.** The Strat Book's update check no longer reports an error when no extension update
-has been published yet. Syntax colours in the rule editor keep their transparency.
-
-**For extension authors.** The extension SDK is 2.1, built against CS2DemoKit 0.14.1; the SDK
-README lists what 2.1 adds. Live Sync and Reels now use Cs2VideoGenerator.Core 0.10.1, its first
-MIT-licensed release, listed in THIRD-PARTY-NOTICES.
+**For extension authors.** The extension SDK is 2.3, built against CS2DemoKit 0.15.0. 2.2 adds
+`FollowPlayer`, scoped Player Overview links, previous ids for renamed features and tabs, and game
+providers for collectors. 2.3 adds data portability so an extension's stores can travel with Data
+transfer (`StoreDescriptor.Portability`, `IExtensionDataPortability`, `DataImported`). The Strat
+Book requires host 2.3.
 
 <details>
-<summary>What was new in 0.9.0 and earlier</summary>
+<summary>What was new in 0.10.0 and earlier</summary>
+
+**0.10.0** brought Theme Customization, with your own copies of any theme and a live preview; a
+warning before Live Sync or Reels launch CS2 with `-insecure`, and a restore banner on every profile
+if a patched install was left behind; a first-run setup whose folders reach the Library straight
+away; a walkthrough that follows your profile; and a switch to turn off automatic update checks.
+
 
 **0.9.0** brought third-party extensions, loaded in their own context with a signature check and
 an opt-in for unsigned ones, with faults contained and a `--safe-mode` launch; a library that knows
