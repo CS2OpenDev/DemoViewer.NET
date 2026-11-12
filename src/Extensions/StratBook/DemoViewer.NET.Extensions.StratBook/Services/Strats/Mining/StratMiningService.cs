@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Generated;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
@@ -532,6 +533,82 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
             _rerun = false;
             return true;
         }
+    }
+
+    /// <summary>
+    ///     Folds another machine's choices in: its dismissals join this machine's, and a pattern it promoted is
+    ///     recorded as promoted only when that strat is in the store, so run this after the strats import. A pattern
+    ///     both machines promoted to different strats keeps this machine's strat unless the user asked for the
+    ///     imported one. A second import of the same file changes nothing.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the extension's own config folder; read only.</param>
+    /// <param name="ledger">The policy, the report and the counts.</param>
+    public void Import(IExtensionFolder? staged, ImportLedger ledger)
+    {
+        ArgumentNullException.ThrowIfNull(ledger);
+        if (ledger.ReadJson<MiningState>(staged, StratMiningFiles.StatePath, _jsonOptions) is not { } incoming)
+        {
+            return;
+        }
+
+        if (incoming.SchemaVersion > StateSchemaVersion || _stateRefused)
+        {
+            ledger.Report(_stateRefused
+                ? $"no Strat Mining choices were imported: {StateProblem}"
+                : $"{StratMiningFiles.StatePath} in the bundle is newer than this build reads; no Strat Mining choices were imported");
+            return;
+        }
+
+        HashSet<Guid> strats = [.. _strats.Index.Select(e => e.Id)];
+        List<string> dismissed;
+        List<KeyValuePair<string, Guid>> promoted = [];
+        lock (_gate)
+        {
+            dismissed = [.. incoming.Dismissed.Where(k => !_state.Dismissed.Contains(k))];
+            foreach ((string key, Guid id) in incoming.Promoted)
+            {
+                if (!strats.Contains(id))
+                {
+                    ledger.CountSkipped();
+                }
+                else if (!_state.Promoted.TryGetValue(key, out Guid mine))
+                {
+                    promoted.Add(new KeyValuePair<string, Guid>(key, id));
+                    ledger.CountAdded();
+                }
+                else if (mine == id)
+                {
+                    ledger.CountSkipped();
+                }
+                else
+                {
+                    ledger.CountConflict();
+                    if (ledger.Policy == ImportConflictPolicy.TakeImported)
+                    {
+                        promoted.Add(new KeyValuePair<string, Guid>(key, id));
+                    }
+                }
+            }
+        }
+
+        if (dismissed.Count == 0 && promoted.Count == 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < dismissed.Count; i++)
+        {
+            ledger.CountAdded();
+        }
+
+        Mutate(state =>
+        {
+            state.Dismissed.UnionWith(dismissed);
+            foreach ((string key, Guid id) in promoted)
+            {
+                state.Promoted[key] = id;
+            }
+        });
     }
 
     /// <summary>Hides a pattern from the inbox for good, across re-mines.</summary>

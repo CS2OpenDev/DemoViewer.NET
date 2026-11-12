@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 
 #endregion
 
@@ -83,6 +84,21 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
 
     /// <summary>False until teams.json and the index have been read; the tabs show a loading line meanwhile.</summary>
     public bool IsLoaded => _load.IsDone;
+
+    /// <summary>
+    ///     False until the pack's lifecycle attaches the service. Detached, it reads nothing and saves nothing, so a
+    ///     merge into it would be lost.
+    /// </summary>
+    internal bool IsAttached
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _attached;
+            }
+        }
+    }
 
     /// <param name="files">The user's file and the derived index, or null for a session-only store (the browser, tests).</param>
     /// <param name="library">The demo library the side keys come from.</param>
@@ -1374,6 +1390,348 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         RaiseChanged();
     }
 
+    // ── Library Transfer ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    ///     Folds another machine's <c>teams.json</c> into this one and says where each of its teams landed. An
+    ///     imported team matches a local one by id, through a merge either side made (a tombstone or
+    ///     <see cref="Team.MergedFrom" />), by both being us, or by a roster with the same fixed five or squad. A match
+    ///     keeps the local team as it is and records the imported id in its <see cref="Team.MergedFrom" />, so the
+    ///     next import matches it by id; the imported name or notes are taken only where the local team has none of
+    ///     its own, or under <see cref="ImportConflictPolicy.TakeImported" />. An unmatched team is added when the
+    ///     user made it or an imported store points at it; clustering's own leftovers are not. Side and provenance
+    ///     overrides keyed by content hash are added where this machine has none for that demo and side; ones keyed
+    ///     by the other machine's path key name nothing here and are dropped. The accounts (<c>me</c>) are this
+    ///     machine's and are never imported. A second import of the same file changes nothing.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the store, holding <see cref="TeamsFileName" />; read only.</param>
+    /// <param name="ledger">The policy, the report and the counts.</param>
+    /// <param name="referencedByImport">Imported team ids the bundle's other stores point at; they are kept.</param>
+    public TeamIdMap ImportTeams(IExtensionFolder? staged, ImportLedger ledger,
+        IReadOnlySet<Guid>? referencedByImport = null)
+    {
+        ArgumentNullException.ThrowIfNull(ledger);
+        if (ledger.ReadJson<TeamsFile>(staged, TeamsFileName, TeamsFile.JsonOptions) is not { } imported)
+        {
+            return TeamIdMap.Identity;
+        }
+
+        if (imported.SchemaVersion > TeamsFile.CurrentSchema)
+        {
+            ledger.Report($"{TeamsFileName} in the bundle is newer than this build reads; no teams were imported");
+            return TeamIdMap.Identity;
+        }
+
+        LoadOnce load;
+        lock (_gate)
+        {
+            load = _load;
+        }
+
+        load.Ensure();
+        Dictionary<Guid, Guid> map = [];
+        lock (_gate)
+        {
+            // Released since the caller checked, or released and attached again with nothing read: teams merged
+            // now would never be saved while the stores after them were rewritten to their ids.
+            if (!_attached || !ReferenceEquals(load, _load))
+            {
+                ledger.Stop("the Strat Book was switched off during the import, so nothing of it was imported; "
+                            + "import the bundle again once it is on");
+                return TeamIdMap.Identity;
+            }
+
+            if (_teamsRefused)
+            {
+                ledger.Report($"no teams were imported: {TeamsFileProblem}");
+                return TeamIdMap.Identity;
+            }
+
+            // An override is user truth about a team, so the team it names is kept like one a store names.
+            HashSet<Guid> keep = [.. referencedByImport ?? new HashSet<Guid>()];
+            keep.UnionWith(imported.Overrides.Where(o => o.DemoSha256 is not null).Select(o => o.TeamId)
+                .OfType<Guid>());
+
+            bool changed = false;
+            foreach (Team incoming in imported.Teams.Where(t => t.Id != Guid.Empty))
+            {
+                if (MatchFor(incoming) is { } local)
+                {
+                    changed |= FoldImported(local, incoming, ledger);
+                    MapImported(map, incoming, local.Id);
+                    continue;
+                }
+
+                // A tombstone this machine cannot follow to a live team: never recreate it.
+                if (_teams.Tombstones.Contains(incoming.Id) || (incoming.IsAuto && !keep.Contains(incoming.Id)))
+                {
+                    ledger.CountSkipped();
+                    continue;
+                }
+
+                Team added = CloneTeam(incoming);
+                added.IsUs &= !_teams.Teams.Any(t => t.IsUs);
+                _teams.Teams.Add(added);
+                MapImported(map, added, added.Id);
+                ledger.CountAdded();
+                changed = true;
+            }
+
+            // Before the bundle's own tombstones join this machine's: only a team deleted here drops what points at it.
+            List<Guid> dropped =
+            [
+                .. keep.Where(id => !map.ContainsKey(id) && _teams.Tombstones.Contains(id) && _teams.Find(id) is null
+                                    && HeirOf(id) is null)
+            ];
+
+            foreach (Guid tombstone in imported.Tombstones)
+            {
+                if (_teams.Find(tombstone) is null && !_teams.Tombstones.Contains(tombstone))
+                {
+                    _teams.Tombstones.Add(tombstone);
+                    changed = true;
+                }
+            }
+
+            foreach (string dismissed in imported.DismissedSuggestions)
+            {
+                if (!_teams.DismissedSuggestions.Contains(dismissed, StringComparer.Ordinal))
+                {
+                    _teams.DismissedSuggestions.Add(dismissed);
+                    changed = true;
+                }
+            }
+
+            TeamIdMap teamMap = new(map, dropped);
+            int unhashed = imported.Overrides.Count(o => o.DemoSha256 is null)
+                + imported.Provenance.Overrides.Count(o => o.DemoSha256 is null);
+            changed |= ImportSideOverrides(imported.Overrides, teamMap, ledger);
+            changed |= ImportProvenanceOverrides(imported.Provenance.Overrides, ledger);
+            if (unhashed > 0)
+            {
+                ledger.Report(
+                    $"{unhashed} demo override(s) were left out: the other machine had not hashed those demos yet");
+            }
+
+            if (changed)
+            {
+                lock (_referencesGate)
+                {
+                    // Until the stores imported next report their teams, which replaces this set.
+                    _referenced = [.. _referenced, .. keep.Select(teamMap.Map)];
+                }
+
+                Recompute();
+            }
+
+            return teamMap;
+        }
+    }
+
+    // Under _gate. The first rule that finds a live team wins, in the order the import design lists them.
+    private Team? MatchFor(Team incoming)
+    {
+        if (_teams.Find(incoming.Id) is { } same)
+        {
+            return same;
+        }
+
+        if (HeirOf(incoming.Id) is { } heir)
+        {
+            return heir;
+        }
+
+        foreach (Guid folded in incoming.MergedFrom)
+        {
+            if ((_teams.Find(folded) ?? HeirOf(folded)) is { } local)
+            {
+                return local;
+            }
+        }
+
+        if (incoming.IsUs && _teams.Teams.FirstOrDefault(t => t.IsUs) is { } us)
+        {
+            return us;
+        }
+
+        return _teams.Teams.FirstOrDefault(local => local.Rosters.Any(mine =>
+            incoming.Rosters.Any(theirs => SameAnchor(mine, theirs))));
+    }
+
+    // Merge flattens MergedFrom, so the live team holding an id is its heir in one step.
+    private Team? HeirOf(Guid id) => _teams.Teams.FirstOrDefault(t => t.MergedFrom.Contains(id));
+
+    private static bool SameAnchor(Roster a, Roster b) =>
+        (a.HasCoreLineup && b.HasCoreLineup && a.CoreLineup!.ToHashSet(StringComparer.Ordinal)
+            .SetEquals(b.CoreLineup!))
+        || (a.IsSquad && b.IsSquad && a.Squad!.ToHashSet(StringComparer.Ordinal).SetEquals(b.Squad!));
+
+    // Under _gate. The local team stays the user's: its rosters always, its name and notes unless it has none
+    // of its own. True when anything changed.
+    private bool FoldImported(Team local, Team incoming, ImportLedger ledger)
+    {
+        bool changed = false;
+        foreach (Guid id in incoming.MergedFrom.Prepend(incoming.Id))
+        {
+            if (id != local.Id && _teams.Find(id) is null && HeirOf(id) is null)
+            {
+                local.MergedFrom.Add(id);
+                if (!_teams.Tombstones.Contains(id))
+                {
+                    _teams.Tombstones.Add(id);
+                }
+
+                changed = true;
+            }
+        }
+
+        if (incoming.IsUs && !_teams.Teams.Any(t => t.IsUs))
+        {
+            local.IsUs = true;
+            changed = true;
+        }
+
+        bool take = ledger.Policy == ImportConflictPolicy.TakeImported;
+        bool differs = false;
+        if (incoming.NameSource == TeamNameSource.User
+            && !string.Equals(local.Name, incoming.Name, StringComparison.Ordinal))
+        {
+            // A name the user typed there beats a clan tag here; two typed names are a conflict.
+            differs = local.NameSource == TeamNameSource.User;
+            if (take || !differs)
+            {
+                local.Name = incoming.Name;
+                local.NameSource = TeamNameSource.User;
+                changed = true;
+            }
+        }
+
+        if (incoming.Notes.Length > 0 && !string.Equals(local.Notes, incoming.Notes, StringComparison.Ordinal))
+        {
+            bool mine = local.Notes.Length > 0;
+            differs |= mine;
+            if (take || !mine)
+            {
+                local.Notes = incoming.Notes;
+                changed = true;
+            }
+        }
+
+        if (differs)
+        {
+            ledger.CountConflict();
+        }
+        else if (changed)
+        {
+            ledger.CountMerged();
+        }
+        else
+        {
+            ledger.CountSkipped();
+        }
+
+        return changed;
+    }
+
+    // Under _gate. The imported team and the ids it had folded in all land on one local team, unless an id is a
+    // separate live team here: two teams the other machine merged stay apart on this one.
+    private void MapImported(Dictionary<Guid, Guid> map, Team incoming, Guid local)
+    {
+        map[incoming.Id] = local;
+        foreach (Guid folded in incoming.MergedFrom)
+        {
+            if (folded == local || _teams.Find(folded) is null)
+            {
+                map.TryAdd(folded, local);
+            }
+        }
+    }
+
+    private static Team CloneTeam(Team team) =>
+        JsonSerializer.Deserialize<Team>(JsonSerializer.Serialize(team, TeamsFile.JsonOptions), TeamsFile.JsonOptions)
+        ?? throw new InvalidOperationException("a team did not survive a copy");
+
+    // Under _gate. A demo and side that already has an override here keeps it, unless the user asked for the
+    // imported one. A local override still on the path key counts once its demo has a hash.
+    private bool ImportSideOverrides(IEnumerable<TeamOverride> overrides, TeamIdMap teamMap, ImportLedger ledger)
+    {
+        bool changed = false;
+        foreach (TeamOverride incoming in overrides.Where(o => o.DemoSha256 is not null))
+        {
+            Guid? teamId = teamMap.Map(incoming.TeamId);
+            TeamOverride? local = _teams.Overrides.FirstOrDefault(o =>
+                o.Side == incoming.Side && string.Equals(ShaOf(o), incoming.DemoSha256, StringComparison.Ordinal));
+            if (local is null)
+            {
+                _teams.Overrides.Add(new TeamOverride
+                {
+                    DemoSha256 = incoming.DemoSha256, Side = incoming.Side, TeamId = teamId
+                });
+                ledger.CountAdded();
+                changed = true;
+            }
+            else if (local.TeamId == teamId)
+            {
+                ledger.CountSkipped();
+            }
+            else
+            {
+                ledger.CountConflict();
+                if (ledger.Policy == ImportConflictPolicy.TakeImported)
+                {
+                    local.TeamId = teamId;
+                    changed = true;
+                }
+            }
+        }
+
+        return changed;
+    }
+
+    // Under _gate. The same rule for the provenance labels.
+    private bool ImportProvenanceOverrides(IEnumerable<ProvenanceOverride> overrides, ImportLedger ledger)
+    {
+        bool changed = false;
+        foreach (ProvenanceOverride incoming in overrides.Where(o => o.DemoSha256 is not null))
+        {
+            ProvenanceOverride? local = _teams.Provenance.Overrides.FirstOrDefault(o =>
+                string.Equals(ShaOf(o), incoming.DemoSha256, StringComparison.Ordinal));
+            if (local is null)
+            {
+                _teams.Provenance.Overrides.Add(new ProvenanceOverride
+                {
+                    DemoSha256 = incoming.DemoSha256, Label = incoming.Label
+                });
+                ledger.CountAdded();
+                changed = true;
+            }
+            else if (string.Equals(local.Label, incoming.Label, StringComparison.Ordinal))
+            {
+                ledger.CountSkipped();
+            }
+            else
+            {
+                ledger.CountConflict();
+                if (ledger.Policy == ImportConflictPolicy.TakeImported)
+                {
+                    _teams.Provenance.Overrides.Remove(local);
+                    _teams.Provenance.Overrides.Add(new ProvenanceOverride
+                    {
+                        DemoSha256 = incoming.DemoSha256, Label = incoming.Label
+                    });
+                    changed = true;
+                }
+            }
+        }
+
+        return changed;
+    }
+
+    // Under _gate. The hash an entry names, through the index while the entry is still on the path key.
+    private string? ShaOf(IDemoKeyedOverride o) =>
+        o.DemoSha256
+        ?? (o.DemoStableKey is { } key && _index.Demos.TryGetValue(key, out TeamIndexDemo? row) ? row.Sha256 : null);
+
     // ── The replay ───────────────────────────────────────────────────────────────────────────────
 
     // Under _gate. Seeds a copy of the user file, replays every held side in order, and only then
@@ -1400,7 +1758,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         TeamIndexFile index = clusterer.Finish(DateTime.UtcNow.Ticks, keep);
         _teams = teams;
         _index = index;
-        UpgradeOverrides();
+        _ = UpgradeOverrides();
         ResolveOurSides();
         ComputeSuggestions();
         SaveTeams();
@@ -1436,8 +1794,9 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
 
     // An override written before the demo was hashed moves onto the hash the moment it appears, so a
     // moved file keeps it. Both override lists, one rule.
-    private void UpgradeOverrides()
+    private bool UpgradeOverrides()
     {
+        bool upgraded = false;
         foreach (IDemoKeyedOverride o in
                  _teams.Overrides.Cast<IDemoKeyedOverride>().Concat(_teams.Provenance.Overrides))
         {
@@ -1447,8 +1806,11 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             {
                 o.DemoSha256 = row.Sha256;
                 o.DemoStableKey = null;
+                upgraded = true;
             }
         }
+
+        return upgraded;
     }
 
     private void UpsertOverride(TeamIndexDemo row, int side, Guid? teamId)
@@ -1564,6 +1926,13 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                     foreach ((string key, TeamIndexDemo row) in index.Demos)
                     {
                         _inputs[key] = SideKeys.From(key, row);
+                    }
+
+                    // A demo hashed while this service was off left its overrides on the path key. Moving them
+                    // now keeps a path out of teams.json, which a transfer carries to another machine.
+                    if (UpgradeOverrides())
+                    {
+                        SaveTeams();
                     }
 
                     // The accounts may have changed in the host's Settings while this service was not looking.

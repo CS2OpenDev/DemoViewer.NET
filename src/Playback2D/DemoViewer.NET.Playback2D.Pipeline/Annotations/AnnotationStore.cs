@@ -177,6 +177,15 @@ public sealed class AnnotationStore
 
         AnnotationStoreLocation location = ResolveLocation(demoPath);
         string? path = ResolvePath(demoPath);
+        if (location == AnnotationStoreLocation.DemoSidecar && path is not null && !File.Exists(path)
+            && AppDataFallback(demoPath) is { } imported)
+        {
+            // Annotations that arrived without the demo (a data transfer) wait in app-data until the demo's
+            // folder has its own file; the next save writes beside the demo and that one wins from then on.
+            location = AnnotationStoreLocation.AppData;
+            path = imported;
+        }
+
         if (path is null || !File.Exists(path))
         {
             return AnnotationLoadResult.Empty(location, path);
@@ -383,6 +392,81 @@ public sealed class AnnotationStore
         {
             return Task.FromResult(false);
         }
+    }
+
+    /// <summary>The app-data sidecar of the demo with <paramref name="sha256" /> under <paramref name="appDataRoot" />.</summary>
+    /// <param name="appDataRoot">The app-data root the store is given.</param>
+    /// <param name="sha256">The demo's lowercase-hex SHA-256.</param>
+    public static string AppDataFile(string appDataRoot, string sha256)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(appDataRoot);
+        ArgumentException.ThrowIfNullOrEmpty(sha256);
+        return Path.Combine(appDataRoot, "annotations", sha256 + SidecarExtension);
+    }
+
+    /// <summary>
+    ///     Reads the demo hash a sidecar names. False when the bytes are not a sidecar; true with a null hash for
+    ///     one that names none.
+    /// </summary>
+    /// <param name="json">The sidecar's bytes.</param>
+    /// <param name="sha256">The hash it names, or null.</param>
+    public static bool TryReadDemoSha256(ReadOnlySpan<byte> json, out string? sha256)
+    {
+        sha256 = null;
+        try
+        {
+            if (JsonSerializer.Deserialize(json, AnnotationJsonContext.Default.AnnotationDocumentDto) is not { } dto)
+            {
+                return false;
+            }
+
+            sha256 = dto.Demo?.Sha256 is { Length: > 0 } named ? named : null;
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///     One sidecar holding both documents' elements: <paramref name="mine" /> as it is, then each element of
+    ///     <paramref name="theirs" /> whose id it lacks. The header and clock stay mine.
+    /// </summary>
+    /// <param name="mine">This machine's sidecar.</param>
+    /// <param name="theirs">The other sidecar, of the same demo.</param>
+    /// <exception cref="JsonException">Either is not a sidecar.</exception>
+    public static byte[] MergeDocuments(ReadOnlySpan<byte> mine, ReadOnlySpan<byte> theirs)
+    {
+        AnnotationDocumentDto into =
+            JsonSerializer.Deserialize(mine, AnnotationJsonContext.Default.AnnotationDocumentDto)
+            ?? throw new JsonException("Empty annotation document.");
+        AnnotationDocumentDto from =
+            JsonSerializer.Deserialize(theirs, AnnotationJsonContext.Default.AnnotationDocumentDto)
+            ?? throw new JsonException("Empty annotation document.");
+        into.Elements ??= [];
+        HashSet<string> ids = new(into.Elements.Select(e => e.Id).OfType<string>(), StringComparer.OrdinalIgnoreCase);
+        foreach (AnnotationElementDto element in from.Elements ?? [])
+        {
+            if (element.Id is null || ids.Add(element.Id))
+            {
+                into.Elements.Add(element);
+            }
+        }
+
+        return JsonSerializer.SerializeToUtf8Bytes(into, AnnotationJsonContext.Default.AnnotationDocumentDto);
+    }
+
+    // The app-data sidecar of a demo whose own folder has none, or null.
+    private string? AppDataFallback(string demoPath)
+    {
+        if (_appDataRoot is null || _demoKeyResolver(demoPath) is not { Length: > 0 } key)
+        {
+            return null;
+        }
+
+        string file = AppDataFile(_appDataRoot, key);
+        return File.Exists(file) ? file : null;
     }
 
     private void Forget(string path)

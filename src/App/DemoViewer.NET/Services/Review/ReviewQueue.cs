@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text.Json;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoProcessing;
+using DemoViewer.NET.Services.Transfer;
 
 #endregion
 
@@ -39,9 +40,13 @@ public sealed class ReviewQueue
     /// <summary>The file under the config root.</summary>
     public const string FileName = "review-queue.json";
 
+    /// <summary>The title card imported clips go under when the bundle put them under none.</summary>
+    public const string ImportedSectionTitle = "Imported";
+
     private readonly List<ReviewEntry> _loaded = [];
     private readonly LoadOnce _load;
     private readonly string? _path;
+    private readonly Func<string, string?>? _pathOfContent;
     private readonly CoalescedWriter<ReviewEntry[]> _writer;
     private int _deferDepth;
     private bool _deferredChange;
@@ -53,9 +58,14 @@ public sealed class ReviewQueue
     /// <param name="saveDelay">How long a write waits for more mutations; 300 ms when null.</param>
     /// <param name="scheduleSave">Runs a save after the delay: a processing-queue item in the app, the pool when null.</param>
     /// <param name="scheduleLoad">Runs the file read: a processing-queue item in the app, the pool when null.</param>
+    /// <param name="pathOfContent">
+    ///     This machine's path of a content hash, or null: what an imported clip without a path is given once its
+    ///     demo is here (<see cref="ResolvePaths" />). Null leaves such clips as they are.
+    /// </param>
     public ReviewQueue(string? configRoot, TimeSpan? saveDelay = null, Func<Action, Task>? scheduleSave = null,
-        Func<Action, Task>? scheduleLoad = null)
+        Func<Action, Task>? scheduleLoad = null, Func<string, string?>? pathOfContent = null)
     {
+        _pathOfContent = pathOfContent;
         _path = configRoot is null ? null : Path.Combine(configRoot, FileName);
         TimeSpan delay = saveDelay ?? TimeSpan.FromMilliseconds(300);
         Func<Action, Task> schedule = scheduleSave ?? Task.Run;
@@ -357,6 +367,134 @@ public sealed class ReviewQueue
         return count;
     }
 
+    /// <summary>
+    ///     Brings in the clips of a transfer bundle's queue. Each clip is joined by its demo's content hash: its
+    ///     path is this machine's copy of that demo (<paramref name="localPathOf" />), or empty until
+    ///     <see cref="ResolvePaths" /> finds one, and a clip without a hash is skipped. A clip already queued here for
+    ///     the same demo, range and highlight is kept under <see cref="ConflictPolicy.KeepMine" />, replaced in place
+    ///     under <see cref="ConflictPolicy.TakeImported" />, and under <see cref="ConflictPolicy.KeepBoth" /> joined by
+    ///     the imported one when their note or question differ. New clips go under the bundle's title cards,
+    ///     appended to a section of the same title here. One change and one save.
+    /// </summary>
+    /// <param name="entries">The bundle's entries, title cards and clips, in order.</param>
+    /// <param name="policy">What a clip queued on both sides keeps.</param>
+    /// <param name="localPathOf">A content hash's path on this machine, or null; the queue's own lookup when null.</param>
+    /// <param name="shaOfPath">The content hash of a queued clip's path when the clip carries none, or null.</param>
+    /// <returns>What happened.</returns>
+    public ReviewImportResult ImportClips(IReadOnlyList<ReviewEntry> entries, ConflictPolicy policy,
+        Func<string, string?>? localPathOf = null, Func<string, string?>? shaOfPath = null)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        localPathOf ??= _pathOfContent;
+        int added = 0, replaced = 0, kept = 0;
+        string section = ImportedSectionTitle;
+        List<(string Section, ReviewEntry Clip)> appended = [];
+        foreach (ReviewEntry entry in entries)
+        {
+            if (entry.Kind == ReviewEntryKind.Section)
+            {
+                section = string.IsNullOrWhiteSpace(entry.Title) ? ImportedSectionTitle : OneLine(entry.Title);
+                continue;
+            }
+
+            if (entry.Sha256 is not { Length: > 0 } hash)
+            {
+                continue;
+            }
+
+            string sha = hash.ToLowerInvariant();
+            ReviewEntry clip = entry with
+            {
+                Id = Guid.NewGuid(), Sha256 = sha, DemoPath = localPathOf?.Invoke(sha) ?? ""
+            };
+            int at = List.FindIndex(e => e.Kind == ReviewEntryKind.Clip && e.FromTick == clip.FromTick
+                && e.ToTick == clip.ToTick && Equals(e.Highlight, clip.Highlight)
+                && string.Equals(e.Sha256 ?? shaOfPath?.Invoke(e.DemoPath), sha, StringComparison.OrdinalIgnoreCase));
+            if (at < 0 && appended.Any(a => SameClip.Instance.Equals(a.Clip, clip)))
+            {
+                kept++;
+            }
+            else if (at < 0)
+            {
+                appended.Add((section, clip));
+                added++;
+            }
+            else if (policy == ConflictPolicy.TakeImported)
+            {
+                List[at] = clip with { Id = List[at].Id, DemoPath = List[at].DemoPath };
+                replaced++;
+            }
+            else if (policy == ConflictPolicy.KeepBoth && (!string.Equals(List[at].Note, clip.Note, StringComparison.Ordinal)
+                         || !string.Equals(List[at].Question, clip.Question, StringComparison.Ordinal)))
+            {
+                appended.Add((section, clip));
+                added++;
+            }
+            else
+            {
+                kept++;
+            }
+        }
+
+        foreach (IGrouping<string, (string Section, ReviewEntry Clip)> group in appended.GroupBy(a => a.Section))
+        {
+            int card = List.FindIndex(e => IsCard(e, group.Key));
+            if (card < 0)
+            {
+                List.Add(ReviewEntry.Section(group.Key));
+                List.AddRange(group.Select(g => g.Clip));
+            }
+            else
+            {
+                List.InsertRange(SectionEnd(card), group.Select(g => g.Clip));
+            }
+        }
+
+        if (added + replaced > 0)
+        {
+            Commit();
+        }
+
+        return new ReviewImportResult(added, replaced, kept);
+    }
+
+    /// <summary>
+    ///     Gives each imported clip that has no path yet its demo's path on this machine, found by the clip's
+    ///     content hash, once the library lists that demo. Run after an import and after each library scan; a
+    ///     queue whose file is still loading is left alone, since the load resolves them too. One change and one
+    ///     save when any clip took a path.
+    /// </summary>
+    /// <param name="localPathOf">A content hash's path on this machine, or null; the queue's own lookup when null.</param>
+    /// <returns>How many clips took a path.</returns>
+    public int ResolvePaths(Func<string, string?>? localPathOf = null)
+    {
+        localPathOf ??= _pathOfContent;
+        if (localPathOf is null || !_load.Completion.IsCompleted || !ResolveInPlace(_loaded, localPathOf, out int count))
+        {
+            return 0;
+        }
+
+        Commit();
+        return count;
+    }
+
+    // Fills the empty paths of hashed clips in place. False when none changed.
+    private static bool ResolveInPlace(List<ReviewEntry> entries, Func<string, string?> localPathOf, out int count)
+    {
+        count = 0;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            if (entries[i] is { Kind: ReviewEntryKind.Clip, DemoPath.Length: 0, Sha256: { Length: > 0 } sha } clip
+                && localPathOf(sha) is { Length: > 0 } path)
+            {
+                entries[i] = clip with { DemoPath = path };
+                count++;
+            }
+        }
+
+        return count > 0;
+    }
+
     /// <summary>Puts a title card at <paramref name="index" />, clamped; at the end when null.</summary>
     /// <param name="title">The card's title.</param>
     /// <param name="index">Where it goes, or null for the end.</param>
@@ -519,7 +657,8 @@ public sealed class ReviewQueue
 
     // Two clips are the same when a second send could only duplicate the first: the demo (paths compare
     // the way the library does, case-insensitively), the range and the highlight identity. The note and
-    // the question are not identity; a reviewer may have written one already.
+    // the question are not identity; a reviewer may have written one already. An imported clip whose demo
+    // is not on this machine yet has no path, so two such clips are one demo only by their hash.
     private sealed class SameClip : IEqualityComparer<ReviewEntry>
     {
         public static readonly SameClip Instance = new();
@@ -527,13 +666,17 @@ public sealed class ReviewQueue
         public bool Equals(ReviewEntry? x, ReviewEntry? y) =>
             x is { Kind: ReviewEntryKind.Clip } && y is { Kind: ReviewEntryKind.Clip }
             && x.FromTick == y.FromTick && x.ToTick == y.ToTick
-            && string.Equals(x.DemoPath, y.DemoPath,
-                StringComparison.OrdinalIgnoreCase)
+            && SameDemo(x, y)
             && Equals(x.Highlight, y.Highlight);
 
+        // The path is left out: two clips one hash makes the same demo may name different paths.
         public int GetHashCode(ReviewEntry obj) =>
-            HashCode.Combine(obj.Kind, StringComparer.OrdinalIgnoreCase.GetHashCode(obj.DemoPath), obj.FromTick,
-                obj.ToTick, obj.Highlight);
+            HashCode.Combine(obj.Kind, obj.FromTick, obj.ToTick, obj.Highlight);
+
+        private static bool SameDemo(ReviewEntry x, ReviewEntry y) =>
+            x.DemoPath.Length > 0 && y.DemoPath.Length > 0
+                ? string.Equals(x.DemoPath, y.DemoPath, StringComparison.OrdinalIgnoreCase)
+                : x.Sha256 is { Length: > 0 } a && string.Equals(a, y.Sha256, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class DeferScope(ReviewQueue queue) : IDisposable
@@ -633,15 +776,32 @@ public sealed class ReviewQueue
 
             // An entry with no id cannot be named by any mutation; give it one rather than drop it.
             _loaded.AddRange(entries.Select(e => e.Id == Guid.Empty ? e with { Id = Guid.NewGuid() } : e));
-            if (migrated is { Written: false })
+            bool resolved = ResolveOnLoad();
+            if (migrated is { Written: false } || resolved)
             {
-                // The backup is taken; write the migrated set the way any save goes.
+                // A migration's backup is taken; write the migrated or resolved set the way any save goes.
                 QueueWrite([.. _loaded]);
             }
         }
         catch (Exception ex)
         {
             Refuse($"{FileName} could not be read: {ex.Message}");
+        }
+    }
+
+    // An imported clip whose demo a later scan listed takes its path as the file comes in. The lookup failing costs
+    // only that: the file itself read fine.
+    private bool ResolveOnLoad()
+    {
+        try
+        {
+            return _pathOfContent is not null && ResolveInPlace(_loaded, _pathOfContent, out _);
+        }
+#pragma warning disable CA1031 // a path lookup must never refuse a file that read
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+            return false;
         }
     }
 
@@ -672,3 +832,9 @@ public sealed class ReviewQueue
         AtomicFile.WriteAllText(_path!, JsonSerializer.Serialize(file, ReviewQueueFile.JsonOptions));
     }
 }
+
+/// <summary>What <see cref="ReviewQueue.ImportClips" /> did.</summary>
+/// <param name="Added">Clips added.</param>
+/// <param name="Replaced">Queued clips replaced by the imported one.</param>
+/// <param name="Kept">Imported clips left out because the queue already had them.</param>
+public sealed record ReviewImportResult(int Added, int Replaced, int Kept);

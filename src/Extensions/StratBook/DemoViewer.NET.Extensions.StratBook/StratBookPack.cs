@@ -11,6 +11,7 @@ using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Modules.Teams;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
@@ -698,7 +699,8 @@ public sealed class StratBookPack : IExtension
                 log: line => GrenadeIndexLog.LineupClip(log, line),
                 complete: () => index.IsReady,
                 maxBytes: () => settings.LineupClipsMaxMegabytes * 1024L * 1024L,
-                jobs: Host(sp).Jobs);
+                jobs: Host(sp).Jobs,
+                storedLineups: index.StoredLineupIds);
             index.Changed += () => clips.PlanSoon();
             sp.GetRequiredService<StratBookPackInstances>().Record(clips);
             return clips;
@@ -988,6 +990,16 @@ public sealed class StratBookPack : IExtension
         if (!OperatingSystem.IsBrowser())
         {
             contributions.DataDeleted(() => StratBookStores.ReloadLiveStores(sp));
+            // Library Transfer: the stores that point at each other merge through the pack, in dependency order,
+            // and the live stores re-read what the import wrote, the host's palette and tuning files included.
+            contributions.DataPortability(new StratBookDataPortability(() => new StratBookImportTargets(
+                    sp.GetService<TeamIdentityService>(), sp.GetService<GrenadeIndex>(), sp.GetService<StratStore>(),
+                    sp.GetService<ScoutingReportNotesStore>(), sp.GetService<VetoHistoryStore>(),
+                    sp.GetService<TeamRanksStore>(), sp.GetService<WatchedSituationsService>(),
+                    sp.GetService<StratMiningService>(), sp.GetService<LineupClipService>(),
+                    sp.GetService<TagStore>(), sp.GetService<TagPaletteStore>()),
+                StratBookDataPortability.Posting(Host(sp).Post)));
+            contributions.DataImported(() => StratBookStores.ReloadLiveStores(sp));
         }
 
         // Create Strat From Round in 2D Playback: the round band's entry and the review pane, one

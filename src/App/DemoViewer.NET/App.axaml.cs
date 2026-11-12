@@ -35,12 +35,14 @@ using DemoViewer.NET.Services.MatchMeta;
 using DemoViewer.NET.Services.Players;
 using DemoViewer.NET.Services.Review;
 using DemoViewer.NET.Services.Startup;
+using DemoViewer.NET.Services.Transfer;
 using DemoViewer.NET.Theming;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.Highlights;
 using DemoViewer.NET.ViewModels.Settings;
 using DemoViewer.NET.ViewModels.Setup;
 using DemoViewer.NET.ViewModels.Shell;
+using DemoViewer.NET.ViewModels.Transfer;
 using DemoViewer.NET.Views;
 using DemoViewer.NET.Views.RuleWorkbench;
 using Microsoft.Extensions.DependencyInjection;
@@ -131,8 +133,9 @@ public class App : Application
                 {
                     ContentKeyMigration.Submit(queue, demoCache);
                     SidecarFormatMigration.Submit(queue, demoCache, [demoCache.ConvertLegacyRecord]);
-                    OrphanSweep.Submit(queue, demoCache,
-                        settings?.CurrentValue.Library.OrphanedDemoGrace ?? new LibrarySettings().OrphanedDemoGrace);
+                    LibrarySettings library = settings?.CurrentValue.Library ?? new LibrarySettings();
+                    OrphanSweep.Submit(queue, demoCache, library.OrphanedDemoGrace,
+                        importedGrace: library.ImportedDemoGrace);
                 }, TaskScheduler.Default);
             }
             // Careful: host services MUST attach BEFORE RestoreSession. RestoreSession activates the persisted tab,
@@ -247,6 +250,13 @@ public class App : Application
             // Idle mode is DESKTOP-ONLY (no real memory pressure on WASM; the global input hook / demo-close
             // semantics differ). Start it here, after the shell exists. The WASM branch never calls this.
             viewModel.StartIdleMonitoring();
+
+            // Imported review clips whose demo was not here yet take its path from the scan that lists it.
+            if (Services?.GetService<DemoLibraryService>() is { } scannedLibrary
+                && Services.GetService<ReviewQueue>() is { } reviewQueue)
+            {
+                scannedLibrary.Changed += () => reviewQueue.ResolvePaths();
+            }
 
             // Launch update check (desktop-only: the Browser head has no installed build to update).
             // Fire-and-forget on purpose: this is one HTTPS request to the GitHub release feed, and
@@ -787,6 +797,22 @@ public class App : Application
     internal static ServiceProvider BuildServices(IWindowService windowService) =>
         BuildServices(windowService, FeaturePacks.Compatible);
 
+    // What the enabled extensions carry in a transfer, read when an export is planned or its wizard opens.
+    internal static IReadOnlyList<TransferExtensionSource> TransferExtensionSources(IServiceProvider sp)
+    {
+        if (sp.GetService<PackContributionSet>() is not { } set)
+        {
+            return [];
+        }
+
+        IFeatureGate? gate = sp.GetService<IFeatureGate>();
+        return
+        [
+            .. set.DataTransfers.Where(t => gate?.IsEnabled(t.FeatureId) != false).Select(t => t.ToSource())
+                .Where(s => s.Stores.Count > 0 || s.OwnPaths.Count > 0)
+        ];
+    }
+
     /// <summary>
     ///     <see cref="BuildServices(IWindowService)" /> over an explicit pack list. The packs' descriptors
     ///     join the <see cref="FeatureCatalog" /> here, once; each pack then registers its services and,
@@ -927,6 +953,23 @@ public class App : Application
                     RestoreApp = () => ShowAppIn(registry.VariantFor(monitor.CurrentValue.Theme))
                 });
         });
+        // Library transfer: the Settings Export… and Import… wizards. The exporter and importer are looked up
+        // when a wizard opens, so the launcher composes whether or not they are registered.
+        services.AddSingleton(sp =>
+        {
+            IDemoProcessingQueue queue = sp.GetRequiredService<IDemoProcessingQueue>();
+            DemoLibraryService library = sp.GetRequiredService<DemoLibraryService>();
+            return new DataTransferLauncher(sp.GetRequiredService<IWindowService>(),
+                sp.GetService<ITransferExporter>,
+                sp.GetService<ITransferImporter>,
+                () => [.. library.Entries],
+                () => [.. library.Folders],
+                () => queue.QueuedCount + queue.RunningCount,
+                path => Services?.GetService<MainViewModel>()?.OpenOutputFolder(path),
+                () => [.. TransferExtensionSources(sp).Where(s => s.HasLibraryData).Select(s => s.Label)],
+                // The picker offers the Library tab's own contributed filters (the Team filter), gated the same way.
+                () => Services?.GetService<MainViewModel>()?.LibraryTab.ContributedFilters ?? []);
+        });
 
         // The host window service instance (desktop real / browser no-op), resolved by MainViewModel.
         services.AddSingleton(windowService);
@@ -964,6 +1007,12 @@ public class App : Application
             if (ThemeEditorLauncher.IsSupported)
             {
                 settingsVm.AttachThemeEditor(id => sp.GetRequiredService<ThemeEditorLauncher>().Open(id));
+            }
+
+            if (DataTransferLauncher.IsSupported)
+            {
+                settingsVm.AttachDataTransfer(() => sp.GetRequiredService<DataTransferLauncher>().OpenExport(),
+                    () => sp.GetRequiredService<DataTransferLauncher>().OpenImport());
             }
 
             // Says which extensions were switched off this session after errors.
@@ -1269,7 +1318,51 @@ public class App : Application
         services.AddSingleton(sp => new ReviewQueue(AppPaths.ConfigRoot,
             scheduleSave: QueueWork.Saves(sp.GetRequiredService<IDemoProcessingQueue>(), "Save: review queue", "review",
                 "save:review-queue"),
-            scheduleLoad: StartupLoad(sp, "Load: review queue", "review")));
+            scheduleLoad: StartupLoad(sp, "Load: review queue", "review"),
+            // Resolved at the first imported clip that has no path, never while the queue is built.
+            pathOfContent: sha => sp.GetRequiredService<DemoCacheStore>().TryGetByContentId(sha)?.Path));
+        // Library transfer: export reads the cache and the config root and writes only into the bundle folder.
+        services.AddSingleton<ITransferExporter>(sp => new TransferExporter(sp.GetRequiredService<DemoCacheStore>(),
+            sp.GetRequiredService<IDemoProcessingQueue>(),
+            new TransferSources(AppPaths.ConfigRoot,
+                () => sp.GetRequiredService<SettingsService>().Current.Library.Folders,
+                () => TransferEnvironment.Local(sp.GetRequiredService<MergedRulesBuild>(), packs),
+                () => TransferExtensionSources(sp))));
+        // Library transfer import: cache rows through the store so the orphan sweep keeps them, per-demo extension
+        // data through the loaded extension's own store, user data into the stores that own it.
+        services.AddSingleton<ITransferImporter>(sp => new TransferImporter(
+            sp.GetRequiredService<DemoCacheStore>(),
+            AppPaths.ConfigRoot,
+            AppPaths.GraphBreakpointsFile is { } breakpoints ? new GraphBreakpointStore(breakpoints) : null,
+            sp.GetRequiredService<ReviewQueue>(),
+            sp.GetRequiredService<DemoLibraryService>(),
+            sp.GetRequiredService<IDemoProcessingQueue>(),
+            id => sp.GetService<PackContributionSet>()?.Packs
+                .FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.Ordinal))?.Context.Data
+                as ExtensionDemoDataStore,
+            AppPaths.DemoCacheDir is { } cacheDir ? Path.Combine(cacheDir, ExtensionFolders.DataDirectoryName) : null,
+            () => TransferEnvironment.Local(sp.GetRequiredService<MergedRulesBuild>(), packs),
+            new DemoImportCurrency(
+                tickRate =>
+                {
+                    try
+                    {
+                        return sp.GetRequiredService<IHighlightHarvester>().ComputeFingerprint(tickRate).Fingerprint;
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        return null; // rules that do not compose cannot say what is current
+                    }
+                },
+                (stamp, tickRate) => StampedFacts.RulesetOf(stamp.Id) is { } rulesetId
+                    && sp.GetRequiredService<StampedFacts>().Fingerprint(rulesetId, tickRate) is { } fingerprint
+                        ? stamp.IsCurrent(StampedFacts.Schema, fingerprint)
+                        : null),
+            f => Dispatcher.UIThread.InvokeAsync(f),
+            extensions: new TransferExtensionHost(
+                () => sp.GetService<PackContributionSet>()?.DataTransfers ?? [],
+                featureId => sp.GetRequiredService<IFeatureGate>().IsEnabled(featureId),
+                AppPaths.ConfigRoot, AppPaths.DemoCacheDir)));
         // The "one parse, many evaluators" scheduler: the single submitter that asks the registered passes
         // about a demo and submits them together as ONE visit, so the demo is read once. Library,
         // Highlights and Round Facts are core, always on the visit; a pack's passes come from a PassRegistry built over its

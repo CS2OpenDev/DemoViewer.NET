@@ -32,7 +32,7 @@ namespace DemoViewer.NET.Services.DemoCache;
 ///         fully in-memory: nothing is loaded, nothing is written, and every API still works.
 ///     </para>
 /// </summary>
-public sealed class DemoCacheStore
+public sealed partial class DemoCacheStore
 {
     /// <summary>The record sidecar: gzipped compact JSON, named <c>&lt;key&gt;.json.gz</c>.</summary>
     public const string RecordSuffix = ".json.gz";
@@ -1553,15 +1553,23 @@ public sealed class DemoCacheStore
 
     /// <summary>
     ///     Deletes every orphaned row, and its files, that has had no path for longer than
-    ///     <paramref name="grace" />. A row a path took back meanwhile is left alone. Raises one
-    ///     <see cref="Changed" /> for the lot, so stores keeping data per content drop theirs with it.
+    ///     <paramref name="grace" />. A row imported from a transfer bundle that no path has listed yet is kept
+    ///     for <paramref name="importedGrace" /> instead. A row a path took back meanwhile is left alone. Raises
+    ///     one <see cref="Changed" /> for the lot, so stores keeping data per content drop theirs with it.
     /// </summary>
     /// <param name="nowUtc">The current time, UTC.</param>
     /// <param name="grace">How long an orphaned row is kept.</param>
+    /// <param name="importedGrace">
+    ///     How long a never-listed imported row is kept; never less than <paramref name="grace" />, which it is
+    ///     when null.
+    /// </param>
     /// <returns>How many rows went.</returns>
-    public int ExpireOrphans(DateTime nowUtc, TimeSpan grace)
+    public int ExpireOrphans(DateTime nowUtc, TimeSpan grace, TimeSpan? importedGrace = null)
     {
         long cutoff = (nowUtc - grace).Ticks;
+        // An imported row waits for its demo at least as long as any orphan does, whatever the two settings say.
+        TimeSpan imported = importedGrace is { } longer && longer > grace ? longer : grace;
+        long importedCutoff = (nowUtc - imported).Ticks;
         List<DemoCacheIndexEntry> gone = [];
         using (BeginBatch())
         {
@@ -1569,8 +1577,9 @@ public sealed class DemoCacheStore
             {
                 lock (_gate)
                 {
-                    foreach (string key in _rows.Where(r => r.Value.OrphanedSinceUtcTicks <= cutoff).Select(r => r.Key)
-                                 .ToList())
+                    foreach (string key in _rows.Where(r => r.Value.OrphanedSinceUtcTicks
+                                     <= (r.Value.ImportedUtcTicks is null ? cutoff : importedCutoff))
+                                 .Select(r => r.Key).ToList())
                     {
                         gone.Add(_rows[key]);
                         Unlink(key);
@@ -1905,6 +1914,7 @@ public sealed class DemoCacheStore
         fresh.Locations = row.Locations;
         fresh.OrphanedSinceUtcTicks = row.OrphanedSinceUtcTicks;
         fresh.DetachedLocations = row.DetachedLocations;
+        fresh.ImportedUtcTicks = row.ImportedUtcTicks;
         fresh.SidecarKeys = row.SidecarKeys;
         return fresh;
     }
@@ -2597,6 +2607,7 @@ public sealed class DemoCacheStore
         entry.Locations = sorted;
         entry.OrphanedSinceUtcTicks = null;
         entry.DetachedLocations = null;
+        entry.ImportedUtcTicks = null;
 
         string own = FileKeyOf(entry);
         List<string>? distinct = keys is null ? null : [.. keys.Distinct(StringComparer.Ordinal)];
@@ -2751,7 +2762,9 @@ public sealed class DemoCacheStore
         // become one row whose files still sit under every old name until the rename pass moves them.
         bool byPath = file.Version < 5;
         Dictionary<string, List<DemoCacheIndexEntry>> groups = new(StringComparer.Ordinal);
-        foreach (DemoCacheIndexEntry entry in file.Entries.Where(e => !string.IsNullOrEmpty(e.Path)))
+        // An imported row that no path has listed yet has no path at all; its content id keys it.
+        foreach (DemoCacheIndexEntry entry in file.Entries.Where(e =>
+                     !string.IsNullOrEmpty(e.Path) || (e.IsOrphaned && !string.IsNullOrEmpty(e.Sha256))))
         {
             string key = RowKeyFor(entry.Path, entry.Sha256);
             if (!groups.TryGetValue(key, out List<DemoCacheIndexEntry>? group))
@@ -2839,8 +2852,10 @@ public sealed class DemoCacheStore
                 string key = name.EndsWith(RecordSuffix, StringComparison.Ordinal)
                     ? name[..^RecordSuffix.Length]
                     : name[..^LegacyRecordSuffix.Length];
+                // A record with no path is an import no folder has listed yet; its hash still keys it.
                 if (key.Length > 0 && !key.Contains('.') && seen.Add(key)
-                    && RecordAt(key) is { Path.Length: > 0 } record)
+                    && RecordAt(key) is { } record
+                    && (record.Path.Length > 0 || !string.IsNullOrEmpty(record.Sha256)))
                 {
                     found.Add((key, record));
                 }
@@ -2867,7 +2882,9 @@ public sealed class DemoCacheStore
             List<DemoLocation> locations = [];
             foreach (DemoLocation location in files.SelectMany(f => f.Record.Locations.Count > 0
                          ? f.Record.Locations
-                         : [new DemoLocation(f.Record.Path, true, f.Record.Size, f.Record.ModifiedTicks, 0)]))
+                         : f.Record.Path.Length == 0
+                             ? []
+                             : [new DemoLocation(f.Record.Path, true, f.Record.Size, f.Record.ModifiedTicks, 0)]))
             {
                 int at = locations.FindIndex(l => SamePath(l.Path, location.Path));
                 if (at < 0)
@@ -2915,6 +2932,7 @@ public sealed class DemoCacheStore
                     entry.Locations = [];
                     entry.DetachedLocations = seen;
                     entry.OrphanedSinceUtcTicks = now;
+                    entry.ImportedUtcTicks = seen.Count == 0 ? now : null;
                     Link(rowKey, WithKeys(entry, keys));
                 }
             }

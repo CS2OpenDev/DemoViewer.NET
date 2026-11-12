@@ -1,9 +1,12 @@
 #region
 
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Avalonia.Input;
 using CS2DemoKit.Analysis.Diagnostics;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 using Microsoft.Extensions.Logging;
 
 #endregion
@@ -17,9 +20,9 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Tags;
 ///     <see cref="Reload" />, scanned in filename order. A file that fails validation is skipped with a
 ///     diagnostics-log line and the rest still load; a user file may not take a built-in's id.
 ///     <para>
-///         Palettes are never written by the app. The user edits the file and reloads; that is also why
-///         the validator's refusals are strict: a refused file costs the author one edit, while a
-///         palette that silently could not fire a key costs a tagging session.
+///         Palettes are never written by the app, save by a Library Transfer import. The user edits the file and
+///         reloads; that is also why the validator's refusals are strict: a refused file costs the author one
+///         edit, while a palette that silently could not fire a key costs a tagging session.
 ///     </para>
 /// </summary>
 public sealed class TagPaletteStore
@@ -86,6 +89,130 @@ public sealed class TagPaletteStore
         _diagnostics.RemoveAll(d => !d.StartsWith("built-in ", StringComparison.Ordinal));
         _user = LoadUser();
         Reloaded?.Invoke();
+    }
+
+    /// <summary>
+    ///     Library Transfer's palettes: another machine's drop-ins folded into this folder by file name, the one
+    ///     exception to the app never writing a palette. A file this machine lacks is copied and the same file is
+    ///     left alone. A different one keeps this machine's, is replaced, or under keep both is added beside it as
+    ///     <c>&lt;name&gt; (imported)</c> with an id and name of its own: a copy under the same id would load first and
+    ///     be replaced by this machine's, so it would never show. A second import of the same bundle changes nothing.
+    ///     The caller reloads.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the palettes folder, laid out as this one; read only.</param>
+    /// <param name="ledger">The policy, the report and the counts.</param>
+    public void Import(IExtensionFolder? staged, ImportLedger ledger)
+    {
+        ArgumentNullException.ThrowIfNull(ledger);
+        if (staged is null || _folder is null)
+        {
+            return;
+        }
+
+        foreach (string file in staged.EnumerateFiles("", "*" + FileExtension).Order(StringComparer.Ordinal))
+        {
+            string name = Path.GetFileName(file);
+            try
+            {
+                if (staged.Read(name) is not { } theirs)
+                {
+                    continue;
+                }
+
+                byte[]? mine = _folder.Read(name);
+                if (mine is null)
+                {
+                    _folder.WriteAtomic(name, theirs);
+                    ledger.CountAdded();
+                }
+                else if (mine.AsSpan().SequenceEqual(theirs))
+                {
+                    ledger.CountSkipped();
+                }
+                else if (ledger.Policy == ImportConflictPolicy.TakeImported)
+                {
+                    _folder.WriteAtomic(name, theirs);
+                    ledger.CountMerged();
+                }
+                else if (ledger.Policy == ImportConflictPolicy.KeepBoth)
+                {
+                    ImportBeside(name, theirs, ledger);
+                }
+                else
+                {
+                    ledger.CountConflict();
+                    ledger.Report($"kept this machine's palette {name}: both machines changed it");
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                ledger.Report($"the palette {name} was not imported: {e.Message}");
+                ledger.CountSkipped();
+            }
+        }
+    }
+
+    // "<name> (imported)", or " (imported 2)" and on when that is taken by another copy. The id and name are derived
+    // from the same number, so a second import writes the same bytes and finds the copy the first one made.
+    private void ImportBeside(string name, byte[] theirs, ImportLedger ledger)
+    {
+        JsonObject? palette;
+        try
+        {
+            palette = JsonNode.Parse(theirs, null,
+                new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })
+                as JsonObject;
+        }
+        catch (JsonException)
+        {
+            palette = null;
+        }
+
+        if (palette is null || palette["id"] is not JsonValue idValue || !idValue.TryGetValue(out string? id))
+        {
+            ledger.Report($"kept this machine's palette {name}: the imported one is not a palette to add beside it");
+            ledger.CountSkipped();
+            return;
+        }
+
+        string stem = name[..^FileExtension.Length];
+        string? title = palette["name"] is JsonValue nameValue && nameValue.TryGetValue(out string? n) ? n : null;
+        for (int copy = 1;; copy++)
+        {
+            string suffix = copy == 1 ? "imported" : "imported " + copy.ToString(CultureInfo.InvariantCulture);
+            palette["id"] = id + "-" + suffix.Replace(' ', '-');
+            if (title is not null)
+            {
+                palette["name"] = $"{title} ({suffix})";
+            }
+
+            byte[] bytes = Indented(palette);
+            string beside = $"{stem} ({suffix}){FileExtension}";
+            if (_folder!.Read(beside) is not { } existing)
+            {
+                _folder.WriteAtomic(beside, bytes);
+                ledger.CountAdded();
+                ledger.Report($"both machines changed the palette {name}; the imported one was added as {beside}");
+                return;
+            }
+
+            if (existing.AsSpan().SequenceEqual(bytes))
+            {
+                ledger.CountSkipped();
+                return;
+            }
+        }
+    }
+
+    private static byte[] Indented(JsonObject palette)
+    {
+        using MemoryStream stream = new();
+        using (Utf8JsonWriter writer = new(stream, new JsonWriterOptions { Indented = true }))
+        {
+            palette.WriteTo(writer);
+        }
+
+        return stream.ToArray();
     }
 
     /// <summary>Parses one palette file's text, or null with the reason when it is not JSON of the right shape.</summary>

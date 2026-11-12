@@ -2389,6 +2389,110 @@ public class SettingsViewModelTests
         }
     }
 
+    [Test]
+    public async Task TheDataTransferSection_IsShownOnDesktop_AndItsButtonsOpenTheWizards()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) =
+                NewVm(dir, isBrowser: () => false);
+            await using (sp)
+            {
+                bool openBeforeAttach = vm.CanOpenDataTransfer;
+                int exports = 0, imports = 0;
+                vm.AttachDataTransfer(() => exports++, () => imports++);
+                vm.ExportDataCommand.Execute(null);
+                vm.ImportDataCommand.Execute(null);
+                vm.ImportDataCommand.Execute(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(vm.CanManageDataTransfer).IsTrue();
+                    await Assert.That(vm.ShowSectionDataTransfer).IsTrue();
+                    await Assert.That(vm.ShowGroupLibrary).IsTrue();
+                    await Assert.That(openBeforeAttach).IsFalse().Because("nothing is attached yet");
+                    await Assert.That(vm.CanOpenDataTransfer).IsTrue();
+                    await Assert.That(exports).IsEqualTo(1);
+                    await Assert.That(imports).IsEqualTo(2);
+                }
+
+                vm.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    [Test]
+    public async Task TheDataTransferSection_IsHiddenInTheBrowser()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) =
+                NewVm(dir, isBrowser: () => true);
+            await using (sp)
+            {
+                vm.SettingsFilterText = "export";
+                bool shownWhenSearched = vm.ShowSectionDataTransfer;
+                using (Assert.Multiple())
+                {
+                    await Assert.That(vm.CanManageDataTransfer).IsFalse();
+                    await Assert.That(shownWhenSearched).IsFalse();
+                }
+
+                vm.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    [Test]
+    [Arguments("export")]
+    [Arguments("import")]
+    [Arguments("transfer")]
+    [Arguments("backup")]
+    [Arguments("portable")]
+    [Arguments("laptop")]
+    [Arguments("copy")]
+    public async Task TheDataTransferSection_IsFoundByItsKeywords(string filter)
+    {
+        string dir = NewTempDir();
+        try
+        {
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) =
+                NewVm(dir, isBrowser: () => false);
+            await using (sp)
+            {
+                vm.IsGroupLibraryExpanded = false;
+                vm.SettingsFilterText = filter;
+                bool shown = vm.ShowSectionDataTransfer;
+                bool expanded = vm.IsGroupLibraryExpanded;
+                vm.SettingsFilterText = "zzqqxj";
+                bool hiddenByOtherFilter = !vm.ShowSectionDataTransfer;
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(shown).IsTrue();
+                    await Assert.That(expanded).IsTrue().Because("a hit inside a collapsed group opens it");
+                    await Assert.That(hiddenByOtherFilter).IsTrue();
+                }
+
+                vm.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     private static int ScanNonBackground(WriteableBitmap bmp)
     {
         PixelSize size = bmp.PixelSize;

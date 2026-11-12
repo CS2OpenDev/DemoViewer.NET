@@ -2,6 +2,7 @@
 
 using System.IO.Compression;
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 
 #endregion
 
@@ -15,7 +16,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 /// <param name="Kind">What is thrown.</param>
 /// <param name="Origin">The members' mean release point when it was minted.</param>
 /// <param name="Landing">The members' mean landing when it was minted.</param>
-/// <param name="Seed">The key of the throw it was seeded from.</param>
+/// <param name="Seed">The key of the hashed throw it was seeded from, or empty when that demo was never hashed.</param>
 [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record LineupAnchor(Guid Id, GrenadeKind Kind, WorldPoint Origin, WorldPoint Landing, string Seed);
 
@@ -103,6 +104,29 @@ public sealed class GrenadeLineupStore
             return old;
         }, bytes => folder.WriteAtomic(FileName, bytes));
     }
+
+    /// <summary>
+    ///     The lineup document in <paramref name="folder" />, as an import reads a bundle's copy. Null when the
+    ///     folder has none or it does not parse.
+    /// </summary>
+    /// <param name="folder">A folder holding <see cref="FileName" />.</param>
+    public static GrenadeLineupDocument? ReadFrom(IExtensionFolder folder)
+    {
+        ArgumentNullException.ThrowIfNull(folder);
+        try
+        {
+            return folder.Read(FileName) is { } bytes
+                ? Parse(bytes, ImportLedger.Strict(GrenadeSidecar.JsonOptions))
+                : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Every map's anchor ids. Not thread-safe, like the rest of the store.</summary>
+    public HashSet<Guid> AnchorIds() => [.. Doc.Maps.Values.SelectMany(m => m.Anchors).Select(a => a.Id)];
 
     // Read on first use, not in the constructor: the file holds every flight and the index is built on the UI thread.
     private GrenadeLineupDocument Doc => _loaded ??= Read() ?? new GrenadeLineupDocument();
@@ -218,22 +242,24 @@ public sealed class GrenadeLineupStore
     }
 
     // Gzipped or plain, sniffed by the magic bytes.
-    private static GrenadeLineupDocument? Parse(byte[] bytes)
+    private static GrenadeLineupDocument? Parse(byte[] bytes, JsonSerializerOptions? options = null)
     {
+        options ??= GrenadeSidecar.JsonOptions;
         try
         {
             GrenadeLineupDocument? document;
             if (bytes is [0x1F, 0x8B, ..])
             {
                 using GZipStream gzip = new(new MemoryStream(bytes), CompressionMode.Decompress);
-                document = JsonSerializer.Deserialize<GrenadeLineupDocument>(gzip, GrenadeSidecar.JsonOptions);
+                document = JsonSerializer.Deserialize<GrenadeLineupDocument>(gzip, options);
             }
             else
             {
-                document = JsonSerializer.Deserialize<GrenadeLineupDocument>(bytes, GrenadeSidecar.JsonOptions);
+                document = JsonSerializer.Deserialize<GrenadeLineupDocument>(bytes, options);
             }
 
-            if (document is not { SchemaVersion: GrenadeLineupDocument.CurrentSchema })
+            if (document is not { SchemaVersion: GrenadeLineupDocument.CurrentSchema }
+                || document.Maps.Values.Any(m => m is null))
             {
                 return null;
             }

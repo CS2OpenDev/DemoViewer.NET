@@ -1,5 +1,6 @@
 #region
 
+using System.Buffers;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -62,6 +63,8 @@ public sealed record LineupClipJob(
 /// </summary>
 public static class LineupClipPlanner
 {
+    private static readonly SearchValues<char> HexDigits = SearchValues.Create("0123456789abcdef");
+
     /// <summary>The GIF's rate: one of <c>IExtensionSceneExport.SupportedFps</c>'s GIF rates, the Strat Export default.</summary>
     public const int Fps = 20;
 
@@ -249,6 +252,58 @@ public static class LineupClipPlanner
         }
 
         return name.EndsWith(GifExtension, StringComparison.OrdinalIgnoreCase) ? name[..^GifExtension.Length] : null;
+    }
+
+    /// <summary>The lineup id a pair stem names, or null for a stem without one (an older build's).</summary>
+    /// <param name="stem">A <see cref="FileStem" />.</param>
+    public static Guid? LineupIdOf(string stem)
+    {
+        ArgumentNullException.ThrowIfNull(stem);
+        return IdSegment(stem) is { } at && Guid.TryParseExact(stem.AsSpan(at, 32), "N", out Guid id) ? id : null;
+    }
+
+    /// <summary>
+    ///     <paramref name="stem" /> with its lineup id replaced by the one <paramref name="lineupMap" /> gives it;
+    ///     unchanged when the map has no entry or the stem names no id.
+    /// </summary>
+    /// <param name="stem">A <see cref="FileStem" />.</param>
+    /// <param name="lineupMap">Old lineup id to new.</param>
+    public static string RemapStem(string stem, IReadOnlyDictionary<Guid, Guid> lineupMap)
+    {
+        ArgumentNullException.ThrowIfNull(stem);
+        ArgumentNullException.ThrowIfNull(lineupMap);
+        if (IdSegment(stem) is not { } at || !Guid.TryParseExact(stem.AsSpan(at, 32), "N", out Guid id)
+            || !lineupMap.TryGetValue(id, out Guid now))
+        {
+            return stem;
+        }
+
+        return string.Concat(stem.AsSpan(0, at), now.ToString("N", CultureInfo.InvariantCulture),
+            stem.AsSpan(at + 32));
+    }
+
+    // Where the 32-hex lineup id starts: the first '-'-delimited segment of that shape. A map name or a
+    // technique key never has one.
+    private static int? IdSegment(string stem)
+    {
+        int start = 0;
+        while (start <= stem.Length)
+        {
+            int end = stem.IndexOf('-', start);
+            if (end < 0)
+            {
+                end = stem.Length;
+            }
+
+            if (end - start == 32 && !stem.AsSpan(start, 32).ContainsAnyExcept(HexDigits))
+            {
+                return start;
+            }
+
+            start = end + 1;
+        }
+
+        return null;
     }
 
     /// <summary>

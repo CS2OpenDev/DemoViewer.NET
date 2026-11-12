@@ -84,6 +84,31 @@ public class SettingsServiceTests
         }
     }
 
+    // The configuration binder reads a TimeSpan from its "d.hh:mm:ss" text, so a grace longer than a day
+    // must survive the write and the fresh read.
+    [Test]
+    public async Task ImportedDemoGrace_DefaultsToNinetyDays_AndRoundTrips()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            SettingsService svc = new(dir);
+            await Assert.That(svc.Current.Library.ImportedDemoGrace).IsEqualTo(TimeSpan.FromDays(90));
+
+            svc.Write(s => s.Library.ImportedDemoGrace = TimeSpan.FromDays(120));
+            SettingsService fresh = new(dir);
+            using (Assert.Multiple())
+            {
+                await Assert.That(fresh.Current.Library.ImportedDemoGrace).IsEqualTo(TimeSpan.FromDays(120));
+                await Assert.That(fresh.Current.Library.OrphanedDemoGrace).IsEqualTo(TimeSpan.FromDays(14));
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     [Test]
     public async Task NeedsFirstRun_IsDrivenByFlag_NotFileExistence()
     {

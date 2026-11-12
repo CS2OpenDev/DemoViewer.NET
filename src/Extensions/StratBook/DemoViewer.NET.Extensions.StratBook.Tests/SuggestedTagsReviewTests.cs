@@ -28,6 +28,7 @@ public class SuggestedTagsReviewTests
         {
             await Assert.That(document!.OccupancySource).IsEqualTo(ProposalDocument.FromWalk);
             await Assert.That(document.Demo.Sha256).IsEqualTo(Sha);
+            await Assert.That(document.Demo.StableKey).IsNull().Because("hashed: no path key in a file that travels");
             await Assert.That(document.Clock.FrameCount).IsEqualTo(2);
             await Assert.That(document.DetectorSet.Fingerprint)
                 .IsEqualTo(h.Service.FingerprintFor(SuggestedTagsTestData.Map));

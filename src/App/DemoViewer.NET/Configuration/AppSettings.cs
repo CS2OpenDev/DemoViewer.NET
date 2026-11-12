@@ -469,6 +469,14 @@ public sealed class LibrarySettings
     ///     weekend or a holiday. A non-positive value keeps it until the next sweep.
     /// </summary>
     public TimeSpan OrphanedDemoGrace { get; set; } = TimeSpan.FromDays(14);
+
+    /// <summary>
+    ///     How long the analysis of a demo imported from a transfer bundle is kept while no library folder has
+    ///     listed its file yet, serialized as a <see cref="TimeSpan" />. Longer than
+    ///     <see cref="OrphanedDemoGrace" />: the data often arrives before the demos are copied over. It applies
+    ///     only until a location first attaches; after that the row ages like any other. Default 90 days.
+    /// </summary>
+    public TimeSpan ImportedDemoGrace { get; set; } = TimeSpan.FromDays(90);
 }
 
 /// <summary>Feature-flag state read by the feature-gating layer.</summary>

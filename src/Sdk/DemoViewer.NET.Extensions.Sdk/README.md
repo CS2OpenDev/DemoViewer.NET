@@ -722,3 +722,14 @@ CS2DemoKit 0.14.1, which is the version a pack that reads `CS2DemoKit.Analysis` 
   "Game-wide reads").
 - `ReviewSources.ScoutingReport`. `ReviewSources.Dossier` is obsolete; the host still accepts it and stores
   it as the new value.
+
+2.3 only adds, for Library Transfer, which carries a library's analysis to another machine. A pack that uses one
+of the additions states `^2.3`:
+
+- `StoreDescriptor.Portability`, `DemoKeyedPaths`, `PortableExcludes` and `ExtensionMerges`, init-only. A store
+  that sets none of them stays on the machine, which is what every store declared before 2.3 does.
+- `IExtensionContributions.DataPortability`, taking an `IExtensionDataPortability` that names the files of your
+  own folders that travel and merges an import into the stores you merge yourself, and
+  `IExtensionContributions.DataImported`, the reload after an import. Both have default bodies that do
+  nothing, so a host or a test double written before them transfers none of your data.
+- `ImportConflictPolicy`, `PortableOwnPath`, `IExtensionImport` and `ExtensionImportResult`, which those use.

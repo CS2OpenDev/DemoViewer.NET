@@ -254,6 +254,9 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
     /// </summary>
     public ObservableCollection<LibraryFilterViewModel> Filters { get; } = [];
 
+    /// <summary>The contributed filters that are on now, for a picker that filters the way this tab does.</summary>
+    public IReadOnlyList<ContributedLibraryFilter> ContributedFilters => [.. Filters.Select(f => f.Source)];
+
     /// <summary>True while a contributed badge is on (the provenance chip).</summary>
     public bool HasBadge => ActiveBadgeContribution() is not null;
 
@@ -916,15 +919,7 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
     // changes (so toggling a chip doesn't churn the list). Unsubscribes old items to avoid handler leaks.
     private void RefreshMapFilters()
     {
-        List<(string Display, string MapKey)> groups =
-        [
-            .. _library.Entries
-                .Where(e => e.MapDisplay is { Length: > 0 } && e.MapDisplay != "Unknown")
-                .GroupBy(e => e.MapDisplay, StringComparer.OrdinalIgnoreCase)
-                .Select(g => (Display: g.Key,
-                    MapKey: g.Select(e => e.MapName).FirstOrDefault(m => m is { Length: > 0 }) ?? g.Key))
-                .OrderBy(x => x.Display, StringComparer.OrdinalIgnoreCase)
-        ];
+        List<(string Display, string MapKey)> groups = LibraryFilterPredicate.MapGroups(_library.Entries);
 
         // No change to the map set → keep the current chips (and their checked state) untouched.
         if (groups.Count == MapFilters.Count &&
@@ -1041,38 +1036,11 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
             return;
         }
 
-        IEnumerable<DemoEntry> q = _library.Entries;
-
-        if (!string.IsNullOrWhiteSpace(SearchText))
-        {
-            string needle = SearchText.Trim();
-            q = q.Where(e =>
-                e.FileName.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
-                (e.MapName?.Contains(needle, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                e.Players.Any(p => p.Contains(needle, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        // Multi-select map filter: none checked = all maps; else keep only the checked maps (by display name).
-        HashSet<string> selectedMaps = MapFilters
-            .Where(m => m.IsSelected)
-            .Select(m => m.Display)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (selectedMaps.Count > 0)
-        {
-            q = q.Where(e => selectedMaps.Contains(e.MapDisplay));
-        }
-
-        // Player filter: keep only demos the chosen player appears in.
-        if (SelectedPlayer != AllPlayers)
-        {
-            q = q.Where(e => e.Players.Any(p => string.Equals(p, SelectedPlayer, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        // Every contributed filter, e.g. the Team filter: "" (All) applies no predicate.
-        foreach (LibraryFilterViewModel filter in Filters)
-        {
-            q = q.Where(filter.Matches);
-        }
+        // The shared predicate the transfer wizard's picker also uses. Every contributed filter, e.g. the Team
+        // filter, is part of it; "" (All) applies none.
+        LibraryFilterPredicate predicate = LibraryFilterPredicate.From(SearchText, MapFilters,
+            SelectedPlayer == AllPlayers ? null : SelectedPlayer, [.. Filters.Select(f => f.Choice)]);
+        IEnumerable<DemoEntry> q = _library.Entries.Where(predicate.Matches);
 
         q = Sort switch
         {

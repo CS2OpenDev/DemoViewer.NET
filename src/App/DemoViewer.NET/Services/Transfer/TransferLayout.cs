@@ -1,0 +1,280 @@
+#region
+
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+
+#endregion
+
+namespace DemoViewer.NET.Services.Transfer;
+
+/// <summary>
+///     Where everything sits inside a transfer bundle folder. Every path the bundle holds is ASCII built from a
+///     content hash, digits and the fixed names here, so it is valid on every file system the bundle may travel
+///     on; original file names live only in the manifest. Relative paths always use <c>/</c>, as the manifest
+///     stores them.
+///     <code>
+///     DemoViewer Transfer 2026-11-11 1530/
+///       transfer.json                              written last; its presence marks a complete bundle
+///       data/&lt;sha&gt;/cache/&lt;file&gt;                    core record and siblings
+///       data/&lt;sha&gt;/ext/&lt;extId&gt;/&lt;facet&gt;/&lt;file&gt;      extension per-demo data
+///       data/&lt;sha&gt;/ext/&lt;extId&gt;/stores/&lt;storeId&gt;/&lt;relpath&gt;   declared per-demo stores
+///       data/&lt;sha&gt;/annotations.dvann.json
+///       shared/graph-breakpoints.json, shared/review-queue.json
+///       library/&lt;extId&gt;/stores/&lt;storeId&gt;/&lt;relpath&gt;     declared library-wide stores, whole
+///       library/&lt;extId&gt;/own/&lt;config|cache&gt;/&lt;relpath&gt;   files of the extension's own folders
+///       dem/&lt;sha&gt;.dem                             optional
+///     </code>
+/// </summary>
+public static class TransferLayout
+{
+    /// <summary>The manifest at the bundle root.</summary>
+    public const string ManifestFileName = "transfer.json";
+
+    /// <summary>The folder holding one subfolder per demo, named by its content hash.</summary>
+    public const string DataDirectory = "data";
+
+    /// <summary>Under a demo's folder: the core cache record and its siblings.</summary>
+    public const string CacheDirectory = "cache";
+
+    /// <summary>Under a demo's folder: one subfolder per extension id.</summary>
+    public const string ExtensionDirectory = "ext";
+
+    /// <summary>Under an extension's folder: its declared per-demo user stores, beside its facet folders.</summary>
+    public const string StoresDirectory = "stores";
+
+    /// <summary>A demo's annotations file.</summary>
+    public const string AnnotationsFileName = "annotations.dvann.json";
+
+    /// <summary>The folder for files that hold entries of many demos, filtered to the exported ones.</summary>
+    public const string SharedDirectory = "shared";
+
+    /// <summary>The graph breakpoints of the exported demos.</summary>
+    public const string GraphBreakpointsFileName = "graph-breakpoints.json";
+
+    /// <summary>The review-queue entries of the exported demos.</summary>
+    public const string ReviewQueueFileName = "review-queue.json";
+
+    /// <summary>
+    ///     The folder for extension data about the whole library: one subfolder per extension id, carried whole
+    ///     whichever demos are exported.
+    /// </summary>
+    public const string LibraryDirectory = "library";
+
+    /// <summary>Under an extension's library folder: the files of its own folders, one subfolder per root.</summary>
+    public const string OwnDirectory = "own";
+
+    /// <summary>
+    ///     The start of a store file's bundle name when its path has a segment that is not portable (a user's
+    ///     palette name, say): the rest is a hash of the path, and the manifest keeps the original.
+    /// </summary>
+    public const string HashedNamePrefix = "_h.";
+
+    /// <summary>The folder holding the optional <c>.dem</c> copies.</summary>
+    public const string DemDirectory = "dem";
+
+    /// <summary>The start of every bundle folder's name.</summary>
+    public const string BundleNamePrefix = "DemoViewer Transfer ";
+
+    /// <summary>
+    ///     What a demo's cache and extension files are named by in the bundle, in place of the content hash or
+    ///     file key they carry on disk: <c>demo.json.gz</c>, <c>demo.player_round.facts.player_round.json.gz</c>.
+    ///     The folder already names the demo, and a second hash would push real sibling names past the segment
+    ///     limit and long bundle paths past Windows' 260 characters.
+    /// </summary>
+    public const string DemoFileStem = "demo";
+
+    /// <summary>
+    ///     A demo file's bundle name from <paramref name="rest" />, the part of its disk name after the hash or
+    ///     key (it starts with <c>.</c>).
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="rest" /> does not start with <c>.</c> or is not portable.</exception>
+    public static string DemoFileName(string rest)
+    {
+        ArgumentNullException.ThrowIfNull(rest);
+        return rest.StartsWith('.')
+            ? Segment(DemoFileStem + rest)
+            : throw new ArgumentException($"'{rest}' does not start with '.'.", nameof(rest));
+    }
+
+    /// <summary>
+    ///     The rest of a demo file's disk name from its bundle name (<c>demo.json.gz</c> gives <c>.json.gz</c>), or
+    ///     null when <paramref name="bundleName" /> is not a <see cref="DemoFileStem" /> name.
+    /// </summary>
+    public static string? DemoFileRest(string bundleName)
+    {
+        ArgumentNullException.ThrowIfNull(bundleName);
+        return bundleName.Length > DemoFileStem.Length + 1
+            && bundleName.StartsWith(DemoFileStem + ".", StringComparison.Ordinal)
+                ? bundleName[DemoFileStem.Length..]
+                : null;
+    }
+
+    /// <summary>The bundle folder name for a local time, e.g. <c>DemoViewer Transfer 2026-11-11 1530</c>.</summary>
+    public static string BundleFolderName(DateTime localTime) =>
+        BundleNamePrefix + localTime.ToString("yyyy-MM-dd HHmm", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    ///     A bundle folder under <paramref name="parent" /> that does not exist yet: <see cref="BundleFolderName" />,
+    ///     then with <c> (2)</c>, <c> (3)</c>… when two exports start in the same minute. Pure: creates nothing.
+    /// </summary>
+    public static string NewBundleFolder(string parent, DateTime localTime)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(parent);
+        string name = BundleFolderName(localTime);
+        string candidate = Path.Combine(parent, name);
+        for (int n = 2; Directory.Exists(candidate) || File.Exists(candidate); n++)
+        {
+            candidate = Path.Combine(parent, $"{name} ({n.ToString(CultureInfo.InvariantCulture)})");
+        }
+
+        return candidate;
+    }
+
+    /// <summary>True for a lowercase-hex SHA-256, the only form a demo folder may be named by.</summary>
+    public static bool IsSha256(string? value)
+    {
+        if (value is not { Length: 64 })
+        {
+            return false;
+        }
+
+        foreach (char c in value)
+        {
+            if (c is not (>= '0' and <= '9' or >= 'a' and <= 'f'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     True for a name that may be one segment of a bundle path: 1 to 100 characters of ASCII letters,
+    ///     digits, <c>.</c>, <c>_</c> and <c>-</c>, not ending in <c>.</c> and not a Windows device name, so a
+    ///     bundle made anywhere can be written and read on Windows.
+    /// </summary>
+    public static bool IsPortableSegment(string? value)
+    {
+        // Windows trims a trailing dot, so "x." and "x" would be one file, and "." and ".." end in one too.
+        if (string.IsNullOrEmpty(value) || value.Length > 100 || value.EndsWith('.')
+            || PortableFileName.IsReservedDeviceName(value))
+        {
+            return false;
+        }
+
+        foreach (char c in value)
+        {
+            if (c is not (>= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '.' or '_' or '-'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary><c>data/&lt;sha&gt;</c>.</summary>
+    public static string DemoFolder(string sha256) => DataDirectory + "/" + Sha(sha256);
+
+    /// <summary><c>data/&lt;sha&gt;/cache/&lt;fileName&gt;</c>, for the record and its siblings.</summary>
+    public static string CacheFile(string sha256, string fileName) =>
+        DemoFolder(sha256) + "/" + CacheDirectory + "/" + Segment(fileName);
+
+    /// <summary><c>data/&lt;sha&gt;/ext/&lt;extensionId&gt;/&lt;facet&gt;/&lt;fileName&gt;</c>.</summary>
+    public static string ExtensionFacetFile(string sha256, string extensionId, string facet, string fileName) =>
+        ExtensionFolder(sha256, extensionId) + "/" + Segment(facet) + "/" + Segment(fileName);
+
+    /// <summary>
+    ///     <c>data/&lt;sha&gt;/ext/&lt;extensionId&gt;/stores/&lt;storeId&gt;/&lt;relativePath&gt;</c>, with
+    ///     <paramref name="relativePath" /> relative to the store's root, so the store's folder is laid out as
+    ///     <see cref="IExtensionImport.Staged" /> hands it to the extension. A path with a segment that is not
+    ///     portable goes under its hashed name (<see cref="StoreRelativeName" />).
+    /// </summary>
+    /// <exception cref="ArgumentException">An id is not portable, or <paramref name="relativePath" /> is not a safe relative path.</exception>
+    public static string ExtensionStoreFile(string sha256, string extensionId, string storeId, string relativePath) =>
+        ExtensionFolder(sha256, extensionId) + "/" + StoresDirectory + "/" + Segment(storeId) + "/"
+        + StoreRelativeName(relativePath);
+
+    /// <summary>
+    ///     <c>library/&lt;extensionId&gt;/stores/&lt;storeId&gt;/&lt;relativePath&gt;</c>, for a library-wide
+    ///     store, named as <see cref="ExtensionStoreFile" /> names a per-demo one.
+    /// </summary>
+    /// <exception cref="ArgumentException">An id is not portable, or <paramref name="relativePath" /> is not a safe relative path.</exception>
+    public static string LibraryStoreFile(string extensionId, string storeId, string relativePath) =>
+        LibraryDirectory + "/" + Segment(extensionId) + "/" + StoresDirectory + "/" + Segment(storeId) + "/"
+        + StoreRelativeName(relativePath);
+
+    /// <summary>
+    ///     <c>library/&lt;extensionId&gt;/own/&lt;config|cache&gt;/&lt;relativePath&gt;</c>, with
+    ///     <paramref name="relativePath" /> relative to the extension's own folder under <paramref name="root" />.
+    /// </summary>
+    /// <exception cref="ArgumentException">The id or root is not valid, or <paramref name="relativePath" /> is not a safe relative path.</exception>
+    public static string LibraryOwnFile(string extensionId, StoreRoot root, string relativePath) =>
+        LibraryDirectory + "/" + Segment(extensionId) + "/" + OwnDirectory + "/" + RootName(root) + "/"
+        + StoreRelativeName(relativePath);
+
+    /// <summary>The folder an own root's files sit in: <c>config</c> or <c>cache</c>.</summary>
+    /// <exception cref="ArgumentException"><paramref name="root" /> is not a defined root.</exception>
+    public static string RootName(StoreRoot root) => root switch
+    {
+        StoreRoot.Config => "config",
+        StoreRoot.Cache => "cache",
+        _ => throw new ArgumentException($"'{root}' is not a store root.", nameof(root))
+    };
+
+    /// <summary>
+    ///     A store file's path below its store folder in the bundle: <paramref name="relativePath" /> with
+    ///     <c>/</c> separators when every segment is portable, else <see cref="HashedNamePrefix" /> and the first
+    ///     32 hex digits of the SHA-256 of that <c>/</c>-separated path.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="relativePath" /> is not a safe relative path.</exception>
+    public static string StoreRelativeName(string relativePath)
+    {
+        ArgumentNullException.ThrowIfNull(relativePath);
+        if (PathSafety.SafeRelativePath(relativePath) is null || relativePath.EndsWith('/')
+                                                              || relativePath.EndsWith('\\'))
+        {
+            throw new ArgumentException($"'{relativePath}' is not a safe relative path.", nameof(relativePath));
+        }
+
+        string[] segments = relativePath.Split('/', '\\');
+        string joined = string.Join('/', segments);
+        return segments.All(IsPortableSegment)
+            ? joined
+            : HashedNamePrefix + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(joined)))[..32];
+    }
+
+    /// <summary><c>data/&lt;sha&gt;/annotations.dvann.json</c>.</summary>
+    public static string AnnotationsFile(string sha256) => DemoFolder(sha256) + "/" + AnnotationsFileName;
+
+    /// <summary><c>shared/&lt;fileName&gt;</c>.</summary>
+    public static string SharedFile(string fileName) => SharedDirectory + "/" + Segment(fileName);
+
+    /// <summary><c>dem/&lt;sha&gt;.dem</c>.</summary>
+    public static string DemFile(string sha256) => DemDirectory + "/" + Sha(sha256) + ".dem";
+
+    /// <summary>
+    ///     The full path of a bundle-relative path under <paramref name="bundleRoot" />, checked by
+    ///     <see cref="PathSafety.FullPathInside" />.
+    /// </summary>
+    /// <exception cref="ArgumentException">The path is unsafe or resolves outside the bundle.</exception>
+    public static string FullPath(string bundleRoot, string relativePath) =>
+        PathSafety.FullPathInside(bundleRoot, relativePath)
+        ?? throw new ArgumentException($"'{relativePath}' is not a safe path inside the bundle.",
+            nameof(relativePath));
+
+    private static string ExtensionFolder(string sha256, string extensionId) =>
+        DemoFolder(sha256) + "/" + ExtensionDirectory + "/" + Segment(extensionId);
+
+    private static string Sha(string sha256) =>
+        IsSha256(sha256)
+            ? sha256
+            : throw new ArgumentException("A demo folder is named by a lowercase-hex SHA-256.", nameof(sha256));
+
+    private static string Segment(string value) =>
+        IsPortableSegment(value)
+            ? value
+            : throw new ArgumentException($"'{value}' is not a portable bundle path segment.", nameof(value));
+}
