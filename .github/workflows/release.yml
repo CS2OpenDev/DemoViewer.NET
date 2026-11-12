@@ -1,6 +1,6 @@
 # Tri-OS Velopack packaging matrix.
 # Each OS builds its own self-contained bundle + installer (vpk cannot cross-build):
-#   windows-latest → win-x64 Setup.exe · macos-14 (arm64) → osx-arm64 .app/.pkg · ubuntu → linux-x64 AppImage
+#   windows-latest → win-x64 Setup.exe · macos-15 (arm64) → osx-arm64 .app/.pkg · ubuntu → linux-x64 AppImage
 #
 # Triggered by a v* tag (a real release) or manually. A vX.Y.Z-betaNNNN tag is a beta: it packs into
 # the <os>-beta channels and publishes as a GitHub prerelease, which only subscribed installs read.
@@ -139,7 +139,7 @@ jobs:
         include:
           - os: windows-latest
             rid: win-x64
-          - os: macos-14
+          - os: macos-15
             rid: osx-arm64
           - os: ubuntu-latest
             rid: linux-x64
