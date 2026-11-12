@@ -3,6 +3,7 @@
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Transfer;
+using DemoViewer.NET.ViewModels.Library;
 
 #endregion
 
@@ -20,7 +21,8 @@ public sealed class DataTransferLauncher(
     Func<IReadOnlyList<string>> libraryFolders,
     Func<int>? demosInFlight = null,
     Action<string>? openFolder = null,
-    Func<IReadOnlyList<string>>? libraryDataExtensions = null)
+    Func<IReadOnlyList<string>>? libraryDataExtensions = null,
+    Func<IReadOnlyList<ContributedLibraryFilter>>? contributedFilters = null)
 {
     /// <summary>False on the browser head, which has no file system to export from or import into.</summary>
     public static bool IsSupported => !OperatingSystem.IsBrowser();
@@ -35,7 +37,8 @@ public sealed class DataTransferLauncher(
 
         windows.ShowExportWizard(() =>
             new ExportWizardViewModel(service, libraryDemos, demosInFlight: demosInFlight, openFolder: openFolder,
-                libraryDataExtensions: libraryDataExtensions?.Invoke()));
+                libraryDataExtensions: libraryDataExtensions?.Invoke(),
+                contributedFilters: contributedFilters?.Invoke()));
     }
 
     /// <summary>Opens the import wizard, or brings the open one forward.</summary>

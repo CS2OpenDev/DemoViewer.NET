@@ -16,7 +16,7 @@ namespace DemoViewer.NET.ViewModels.Library;
 public sealed partial class LibraryFilterViewModel : ObservableObject
 {
     private readonly Func<DemoEntry, LibraryDemo> _demoOf;
-    private Func<LibraryDemo, string, bool> _matches;
+    private LibraryFilter _filter;
     private bool _suppress;
 
     internal LibraryFilterViewModel(LibraryFilter filter, Action onSelectionChanged,
@@ -27,7 +27,7 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(onSelectionChanged);
         OnSelectionChanged = onSelectionChanged;
         Tooltip = filter.Tooltip ?? filter.Label;
-        _matches = filter.Matches;
+        _filter = filter;
         Items = [.. filter.Items];
         _selected = Items.Count > 0 ? Items[0] : new LibraryFilterItem("", "All");
     }
@@ -52,7 +52,13 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
     }
 
     /// <summary>Whether <paramref name="entry" /> passes the current selection. Always true for the "" choice.</summary>
-    public bool Matches(DemoEntry entry) => Selected.Key.Length == 0 || _matches(_demoOf(entry), Selected.Key);
+    public bool Matches(DemoEntry entry) => Choice.Matches(entry);
+
+    /// <summary>The selection as the shared predicate takes it.</summary>
+    public ContributedFilterChoice Choice => Source.Pick([Selected.Key]);
+
+    /// <summary>The contributed filter as last read, with how this host hands it a demo.</summary>
+    public ContributedLibraryFilter Source => new(_filter, _demoOf);
 
     /// <summary>True while a real choice (not "") is selected: drives the host's "Clear" affordance.</summary>
     public bool IsActive => Selected.Key.Length > 0;
@@ -63,7 +69,7 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
     internal void Rebuild(LibraryFilter filter)
     {
         ArgumentNullException.ThrowIfNull(filter);
-        _matches = filter.Matches;
+        _filter = filter;
         Tooltip = filter.Tooltip ?? filter.Label;
         string keepKey = Selected.Key;
 

@@ -966,7 +966,9 @@ public class App : Application
                 () => [.. library.Folders],
                 () => queue.QueuedCount + queue.RunningCount,
                 path => Services?.GetService<MainViewModel>()?.OpenOutputFolder(path),
-                () => [.. TransferExtensionSources(sp).Where(s => s.HasLibraryData).Select(s => s.Label)]);
+                () => [.. TransferExtensionSources(sp).Where(s => s.HasLibraryData).Select(s => s.Label)],
+                // The picker offers the Library tab's own contributed filters (the Team filter), gated the same way.
+                () => Services?.GetService<MainViewModel>()?.LibraryTab.ContributedFilters ?? []);
         });
 
         // The host window service instance (desktop real / browser no-op), resolved by MainViewModel.

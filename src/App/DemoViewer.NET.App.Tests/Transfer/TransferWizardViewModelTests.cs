@@ -2,6 +2,7 @@
 
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.Transfer;
+using DemoViewer.NET.ViewModels.Library;
 using DemoViewer.NET.ViewModels.Transfer;
 using static DemoViewer.NET.AppTests.Transfer.TransferWizardFakes;
 
@@ -169,6 +170,64 @@ public class TransferWizardViewModelTests
         {
             await Assert.That(exporter.Requests[^1].IncludeLibraryData).IsFalse();
             await Assert.That(vm.ShowLibraryDataSize).IsFalse();
+        }
+    }
+
+    // A stand-in for the Strat Book's Team filter: a team's demos are the ones its tag names.
+    private static ContributedLibraryFilter TeamFilter() => new(new LibraryFilter("Team",
+    [
+        new LibraryFilterItem("", "All teams"), new LibraryFilterItem("navi", "NaVi"),
+        new LibraryFilterItem("g2", "G2"), new LibraryFilterItem("mouz", "MOUZ")
+    ], (demo, key) => demo.FileName.Contains(key, StringComparison.OrdinalIgnoreCase), "Demos with this team"));
+
+    [Test]
+    public async Task Export_TeamChips_FilterTheList_AndSelectAllAddsEachTeamsDemos()
+    {
+        ExportWizardViewModel vm = new(new FakeExporter(), () => _library, Inline,
+            contributedFilters: [TeamFilter()]);
+        vm.ChooseDemos = true;
+        TransferFilterGroupViewModel team = vm.ContributedFilters.Single();
+        TransferFilterChip Chip(string key) => team.Chips.Single(c => c.Key == key);
+
+        Chip("navi").IsSelected = true;
+        string[] naviRows = [.. vm.FilteredRows.Select(r => r.DisplayName)];
+        vm.SelectAllFilteredCommand.Execute(null);
+        int afterNavi = vm.SelectedCount;
+
+        // A second team adds to what is ticked; picking two at once shows both teams' demos.
+        Chip("navi").IsSelected = false;
+        Chip("g2").IsSelected = true;
+        string[] g2Rows = [.. vm.FilteredRows.Select(r => r.DisplayName)];
+        vm.SelectAllFilteredCommand.Execute(null);
+        Chip("mouz").IsSelected = true;
+        int bothTeamsRows = vm.FilteredRows.Count;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.HasContributedFilters).IsTrue();
+            await Assert.That(team.Label).IsEqualTo("Team");
+            await Assert.That(team.Chips.Select(c => c.Display)).IsEquivalentTo(["NaVi", "G2", "MOUZ"],
+                TUnit.Assertions.Enums.CollectionOrdering.Matching).Because("the All choice is no chip");
+            await Assert.That(naviRows).IsEquivalentTo(["navi-faze.dem"]);
+            await Assert.That(afterNavi).IsEqualTo(1);
+            await Assert.That(g2Rows).IsEquivalentTo(["g2-vit.dem"]);
+            await Assert.That(vm.Rows.Where(r => r.IsChecked).Select(r => r.DisplayName))
+                .IsEquivalentTo(["navi-faze.dem", "g2-vit.dem"]);
+            await Assert.That(bothTeamsRows).IsEqualTo(2);
+            await Assert.That(vm.BuildRequest().DemoKeys.Count).IsEqualTo(2);
+        }
+    }
+
+    [Test]
+    public async Task Export_WithNoContributedFilter_HidesTheTeamRow()
+    {
+        ExportWizardViewModel vm = NewExport(new FakeExporter());
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.HasContributedFilters).IsFalse();
+            await Assert.That(vm.ContributedFilters).IsEmpty();
+            await Assert.That(vm.FilteredRows.Count).IsEqualTo(_library.Count);
         }
     }
 

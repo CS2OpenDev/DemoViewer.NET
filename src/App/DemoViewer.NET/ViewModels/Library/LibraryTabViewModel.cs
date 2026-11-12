@@ -254,6 +254,9 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
     /// </summary>
     public ObservableCollection<LibraryFilterViewModel> Filters { get; } = [];
 
+    /// <summary>The contributed filters that are on now, for a picker that filters the way this tab does.</summary>
+    public IReadOnlyList<ContributedLibraryFilter> ContributedFilters => [.. Filters.Select(f => f.Source)];
+
     /// <summary>True while a contributed badge is on (the provenance chip).</summary>
     public bool HasBadge => ActiveBadgeContribution() is not null;
 
@@ -1033,16 +1036,11 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
             return;
         }
 
-        // Search, maps and player come from the shared predicate the transfer wizard's picker also uses.
-        LibraryFilterPredicate builtIn = LibraryFilterPredicate.From(SearchText, MapFilters,
-            SelectedPlayer == AllPlayers ? null : SelectedPlayer);
-        IEnumerable<DemoEntry> q = _library.Entries.Where(builtIn.Matches);
-
-        // Every contributed filter, e.g. the Team filter: "" (All) applies no predicate.
-        foreach (LibraryFilterViewModel filter in Filters)
-        {
-            q = q.Where(filter.Matches);
-        }
+        // The shared predicate the transfer wizard's picker also uses. Every contributed filter, e.g. the Team
+        // filter, is part of it; "" (All) applies none.
+        LibraryFilterPredicate predicate = LibraryFilterPredicate.From(SearchText, MapFilters,
+            SelectedPlayer == AllPlayers ? null : SelectedPlayer, [.. Filters.Select(f => f.Choice)]);
+        IEnumerable<DemoEntry> q = _library.Entries.Where(predicate.Matches);
 
         q = Sort switch
         {

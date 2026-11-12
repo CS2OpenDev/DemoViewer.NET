@@ -104,6 +104,7 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
     /// <param name="openFolder">Opens the finished bundle in the file manager.</param>
     /// <param name="now">The clock for the bundle folder name.</param>
     /// <param name="libraryDataExtensions">The names of the enabled extensions that carry library-wide data.</param>
+    /// <param name="contributedFilters">The Library tab's contributed filters (the Team filter), offered as chips.</param>
     public ExportWizardViewModel(
         ITransferExporter exporter,
         Func<IReadOnlyList<DemoEntry>> libraryDemos,
@@ -111,7 +112,8 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
         Func<int>? demosInFlight = null,
         Action<string>? openFolder = null,
         Func<DateTime>? now = null,
-        IReadOnlyList<string>? libraryDataExtensions = null)
+        IReadOnlyList<string>? libraryDataExtensions = null,
+        IReadOnlyList<ContributedLibraryFilter>? contributedFilters = null)
         : base(post, demosInFlight, openFolder)
     {
         ArgumentNullException.ThrowIfNull(exporter);
@@ -119,6 +121,8 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
         _exporter = exporter;
         _now = now ?? (() => DateTime.Now);
         LibraryDataExtensions = libraryDataExtensions ?? [];
+        ContributedFilters =
+            [.. (contributedFilters ?? []).Select(f => new TransferFilterGroupViewModel(f, ApplyFilter))];
 
         IReadOnlyList<DemoEntry> demos = libraryDemos();
         Rows = [.. demos.Select(e => new TransferDemoRowViewModel(e))];
@@ -151,6 +155,12 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
 
     /// <summary>One chip per map in the library.</summary>
     public ObservableCollection<MapFilterItem> MapFilters { get; } = [];
+
+    /// <summary>The contributed filters, e.g. the Team filter, each a row of chips.</summary>
+    public IReadOnlyList<TransferFilterGroupViewModel> ContributedFilters { get; }
+
+    /// <summary>False when no extension contributes a filter, which hides their rows.</summary>
+    public bool HasContributedFilters => ContributedFilters.Count > 0;
 
     /// <summary>The inverse of <see cref="ExportAll" />, for the second radio button.</summary>
     public bool ChooseDemos
@@ -360,7 +370,8 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
 
     private void ApplyFilter()
     {
-        LibraryFilterPredicate predicate = LibraryFilterPredicate.From(SearchText, MapFilters, null);
+        LibraryFilterPredicate predicate = LibraryFilterPredicate.From(SearchText, MapFilters, null,
+            [.. ContributedFilters.Select(f => f.Choice)]);
         FilteredRows.Clear();
         foreach (TransferDemoRowViewModel row in Rows)
         {

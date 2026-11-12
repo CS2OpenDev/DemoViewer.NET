@@ -89,6 +89,33 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <!-- Contributed filters (the Team filter): any number of chips, a demo matching one shows -->
+                        <ItemsControl ItemsSource="{Binding ContributedFilters}"
+                                      IsVisible="{Binding HasContributedFilters}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="transfer:TransferFilterGroupViewModel">
+                                    <DockPanel ToolTip.Tip="{Binding Tooltip}">
+                                        <TextBlock DockPanel.Dock="Left" FontSize="11" Margin="0,6,8,0"
+                                                   VerticalAlignment="Top" Foreground="{DynamicResource TextMid}"
+                                                   Text="{Binding Label}" />
+                                        <ItemsControl ItemsSource="{Binding Chips}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="transfer:TransferFilterChip">
+                                                    <ToggleButton Classes="chip" Margin="0,2,6,2" FontSize="11"
+                                                                  Padding="8,3" Content="{Binding Display}"
+                                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                     <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,8,0,0">
                         <TextBlock Grid.Column="0" FontSize="12" VerticalAlignment="Center"
