@@ -139,8 +139,8 @@ public partial class TransferRoundTripTests
                     .IsEquivalentTo([ours]).Because("the same five make the same team");
                 await Assert.That(strat.Document?.Name).IsEqualTo("A split");
                 await Assert.That(strat.Document?.Owner.TeamId).IsEqualTo(ours);
-                await Assert.That(strats.History(_strat).Count).IsEqualTo(3)
-                    .Because("both imported commits replay, and the move onto the local team is a third");
+                await Assert.That(strats.History(_strat).Count).IsEqualTo(2)
+                    .Because("both imported commits replay, with the team id translated rather than moved");
                 await Assert.That(notes.TeamIds).IsEquivalentTo([ours]);
                 await Assert.That(notes.For(ours).Summary).IsEqualTo("Fast A");
                 await Assert.That(notes.For(ours).Notes.Select(n => n.Text)).IsEquivalentTo(["smoke window early"]);

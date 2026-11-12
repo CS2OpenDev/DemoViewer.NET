@@ -11,10 +11,10 @@ using static DemoViewer.NET.AppTests.StratTestData;
 namespace DemoViewer.NET.AppTests;
 
 /// <summary>
-///     Library Transfer's strats import between two stores on disk: a new strat with its log, a team move committed
-///     as a revision, an identical strat, a fast-forward, the three answers to a strat both machines changed, a
-///     strat open in the Strat Book or deleted here, books and callouts, a fresh store that loads the result clean,
-///     and a second import that changes nothing.
+///     Library Transfer's strats import between two stores on disk: a new strat with its log, team ids translated
+///     with no revision of their own, repeated syncs both ways, an identical strat, a fast-forward, the three answers
+///     to a strat both machines changed, a strat open in the Strat Book or deleted here, a strat of a team deleted
+///     here, books and callouts, a fresh store that loads the result clean, and a second import that changes nothing.
 /// </summary>
 public class StratsImportTests
 {
@@ -39,6 +39,15 @@ public class StratsImportTests
         {
             ImportLedger ledger = new(policy, Lines.Add);
             Here.Import(new StagedFolder(TherePath), teams ?? TeamIdMap.Identity, ledger);
+            return ledger;
+        }
+
+        // The other way: this machine's store into the other's, as the next sync back does.
+        public ImportLedger ImportBack(ImportConflictPolicy policy = ImportConflictPolicy.KeepMine,
+            TeamIdMap? teams = null)
+        {
+            ImportLedger ledger = new(policy, Lines.Add);
+            There.Import(new StagedFolder(HerePath), teams ?? TeamIdMap.Identity, ledger);
             return ledger;
         }
 
@@ -90,7 +99,7 @@ public class StratsImportTests
     }
 
     [Test]
-    public async Task ATeamTheImportMoved_IsCommittedAsARevision_AndTheStratMovesFolder()
+    public async Task ATeamTheImportMoved_IsTranslatedInTheLog_AndTheStratMovesFolder()
     {
         using Machines m = new();
         Guid theirs = Guid.NewGuid();
@@ -101,15 +110,128 @@ public class StratsImportTests
 
         StratStore restarted = new(PackStores.At(m.HerePath));
         StratLoadResult loaded = restarted.Load(strat.Id);
+        string[] files = [.. Directory.EnumerateFiles(m.HerePath, "*", SearchOption.AllDirectories)];
         using (Assert.Multiple())
         {
             await Assert.That(loaded.Document!.Owner.TeamId).IsEqualTo(ours);
             await Assert.That(loaded.Note).IsNull();
-            await Assert.That(restarted.History(strat.Id).Count).IsEqualTo(2)
-                .Because("the move is a commit of its own");
+            await Assert.That(restarted.History(strat.Id).Count).IsEqualTo(1)
+                .Because("a translated id is no edit, so it is no commit");
+            await Assert.That(files.Any(f => File.ReadAllText(f).Contains(theirs.ToString("D")))).IsFalse()
+                .Because("neither the strat nor its log keeps the other machine's id");
             await Assert.That(Directory.Exists(Path.Combine(m.HerePath, $"team-{theirs:D}"))).IsFalse();
             await Assert.That(File.Exists(Path.Combine(m.HerePath, $"team-{ours:D}", "de_mirage",
                 $"{strat.Id:D}{StratStore.StratExtension}"))).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task RepeatedSyncsBothWays_FastForwardEveryTime_WithNoConflictsCopiesOrOwnerCommits()
+    {
+        using Machines m = new();
+        Guid a = Guid.NewGuid();
+        Guid b = Guid.NewGuid();
+        TeamIdMap toHere = new(new Dictionary<Guid, Guid> { [a] = b });
+        TeamIdMap toThere = new(new Dictionary<Guid, Guid> { [b] = a });
+        StratDocument strat = Committed(m.There, StratOwner.Team(a));
+        Rename(m.There, strat.Id, "r1");
+
+        ImportLedger first = m.Import(ImportConflictPolicy.KeepBoth, toHere);
+        Rename(m.There, strat.Id, "r2");
+        ImportLedger second = m.Import(ImportConflictPolicy.KeepBoth, toHere);
+        Rename(m.Here, strat.Id, "r3");
+        ImportLedger back = m.ImportBack(ImportConflictPolicy.KeepBoth, toThere);
+        ImportLedger settled = m.Import(ImportConflictPolicy.KeepBoth, toHere);
+        Rename(m.There, strat.Id, "r4");
+        ImportLedger third = m.Import(ImportConflictPolicy.KeepBoth, toHere);
+        ImportLedger backAgain = m.ImportBack(ImportConflictPolicy.KeepBoth, toThere);
+
+        StratStore here = new(PackStores.At(m.HerePath));
+        StratStore there = new(PackStores.At(m.TherePath));
+        using (Assert.Multiple())
+        {
+            await Assert.That(first.Added).IsEqualTo(1);
+            await Assert.That(new[] { second, back, third }.Select(l => l.Merged)).IsEquivalentTo([1, 1, 1])
+                .Because("each sync is a fast-forward");
+            await Assert.That(new[] { first, second, back, settled, third, backAgain }.Sum(l => l.Conflicts))
+                .IsEqualTo(0);
+            await Assert.That(settled.Merged + settled.Added).IsEqualTo(0);
+            await Assert.That(backAgain.Merged + backAgain.Added).IsEqualTo(0);
+            await Assert.That(here.Index.Select(e => e.Name)).IsEquivalentTo(["r4"]);
+            await Assert.That(there.Index.Select(e => e.Name)).IsEquivalentTo(["r4"]);
+            await Assert.That(here.Load(strat.Id).Document!.Owner.TeamId).IsEqualTo(b);
+            await Assert.That(there.Load(strat.Id).Document!.Owner.TeamId).IsEqualTo(a);
+            await Assert.That(here.History(strat.Id).Count).IsEqualTo(5).Because("created, r1, r2, r3, r4");
+            await Assert.That(there.History(strat.Id).Count).IsEqualTo(5);
+            await Assert.That(here.Load(strat.Id).Note).IsNull();
+            await Assert.That(there.Load(strat.Id).Note).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task EditsOnBothMachinesAfterATranslatedSync_StillConflict()
+    {
+        using Machines m = new();
+        Guid a = Guid.NewGuid();
+        Guid b = Guid.NewGuid();
+        TeamIdMap toHere = new(new Dictionary<Guid, Guid> { [a] = b });
+        StratDocument strat = Committed(m.There, StratOwner.Team(a));
+        m.Import(teams: toHere);
+        Rename(m.There, strat.Id, "theirs");
+        Rename(m.Here, strat.Id, "ours");
+
+        ImportLedger ledger = m.Import(teams: toHere);
+        ImportLedger back = m.ImportBack(teams: new TeamIdMap(new Dictionary<Guid, Guid> { [b] = a }));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ledger.Conflicts).IsEqualTo(1);
+            await Assert.That(back.Conflicts).IsEqualTo(1);
+            await Assert.That(m.Here.TryLoad(strat.Id)!.Name).IsEqualTo("ours");
+            await Assert.That(m.There.TryLoad(strat.Id)!.Name).IsEqualTo("theirs");
+        }
+    }
+
+    [Test]
+    public async Task TakeImported_CommitsThisMachinesUncommittedEdits_AsARevisionOfTheirOwn()
+    {
+        using Machines m = new();
+        StratDocument strat = Committed(m.There);
+        m.Import();
+        Rename(m.There, strat.Id, "theirs");
+        StratDocument working = m.Here.TryLoad(strat.Id)!;
+        working.Name = "ours, unsaved";
+        await Assert.That(m.Here.WriteWorkingCopy(working, true)).IsTrue();
+
+        m.Import(ImportConflictPolicy.TakeImported);
+
+        StratStore restarted = new(PackStores.At(m.HerePath));
+        IReadOnlyList<HistoryEntry> history = restarted.History(strat.Id);
+        using (Assert.Multiple())
+        {
+            await Assert.That(restarted.Load(strat.Id).Document!.Name).IsEqualTo("theirs");
+            await Assert.That(history.Count).IsEqualTo(3).Because("created, this machine's edits, the import");
+            await Assert.That(history[1].Ops.Any(o => o.Path == "/name" && (string?)o.Value == "ours, unsaved"))
+                .IsTrue();
+            await Assert.That(history[2].Ops.Any(o => o.Path == "/name" && (string?)o.From == "ours, unsaved"))
+                .IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task AStratOfATeamDeletedHere_IsLeftOut()
+    {
+        using Machines m = new();
+        Guid dead = Guid.NewGuid();
+        Committed(m.There, StratOwner.Team(dead));
+
+        ImportLedger ledger = m.Import(teams: new TeamIdMap(new Dictionary<Guid, Guid>(), [dead]));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ledger.Added).IsEqualTo(0);
+            await Assert.That(Directory.Exists(Path.Combine(m.HerePath, $"team-{dead:D}"))).IsFalse();
+            await Assert.That(m.Lines.Any(l => l.Contains("its team was deleted on this machine"))).IsTrue();
         }
     }
 

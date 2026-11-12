@@ -2,6 +2,7 @@
 
 using System.IO.Compression;
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 
 #endregion
 
@@ -114,7 +115,9 @@ public sealed class GrenadeLineupStore
         ArgumentNullException.ThrowIfNull(folder);
         try
         {
-            return folder.Read(FileName) is { } bytes ? Parse(bytes) : null;
+            return folder.Read(FileName) is { } bytes
+                ? Parse(bytes, ImportLedger.Strict(GrenadeSidecar.JsonOptions))
+                : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -239,22 +242,24 @@ public sealed class GrenadeLineupStore
     }
 
     // Gzipped or plain, sniffed by the magic bytes.
-    private static GrenadeLineupDocument? Parse(byte[] bytes)
+    private static GrenadeLineupDocument? Parse(byte[] bytes, JsonSerializerOptions? options = null)
     {
+        options ??= GrenadeSidecar.JsonOptions;
         try
         {
             GrenadeLineupDocument? document;
             if (bytes is [0x1F, 0x8B, ..])
             {
                 using GZipStream gzip = new(new MemoryStream(bytes), CompressionMode.Decompress);
-                document = JsonSerializer.Deserialize<GrenadeLineupDocument>(gzip, GrenadeSidecar.JsonOptions);
+                document = JsonSerializer.Deserialize<GrenadeLineupDocument>(gzip, options);
             }
             else
             {
-                document = JsonSerializer.Deserialize<GrenadeLineupDocument>(bytes, GrenadeSidecar.JsonOptions);
+                document = JsonSerializer.Deserialize<GrenadeLineupDocument>(bytes, options);
             }
 
-            if (document is not { SchemaVersion: GrenadeLineupDocument.CurrentSchema })
+            if (document is not { SchemaVersion: GrenadeLineupDocument.CurrentSchema }
+                || document.Maps.Values.Any(m => m is null))
             {
                 return null;
             }

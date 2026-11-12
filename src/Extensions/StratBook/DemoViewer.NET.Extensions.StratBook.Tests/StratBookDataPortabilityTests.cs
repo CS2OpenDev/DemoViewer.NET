@@ -125,9 +125,10 @@ public class StratBookDataPortabilityTests
         public string Bundle => Path.Combine(_root, "bundle");
 
         // The export's byte copy: each store that travels, as its declared path under the config root, its
-        // excluded names left behind, and the own files the pack names.
-        public void Export()
+        // excluded names left behind, and the own files the pack names. The other machine's unless told.
+        public void Export(Machine? from = null)
         {
+            from ??= There;
             if (Directory.Exists(Bundle))
             {
                 Directory.Delete(Bundle, true);
@@ -135,23 +136,24 @@ public class StratBookDataPortabilityTests
 
             foreach (StoreDescriptor store in StratBookStores.All.Where(s => s.Portability != StorePortability.None))
             {
-                Copy(Path.Combine(There.Config, store.Paths[0]),
+                Copy(Path.Combine(from.Config, store.Paths[0]),
                     Path.Combine(Bundle, "stores", store.Id, store.Paths[0]), store.PortableExcludes);
             }
 
             foreach (PortableOwnPath own in StratBookStores.PortableOwnPaths)
             {
-                string from = own.Root == StoreRoot.Cache ? There.OwnCache : There.OwnConfig;
-                Copy(Path.Combine(from, own.Path), Path.Combine(Bundle, "own", own.Root.ToString(), own.Path), []);
+                string folder = own.Root == StoreRoot.Cache ? from.OwnCache : from.OwnConfig;
+                Copy(Path.Combine(folder, own.Path), Path.Combine(Bundle, "own", own.Root.ToString(), own.Path), []);
             }
         }
 
         public async Task<(ExtensionImportResult Result, List<string> Lines)> Import(
-            ImportConflictPolicy policy = ImportConflictPolicy.KeepMine)
+            ImportConflictPolicy policy = ImportConflictPolicy.KeepMine, Machine? into = null)
         {
             Staging import = new(Bundle, policy);
+            Machine target = into ?? Here;
             ExtensionImportResult result =
-                await new StratBookDataPortability(() => Here.Targets, _inline).MergeAsync(import,
+                await new StratBookDataPortability(() => target.Targets, _inline).MergeAsync(import,
                     CancellationToken.None);
             return (result, import.Lines);
         }
@@ -275,8 +277,8 @@ public class StratBookDataPortabilityTests
             await Assert.That(loaded.Document?.Name).IsEqualTo("A split");
             await Assert.That(loaded.Document?.Owner.TeamId).IsEqualTo(m.Ours);
             await Assert.That(loaded.Note).IsNull();
-            await Assert.That(restarted.History(strat.Id).Count).IsEqualTo(3)
-                .Because("both imported commits replay, and the move onto the local team is a third");
+            await Assert.That(restarted.History(strat.Id).Count).IsEqualTo(2)
+                .Because("both imported commits replay, with the team id translated rather than moved");
             await Assert.That(m.Here.Notes.TeamIds).IsEquivalentTo([m.Ours]);
             await Assert.That(m.Here.Notes.For(m.Ours).Summary).IsEqualTo("Fast A");
             await Assert.That(m.Here.Notes.For(m.Ours).Notes.Select(n => n.Text))
@@ -336,6 +338,78 @@ public class StratBookDataPortabilityTests
             await Assert.That(m.Here.Notes.For(m.Ours).Summary).IsEqualTo("Slow B");
             await Assert.That(File.ReadAllText(TagStore.SidecarPathFor(m.Here.TagsPath, Sha))).IsEqualTo(tags);
             await Assert.That(result.Conflicts).IsGreaterThan(0).Because(string.Join("; ", lines));
+        }
+    }
+
+    [Test]
+    public async Task SyncsBothWays_ThroughTeamIdentity_FastForwardWithNoConflictsOrCopies()
+    {
+        using Machines m = new();
+        StratDocument strat = Populate(m);
+        await m.Import(ImportConflictPolicy.KeepBoth);
+
+        Rename(m.There.Strats, strat.Id, "edited there");
+        m.Export();
+        (ExtensionImportResult second, List<string> secondLines) = await m.Import(ImportConflictPolicy.KeepBoth);
+        Rename(m.Here.Strats, strat.Id, "edited here");
+        m.Export(m.Here);
+        (ExtensionImportResult back, List<string> backLines) =
+            await m.Import(ImportConflictPolicy.KeepBoth, m.There);
+        Rename(m.There.Strats, strat.Id, "edited there again");
+        m.Export();
+        (ExtensionImportResult third, List<string> thirdLines) = await m.Import(ImportConflictPolicy.KeepBoth);
+
+        StratStore here = new(PackStores.At(m.Here.StratsPath));
+        StratStore there = new(PackStores.At(m.There.StratsPath));
+        using (Assert.Multiple())
+        {
+            // The teams' typed names still differ, which keep both counts on each import; no strat is a conflict.
+            await Assert.That(new[] { second, back, third }.All(r => r.Merged > 0)).IsTrue()
+                .Because("each sync fast-forwards the strat");
+            await Assert.That(secondLines.Concat(backLines).Concat(thirdLines)).IsEmpty();
+            await Assert.That(here.Index.Count).IsEqualTo(1).Because("no imported copy was added");
+            await Assert.That(there.Index.Count).IsEqualTo(1);
+            await Assert.That(here.Load(strat.Id).Document!.Name).IsEqualTo("edited there again");
+            await Assert.That(there.Load(strat.Id).Document!.Name).IsEqualTo("edited there again");
+            await Assert.That(here.Load(strat.Id).Document!.Owner.TeamId).IsEqualTo(m.Ours);
+            await Assert.That(there.Load(strat.Id).Document!.Owner.TeamId).IsEqualTo(m.Theirs);
+            await Assert.That(here.History(strat.Id).Count).IsEqualTo(5);
+            await Assert.That(there.History(strat.Id).Count).IsEqualTo(5);
+        }
+    }
+
+    [Test]
+    public async Task TheTagIndex_IsSavedAfterTheImport()
+    {
+        using Machines m = new();
+        Populate(m);
+
+        await m.Import();
+
+        await Assert.That(File.ReadAllText(Path.Combine(m.Here.TagsPath, "index.json"))).Contains(Sha);
+    }
+
+    [Test]
+    public async Task NullCollectionsInTheBundle_AreReportedAsUnreadable_NotThrown()
+    {
+        using Machines m = new();
+        Populate(m);
+        File.WriteAllText(Path.Combine(m.Bundle, "stores", StratBookStores.Teams, TeamIdentityService.TeamsFileName),
+            """{ "schemaVersion": 1, "teams": null }""");
+        File.WriteAllText(Path.Combine(m.Bundle, "own", nameof(StoreRoot.Cache), GrenadeLineupStore.FileName),
+            """{ "schemaVersion": 1, "maps": { "de_mirage": { "anchors": null } } }""");
+        File.WriteAllText(Path.Combine(m.Bundle, "stores", StratBookStores.ScoutingReportNotes,
+            ScoutingReportNotesStore.FileName), """{ "teams": null }""");
+
+        (ExtensionImportResult result, List<string> lines) = await m.Import();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(lines.Any(l => l.Contains(TeamIdentityService.TeamsFileName))).IsTrue()
+                .Because(string.Join("; ", lines));
+            await Assert.That(lines.Any(l => l.Contains(ScoutingReportNotesStore.FileName))).IsTrue();
+            await Assert.That(m.Here.LineupStore.For(Mirage).Anchors).IsEmpty();
+            await Assert.That(result.Added).IsGreaterThan(0).Because("the rest of the bundle still imports");
         }
     }
 

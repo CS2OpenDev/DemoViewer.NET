@@ -843,8 +843,10 @@ public sealed class StratStore
     ///     every imported commit, fast-forwarded when its log is a strict prefix of the imported one, and otherwise
     ///     settled by the policy: keep mine reports it, take imported commits the imported head on top of this
     ///     machine's log (so nothing here is lost from the history), keep both adds the imported head as a new strat
-    ///     with no history. A strat open in the Strat Book, or deleted here, is left alone and reported. An owner
-    ///     that <paramref name="teams" /> moves is committed as a real revision, which moves the strat's folder.
+    ///     with no history. A strat open in the Strat Book, or deleted here, is left alone and reported. The other
+    ///     machine's team ids are translated through <paramref name="teams" /> in the strat and in every line of its
+    ///     log before anything is compared or written, so the log here reads as this machine would have written it
+    ///     and the next sync, either way, finds the same lines. A strat of a team deleted here is left out.
     ///     Books gain the slot defaults of epochs they lack and keep their notes; callouts gain the aliases they lack,
     ///     compared case-insensitively. A second import of the same bundle changes nothing.
     /// </summary>
@@ -878,6 +880,13 @@ public sealed class StratStore
         {
             if (StratOwner.FromFolderName(Path.GetFileName(ownerDir)) is not { } owner)
             {
+                continue;
+            }
+
+            if (owner.IsTeam && teams.IsDropped(owner.TeamId!.Value))
+            {
+                ledger.Report($"the book of {owner.FolderName} was left out: its team was deleted on this machine");
+                ledger.CountSkipped();
                 continue;
             }
 
@@ -936,7 +945,7 @@ public sealed class StratStore
             return;
         }
 
-        if (text is null || Parse(text) is not { } incoming || incoming.Id != id)
+        if (text is null || ParseImported(text) is not { } incoming || incoming.Id != id)
         {
             ledger.Report($"strat {id} in the bundle could not be read and was left out");
             ledger.CountSkipped();
@@ -944,12 +953,28 @@ public sealed class StratStore
         }
 
         List<HistoryEntry> log = ParseHistory(logBytes is null ? [] : DecodeLines(logBytes));
+        if (incoming.Owner.IsTeam && teams.IsDropped(incoming.Owner.TeamId!.Value))
+        {
+            ledger.Report($"'{incoming.Name}' in the bundle was left out: its team was deleted on this machine");
+            ledger.CountSkipped();
+            return;
+        }
+
         StratOwner owner = MapOwner(incoming.Owner, teams);
         if ((OwnerProblem(owner) ?? MapProblem(incoming.Map)) is { } problem)
         {
             ledger.Report($"'{incoming.Name}' in the bundle was left out: {problem}");
             ledger.CountSkipped();
             return;
+        }
+
+        // Never a commit of its own: team ids differ per machine, so a move logged here would be a line the other
+        // machine never has, and every later sync between the two would look like both had changed the strat.
+        bool translated = TranslateTeams(log, teams);
+        if (!incoming.Owner.Equals(owner))
+        {
+            incoming.Owner = owner.Clone();
+            text = Serialize(incoming);
         }
 
         lock (_rmwGate)
@@ -980,15 +1005,15 @@ public sealed class StratStore
             }
             else
             {
-                ImportNew(incoming, text, logBytes, log, owner, ledger);
+                ImportNew(incoming, text, logBytes, log, translated, owner, ledger);
             }
         }
     }
 
     // Under _rmwGate. A byte copy, the log first like a commit, so the files stay exactly what the other machine
-    // wrote, a working copy's uncommitted edits included.
+    // wrote, a working copy's uncommitted edits included; a log whose team ids were translated is written anew.
     private void ImportNew(StratDocument incoming, string text, byte[]? logBytes, List<HistoryEntry> log,
-        StratOwner owner, ImportLedger ledger)
+        bool translated, StratOwner owner, ImportLedger ledger)
     {
         string folder = FolderIn(owner, incoming.Map);
         string target = Path.Combine(folder, incoming.Id.ToString("D") + StratExtension);
@@ -1011,7 +1036,9 @@ public sealed class StratStore
         {
             if (logBytes is not null)
             {
-                _folder!.WriteAtomic(HistoryPathBeside(target), logBytes);
+                _folder!.WriteAtomic(HistoryPathBeside(target), translated
+                    ? Encoding.UTF8.GetBytes(string.Concat(log.Select(e => LogLine(e) + "\n")))
+                    : logBytes);
             }
 
             FolderText.Write(_folder!, target, text);
@@ -1030,10 +1057,6 @@ public sealed class StratStore
 
         IndexFile(incoming.Id, target);
         ledger.CountAdded();
-        if (!incoming.Owner.Equals(owner))
-        {
-            CommitOwner(incoming.Id, owner, ledger);
-        }
     }
 
     // Under _rmwGate.
@@ -1135,21 +1158,24 @@ public sealed class StratStore
 
         IndexFile(incoming.Id, target);
         ledger.CountMerged();
-        if (!incoming.Owner.Equals(owner))
-        {
-            CommitOwner(incoming.Id, owner, ledger);
-        }
     }
 
-    // Under _rmwGate. One commit from this machine's state, its own uncommitted edits included, to the imported
-    // head: every earlier revision here stays in the history.
+    // Under _rmwGate. This machine's uncommitted edits are committed first, as a revision of their own, then one
+    // commit to the imported head: every earlier state here stays in the history.
     private void TakeImported(StratDocument local, StratDocument working, StratDocument head, ImportLedger ledger)
     {
+        IReadOnlyList<PatchOp> pending = PendingOps(local);
+        if (pending.Count > 0 && Save(working, pending, "edits not yet committed here, kept before an import")
+                is { Saved: false } own)
+        {
+            ledger.Report($"kept this machine's '{local.Name}': its own edits could not be committed ({own.Reason})");
+            return;
+        }
+
         // Revision and modifiedUtc are the entry's, never an op's.
         head.Revision = working.Revision;
         head.ModifiedUtc = working.ModifiedUtc;
-        List<PatchOp> ops = [.. PendingOps(local)];
-        ops.AddRange(StratHistory.Diff(StratHistory.ToNode(working), StratHistory.ToNode(head)));
+        List<PatchOp> ops = [.. StratHistory.Diff(StratHistory.ToNode(working), StratHistory.ToNode(head))];
         StratSaveResult saved = Save(head, ops, "took the version from another machine");
         ledger.Report(saved.Saved
             ? $"'{local.Name}' now holds the imported version; this machine's is in its history"
@@ -1184,25 +1210,56 @@ public sealed class StratStore
             : $"kept this machine's '{head.Name}': the imported version could not be added ({saved.Reason})");
     }
 
-    // Under _rmwGate. A team the import matched to one of this machine's: the strat moves to that team's book as
-    // a commit of its own, so the move is in the history like any other edit.
-    private void CommitOwner(Guid id, StratOwner owner, ImportLedger ledger)
+    // The other machine's team ids in a log, as this machine's: the owner in a whole-document line, an owner line and
+    // a team id line, in the value and in what it displaced. True when any line changed.
+    private static bool TranslateTeams(List<HistoryEntry> log, TeamIdMap teams)
     {
-        if (TryLoad(id) is not { } loaded)
+        bool changed = false;
+        foreach (PatchOp op in log.SelectMany(e => e.Ops))
         {
-            return;
+            op.Value = TranslateTeam(op.Path, op.Value, teams, ref changed);
+            op.From = TranslateTeam(op.Path, op.From, teams, ref changed);
         }
 
-        List<PatchOp> ops = [.. PendingOps(loaded)];
-        StratDocument document = WithPending(loaded, false);
-        JsonNode before = StratHistory.ToNode(document);
-        document.Owner = owner.Clone();
-        ops.AddRange(StratHistory.Diff(before, StratHistory.ToNode(document)));
-        StratSaveResult saved = Save(document, ops, "moved to the matching team on import");
-        if (!saved.Saved)
+        return changed;
+    }
+
+    private static JsonNode? TranslateTeam(string path, JsonNode? node, TeamIdMap teams, ref bool changed)
+    {
+        JsonObject? owner = path switch
         {
-            ledger.Report($"'{loaded.Name}' stays in the imported team's book: {saved.Reason}");
+            "" => (node as JsonObject)?["owner"] as JsonObject,
+            "/owner" => node as JsonObject,
+            _ => null
+        };
+
+        if (owner is not null)
+        {
+            owner["teamId"] = TranslateTeamId(owner["teamId"], teams, ref changed);
+            return node;
         }
+
+        return string.Equals(path, "/owner/teamId", StringComparison.Ordinal)
+            ? TranslateTeamId(node, teams, ref changed)
+            : node;
+    }
+
+    private static JsonNode? TranslateTeamId(JsonNode? id, TeamIdMap teams, ref bool changed)
+    {
+        if (id is not JsonValue value || !value.TryGetValue(out string? text)
+            || !Guid.TryParse(text, out Guid imported))
+        {
+            return id;
+        }
+
+        Guid local = teams.Map(imported);
+        if (local == imported)
+        {
+            return id;
+        }
+
+        changed = true;
+        return JsonValue.Create(local.ToString("D"));
     }
 
     // The strat as the other machine last had it: the file, unless a crash left it behind its log.
@@ -1410,7 +1467,9 @@ public sealed class StratStore
     {
         try
         {
-            return FolderText.Read(staged, path) is { } json ? JsonSerializer.Deserialize(json, type) : null;
+            return FolderText.Read(staged, path) is { } json
+                ? JsonSerializer.Deserialize(json, ImportLedger.Strict(type))
+                : null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -2056,6 +2115,18 @@ public sealed class StratStore
         try
         {
             return JsonSerializer.Deserialize(json, StratJsonContext.Default.StratDocument);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static StratDocument? ParseImported(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, ImportLedger.Strict(StratJsonContext.Default.StratDocument));
         }
         catch (JsonException)
         {

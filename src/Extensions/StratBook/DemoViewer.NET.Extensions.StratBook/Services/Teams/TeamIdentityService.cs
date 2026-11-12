@@ -1422,10 +1422,25 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             return TeamIdMap.Identity;
         }
 
-        _load.Ensure();
+        LoadOnce load;
+        lock (_gate)
+        {
+            load = _load;
+        }
+
+        load.Ensure();
         Dictionary<Guid, Guid> map = [];
         lock (_gate)
         {
+            // Released since the caller checked, or released and attached again with nothing read: teams merged
+            // now would never be saved while the stores after them were rewritten to their ids.
+            if (!_attached || !ReferenceEquals(load, _load))
+            {
+                ledger.Stop("the Strat Book was switched off during the import, so nothing of it was imported; "
+                            + "import the bundle again once it is on");
+                return TeamIdMap.Identity;
+            }
+
             if (_teamsRefused)
             {
                 ledger.Report($"no teams were imported: {TeamsFileProblem}");
@@ -1462,6 +1477,13 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                 changed = true;
             }
 
+            // Before the bundle's own tombstones join this machine's: only a team deleted here drops what points at it.
+            List<Guid> dropped =
+            [
+                .. keep.Where(id => !map.ContainsKey(id) && _teams.Tombstones.Contains(id) && _teams.Find(id) is null
+                                    && HeirOf(id) is null)
+            ];
+
             foreach (Guid tombstone in imported.Tombstones)
             {
                 if (_teams.Find(tombstone) is null && !_teams.Tombstones.Contains(tombstone))
@@ -1480,7 +1502,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                 }
             }
 
-            TeamIdMap teamMap = new(map);
+            TeamIdMap teamMap = new(map, dropped);
             int unhashed = imported.Overrides.Count(o => o.DemoSha256 is null)
                 + imported.Provenance.Overrides.Count(o => o.DemoSha256 is null);
             changed |= ImportSideOverrides(imported.Overrides, teamMap, ledger);

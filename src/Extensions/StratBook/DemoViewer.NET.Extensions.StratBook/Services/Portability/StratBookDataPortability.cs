@@ -25,15 +25,16 @@ internal sealed record StratBookImportTargets(
     WatchedSituationsService? Watches,
     StratMiningService? Mining,
     LineupClipService? Clips,
-    TagStore? Tags);
+    TagStore? Tags,
+    TagPaletteStore? Palettes = null);
 
 /// <summary>
 ///     The Strat Book's side of a Library Transfer import. The steps run in the order later ones need: teams first,
 ///     since strats, notes, vetoes, ranks and watches point at them; then lineups, since strat steps and clips do;
-///     then strats, the stores that name teams, Strat Mining (whose promotions name strats), the clips and the
-///     demos' tags. Each step reads the bundle's copy and settles every item against one ledger, whose counts are
-///     the result. Ids are random Guids or derived from the item, so a second import of the same bundle changes
-///     nothing.
+///     then strats, the stores that name teams, Strat Mining (whose promotions name strats), the clips, the
+///     demos' tags and the tag palettes. Each step reads the bundle's copy and settles every item against one
+///     ledger, whose counts are the result. Ids are random Guids or derived from the item, so a second import of
+///     the same bundle changes nothing.
 /// </summary>
 internal sealed class StratBookDataPortability : IExtensionDataPortability
 {
@@ -102,6 +103,11 @@ internal sealed class StratBookDataPortability : IExtensionDataPortability
 
         TeamIdMap teams = to.Teams?.ImportTeams(import.Staged(StratBookStores.Teams), ledger,
             ReferencedTeams(import, strats)) ?? TeamIdMap.Identity;
+        if (ledger.Stopped)
+        {
+            return ledger.Result;
+        }
+
         ct.ThrowIfCancellationRequested();
 
         IReadOnlyDictionary<Guid, Guid> lineupMap = new Dictionary<Guid, Guid>();
@@ -151,8 +157,12 @@ internal sealed class StratBookDataPortability : IExtensionDataPortability
                     ledger.Report(note);
                 }
             }
+
+            // A row replaced under take imported is refreshed by the import's own save; the index file is not.
+            tags.SaveIndex();
         }
 
+        to.Palettes?.Import(Within(import.Staged(StratBookStores.Palettes), StratBookStores.Palettes), ledger);
         return ledger.Result;
     }
 

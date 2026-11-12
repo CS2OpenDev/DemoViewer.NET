@@ -997,7 +997,7 @@ public sealed class StratBookPack : IExtension
                     sp.GetService<ScoutingReportNotesStore>(), sp.GetService<VetoHistoryStore>(),
                     sp.GetService<TeamRanksStore>(), sp.GetService<WatchedSituationsService>(),
                     sp.GetService<StratMiningService>(), sp.GetService<LineupClipService>(),
-                    sp.GetService<TagStore>()),
+                    sp.GetService<TagStore>(), sp.GetService<TagPaletteStore>()),
                 StratBookDataPortability.Posting(Host(sp).Post)));
             contributions.DataImported(() => StratBookStores.ReloadLiveStores(sp));
         }

@@ -7,13 +7,16 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// </summary>
 public sealed class TeamIdMap
 {
+    private readonly HashSet<Guid> _dropped;
     private readonly Dictionary<Guid, Guid> _map;
 
     /// <param name="map">Imported id to local id; ids that map to themselves may be left out.</param>
-    public TeamIdMap(IReadOnlyDictionary<Guid, Guid> map)
+    /// <param name="dropped">Imported ids of teams deleted on this machine with no team that took them over.</param>
+    public TeamIdMap(IReadOnlyDictionary<Guid, Guid> map, IEnumerable<Guid>? dropped = null)
     {
         ArgumentNullException.ThrowIfNull(map);
         _map = new Dictionary<Guid, Guid>(map);
+        _dropped = [.. dropped ?? []];
     }
 
     /// <summary>Every id maps to itself.</summary>
@@ -30,4 +33,11 @@ public sealed class TeamIdMap
     /// <summary>As <see cref="Map(Guid)" />, passing null through.</summary>
     /// <param name="imported">The id in the bundle, or null.</param>
     public Guid? Map(Guid? imported) => imported is { } id ? Map(id) : null;
+
+    /// <summary>
+    ///     Whether the imported id names a team this machine deleted and nothing took over: what points at it has no
+    ///     team to land on here, so it is left out rather than filed under the dead id.
+    /// </summary>
+    /// <param name="imported">The id in the bundle.</param>
+    public bool IsDropped(Guid imported) => _dropped.Contains(imported);
 }

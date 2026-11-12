@@ -23,7 +23,7 @@ public class StratBookPortabilityTests
         {
             [StratBookStores.Strats] = (StorePortability.LibraryWide, true),
             [StratBookStores.Tags] = (StorePortability.PerDemo, true),
-            [StratBookStores.Palettes] = (StorePortability.LibraryWide, false),
+            [StratBookStores.Palettes] = (StorePortability.LibraryWide, true),
             [StratBookStores.SuggestedTags] = (StorePortability.LibraryWide, false),
             [StratBookStores.LineupClips] = (StorePortability.LibraryWide, true),
             [StratBookStores.Teams] = (StorePortability.LibraryWide, true),

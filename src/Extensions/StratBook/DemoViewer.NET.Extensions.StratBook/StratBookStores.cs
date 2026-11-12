@@ -44,8 +44,9 @@ internal static class StratBookStores
     [
         // ── Config root: user truth ─────────────────────────────────────────────
         // Library Transfer carries all of it. The extension merges an import itself wherever the files hold
-        // ids another store points at (teams, lineups, strats); palettes and the tuning have no such ids, so
-        // the host's file-level merge is enough. Indexes and trash are rebuilt or local, so they stay behind.
+        // ids another store points at (teams, lineups, strats) or an id of their own (palettes); the tuning has
+        // neither, so the host's file-level merge is enough. Indexes and trash are rebuilt or local, so they stay
+        // behind.
         new(Strats, "Strats", StoreRoot.Config, ["strats"], IsUserWork: true)
         {
             Portability = StorePortability.LibraryWide, ExtensionMerges = true,
@@ -63,7 +64,7 @@ internal static class StratBookStores
         },
         new(Palettes, "Tag palettes", StoreRoot.Config, ["palettes"], IsUserWork: true)
         {
-            Portability = StorePortability.LibraryWide
+            Portability = StorePortability.LibraryWide, ExtensionMerges = true
         },
         new(SuggestedTags, "Suggested Tags tuning", StoreRoot.Config, ["suggested-tags"], IsUserWork: true)
         {

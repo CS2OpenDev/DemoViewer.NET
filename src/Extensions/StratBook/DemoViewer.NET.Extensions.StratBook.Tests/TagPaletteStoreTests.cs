@@ -3,6 +3,7 @@
 using Avalonia.Input;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using TUnit.Assertions.Enums;
 
@@ -44,6 +45,61 @@ public class TagPaletteStoreTests
         IExtensionFolder folder = PackStores.Folder(TagTestData.TempRoot(), StratBookStores.Palettes);
         folder.Create();
         return folder;
+    }
+
+    // A bundle's palettes folder holding one file, and this machine's holding another under the same name.
+    private static (TagPaletteStore Store, StagedFolder Staged, string Folder) Clash()
+    {
+        IExtensionFolder mine = TempDropIns();
+        File.WriteAllText(Path.Combine(mine.Path, "team.tagpalette.json"), Palette("team"));
+        string theirs = Path.Combine(TagTestData.TempRoot(), "staged");
+        Directory.CreateDirectory(theirs);
+        File.WriteAllText(Path.Combine(theirs, "team.tagpalette.json"), Palette("team", "2"));
+        return (new TagPaletteStore(mine, keymap: HostKeymap.Instance), new StagedFolder(theirs), mine.Path);
+    }
+
+    [Test]
+    public async Task Import_KeepBoth_AddsTheImportedCopyUnderAnIdOfItsOwn_Once()
+    {
+        (TagPaletteStore store, StagedFolder staged, string folder) = Clash();
+
+        ImportLedger first = new(ImportConflictPolicy.KeepBoth, _ => { });
+        store.Import(staged, first);
+        ImportLedger again = new(ImportConflictPolicy.KeepBoth, _ => { });
+        store.Import(staged, again);
+        store.Reload();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(store.Palettes.Select(p => p.Id))
+                .IsEquivalentTo([TagPaletteStore.DefaultId, "team-imported", "team"]);
+            await Assert.That(store.Resolve("team-imported").Name).IsEqualTo("team palette (imported)");
+            await Assert.That(store.Resolve("team").Panels[0].Buttons[0].Hotkey).IsEqualTo("1")
+                .Because("this machine's file is untouched");
+            await Assert.That(Directory.GetFiles(folder).Length).IsEqualTo(2);
+            await Assert.That(first.Added).IsEqualTo(1);
+            await Assert.That(again.Added + again.Merged).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task Import_KeepMineKeepsThisMachines_TakeImportedReplacesIt()
+    {
+        (TagPaletteStore store, StagedFolder staged, _) = Clash();
+
+        ImportLedger kept = new(ImportConflictPolicy.KeepMine, _ => { });
+        store.Import(staged, kept);
+        store.Reload();
+        string afterKeep = store.Resolve("team").Panels[0].Buttons[0].Hotkey!;
+        store.Import(staged, new ImportLedger(ImportConflictPolicy.TakeImported, _ => { }));
+        store.Reload();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(kept.Conflicts).IsEqualTo(1);
+            await Assert.That(afterKeep).IsEqualTo("1");
+            await Assert.That(store.Resolve("team").Panels[0].Buttons[0].Hotkey).IsEqualTo("2");
+        }
     }
 
     [Test]

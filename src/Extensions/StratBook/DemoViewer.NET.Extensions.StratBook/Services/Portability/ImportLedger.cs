@@ -1,8 +1,10 @@
 #region
 
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 #endregion
 
@@ -15,6 +17,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Portability;
 /// </summary>
 public sealed class ImportLedger
 {
+    private static readonly ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> _strict = new();
     private readonly Action<string> _report;
 
     /// <param name="policy">What to do where both machines hold the same item in different versions.</param>
@@ -36,6 +39,9 @@ public sealed class ImportLedger
 
     public int Conflicts { get; private set; }
 
+    /// <summary>True once a step found the import cannot go on; the steps after it write nothing.</summary>
+    public bool Stopped { get; private set; }
+
     /// <summary>The counts so far, in the SDK's shape.</summary>
     public ExtensionImportResult Result => new(Added, Merged, Skipped, Conflicts);
 
@@ -50,6 +56,14 @@ public sealed class ImportLedger
     /// <summary>Adds a line to the import's report.</summary>
     /// <param name="line">The line.</param>
     public void Report(string line) => _report(line);
+
+    /// <summary>Stops the import after the current step, saying why.</summary>
+    /// <param name="line">Why, for the report.</param>
+    public void Stop(string line)
+    {
+        Stopped = true;
+        Report(line);
+    }
 
     /// <summary>
     ///     A JSON file of the bundle, or null when there is none or it does not read. A file that does not read is
@@ -70,7 +84,7 @@ public sealed class ImportLedger
         try
         {
             return StoredFile.In(staged, relativePath)?.Read() is { } bytes
-                ? JsonSerializer.Deserialize<T>(bytes, options)
+                ? JsonSerializer.Deserialize<T>(bytes, Strict(options))
                 : null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException
@@ -79,6 +93,26 @@ public sealed class ImportLedger
             Report($"{relativePath} in the bundle could not be read and was left out: {e.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    ///     A store's serializer options for reading a bundle: a null where the type declares none
+    ///     (<c>"teams": null</c>) does not read, since a bundle may hold what no build of the store ever wrote.
+    /// </summary>
+    /// <param name="options">The store's own options.</param>
+    public static JsonSerializerOptions Strict(JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return _strict.GetValue(options,
+            static o => new JsonSerializerOptions(o) { RespectNullableAnnotations = true });
+    }
+
+    /// <summary>As <see cref="Strict(JsonSerializerOptions)" />, for a source-generated type.</summary>
+    /// <param name="type">The store's own type info.</param>
+    public static JsonTypeInfo<T> Strict<T>(JsonTypeInfo<T> type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+        return (JsonTypeInfo<T>)Strict(type.Options).GetTypeInfo(typeof(T));
     }
 
     /// <summary>

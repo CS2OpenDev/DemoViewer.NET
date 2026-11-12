@@ -352,4 +352,43 @@ public class TeamsImportTests
             await Assert.That(again.Merged).IsEqualTo(0);
         }
     }
+
+    [Test]
+    public async Task ReleasedBeforeTheMerge_StopsTheImport_AndWritesNothing()
+    {
+        using Run run = Setup(new TeamsFile { Teams = { Named(Guid.NewGuid(), "Ours") } },
+            new TeamsFile { Teams = { Named(Guid.NewGuid(), "New") } });
+        byte[] before = File.ReadAllBytes(run.TeamsPath);
+        run.Teams.Release();
+
+        ImportLedger ledger = run.Ledger();
+        run.Teams.ImportTeams(run.Staged, ledger);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ledger.Stopped).IsTrue();
+            await Assert.That(ledger.Added).IsEqualTo(0);
+            await Assert.That(File.ReadAllBytes(run.TeamsPath)).IsEquivalentTo(before);
+        }
+    }
+
+    [Test]
+    public async Task ATeamDeletedHereWithNoHeir_IsDropped_WhereAStorePointsAtIt()
+    {
+        Guid dead = Guid.NewGuid();
+        Guid merged = Guid.NewGuid();
+        Team heir = Named(Guid.NewGuid(), "Heir");
+        heir.MergedFrom.Add(merged);
+        using Run run = Setup(new TeamsFile { Teams = { heir }, Tombstones = { dead, merged } },
+            new TeamsFile { Teams = { Named(dead, "Dead"), Named(merged, "Merged") } });
+
+        TeamIdMap map = run.Teams.ImportTeams(run.Staged, run.Ledger(), new HashSet<Guid> { dead, merged });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(map.IsDropped(dead)).IsTrue();
+            await Assert.That(map.IsDropped(merged)).IsFalse().Because("its heir takes what points at it");
+            await Assert.That(map.Map(merged)).IsEqualTo(heir.Id);
+        }
+    }
 }
