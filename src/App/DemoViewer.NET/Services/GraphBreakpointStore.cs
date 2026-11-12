@@ -284,7 +284,7 @@ public sealed class GraphBreakpointStore
     ///     Merges imported breakpoints into the file in one write. A demo with none here takes the imported set; one
     ///     with its own keeps it under <see cref="ConflictPolicy.KeepMine" />, is replaced under
     ///     <see cref="ConflictPolicy.TakeImported" />, and under <see cref="ConflictPolicy.KeepBoth" /> keeps its
-    ///     own and adds every imported breakpoint it does not already have.
+    ///     own and adds the imported breakpoints at places it has none, so a node or edge never gets two.
     /// </summary>
     /// <param name="imported">The imported breakpoints by content hash.</param>
     /// <param name="policy">What a demo with breakpoints on both sides keeps.</param>
@@ -312,7 +312,8 @@ public sealed class GraphBreakpointStore
                 : policy switch
                 {
                     ConflictPolicy.TakeImported => [.. theirs],
-                    ConflictPolicy.KeepBoth => [.. mine, .. theirs.Where(t => !mine.Contains(t))],
+                    ConflictPolicy.KeepBoth =>
+                        [.. mine, .. theirs.Where(t => !mine.Exists(m => SameLocation(m, t))).DistinctBy(Location)],
                     _ => null
                 };
             if (next is not null && (mine is null || !mine.SequenceEqual(next)))
@@ -330,6 +331,17 @@ public sealed class GraphBreakpointStore
 
         return changed;
     }
+
+    // Where a breakpoint sits, as the graph finds one: a node by its key, an edge by its ends and labels. A graph
+    // holds one breakpoint per place, so its condition and enabled state are not part of it.
+    private static (GraphBreakpointTarget, string?, string?, string?, string?, string?) Location(
+        PersistedGraphBreakpoint bp) =>
+        bp.TargetKind == GraphBreakpointTarget.Node
+            ? (bp.TargetKind, bp.NodeKey, null, null, null, null)
+            : (bp.TargetKind, null, bp.EdgeSourceKey, bp.EdgeDestKey, bp.EdgeLabel, bp.EdgeConditionLabel);
+
+    private static bool SameLocation(PersistedGraphBreakpoint a, PersistedGraphBreakpoint b) =>
+        Location(a) == Location(b);
 
     private Dictionary<string, List<PersistedGraphBreakpoint>> ReadAll() => ReadAllFrom(_path);
 

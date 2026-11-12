@@ -20,10 +20,11 @@ internal sealed partial class ExtensionDemoDataStore
     /// <param name="sha256">The demo's content id, lowercase hex.</param>
     /// <param name="facet">The facet.</param>
     /// <param name="files">The facet's files by file name.</param>
+    /// <param name="count">The facet's item count on the source, which the index keeps and the files do not.</param>
     /// <returns>True when the files were taken; false when the local facet was kept.</returns>
     /// <exception cref="ArgumentException">The content id, facet or a file name is malformed.</exception>
     /// <exception cref="InvalidDataException">A file does not read, belongs elsewhere, or the main payload is missing.</exception>
-    public bool Import(string sha256, string facet, IReadOnlyList<KeyValuePair<string, byte[]>> files)
+    public bool Import(string sha256, string facet, IReadOnlyList<KeyValuePair<string, byte[]>> files, int count = 0)
     {
         ArgumentNullException.ThrowIfNull(files);
         if (sha256 is not { Length: 64 } || !sha256.All(char.IsAsciiHexDigitLower))
@@ -90,7 +91,7 @@ internal sealed partial class ExtensionDemoDataStore
         lock (_gate)
         {
             Entries()[(sha256, facet)] = new Entry(sha256, facet, demoPath, sha256, main.Schema, main.Fingerprint,
-                DemoDataState.Written, main.WrittenAtTicks, 0);
+                DemoDataState.Written, main.WrittenAtTicks, Math.Max(0, count));
             save = Snapshot();
         }
 

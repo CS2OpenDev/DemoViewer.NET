@@ -16,16 +16,24 @@ internal sealed class StagedBundleFolder : IExtensionFolder
 {
     private readonly string _bundle;
     private readonly Dictionary<string, TransferFile> _files;
+    private readonly IReadOnlyDictionary<string, FileStamp>? _verified;
+    private int _hashedReads;
 
     /// <param name="path">What <see cref="Path" /> reports; the folder need not exist.</param>
     /// <param name="bundle">The bundle's root.</param>
     /// <param name="files">Each file by its path relative to the store's root, with <c>/</c> between segments.</param>
-    public StagedBundleFolder(string path, string bundle, IReadOnlyDictionary<string, TransferFile> files)
+    /// <param name="verified">
+    ///     Files already checked against the manifest, by bundle path, as they were then. A read of one that still
+    ///     looks the same is not hashed again; one that changed is, and is reported as <see cref="Damage" />.
+    /// </param>
+    public StagedBundleFolder(string path, string bundle, IReadOnlyDictionary<string, TransferFile> files,
+        IReadOnlyDictionary<string, FileStamp>? verified = null)
     {
         ArgumentNullException.ThrowIfNull(files);
         Path = path;
         _bundle = bundle;
         _files = new Dictionary<string, TransferFile>(files, PathSafety.CaseInsensitivePaths);
+        _verified = verified;
     }
 
     public string Path { get; }
@@ -88,6 +96,21 @@ internal sealed class StagedBundleFolder : IExtensionFolder
 
         try
         {
+            // Unchanged before and after the read: the bytes are the ones the hash vouched for.
+            if (_verified?.GetValueOrDefault(file.Path) is { } stamp)
+            {
+                string full = TransferLayout.FullPath(_bundle, file.Path);
+                if (FileStamp.Of(full) == stamp)
+                {
+                    byte[] bytes = System.IO.File.ReadAllBytes(full);
+                    if (bytes.LongLength == file.Size && FileStamp.Of(full) == stamp)
+                    {
+                        return bytes;
+                    }
+                }
+            }
+
+            Interlocked.Increment(ref _hashedReads);
             return TransferImporter.ReadVerified(_bundle, file);
         }
         catch (InvalidDataException ex)
@@ -111,6 +134,9 @@ internal sealed class StagedBundleFolder : IExtensionFolder
     public void Delete(string relativePath) => throw ReadOnly();
 
     public void SetLastWriteTimeUtc(string relativePath, DateTime value) => throw ReadOnly();
+
+    /// <summary>How many reads were checked by hash: the ones a verified file could not vouch for.</summary>
+    internal int HashedReads => Volatile.Read(ref _hashedReads);
 
     private static InvalidOperationException ReadOnly() =>
         new("A bundle's copy of a store is read-only; an import writes into its own stores.");
@@ -137,5 +163,18 @@ internal sealed class StagedBundleFolder : IExtensionFolder
         return PathSafety.SafeRelativePath(relativePath)?.Replace('\\', '/')
                ?? throw new ArgumentException($"'{relativePath}' is not a folder inside the store.",
                    nameof(relativePath));
+    }
+}
+
+/// <summary>A file's length and last write time: enough to tell that a verified file has not been touched since.</summary>
+/// <param name="Length">Its length in bytes, or -1 when it is missing.</param>
+/// <param name="LastWriteUtc">Its last write time, UTC.</param>
+internal readonly record struct FileStamp(long Length, DateTime LastWriteUtc)
+{
+    /// <summary>The file's stamp now.</summary>
+    public static FileStamp Of(string path)
+    {
+        FileInfo info = new(path);
+        return info.Exists ? new FileStamp(info.Length, info.LastWriteTimeUtc) : new FileStamp(-1, default);
     }
 }

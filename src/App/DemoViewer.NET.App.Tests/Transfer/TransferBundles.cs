@@ -81,9 +81,10 @@ internal sealed class BundleBuilder(string root)
     }
 
     public void Demo(string sha, string name, long size, IReadOnlyList<TransferFile> files,
-        DemoContentFingerprint? fingerprint = null, TransferDemFile? dem = null) =>
+        DemoContentFingerprint? fingerprint = null, TransferDemFile? dem = null,
+        IReadOnlyDictionary<string, int>? facetCounts = null) =>
         _demos.Add(new TransferDemo(sha, name, size, files,
-            fingerprint is null ? null : TransferFingerprint.From(fingerprint), "de_test", null, dem));
+            fingerprint is null ? null : TransferFingerprint.From(fingerprint), "de_test", null, dem, facetCounts));
 
     public TransferManifest Manifest(string? appVersion = null, IReadOnlyList<string>? rulesets = null) => new()
     {

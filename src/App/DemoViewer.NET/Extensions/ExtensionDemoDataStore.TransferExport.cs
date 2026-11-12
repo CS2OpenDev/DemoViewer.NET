@@ -1,5 +1,6 @@
 #region
 
+using System.IO.Compression;
 using System.Text.Json;
 using DemoViewer.NET.ViewModels.Diagnostics;
 
@@ -80,6 +81,48 @@ internal sealed partial class ExtensionDemoDataStore
         }
 
         return files;
+    }
+
+    /// <summary>
+    ///     The item counts the index of the store rooted at <paramref name="root" /> records, by content hash and
+    ///     facet, for the facets that have one. Read from the file without loading the store; empty when the index
+    ///     is missing or does not read.
+    /// </summary>
+    /// <param name="root">The store's folder.</param>
+    public static IReadOnlyDictionary<(string Sha256, string Facet), int> CountsIn(string root)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(root);
+        Dictionary<(string Sha256, string Facet), int> counts = [];
+        string file = Path.Combine(root, IndexFileName);
+        if (!File.Exists(file))
+        {
+            return counts;
+        }
+
+        try
+        {
+            using FileStream stream = new(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using GZipStream gzip = new(stream, CompressionMode.Decompress);
+            if (JsonSerializer.Deserialize<IndexFile>(gzip, _jsonOptions) is { Version: CurrentFormat } index)
+            {
+                foreach (Entry entry in index.Entries)
+                {
+                    // Only an entry keyed by its content hash is that content's; a path-keyed one is not exported.
+                    if (entry.Count > 0 && string.Equals(entry.Key, entry.Sha256, StringComparison.Ordinal))
+                    {
+                        counts[(entry.Key, entry.Facet)] = entry.Count;
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
+                                       or JsonException)
+        {
+            AppLog.ExtensionStoreUnreadable(Log, Path.GetFileName(Path.GetDirectoryName(root)) ?? root, file,
+                ex.Message);
+        }
+
+        return counts;
     }
 
     /// <summary>The extension version a data file's header records, or null when it cannot be read.</summary>

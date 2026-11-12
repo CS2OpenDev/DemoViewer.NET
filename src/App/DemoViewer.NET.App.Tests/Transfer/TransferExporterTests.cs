@@ -164,6 +164,8 @@ public class TransferExporterTests
             await Assert.That(aPaths).Contains($"data/{fx.ShaA}/cache/demo{Sibling}");
             await Assert.That(aPaths).Contains($"data/{fx.ShaA}/ext/{ExtensionId}/grenades/demo.json.gz");
             await Assert.That(aPaths).Contains($"data/{fx.ShaA}/ext/{ExtensionId}/grenades/demo.positions.json.gz");
+            await Assert.That(a.FacetCounts?.GetValueOrDefault($"data/{fx.ShaA}/ext/{ExtensionId}/grenades/demo.json.gz"))
+                .IsEqualTo(7).Because("the count lives only in the source's index");
             await Assert.That(aPaths).Contains($"data/{fx.ShaA}/annotations.dvann.json")
                 .Because("A's annotations sit beside the demo");
             await Assert.That(b.Files.Select(f => f.Path)).Contains($"data/{fx.ShaB}/annotations.dvann.json")
@@ -551,7 +553,8 @@ public class TransferExporterTests
                 "9.9.9");
             data.Write(fx.DemA, new DemoDataWrite("grenades", 1, "g1", "grenades of a"u8.ToArray())
             {
-                Parts = new Dictionary<string, ReadOnlyMemory<byte>> { ["positions"] = "positions"u8.ToArray() }
+                Parts = new Dictionary<string, ReadOnlyMemory<byte>> { ["positions"] = "positions"u8.ToArray() },
+                Count = 7
             });
 
             File.WriteAllText(fx.DemA + ".dvann.json", """{"schemaVersion":1,"demo":"a"}""");

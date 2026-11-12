@@ -464,6 +464,37 @@ public interface IDemoProcessingQueue
     [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords",
         Justification = "Pause/Resume is the domain vocabulary for the queue control.")]
     void Resume();
+
+    /// <summary>
+    ///     Holds background processing until the returned scope is disposed, apart from the user's pause: a hold
+    ///     never shows as <see cref="IsPaused" />, and the user's <see cref="Pause" /> or <see cref="Resume" />
+    ///     meanwhile is theirs, untouched when the hold ends. A stand-in queue pauses for the hold instead, when it
+    ///     is not paused already.
+    /// </summary>
+    IDisposable HoldBackground() => new PauseHold(this);
+}
+
+// The stand-in hold over a queue that only has Pause and Resume.
+internal sealed class PauseHold : IDisposable
+{
+    private IDemoProcessingQueue? _queue;
+
+    public PauseHold(IDemoProcessingQueue queue)
+    {
+        if (!queue.IsPaused)
+        {
+            queue.Pause();
+            _queue = queue;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _queue, null) is { IsPaused: true } queue)
+        {
+            queue.Resume();
+        }
+    }
 }
 
 /// <summary>A user's demo open as a queue item, driven by the caller from start to end.</summary>

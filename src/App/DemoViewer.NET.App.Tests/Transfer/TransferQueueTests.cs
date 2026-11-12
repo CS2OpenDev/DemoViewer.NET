@@ -3,6 +3,7 @@
 using CS2DemoKit.Parser;
 using DemoViewer.NET.AppTests.Extensions;
 using DemoViewer.NET.Services;
+using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Transfer;
 
@@ -124,6 +125,75 @@ public class TransferQueueTests
 
         await Assert.That(async () => await failing.WaitAsync(TimeSpan.FromSeconds(5)))
             .Throws<IOException>().WithMessage("drive removed");
+    }
+
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(true, true)]
+    public async Task AnImport_HoldsBackgroundWork_AndLeavesAPauseTheUserSetMeanwhile(bool userPauses, bool paused)
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        BundleBuilder bundle = new(root);
+        const string Sha = "5555555555555555555555555555555555555555555555555555555555555555";
+        bundle.Demo(Sha, "match.dem", 4096, [bundle.Record(BundleBuilder.ParsedRecord(Sha, 4096))]);
+        bundle.Write();
+        using HeavyJobGate gate = new();
+        using DemoProcessingQueue queue = NewQueue(gate);
+        bool? pausedDuring = null;
+        TransferImporter importer = new(new DemoCacheStore(null), queue: queue);
+        ActionProgress progress = new(_ =>
+        {
+            pausedDuring ??= queue.IsPaused;
+            if (userPauses)
+            {
+                queue.Pause();
+            }
+        });
+
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        await importer.RunAsync(ImportRequest.DataOnly(root), preview, progress, CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(10));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(pausedDuring ?? true).IsFalse().Because("a hold is not the user's pause");
+            await Assert.That(queue.IsPaused).IsEqualTo(paused)
+                .Because("the user's pause during the import is theirs to lift");
+        }
+    }
+
+    [Test]
+    public async Task AHold_StopsBackgroundStarts_UntilItEnds_WithoutShowingAsAPause()
+    {
+        using HeavyJobGate gate = new();
+        using DemoProcessingQueue queue = NewQueue(gate);
+        IDisposable hold = queue.HoldBackground();
+        TaskCompletionSource ran = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        IDemoQueueHandle background = queue.SubmitJob(new QueueJobRequest(QueueJobKind.DataTransfer, "Later", "test",
+            DemoJobPriority.Background, _ =>
+            {
+                ran.TrySetResult();
+                return Task.CompletedTask;
+            }));
+        await Task.Delay(100);
+        bool ranWhileHeld = ran.Task.IsCompleted;
+
+        hold.Dispose();
+        hold.Dispose();
+        await ran.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await background.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ranWhileHeld).IsFalse();
+            await Assert.That(queue.IsPaused).IsFalse();
+        }
+    }
+
+    private sealed class ActionProgress(Action<TransferProgress> report) : IProgress<TransferProgress>
+    {
+        public void Report(TransferProgress value) => report(value);
     }
 
     // Progress<T> posts to the thread pool, so a test reading it right after the await could miss the report.

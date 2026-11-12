@@ -183,6 +183,7 @@ internal sealed partial class TransferImporter
         }
 
         ExtensionImportResult? result = null;
+        Dictionary<string, FileStamp> verified = new(StringComparer.Ordinal);
         bool mergeFailed = false, mergeRan = false;
         List<string> report = [];
         if (handedOver.Count > 0)
@@ -192,7 +193,7 @@ internal sealed partial class TransferImporter
                 Skip(run, handedOver);
                 notes.Add($"{label} does not merge imports, so the stores it merges itself were left out");
             }
-            else if (Damaged(run, handedOver) is { } damage)
+            else if (Damaged(run, handedOver, verified) is { } damage)
             {
                 // Checked before the merge starts: a merge that met a bad file half-way would leave half of it in.
                 Skip(run, handedOver);
@@ -204,10 +205,10 @@ internal sealed partial class TransferImporter
                 ExtensionImport import = new(run.Request.Policy.ToSdk(), shas,
                     staged.ToDictionary(p => p.Key,
                         p => new StagedBundleFolder(StagedPath(run, transfer, TransferLayout.StoresDirectory, p.Key),
-                            run.Bundle, p.Value), StringComparer.Ordinal),
+                            run.Bundle, p.Value, verified), StringComparer.Ordinal),
                     own.ToDictionary(p => p.Key,
                         p => new StagedBundleFolder(StagedPath(run, transfer, TransferLayout.OwnDirectory,
-                            TransferLayout.RootName(p.Key)), run.Bundle, p.Value)),
+                            TransferLayout.RootName(p.Key)), run.Bundle, p.Value, verified)),
                     report);
                 string? failure = null;
                 mergeRan = true;
@@ -289,7 +290,9 @@ internal sealed partial class TransferImporter
         List<string> notes)
     {
         string? root = store.Root == StoreRoot.Config ? _extensions?.ConfigRoot : _extensions?.CacheRoot;
-        string? target = root is null ? null : PathSafety.FullPathInside(root, file.RelativePath);
+        string? target = root is null
+            ? null
+            : PathSafety.FullPathInside(root, LocalCasing(root, DeclaredCasing(store, file), EntriesOf));
         if (target is null)
         {
             Skip(run, [file.File]);
@@ -390,6 +393,71 @@ internal sealed partial class TransferImporter
                && store.Paths.Any(p => Under(p, relative));
     }
 
+    // A bundle file is admitted against the store's paths whatever its case, so it is written the way the store
+    // declares it: on a case-sensitive disk the bundle's "Teams.json" beside the store's "teams.json" would be a
+    // second file the extension never reads. A pattern's file name is the bundle's; LocalCasing settles that one.
+    internal static string DeclaredCasing(StoreDescriptor store, string? sha, string relative)
+    {
+        if (sha is not null)
+        {
+            return store.DemoKeyedPaths
+                .Select(t => t.Replace('\\', '/').Trim().Replace(PackContributions.Sha256Placeholder, sha,
+                    StringComparison.Ordinal))
+                .FirstOrDefault(t => string.Equals(t, relative, StringComparison.OrdinalIgnoreCase)) ?? relative;
+        }
+
+        foreach (string declared in store.Paths)
+        {
+            string path = declared.Replace('\\', '/').Trim().TrimEnd('/');
+            int star = path.IndexOf('*', StringComparison.Ordinal);
+            // The fixed part of the path: all of it, or a pattern's folder.
+            string fixedPart = star < 0 ? path : path[..Math.Max(0, path.LastIndexOf('/', star))];
+            if (fixedPart.Length > 0 && Under(declared, relative)
+                && (relative.Length == fixedPart.Length || relative[fixedPart.Length] == '/'))
+            {
+                return fixedPart + relative[fixedPart.Length..];
+            }
+        }
+
+        return relative;
+    }
+
+    private static string DeclaredCasing(StoreDescriptor store, ExtensionFile file) =>
+        DeclaredCasing(store, file.Sha256, file.RelativePath);
+
+    // The relative path as this machine already has it: each segment that exists under another case takes that
+    // case, so the write replaces the file the store reads instead of adding one beside it.
+    internal static string LocalCasing(string root, string relative, Func<string, IEnumerable<string>> entriesOf)
+    {
+        string folder = root;
+        List<string> segments = [];
+        foreach (string segment in relative.Split('/'))
+        {
+            string[] names = [.. entriesOf(folder)];
+            string local = names.Contains(segment, StringComparer.Ordinal)
+                ? segment
+                : names.FirstOrDefault(n => string.Equals(n, segment, StringComparison.OrdinalIgnoreCase)) ?? segment;
+            segments.Add(local);
+            folder = Path.Combine(folder, local);
+        }
+
+        return string.Join('/', segments);
+    }
+
+    private static IEnumerable<string> EntriesOf(string folder)
+    {
+        try
+        {
+            return Directory.Exists(folder)
+                ? [.. Directory.EnumerateFileSystemEntries(folder).Select(Path.GetFileName).OfType<string>()]
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
     private static bool Under(string declared, string relative)
     {
         string path = declared.Replace('\\', '/').Trim().TrimEnd('/');
@@ -421,13 +489,21 @@ internal sealed partial class TransferImporter
     }
 
     // Why the first of the files an extension is handed does not match the manifest, or null when all of them do.
-    private static string? Damaged(Run run, IEnumerable<TransferFile> files)
+    // Each file that matched goes into verified with its length and write time as they were around the hash, so the
+    // merge's reads skip a second hash of a file that has not changed since.
+    private static string? Damaged(Run run, IEnumerable<TransferFile> files, Dictionary<string, FileStamp> verified)
     {
         foreach (TransferFile file in files)
         {
             try
             {
+                string full = TransferLayout.FullPath(run.Bundle, file.Path);
+                FileStamp before = FileStamp.Of(full);
                 ReadVerified(run.Bundle, file);
+                if (FileStamp.Of(full) == before)
+                {
+                    verified[file.Path] = before;
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {

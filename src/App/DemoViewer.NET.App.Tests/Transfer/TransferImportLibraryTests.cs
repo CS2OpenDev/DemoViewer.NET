@@ -60,4 +60,54 @@ public class TransferImportLibraryTests
             await Assert.That(library.Service.Tier2Backlog()).IsEmpty();
         }
     }
+
+    [Test]
+    public async Task ACancelDuringTheCopies_StillListsTheDemosThatFinished_AndLeavesNoPartialCopy()
+    {
+        using TempFolders temp = new();
+        string bundleRoot = temp.New();
+        string destination = Path.Combine(temp.New(), "Imported demos");
+        byte[] small = Bytes(72);
+        // Bigger than one copy buffer, so the cancel lands part way through it.
+        byte[] large = new byte[(1 << 20) + 4096];
+        new Random(73).NextBytes(large);
+        using Library library = new(temp.New(), new DemoCacheStore(temp.New()));
+        BundleBuilder bundle = new(bundleRoot);
+        string smallSha = BundleBuilder.Sha(small);
+        string largeSha = BundleBuilder.Sha(large);
+        bundle.Demo(smallSha, "first.dem", small.Length, [], dem: bundle.Dem(smallSha, small));
+        bundle.Demo(largeSha, "second.dem", large.Length, [], dem: bundle.Dem(largeSha, large));
+        bundle.Write();
+        TransferImporter importer = new(library.Store, library: library.Service);
+        using CancellationTokenSource cts = new();
+        CancelOnSecond progress = new(cts, small.Length);
+
+        ImportPreview preview = await importer.PreviewAsync(bundleRoot, CancellationToken.None);
+        TransferSummary summary = await importer.RunAsync(
+            new ImportRequest(bundleRoot, ConflictPolicy.KeepMine, new HashSet<string> { smallSha, largeSha },
+                destination, true), preview, progress, cts.Token);
+        string copied = Path.Combine(destination, "first.dem");
+
+        await WaitForAsync(() => library.Service.Entries.Any(e => e.FilePath == copied), "the finished copy listed");
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Cancelled).IsTrue();
+            await Assert.That(library.Service.Folders).Contains(destination);
+            await Assert.That(Directory.EnumerateFiles(destination).Select(f => Path.GetFileName(f)!))
+                .IsEquivalentTo(["first.dem"]).Because("a copy cut short never takes its name or stays as a temp");
+        }
+    }
+
+    // Cancels once the second demo's copy is under way, after the first finished.
+    private sealed class CancelOnSecond(CancellationTokenSource cts, long firstBytes) : IProgress<TransferProgress>
+    {
+        public void Report(TransferProgress value)
+        {
+            if (value is { Current: "second.dem" } && value.BytesDone > firstBytes)
+            {
+                cts.Cancel();
+            }
+        }
+    }
 }

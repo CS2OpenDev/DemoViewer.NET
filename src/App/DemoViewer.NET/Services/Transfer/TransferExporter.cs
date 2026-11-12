@@ -200,6 +200,9 @@ public sealed class TransferExporter : ITransferExporter
         private readonly IReadOnlyList<(string ExtensionId, string Root)> _extensions =
             owner._planner.ExtensionRoots();
 
+        private readonly Dictionary<string, IReadOnlyDictionary<(string Sha256, string Facet), int>> _indexCounts =
+            new(StringComparer.Ordinal);
+
         private readonly HashSet<string> _skippedExtensions = new(StringComparer.Ordinal);
         private readonly ExtensionStoreFiles _stores = owner._planner.Stores;
         private bool _warnedStoresFacet;
@@ -291,7 +294,8 @@ public sealed class TransferExporter : ITransferExporter
 
             // Store entries join the manifest only with their demo, so a demo that fails later leaves none behind.
             List<TransferExtensionFile> storeEntries = [];
-            files.AddRange(ExtensionFiles(sha, storeEntries));
+            Dictionary<string, int> facetCounts = new(StringComparer.Ordinal);
+            files.AddRange(ExtensionFiles(sha, storeEntries, facetCounts));
             if (plan.Request.IncludeUserData && owner._planner.AnnotationsOf(sha, paths) is { } annotations)
             {
                 // The annotation editor may hold it open for writing.
@@ -328,7 +332,8 @@ public sealed class TransferExporter : ITransferExporter
             exported.Add(sha);
             ExtensionData.AddRange(storeEntries);
             Demos.Add(new TransferDemo(sha, Path.GetFileName(row.Path), row.Size, files, fingerprint, row.Map,
-                row.MatchTimeUtcTicks is { } ticks ? new DateTime(ticks, DateTimeKind.Utc) : null, dem));
+                row.MatchTimeUtcTicks is { } ticks ? new DateTime(ticks, DateTimeKind.Utc) : null, dem,
+                facetCounts.Count > 0 ? facetCounts : null));
             return new TransferSummaryItem(sha, entry.DisplayName, TransferOutcome.Transferred, reason);
         }
 
@@ -380,8 +385,21 @@ public sealed class TransferExporter : ITransferExporter
             }
         }
 
-        // The demo's facet files, then its per-demo store files, whose manifest entries go to entries.
-        private List<TransferFile> ExtensionFiles(string sha, List<TransferExtensionFile> entries)
+        // Read once per extension, and only read: the export never loads a store.
+        private IReadOnlyDictionary<(string Sha256, string Facet), int> IndexCounts(string root)
+        {
+            if (!_indexCounts.TryGetValue(root, out IReadOnlyDictionary<(string Sha256, string Facet), int>? counts))
+            {
+                _indexCounts[root] = counts = ExtensionDemoDataStore.CountsIn(root);
+            }
+
+            return counts;
+        }
+
+        // The demo's facet files, then its per-demo store files, whose manifest entries go to entries. A facet's
+        // count, which only the source's index holds, goes to facetCounts under its main file's bundle path.
+        private List<TransferFile> ExtensionFiles(string sha, List<TransferExtensionFile> entries,
+            Dictionary<string, int> facetCounts)
         {
             List<TransferFile> files = [];
             foreach ((string extensionId, string root) in _extensions)
@@ -426,6 +444,11 @@ public sealed class TransferExporter : ITransferExporter
                     catch (FileNotFoundException)
                     {
                         continue; // rewritten or dropped since it was listed; the stamps say it is stale
+                    }
+
+                    if (file.IsMain && IndexCounts(root).GetValueOrDefault((sha, file.Facet)) is > 0 and var count)
+                    {
+                        facetCounts[relative] = count;
                     }
 
                     if (file.IsMain && ExtensionDemoDataStore.WriterVersionOf(file.FullPath) is { } version)

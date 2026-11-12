@@ -502,4 +502,145 @@ public class TransferImporterTests
             null, CancellationToken.None);
         await Assert.That(review.Clips.Count).IsEqualTo(1);
     }
+
+    [Test]
+    public async Task AReviewClip_WithNoPath_TakesItsDemosPath_OnceTheLibraryListsTheDemo()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        BundleBuilder bundle = OneDemo(root);
+        bundle.Shared(TransferLayout.ReviewQueueFileName, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(
+            new ReviewQueueFile
+            {
+                Entries = [ReviewEntry.Clip(@"D:\source\match.dem", 10, 20, "a retake", ReviewSources.Manual, 64, Sha)]
+            }, ReviewQueueFile.JsonOptions)));
+        bundle.Write();
+        DemoCacheStore cache = new(null);
+        ReviewQueue review = new(null, pathOfContent: sha => cache.TryGetByContentId(sha)?.Path);
+        TransferImporter importer = new(cache, review: review);
+
+        await importer.RunAsync(ImportRequest.DataOnly(root), await importer.PreviewAsync(root, CancellationToken.None),
+            null, CancellationToken.None);
+        string before = review.Clips.Single().DemoPath;
+        int none = review.ResolvePaths();
+
+        // A scan lists the copied demo under this machine's path.
+        string demo = Path.Combine(temp.New(), "match.dem");
+        cache.AttachUnconfirmed(Sha, demo, 4096, 1);
+        cache.ConfirmLocation(demo, Sha, 4096);
+        int resolved = review.ResolvePaths();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(before).IsEqualTo("");
+            await Assert.That(none).IsEqualTo(0);
+            await Assert.That(resolved).IsEqualTo(1);
+            await Assert.That(review.Clips.Single().DemoPath).IsEqualTo(demo);
+        }
+    }
+
+    [Test]
+    public async Task AReviewFile_ResolvesItsClipsWithNoPath_AsItLoads()
+    {
+        using TempFolders temp = new();
+        string config = temp.New();
+        File.WriteAllText(Path.Combine(config, ReviewQueue.FileName), JsonSerializer.Serialize(new ReviewQueueFile
+        {
+            Entries =
+            [
+                ReviewEntry.Clip("", 10, 20, "imported", ReviewSources.Manual, 64, Sha),
+                ReviewEntry.Clip("/here/other.dem", 30, 40, "local", ReviewSources.Manual, 64)
+            ]
+        }, ReviewQueueFile.JsonOptions));
+
+        ReviewQueue review = new(config, pathOfContent: sha => sha == Sha ? "/library/match.dem" : null);
+        await review.Loaded.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(review.Clips.Select(c => c.DemoPath)).IsEquivalentTo(["/library/match.dem", "/here/other.dem"],
+            CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task KeepBoth_AddsNoSecondBreakpoint_WhereOnlyTheEnabledStateDiffers()
+    {
+        using TempFolders temp = new();
+        string config = temp.New();
+        string breakpointsFile = Path.Combine(config, "GraphBreakpoints.v2.json");
+        PersistedGraphBreakpoint disabled = _mine with { Enabled = false };
+        PersistedGraphBreakpoint edge =
+            new(GraphBreakpointTarget.Edge, null, "g:a", "g:b", "fires", null, null, true);
+        File.WriteAllBytes(breakpointsFile, GraphBreakpointStore.Serialize(
+            new Dictionary<string, List<PersistedGraphBreakpoint>> { [Sha] = [_mine, edge] }));
+        GraphBreakpointStore store = new(breakpointsFile);
+
+        IReadOnlyList<string> changed = store.ImportMerge(new Dictionary<string, List<PersistedGraphBreakpoint>>
+        {
+            [Sha] = [disabled, edge with { Condition = "round > 3" }, _theirs]
+        }, ConflictPolicy.KeepBoth);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(changed).IsEquivalentTo([Sha]);
+            await Assert.That(store.Load(Sha)).IsEquivalentTo([_mine, edge, _theirs], CollectionOrdering.Matching)
+                .Because("a node or edge holds one breakpoint, and mine keeps its state");
+        }
+    }
+
+    [Test]
+    public async Task AFacetsCount_TravelsWithIt()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string extData = temp.New();
+        const string Extension = "dev.example.data";
+        BundleBuilder bundle = new(root);
+        TransferFile main = bundle.File(
+            TransferLayout.ExtensionFacetFile(Sha, Extension, "rounds", TransferLayout.DemoFileName(".json.gz")),
+            BundleBuilder.FacetFile("rounds", null, 2, "fp", Sha, @"D:\source\match.dem", "payload"));
+        bundle.Demo(Sha, "match.dem", 4096, [bundle.Record(BundleBuilder.ParsedRecord(Sha, 4096)), main],
+            facetCounts: new Dictionary<string, int> { [main.Path] = 24 });
+        bundle.Write();
+        DemoCacheStore cache = new(null);
+        TransferImporter importer = new(cache, extensionDataRoot: extData);
+
+        await importer.RunAsync(ImportRequest.DataOnly(root), await importer.PreviewAsync(root, CancellationToken.None),
+            null, CancellationToken.None);
+        string storeRoot = Path.Combine(extData, Extension, ExtensionDemoDataStore.DirectoryName);
+
+        await Assert.That(ExtensionDemoDataStore.CountsIn(storeRoot).GetValueOrDefault((Sha, "rounds")))
+            .IsEqualTo(24);
+    }
+
+    [Test]
+    public async Task AStoresHeldSaves_WriteTheIndexOnce_WhenTheHoldEnds()
+    {
+        using TempFolders temp = new();
+        string extData = temp.New();
+        DemoCacheStore cache = new(null);
+        ExtensionDemoDataStore store = new("dev.example.data", extData, cache, a => a(), "1.0.0");
+        string index = Path.Combine(store.Root, "index.json.gz");
+        string other = new('6', 64);
+
+        IDisposable hold = store.HoldSaves();
+        foreach (string sha in new[] { Sha, other })
+        {
+            store.Import(sha, "rounds",
+            [
+                new KeyValuePair<string, byte[]>(sha + ".json.gz",
+                    BundleBuilder.FacetFile("rounds", null, 2, "fp", sha, "", "payload"))
+            ], 3);
+        }
+
+        bool writtenWhileHeld = File.Exists(index);
+        hold.Dispose();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(writtenWhileHeld).IsFalse();
+            await Assert.That(ExtensionDemoDataStore.CountsIn(store.Root).Keys)
+                .IsEquivalentTo([(Sha, "rounds"), (other, "rounds")]);
+        }
+
+        store.StopFollowingLibrary();
+    }
 }

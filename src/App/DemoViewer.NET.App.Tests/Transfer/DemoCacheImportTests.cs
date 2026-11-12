@@ -250,7 +250,8 @@ public class DemoCacheImportTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(result.Outcome).IsEqualTo(DemoImportOutcome.Added);
+            await Assert.That(result.Outcome).IsEqualTo(DemoImportOutcome.Merged)
+                .Because("the row was listed here: the import repaired it, it did not add one");
             await Assert.That(record?.Path).IsEqualTo(demo)
                 .Because("an index rebuilt from records must still list the demo");
             await Assert.That(record?.ModifiedTicks).IsEqualTo(1234);

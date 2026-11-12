@@ -188,6 +188,11 @@ public sealed record TransferManifest
                 return $"demo {demo.Sha256} has a malformed fingerprint";
             }
 
+            if (demo.FacetCounts?.Any(c => c.Value < 0 || !demo.Files.Any(f => f.Path == c.Key)) == true)
+            {
+                return $"demo {demo.Sha256} has a facet count for a file it does not list";
+            }
+
             // A demo's files must sit in its own folder, so one entry can never overwrite another's.
             string own = TransferLayout.DemoFolder(demo.Sha256) + "/";
             foreach (TransferFile file in demo.Files)
@@ -416,6 +421,10 @@ public sealed record TransferExtensionVersion(string Id, string? Version = null)
 /// <param name="Map">The map, for display.</param>
 /// <param name="MatchDate">When the match was played, UTC, for display.</param>
 /// <param name="Dem">The <c>.dem</c> copy, or null when it was not exported.</param>
+/// <param name="FacetCounts">
+///     The item count the source's extension index records for a facet, by the bundle path of the facet's main
+///     file; null when none has one. The files' headers do not carry it.
+/// </param>
 public sealed record TransferDemo(
     string Sha256,
     string OriginalFileName,
@@ -424,7 +433,9 @@ public sealed record TransferDemo(
     TransferFingerprint? Fingerprint = null,
     string? Map = null,
     DateTime? MatchDate = null,
-    TransferDemFile? Dem = null);
+    TransferDemFile? Dem = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyDictionary<string, int>? FacetCounts = null);
 
 /// <summary>
 ///     A demo's <see cref="DemoCache.DemoContentFingerprint" /> as the manifest stores it.

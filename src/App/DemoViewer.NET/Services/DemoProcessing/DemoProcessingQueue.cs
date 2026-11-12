@@ -97,6 +97,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     private int _maxConcurrency = 1;
     private int _maxQueueSize = 200;
     private bool _paused;
+    private int _holds;
     private long _seq;
     private long _endedSeq;
     private long _promotedSeq;
@@ -512,6 +513,42 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         RaiseChanged();
+    }
+
+    /// <inheritdoc />
+    public IDisposable HoldBackground()
+    {
+        lock (_sync)
+        {
+            _holds++;
+        }
+
+        RaiseChanged();
+        return new BackgroundHold(this);
+    }
+
+    private void ReleaseHold()
+    {
+        lock (_sync)
+        {
+            _holds--;
+            PumpLocked();
+        }
+
+        RaiseChanged();
+    }
+
+    private sealed class BackgroundHold(DemoProcessingQueue queue) : IDisposable
+    {
+        private int _released;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _released, 1) == 0)
+            {
+                queue.ReleaseHold();
+            }
+        }
     }
 
     // ── Foreground fast-path ─────────────────────────────────────────────
@@ -2726,10 +2763,10 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     private bool IsStartableLocked(Entry e) =>
         e.State == DemoQueueItemState.Queued && HoldLocked(e) == DemoQueueHold.None && !BlockedLocked(e);
 
-    // Pause stops every start; the disable switch stops only Background-priority work.
+    // Pause, the user's or a hold's, stops every start; the disable switch stops only Background-priority work.
     private DemoQueueHold HoldLocked(Entry e) =>
         ParkedLocked(e) ? DemoQueueHold.OnOpen
-        : _paused && e.Priority < DemoJobPriority.UserRequested ? DemoQueueHold.Paused
+        : (_paused || _holds > 0) && e.Priority < DemoJobPriority.UserRequested ? DemoQueueHold.Paused
         : !_backgroundEnabled && e.Priority < DemoJobPriority.UserRequested && e.Kind != QueueJobKind.HeapCompaction
         && !IsLight(e) ? DemoQueueHold.BackgroundOff
         : DemoQueueHold.None;

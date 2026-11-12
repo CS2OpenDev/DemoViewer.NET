@@ -290,6 +290,61 @@ public class TransferExtensionImportTests
     }
 
     [Test]
+    public async Task TheMergesReads_OfFilesCheckedBeforeIt_AreNotHashedAgain()
+    {
+        int hashed = -1;
+        string? read = null;
+        using Machine machine = new(import =>
+        {
+            StagedBundleFolder notes = (StagedBundleFolder)import.Staged("notes")!;
+            read = Encoding.UTF8.GetString(notes.Read(NotesPath + "/n.json")!);
+            hashed = notes.HashedReads;
+            return Task.FromResult(new ExtensionImportResult(1, 0, 0, 0));
+        });
+
+        (_, TransferSummary summary) = await machine.Import();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(read).IsEqualTo("notes");
+            await Assert.That(hashed).IsEqualTo(0).Because("the check before the merge hashed it already");
+            await Assert.That(ExtensionLine(summary).Outcome).IsNotEqualTo(TransferOutcome.Failed);
+        }
+    }
+
+    [Test]
+    public async Task AStoreFile_IsWrittenInTheCaseTheStoreDeclares_OrTheCaseAlreadyOnDisk()
+    {
+        StoreDescriptor teams = new("teams", "Teams", StoreRoot.Config, ["teams.json", "Strats", "notes/*.json"],
+            IsUserWork: true) { Portability = StorePortability.LibraryWide };
+        const string Root = "/config";
+        // A case-sensitive disk, whatever the host's: both spellings of one name can sit side by side.
+        Dictionary<string, string[]> disk = new(StringComparer.Ordinal)
+        {
+            [Root] = ["strats", "notes"],
+            [Path.Combine(Root, "strats")] = ["a.json", "B.json", "b.json"],
+            [Path.Combine(Root, "notes")] = ["Old.json"]
+        };
+        IEnumerable<string> EntriesOf(string folder) => disk.GetValueOrDefault(folder) ?? [];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(TransferImporter.DeclaredCasing(teams, null, "Teams.json")).IsEqualTo("teams.json");
+            await Assert.That(TransferImporter.DeclaredCasing(teams, null, "STRATS/A.json")).IsEqualTo("Strats/A.json");
+            await Assert.That(TransferImporter.DeclaredCasing(teams, null, "Notes/old.json")).IsEqualTo("notes/old.json");
+            await Assert.That(TransferImporter.DeclaredCasing(_tags, Sha, TagsPath.ToUpperInvariant() + "/" + Sha
+                + ".TAG.json")).IsEqualTo(TagsPath + "/" + Sha + ".tag.json");
+            await Assert.That(TransferImporter.LocalCasing(Root, "Strats/A.json", EntriesOf)).IsEqualTo("strats/a.json")
+                .Because("the file already here under another case is the one to replace");
+            await Assert.That(TransferImporter.LocalCasing(Root, "Strats/B.json", EntriesOf)).IsEqualTo("strats/B.json")
+                .Because("an exact match wins over another case");
+            await Assert.That(TransferImporter.LocalCasing(Root, "notes/old.json", EntriesOf)).IsEqualTo("notes/Old.json");
+            await Assert.That(TransferImporter.LocalCasing(Root, "Strats/new.json", EntriesOf)).IsEqualTo("strats/new.json");
+            await Assert.That(TransferImporter.LocalCasing(Root, "teams.json", EntriesOf)).IsEqualTo("teams.json");
+        }
+    }
+
+    [Test]
     public async Task ABundleDamagedDuringTheMerge_FailsTheLine_ButIsNoFaultOfTheExtension()
     {
         string? notes = null;

@@ -128,8 +128,16 @@ internal sealed partial class TransferImporter : ITransferImporter
         if (!run.Cancelled)
         {
             await ImportReviewAsync(run).ConfigureAwait(false);
+        }
+
+        // Even after a cancel: the copies that finished are whole demos, and only the library makes them findable.
+        // A copy cut short never took its name, so nothing half-written is listed.
+        if (!run.Cancelled || run.CopiedDems > 0)
+        {
             await JoinLibraryAsync(run).ConfigureAwait(false);
         }
+
+        await ResolveReviewPathsAsync().ConfigureAwait(false);
 
         return new TransferSummary([.. run.Items.Values, .. run.ExtensionItems],
             [.. preview.Warnings, .. run.Warnings], bundle, run.Cancelled);
@@ -144,26 +152,13 @@ internal sealed partial class TransferImporter : ITransferImporter
                 count == 1 ? "" : "s");
             await TransferQueue.RunAsync(queue, title, run.Bundle, async (job, relay) =>
             {
-                // Background passes wait while rows land, so none writes a demo's record mid-merge. A pause the
-                // user set is theirs to lift.
-                bool paused = !queue.IsPaused;
-                if (paused)
-                {
-                    queue.Pause();
-                }
-
-                try
+                // Background passes wait while rows land, so none writes a demo's record mid-merge. The hold is not
+                // the user's pause: one they set or lift meanwhile stays as they left it.
+                using (queue.HoldBackground())
                 {
                     await Task.Run(() => ImportAsync(run, relay, job.CancellationToken), job.CancellationToken)
                         .ConfigureAwait(false);
                     return true;
-                }
-                finally
-                {
-                    if (paused)
-                    {
-                        queue.Resume();
-                    }
                 }
             }, progress, true, ct).ConfigureAwait(false);
         }
@@ -320,6 +315,7 @@ internal sealed partial class TransferImporter : ITransferImporter
             {
                 // Once, after the batch: the rows are in memory already, so the sweep keeps their files meanwhile.
                 _cache.SaveIndex();
+                ReleaseTemporaryStores(run);
             }
         }
 
@@ -410,7 +406,7 @@ internal sealed partial class TransferImporter : ITransferImporter
 
             foreach (((string extension, string facet), List<TransferFile> files) in facets)
             {
-                ExtensionDemoDataStore? store = ExtensionStore(extension, out bool temporary);
+                ExtensionDemoDataStore? store = ExtensionStore(run, extension);
                 if (store is null)
                 {
                     Skip(run, files);
@@ -425,19 +421,12 @@ internal sealed partial class TransferImporter : ITransferImporter
                     merged |= store.Import(sha, facet,
                     [
                         .. files.Select(f => new KeyValuePair<string, byte[]>(StoreFileName(sha, f), Read(run, f)))
-                    ]);
+                    ], files.Max(f => demo.FacetCounts?.GetValueOrDefault(f.Path) ?? 0));
                 }
                 catch (Exception ex) when (IsStepFailure(ex))
                 {
                     stepFailed = true;
                     notes.Add($"{extension} {facet} data was not imported: {ex.Message}");
-                }
-                finally
-                {
-                    if (temporary)
-                    {
-                        store.StopFollowingLibrary();
-                    }
                 }
             }
 
@@ -484,11 +473,10 @@ internal sealed partial class TransferImporter : ITransferImporter
         ex is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException
             or JsonException;
 
-    // The loaded extension's store, or one over its folder for an extension that is not loaded, which the
-    // caller lets go of after the import.
-    private ExtensionDemoDataStore? ExtensionStore(string extensionId, out bool temporary)
+    // The loaded extension's store, or one over its folder for an extension that is not loaded. That one is made
+    // once per run, loads its index once and saves it once, when the run lets go of it after the rows.
+    private ExtensionDemoDataStore? ExtensionStore(Run run, string extensionId)
     {
-        temporary = false;
         if (_extensionData?.Invoke(extensionId) is { } live)
         {
             return live;
@@ -499,9 +487,25 @@ internal sealed partial class TransferImporter : ITransferImporter
             return null;
         }
 
-        temporary = true;
-        return new ExtensionDemoDataStore(extensionId, Path.Combine(_extensionDataRoot, extensionId), _cache,
-            static _ => { }, null);
+        if (!run.TemporaryStores.TryGetValue(extensionId, out (ExtensionDemoDataStore Store, IDisposable Saves) held))
+        {
+            ExtensionDemoDataStore store = new(extensionId, Path.Combine(_extensionDataRoot, extensionId), _cache,
+                static _ => { }, null);
+            run.TemporaryStores[extensionId] = held = (store, store.HoldSaves());
+        }
+
+        return held.Store;
+    }
+
+    private static void ReleaseTemporaryStores(Run run)
+    {
+        foreach ((ExtensionDemoDataStore store, IDisposable saves) in run.TemporaryStores.Values)
+        {
+            saves.Dispose();
+            store.StopFollowingLibrary();
+        }
+
+        run.TemporaryStores.Clear();
     }
 
     // Annotations land in app-data, never beside a demo this import did not put there; the annotation store
@@ -636,6 +640,22 @@ internal sealed partial class TransferImporter : ITransferImporter
         {
             review.ImportClips(entries, run.Request.Policy, sha => _cache.TryGetByContentId(sha)?.Path,
                 path => _cache.TryGetIndex(path)?.Sha256);
+            return Task.CompletedTask;
+        }).ConfigureAwait(false);
+    }
+
+    // A clip imported before its demo was listed has no path; the rescan has listed the copies by now. A scan phase
+    // that lists one later resolves it through the library's change notice.
+    private async Task ResolveReviewPathsAsync()
+    {
+        if (_review is not { } review)
+        {
+            return;
+        }
+
+        await _onUi(() =>
+        {
+            review.ResolvePaths(sha => _cache.TryGetByContentId(sha)?.Path);
             return Task.CompletedTask;
         }).ConfigureAwait(false);
     }
@@ -896,6 +916,10 @@ internal sealed partial class TransferImporter : ITransferImporter
 
         // One line per extension whose stores the bundle carries.
         public List<TransferSummaryItem> ExtensionItems { get; } = [];
+
+        // The stores made for extensions that are not loaded, by id, each with its held saves.
+        public Dictionary<string, (ExtensionDemoDataStore Store, IDisposable Saves)> TemporaryStores { get; } =
+            new(StringComparer.Ordinal);
     }
 
     private static string BundleFileName(TransferFile file) => file.Path[(file.Path.LastIndexOf('/') + 1)..];

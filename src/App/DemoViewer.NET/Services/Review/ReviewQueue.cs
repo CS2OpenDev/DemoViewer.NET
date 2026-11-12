@@ -46,6 +46,7 @@ public sealed class ReviewQueue
     private readonly List<ReviewEntry> _loaded = [];
     private readonly LoadOnce _load;
     private readonly string? _path;
+    private readonly Func<string, string?>? _pathOfContent;
     private readonly CoalescedWriter<ReviewEntry[]> _writer;
     private int _deferDepth;
     private bool _deferredChange;
@@ -57,9 +58,14 @@ public sealed class ReviewQueue
     /// <param name="saveDelay">How long a write waits for more mutations; 300 ms when null.</param>
     /// <param name="scheduleSave">Runs a save after the delay: a processing-queue item in the app, the pool when null.</param>
     /// <param name="scheduleLoad">Runs the file read: a processing-queue item in the app, the pool when null.</param>
+    /// <param name="pathOfContent">
+    ///     This machine's path of a content hash, or null: what an imported clip without a path is given once its
+    ///     demo is here (<see cref="ResolvePaths" />). Null leaves such clips as they are.
+    /// </param>
     public ReviewQueue(string? configRoot, TimeSpan? saveDelay = null, Func<Action, Task>? scheduleSave = null,
-        Func<Action, Task>? scheduleLoad = null)
+        Func<Action, Task>? scheduleLoad = null, Func<string, string?>? pathOfContent = null)
     {
+        _pathOfContent = pathOfContent;
         _path = configRoot is null ? null : Path.Combine(configRoot, FileName);
         TimeSpan delay = saveDelay ?? TimeSpan.FromMilliseconds(300);
         Func<Action, Task> schedule = scheduleSave ?? Task.Run;
@@ -363,22 +369,23 @@ public sealed class ReviewQueue
 
     /// <summary>
     ///     Brings in the clips of a transfer bundle's queue. Each clip is joined by its demo's content hash: its
-    ///     path is this machine's copy of that demo (<paramref name="localPathOf" />), or empty until one is found,
-    ///     and a clip without a hash is skipped. A clip already queued here for the same demo, range and highlight
-    ///     is kept under <see cref="ConflictPolicy.KeepMine" />, replaced in place under
-    ///     <see cref="ConflictPolicy.TakeImported" />, and under <see cref="ConflictPolicy.KeepBoth" /> joined by
+    ///     path is this machine's copy of that demo (<paramref name="localPathOf" />), or empty until
+    ///     <see cref="ResolvePaths" /> finds one, and a clip without a hash is skipped. A clip already queued here for
+    ///     the same demo, range and highlight is kept under <see cref="ConflictPolicy.KeepMine" />, replaced in place
+    ///     under <see cref="ConflictPolicy.TakeImported" />, and under <see cref="ConflictPolicy.KeepBoth" /> joined by
     ///     the imported one when their note or question differ. New clips go under the bundle's title cards,
     ///     appended to a section of the same title here. One change and one save.
     /// </summary>
     /// <param name="entries">The bundle's entries, title cards and clips, in order.</param>
     /// <param name="policy">What a clip queued on both sides keeps.</param>
-    /// <param name="localPathOf">A content hash's path on this machine, or null.</param>
+    /// <param name="localPathOf">A content hash's path on this machine, or null; the queue's own lookup when null.</param>
     /// <param name="shaOfPath">The content hash of a queued clip's path when the clip carries none, or null.</param>
     /// <returns>What happened.</returns>
     public ReviewImportResult ImportClips(IReadOnlyList<ReviewEntry> entries, ConflictPolicy policy,
         Func<string, string?>? localPathOf = null, Func<string, string?>? shaOfPath = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
+        localPathOf ??= _pathOfContent;
         int added = 0, replaced = 0, kept = 0;
         string section = ImportedSectionTitle;
         List<(string Section, ReviewEntry Clip)> appended = [];
@@ -449,6 +456,43 @@ public sealed class ReviewQueue
         }
 
         return new ReviewImportResult(added, replaced, kept);
+    }
+
+    /// <summary>
+    ///     Gives each imported clip that has no path yet its demo's path on this machine, found by the clip's
+    ///     content hash, once the library lists that demo. Run after an import and after each library scan; a
+    ///     queue whose file is still loading is left alone, since the load resolves them too. One change and one
+    ///     save when any clip took a path.
+    /// </summary>
+    /// <param name="localPathOf">A content hash's path on this machine, or null; the queue's own lookup when null.</param>
+    /// <returns>How many clips took a path.</returns>
+    public int ResolvePaths(Func<string, string?>? localPathOf = null)
+    {
+        localPathOf ??= _pathOfContent;
+        if (localPathOf is null || !_load.Completion.IsCompleted || !ResolveInPlace(_loaded, localPathOf, out int count))
+        {
+            return 0;
+        }
+
+        Commit();
+        return count;
+    }
+
+    // Fills the empty paths of hashed clips in place. False when none changed.
+    private static bool ResolveInPlace(List<ReviewEntry> entries, Func<string, string?> localPathOf, out int count)
+    {
+        count = 0;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            if (entries[i] is { Kind: ReviewEntryKind.Clip, DemoPath.Length: 0, Sha256: { Length: > 0 } sha } clip
+                && localPathOf(sha) is { Length: > 0 } path)
+            {
+                entries[i] = clip with { DemoPath = path };
+                count++;
+            }
+        }
+
+        return count > 0;
     }
 
     /// <summary>Puts a title card at <paramref name="index" />, clamped; at the end when null.</summary>
@@ -732,15 +776,32 @@ public sealed class ReviewQueue
 
             // An entry with no id cannot be named by any mutation; give it one rather than drop it.
             _loaded.AddRange(entries.Select(e => e.Id == Guid.Empty ? e with { Id = Guid.NewGuid() } : e));
-            if (migrated is { Written: false })
+            bool resolved = ResolveOnLoad();
+            if (migrated is { Written: false } || resolved)
             {
-                // The backup is taken; write the migrated set the way any save goes.
+                // A migration's backup is taken; write the migrated or resolved set the way any save goes.
                 QueueWrite([.. _loaded]);
             }
         }
         catch (Exception ex)
         {
             Refuse($"{FileName} could not be read: {ex.Message}");
+        }
+    }
+
+    // An imported clip whose demo a later scan listed takes its path as the file comes in. The lookup failing costs
+    // only that: the file itself read fine.
+    private bool ResolveOnLoad()
+    {
+        try
+        {
+            return _pathOfContent is not null && ResolveInPlace(_loaded, _pathOfContent, out _);
+        }
+#pragma warning disable CA1031 // a path lookup must never refuse a file that read
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+            return false;
         }
     }
 

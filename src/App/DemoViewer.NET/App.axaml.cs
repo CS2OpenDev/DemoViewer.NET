@@ -251,6 +251,13 @@ public class App : Application
             // semantics differ). Start it here, after the shell exists. The WASM branch never calls this.
             viewModel.StartIdleMonitoring();
 
+            // Imported review clips whose demo was not here yet take its path from the scan that lists it.
+            if (Services?.GetService<DemoLibraryService>() is { } scannedLibrary
+                && Services.GetService<ReviewQueue>() is { } reviewQueue)
+            {
+                scannedLibrary.Changed += () => reviewQueue.ResolvePaths();
+            }
+
             // Launch update check (desktop-only: the Browser head has no installed build to update).
             // Fire-and-forget on purpose: this is one HTTPS request to the GitHub release feed, and
             // the window must never wait on it. No-op unless Desktop supplied the service.
@@ -1309,7 +1316,9 @@ public class App : Application
         services.AddSingleton(sp => new ReviewQueue(AppPaths.ConfigRoot,
             scheduleSave: QueueWork.Saves(sp.GetRequiredService<IDemoProcessingQueue>(), "Save: review queue", "review",
                 "save:review-queue"),
-            scheduleLoad: StartupLoad(sp, "Load: review queue", "review")));
+            scheduleLoad: StartupLoad(sp, "Load: review queue", "review"),
+            // Resolved at the first imported clip that has no path, never while the queue is built.
+            pathOfContent: sha => sp.GetRequiredService<DemoCacheStore>().TryGetByContentId(sha)?.Path));
         // Library transfer: export reads the cache and the config root and writes only into the bundle folder.
         services.AddSingleton<ITransferExporter>(sp => new TransferExporter(sp.GetRequiredService<DemoCacheStore>(),
             sp.GetRequiredService<IDemoProcessingQueue>(),

@@ -13,7 +13,10 @@ public enum DemoImportOutcome
     /// <summary>The store had no row for the content; it has an orphaned one now.</summary>
     Added,
 
-    /// <summary>The store had a row; at least one tier or stamp came from the import.</summary>
+    /// <summary>
+    ///     The store had a row; at least one tier or stamp came from the import, or all of them when the row's
+    ///     record did not read.
+    /// </summary>
     Merged,
 
     /// <summary>The store had a row at least as current as the import in every tier and stamp.</summary>
@@ -115,7 +118,8 @@ public sealed partial class DemoCacheStore
                 }
             }
 
-            outcome = local is null ? DemoImportOutcome.Added
+            // A listed row whose record did not read is repaired by the import, which is a merge into that row.
+            outcome = row is null ? DemoImportOutcome.Added
                 : changed ? DemoImportOutcome.Merged
                 : DemoImportOutcome.Unchanged;
 

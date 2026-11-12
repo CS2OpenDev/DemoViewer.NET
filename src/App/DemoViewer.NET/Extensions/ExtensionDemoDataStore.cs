@@ -57,7 +57,9 @@ internal sealed partial class ExtensionDemoDataStore : IExtensionDemoData
     private readonly Action<Action> _post;
     private readonly Lock _saveGate = new();
     private Dictionary<(string Key, string Facet), Entry>? _entries;
+    private IndexFile? _heldSave;
     private int _loadQueued;
+    private int _saveHolds;
     private long _savedVersion;
     private long _version;
 
@@ -740,6 +742,50 @@ internal sealed partial class ExtensionDemoDataStore : IExtensionDemoData
         return entries;
     }
 
+    /// <summary>
+    ///     Holds the index's saves until the returned scope is disposed, which saves the latest index once: for a run
+    ///     of writes, such as an import's, that would otherwise rewrite the whole index after each one.
+    /// </summary>
+    public IDisposable HoldSaves()
+    {
+        lock (_saveGate)
+        {
+            _saveHolds++;
+        }
+
+        return new SaveHold(this);
+    }
+
+    private void ReleaseSaves()
+    {
+        IndexFile? held;
+        lock (_saveGate)
+        {
+            if (--_saveHolds > 0)
+            {
+                return;
+            }
+
+            held = _heldSave;
+            _heldSave = null;
+        }
+
+        Save(held);
+    }
+
+    private sealed class SaveHold(ExtensionDemoDataStore store) : IDisposable
+    {
+        private int _released;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _released, 1) == 0)
+            {
+                store.ReleaseSaves();
+            }
+        }
+    }
+
     // Called under the lock: the index as it is now, numbered so an older snapshot never overwrites a newer one.
     private IndexFile Snapshot() => new(CurrentFormat, [.. _entries!.Values]) { Sequence = ++_version };
 
@@ -755,6 +801,16 @@ internal sealed partial class ExtensionDemoDataStore : IExtensionDemoData
         {
             if (index.Sequence <= _savedVersion)
             {
+                return;
+            }
+
+            if (_saveHolds > 0)
+            {
+                if (_heldSave is null || index.Sequence > _heldSave.Sequence)
+                {
+                    _heldSave = index;
+                }
+
                 return;
             }
 
