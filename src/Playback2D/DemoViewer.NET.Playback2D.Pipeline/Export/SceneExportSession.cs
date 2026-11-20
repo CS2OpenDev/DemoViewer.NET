@@ -287,6 +287,15 @@ public sealed class SceneExportSession
         // And a throw out of a finally would escape before the terminal report was made, leaving a
         // caller that drives a progress bar off Phase with Rendering as the last thing it ever saw.
         // Exactly one terminal report, on every path, is the contract.
+        // A cancel that landed after the last frame was written threw nowhere: the loop reads the token
+        // at the top of a frame and inside the write, and there is no next frame. The sinks do see it (a
+        // GIF is not written, ffmpeg is killed), so without this the run closes with no file and is
+        // reported Completed. It is a cancelled run like any other.
+        if (failure is null && ct.IsCancellationRequested)
+        {
+            failure = new OperationCanceledException(ct);
+        }
+
         try
         {
             // A sink closed after a failed or cancelled run would otherwise finalise what it has: a

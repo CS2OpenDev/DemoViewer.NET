@@ -284,6 +284,60 @@ public class ExportFailureTests
         }
     }
 
+    /// <summary>
+    ///     A cancel that lands after the last frame was written, and before the sink is closed.
+    ///     <para>
+    ///         Nothing in the render loop reads the token again by then, so nothing throws; but the sink
+    ///         does read it, and writes no file. The run was reported Completed, with an output path at
+    ///         which there was nothing. A cancelled run is Cancelled, wherever the cancel landed.
+    ///     </para>
+    /// </summary>
+    [Test]
+    public async Task ACancelAfterTheLastFrame_IsReportedCancelled_NotCompletedWithNoFile()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-latecancel-{Guid.NewGuid():N}.gif");
+
+        try
+        {
+            using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
+            using CpuSurfaceProvider surfaces = new();
+            using CancellationTokenSource source = new();
+
+            List<ExportProgress> reports = [];
+            DirectProgress progress = new(report =>
+            {
+                reports.Add(report);
+
+                // Finalizing is reported once, after the last write and before the sink is closed.
+                if (report.Phase == ExportPhase.Finalizing)
+                {
+                    source.Cancel();
+                }
+            });
+
+            Exception? failure = null;
+            try
+            {
+                await new SceneExportSession(compositor).RunAsync(
+                    ExportFixtures.Request(6, ExportFormats.Gif, new SKSizeI(64, 48), fps: 20),
+                    ExportFixtures.Source(6), new ManagedGifSink(path, 20), surfaces, progress, source.Token);
+            }
+            catch (OperationCanceledException ex)
+            {
+                failure = ex;
+            }
+
+            // The two have to agree: no file and Cancelled, never no file and Completed.
+            await Assert.That(File.Exists(path)).IsFalse();
+            await Assert.That(reports[^1].Phase).IsEqualTo(ExportPhase.Cancelled);
+            await Assert.That(failure).IsNotNull();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     /// <summary>The same failure through the subprocess sink: ffmpeg is stopped, not allowed to mux.</summary>
     [Test]
     [Category("Integration")]
