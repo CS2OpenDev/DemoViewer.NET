@@ -37,6 +37,11 @@ public sealed class ManagedGifSink : IFrameSink
     private int _width;
     private int _height;
 
+    // The token of the most recent write. The session checks its token at the top of each frame, so a
+    // cancel usually surfaces there and never reaches WriteAsync; this is how DisposeAsync still learns
+    // of it.
+    private CancellationToken _lastWriteToken;
+
     /// <summary>Creates the sink.</summary>
     /// <param name="outputPath">Where the GIF goes. Overwritten on success.</param>
     /// <param name="fps">Frame rate; must divide 100 exactly (10, 20, 25 or 50).</param>
@@ -73,6 +78,7 @@ public sealed class ManagedGifSink : IFrameSink
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        _lastWriteToken = ct;
         if (ct.IsCancellationRequested)
         {
             _cancelled = true;
@@ -129,7 +135,8 @@ public sealed class ManagedGifSink : IFrameSink
 
         try
         {
-            if (_quantizer is null || _cancelled || FramesWritten == 0)
+            if (_quantizer is null || _cancelled || _lastWriteToken.IsCancellationRequested ||
+                FramesWritten == 0)
             {
                 return ValueTask.CompletedTask;
             }

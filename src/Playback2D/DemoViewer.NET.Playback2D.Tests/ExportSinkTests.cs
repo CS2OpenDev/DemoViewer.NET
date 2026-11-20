@@ -478,6 +478,44 @@ public class ManagedGifSinkTests
         await Assert.That(File.Exists(path)).IsFalse();
     }
 
+    /// <summary>
+    ///     A cancel the sink never sees a write for must still write nothing.
+    ///     <para>
+    ///         This is the session's own shape: <c>SceneExportSession</c> checks the token at the top of
+    ///         each frame, so a cancel normally surfaces there and the sink is only disposed afterwards.
+    ///         Nothing in production calls <see cref="ManagedGifSink.Cancel" />, so a sink that waited
+    ///         for it wrote the frames it had over whatever was already at the path while the job
+    ///         reported Cancelled.
+    ///     </para>
+    /// </summary>
+    [Test]
+    public async Task ACancelBetweenWrites_WritesNothing_AndLeavesAnExistingFileAlone()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-gif-{Guid.NewGuid():N}.gif");
+        byte[] sentinel = [1, 2, 3, 4];
+        await File.WriteAllBytesAsync(path, sentinel);
+
+        try
+        {
+            using CancellationTokenSource source = new();
+            ManagedGifSink sink = new(path, 20);
+            for (int i = 0; i < 3; i++)
+            {
+                await sink.WriteAsync(Frame(4, 4, (byte)(i * 60)), 4, 4, source.Token);
+            }
+
+            await source.CancelAsync();
+            await sink.DisposeAsync();
+
+            await Assert.That(Convert.ToHexString(await File.ReadAllBytesAsync(path)))
+                .IsEqualTo(Convert.ToHexString(sentinel));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static async Task<byte[]> Encode(byte[][] frames, int width, int height)
     {
         string path = Path.Combine(Path.GetTempPath(), $"dv-gif-{Guid.NewGuid():N}.gif");
