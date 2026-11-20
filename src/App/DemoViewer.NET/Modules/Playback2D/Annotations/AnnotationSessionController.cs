@@ -307,6 +307,14 @@ public sealed class AnnotationSessionController : IDisposable
             StatusText = DescribeLocation();
             StateChanged?.Invoke();
         }
+        catch (Exception) when (generation == _attachGeneration)
+        {
+            // _awaitingSidecar stays set, so no save writes the placeholder over a sidecar that was never
+            // read. Nothing drawn from here on reaches a file, and the line must not keep naming one.
+            StatusText = "annotations could not be loaded — session only";
+            StateChanged?.Invoke();
+            throw;
+        }
         finally
         {
             // The flag is the newest attach's; one that was overtaken leaves it alone.

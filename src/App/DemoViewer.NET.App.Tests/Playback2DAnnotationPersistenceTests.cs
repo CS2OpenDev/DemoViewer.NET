@@ -514,6 +514,46 @@ public class Playback2DAnnotationPersistenceTests
         }
     }
 
+    /// <summary>
+    ///     A load that throws leaves the document a placeholder no save will write, so nothing drawn from then
+    ///     on reaches a file. The status line has to say so rather than keep naming the last demo's sidecar.
+    /// </summary>
+    [Test]
+    public async Task Controller_ALoadThatThrows_SaysTheInkIsSessionOnly()
+    {
+        using TempDemo good = new();
+        using TempDemo bad = new();
+        const string Sha = "cc1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e";
+        AnnotationStore seed = new(good.AppData);
+        await seed.SaveAsync(good.DemoPath, new DemoIdentity(Sha, "match.dem", 8), good.Clock, [Stroke()]);
+        await seed.SaveAsync(bad.DemoPath, new DemoIdentity(Sha, "match.dem", 8), bad.Clock, [Stroke()]);
+
+        string Key(string path) =>
+            string.Equals(path, bad.DemoPath, StringComparison.OrdinalIgnoreCase)
+                ? throw new InvalidOperationException("no key for this demo")
+                : Sha;
+
+        using AnnotationSessionController controller = new(new AnnotationStore(good.AppData, Key), null);
+        await controller.AttachDemoAsync(good.DemoPath, good.Clock);
+        await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+
+        bool threw = false;
+        try
+        {
+            await controller.AttachDemoAsync(bad.DemoPath, bad.Clock);
+        }
+        catch (InvalidOperationException)
+        {
+            threw = true;
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(threw).IsTrue();
+            await Assert.That(controller.StatusText).IsEqualTo("annotations could not be loaded — session only");
+        }
+    }
+
     // Parks the store's first key lookup after Arm() until Release(). The store asks for a demo's key from
     // inside a load (once the file is read) and from inside a save (once it holds the save serializer), so
     // this is the one place a test can hold either open without a seam in the controller.
