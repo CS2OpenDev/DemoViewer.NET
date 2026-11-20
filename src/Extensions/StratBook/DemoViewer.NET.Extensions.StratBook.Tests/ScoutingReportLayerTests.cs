@@ -219,6 +219,31 @@ public class ScoutingReportLayerTests
     }
 
     [Test]
+    public async Task ARebuild_IsNotOverwritten_ByTheScopesOwnBuildLandingAfterIt()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
+        ScoutingReportData data = ScoutingReportData.Start(teamA, "A",
+            new ScoutingReportSources { Teams = teams, Library = cache.Library() }, _ => _inline);
+        QueuedPost posted = new();
+        Slow slow = new();
+        using ScoutingLayerRegistry registry = new([slow], posted.Post, new Host());
+        ScoutingLayerChipViewModel chip = registry.Find("setups")!;
+
+        registry.SetScope(data, "de_nuke", ScoutingSide.Ct, ScoutingBuy.All);
+        TaskCompletionSource<ScoutingLayerResult> initial = slow.Pending!;
+        registry.Rebuild("setups");
+        TaskCompletionSource<ScoutingLayerResult> rebuilt = slow.Pending!;
+
+        rebuilt.SetResult(new ScoutingLayerResult { CountLabel = "rebuilt" });
+        initial.SetResult(new ScoutingLayerResult { CountLabel = "initial" });
+        await registry.Idle;
+        posted.Drain();
+
+        await Assert.That(chip.CountLabel).IsEqualTo("rebuilt")
+            .Because("the scope's own build read what the rebuild replaced");
+    }
+
+    [Test]
     public async Task TheNotices_SayWhenTheSampleIsThin_AndWhenDemosHaveNoPositions()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, PostPlantService postPlant) = await Library();

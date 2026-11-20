@@ -184,7 +184,8 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
             builds.Add(build.ContinueWith(t => _post(() =>
             {
-                if (generation == Volatile.Read(ref _generation))
+                // A rebuild of the layer since (its stamp) read newer sources: this build must not land over it.
+                if (generation == Volatile.Read(ref _generation) && !_rebuilds.ContainsKey(chip.Id))
                 {
                     chip.Apply(Landed(t), context);
                     Redraw();
