@@ -56,6 +56,10 @@ public sealed class LiveSyncService : ILiveSyncService
     // Outbound pipeline: alive only while a session is up.
     private SyncEngine? _engine;
 
+    // The subscription of _engine, kept to unsubscribe: it carries its engine, so a status is applied only
+    // while the engine that published it is still the session's.
+    private Action<LiveSyncState>? _onEngineStatus;
+
     private CsvgWebHost? _host;
 
     // Inbound pipeline: the 30 Hz Cs2EventPump + servo + mirroring.
@@ -267,7 +271,8 @@ public sealed class LiveSyncService : ILiveSyncService
             // Session is up: attach the outbound pipeline. The engine is Avalonia-free;
             // the observer subscribes shell events and must therefore attach on the UI thread.
             SyncEngine engine = new(new CsvgSyncClientAdapter(session), SyncTimings.Default, Capabilities);
-            engine.StatusChanged += OnEngineStatus;
+            _onEngineStatus = status => OnEngineStatus(engine, status);
+            engine.StatusChanged += _onEngineStatus;
             _engine = engine;
             int tickOffset = settings.TickOffset;
             if (Dispatcher.UIThread.CheckAccess())
@@ -477,7 +482,7 @@ public sealed class LiveSyncService : ILiveSyncService
     }
 
     /// <summary>Engine status → service state (any thread; applied on the UI thread, SetState dedups).</summary>
-    private void OnEngineStatus(LiveSyncState status)
+    private void OnEngineStatus(SyncEngine engine, LiveSyncState status)
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
@@ -485,13 +490,15 @@ public sealed class LiveSyncService : ILiveSyncService
             // only posted, so a status published between that post and its apply would read the
             // pre-Faulted state here and land after Faulted. Always a Post: PublishStatus calls
             // this under the engine's publish gate.
-            Dispatcher.UIThread.Post(() => OnEngineStatus(status));
+            Dispatcher.UIThread.Post(() => OnEngineStatus(engine, status));
             return;
         }
 
-        if (_tearingDown || _disposed || _engine is null || State.Kind == LiveSyncStateKind.Faulted)
+        if (_tearingDown || _disposed || !ReferenceEquals(_engine, engine)
+            || State.Kind == LiveSyncStateKind.Faulted)
         {
-            // A dead session's terminal copy (CS2 quit / launch failure) outranks pipeline chatter.
+            // A dead session's terminal copy (CS2 quit / launch failure) outranks pipeline chatter. So does a
+            // newer session: a status its torn-down predecessor had already posted is not this engine's.
             return;
         }
 
@@ -629,7 +636,8 @@ public sealed class LiveSyncService : ILiveSyncService
             // must not leave a half-disposed host behind for the next EnableAsync's `??=` to reuse.
             if (_engine is { } engine)
             {
-                engine.StatusChanged -= OnEngineStatus;
+                engine.StatusChanged -= _onEngineStatus;
+                _onEngineStatus = null;
                 _engine = null;
                 try
                 {
