@@ -46,6 +46,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     private readonly IDemoProcessingQueue? _queue;
     private int _load;
     private ulong? _optionsFor;
+    private PlayerOverviewPage? _pageBeforeNull;
     private readonly PlayerSearch _search;
     private readonly PlayerOverviewServices _services;
     private bool _active;
@@ -302,6 +303,12 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     // A null from the strip (its items rebuilt) keeps the page that was showing; the subject never moves the page.
     partial void OnSelectedPageChanging(PlayerOverviewPage? oldValue, PlayerOverviewPage? newValue)
     {
+        if (newValue is null)
+        {
+            _pageBeforeNull = oldValue;
+            return;
+        }
+
         if (oldValue is not null)
         {
             oldValue.IsActive = false;
@@ -312,7 +319,9 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     {
         if (value is null)
         {
-            SelectedPage = Pages[0];
+            PlayerOverviewPage restore = _pageBeforeNull ?? Pages[0];
+            _pageBeforeNull = null;
+            SelectedPage = restore;
             return;
         }
 
