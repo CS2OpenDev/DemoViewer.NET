@@ -164,6 +164,90 @@ public class RuleWorkbenchModuleTests
         });
     }
 
+    // Save As is "save as a NEW user ruleset". Typing the name of another ruleset used to replace that
+    // file with the open buffer, without a word.
+    [Test]
+    public async Task SaveAs_OntoAnotherRuleset_IsRefused_AndLeavesItAlone()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string first = vm.SelectedFile!.FullPath;
+            string firstText = await File.ReadAllTextAsync(first);
+
+            vm.NewFileCommand.Execute(null);
+            string second = vm.SelectedFile!.FullPath;
+            await Assert.That(second).IsNotEqualTo(first);
+            vm.DocumentText += "\n# only in the second\n";
+
+            vm.SaveAsName = Path.GetFileName(first);
+            vm.SaveAsCommand.Execute(null);
+
+            await Assert.That(await File.ReadAllTextAsync(first)).IsEqualTo(firstText)
+                .Because("another ruleset is not this buffer's to overwrite");
+            await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(second)
+                .Because("a refused save leaves the open file open");
+            await Assert.That(vm.IsDirty).IsTrue().Because("nothing was written");
+            await Assert.That(vm.Summary).Contains("already exists");
+
+            // A folder in the way is the same refusal, not a swallowed write error and a closed editor.
+            Directory.CreateDirectory(Path.Combine(userDir, "taken.rules.yaml"));
+            vm.SaveAsName = "taken";
+            vm.SaveAsCommand.Execute(null);
+            await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(second);
+        });
+    }
+
+    // The name is a file name. A path in the box used to go straight into Path.Combine, which a rooted
+    // name replaces outright and a "..\" one walks out of.
+    [Test]
+    public async Task SaveAs_WithAPathForAName_WritesNothingOutsideTheUserFolder()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string open = vm.SelectedFile!.FullPath;
+            string[] before = Directory.GetFiles(userDir);
+            string stem = "dvwb_escape_" + Guid.NewGuid().ToString("N");
+            string outside = Path.Combine(Path.GetDirectoryName(userDir)!, stem + ".rules.yaml");
+            try
+            {
+                vm.SaveAsName = Path.Combine("..", stem);
+                vm.SaveAsCommand.Execute(null);
+                await Assert.That(File.Exists(outside)).IsFalse().Because("a relative path escapes the folder");
+
+                vm.SaveAsName = Path.Combine(Path.GetDirectoryName(userDir)!, stem);
+                vm.SaveAsCommand.Execute(null);
+                await Assert.That(File.Exists(outside)).IsFalse().Because("a rooted path discards the folder");
+
+                await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(open);
+                await Assert.That(Directory.GetFiles(userDir)).IsEquivalentTo(before);
+            }
+            finally
+            {
+                File.Delete(outside);
+            }
+        });
+    }
+
+    [Test]
+    public async Task SaveAs_UnderTheOpenFilesOwnName_StillSaves()
+    {
+        await WithTempRules(async (vm, _) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string open = vm.SelectedFile!.FullPath;
+            vm.DocumentText += "\n# kept\n";
+
+            vm.SaveAsName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(open));
+            vm.SaveAsCommand.Execute(null);
+
+            await Assert.That(await File.ReadAllTextAsync(open)).Contains("# kept");
+            await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(open);
+            await Assert.That(vm.IsDirty).IsFalse();
+        });
+    }
+
     [Test]
     public async Task RuleWorkbench_InvalidBuffer_SurfacesInlineDiagnostic()
     {

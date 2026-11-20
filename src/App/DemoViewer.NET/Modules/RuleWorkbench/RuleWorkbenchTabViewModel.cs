@@ -22,6 +22,7 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Playback2D.Zones;
+using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Diagnostics;
 using DemoViewer.NET.Services.Zones;
@@ -866,15 +867,44 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             name = (name.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ? name[..^5] : name) + ".rules.yaml";
         }
 
+        // A file NAME, not a path: Path.Combine lets a rooted name replace the user folder outright and
+        // a "..\" one walk out of it. Checked before WriteBuffer, which stamps the buffer on its way in.
+        if (!string.Equals(Path.GetFileName(name), name, StringComparison.Ordinal)
+            || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            Summary = $"Not saved: \"{SaveAsName.Trim()}\" is not a file name. "
+                + "Rulesets save into the user rules folder.";
+            return;
+        }
+
+        // Save As makes a NEW ruleset. The open file's own name is a plain save; any other existing one
+        // is somebody else's work, and replacing it unasked loses it.
         string path = Path.Combine(_userDir, name);
-        WriteBuffer(path);
+        bool isOpenFile = SelectedFile is { } open
+            && string.Equals(open.FullPath, path, StringComparison.OrdinalIgnoreCase);
+        if (!isOpenFile && (File.Exists(path) || Directory.Exists(path)))
+        {
+            Summary = $"Not saved: {name} already exists. "
+                + "Pick another name, or open that ruleset and save it in place.";
+            return;
+        }
+
+        if (!WriteBuffer(path))
+        {
+            return; // nothing was written, so there is no new file to open
+        }
+
         RefreshFiles();
         SelectedFile = FindOpenable(path);
     }
 
-    /// <summary>Stamps + writes the buffer to <paramref name="path" />, clears dirty, and re-checks.</summary>
-    private void WriteBuffer(string path)
+    /// <summary>
+    ///     Stamps + writes the buffer to <paramref name="path" />, clears dirty, and re-checks. False when the
+    ///     write failed: the buffer stays dirty and <see cref="Summary" /> says why.
+    /// </summary>
+    private bool WriteBuffer(string path)
     {
+        Exception? failure = null;
         try
         {
             _suppressWatcherReload = true;
@@ -882,19 +912,32 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             _loadingDocument = true; // stamping the buffer must not re-dirty it
             DocumentText = stamped;
             _loadingDocument = false;
-            File.WriteAllText(path, stamped);
+
+            // Through a temp file and a rename: this is the user's only copy, and a crash halfway through
+            // an in-place write leaves it truncated.
+            AtomicFile.WriteAllText(path, stamped);
             IsDirty = false;
         }
-        catch
+        catch (Exception ex)
         {
-            // best-effort; the check summary still reflects the buffer
+            AppLog.OperationFailed(DiagLog, "save the ruleset", ex);
+            failure = ex;
         }
         finally
         {
+            _loadingDocument = false;
             _suppressWatcherReload = false;
         }
 
         Check();
+        if (failure is not null)
+        {
+            // After the check, which writes its own summary: an unsaved buffer that reads as saved is the
+            // one thing this must not look like.
+            Summary = UserFacingError.Describe("save the ruleset", failure);
+        }
+
+        return failure is null;
     }
 
     /// <summary>Re-runs the demo-less check over the edited buffer + on-disk rulesets.</summary>
