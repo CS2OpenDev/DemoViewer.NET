@@ -295,9 +295,13 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
             {
                 await encoder.WaitAsync(remaining).ConfigureAwait(false);
             }
-            catch (TimeoutException) when (!encoder.IsCompleted)
+            catch (TimeoutException)
             {
-                // Go round: stderr may have moved since the wait began.
+                // Go round: stderr may have moved since the wait began. Unfiltered on purpose. The
+                // encoder can finish between the wait's timer firing and this handler running, and a
+                // filter on "still running" then lets the wait's timeout out as if it were the stall:
+                // a finished file deleted and the export failed. The loop condition and the await below
+                // read the encoder's own outcome; the throw above is the only stall there is.
             }
         }
 
