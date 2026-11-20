@@ -64,7 +64,22 @@ public sealed class OpeningTendencies
 
     /// <summary>Every T round counted in <see cref="LurkRounds" /> with its buy and, where there was one, the lurk's route and spot at 0:30.</summary>
     public IReadOnlyList<LurkSample> LurkSamples { get; init; } = [];
+
+    /// <summary>
+    ///     The entries and lurks of <see cref="EntryBySite" /> and <see cref="Lurkers" /> again, per player by
+    ///     SteamID64 as text. Those two are labelled with the name the player had in each demo, so a player who
+    ///     changed names is two labels there and one entry here. A player the library holds no SteamID for is
+    ///     in neither. T side only.
+    /// </summary>
+    public IReadOnlyDictionary<string, TendencyPlayer> Players { get; init; } =
+        new Dictionary<string, TendencyPlayer>(StringComparer.Ordinal);
 }
+
+/// <summary>One player's T-side entries and lurks across every demo, whatever name each was played under.</summary>
+/// <param name="Entries">Rounds the player was the team's side of the opening duel.</param>
+/// <param name="EntrySite">The site most of those rounds went to, ties by label; "" with no entry.</param>
+/// <param name="Lurks">Rounds the player was the lurk.</param>
+public sealed record TendencyPlayer(int Entries, string EntrySite, int Lurks);
 
 /// <summary>A number in the Scouting Report and the rounds behind it; <see cref="Count" /> is the number.</summary>
 /// <param name="Label">What the number counts: "10-15 s", "smoke at TopMid", "A", "p5 at B".</param>

@@ -202,9 +202,15 @@ public sealed partial class ScoutingReportTabViewModel
             string name = DisplayText.Sanitize(player.Member.LastName);
             PlayerStatLine? line = stats?.For(mapName, player.SteamId);
             SetupPlayerPlace? spot = spots.GetValueOrDefault(player.SteamId);
-            (int Count, string Site) entry = entries.GetValueOrDefault(name);
+            // By SteamID, as the stats beside them are: the name buckets hold each demo's name, and a player
+            // who changed names would be read from the newest demos alone. The name is for a player the
+            // library has no SteamID for, who is in no SteamID tally.
+            bool byName = player.SteamId.Length == 0 || player.SteamId == "0";
+            TendencyPlayer? own = byName ? null : t?.Players.GetValueOrDefault(player.SteamId);
+            (int Count, string Site) entry = byName ? entries.GetValueOrDefault(name) : (own?.Entries ?? 0, own?.EntrySite ?? "");
+            int lurked = byName ? lurks.GetValueOrDefault(name) : own?.Lurks ?? 0;
             evidence.Add(new PlayerRoleEvidence(player.SteamId, line?.AwpKills ?? 0,
-                line?.Openings.Count(o => o.Side == 2) ?? 0, entry.Count, entry.Site ?? "", lurks.GetValueOrDefault(name),
+                line?.Openings.Count(o => o.Side == 2) ?? 0, entry.Count, entry.Site ?? "", lurked,
                 spot?.Place, spot?.Rounds.Count ?? 0, spot?.Of ?? 0));
         }
 

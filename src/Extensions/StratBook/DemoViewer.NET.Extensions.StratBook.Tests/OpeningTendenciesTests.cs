@@ -107,7 +107,8 @@ public class OpeningTendenciesTests
         Grenade("s4", GrenadeKind.Smoke, 4, 3, At(30000, 2), 500)
     ];
 
-    private static DemoCacheRecord Record(string path, string map, int day, RoundFactsRows? rows)
+    private static DemoCacheRecord Record(string path, string map, int day, RoundFactsRows? rows,
+        string sha = "abc123", string namePrefix = "p")
     {
         DemoCacheRecord record = new()
         {
@@ -115,7 +116,7 @@ public class OpeningTendenciesTests
             Size = 1000,
             ModifiedTicks = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(day).Ticks,
             Map = map,
-            Sha256 = rows is null ? null : "abc123"
+            Sha256 = rows is null ? null : sha
         };
         if (rows is not null)
         {
@@ -127,7 +128,7 @@ public class OpeningTendenciesTests
             record.Players.Add(new CachedPlayerInfo
             {
                 Slot = slot,
-                Name = $"p{slot}",
+                Name = $"{namePrefix}{slot}",
                 SteamId64 = Id(slot < 5 ? slot + 1 : slot + 6),
                 Team = slot < 5 ? 2 : 3
             });
@@ -368,6 +369,29 @@ public class OpeningTendenciesTests
         await Assert.That(vm.Layers.Inspector.Sections).IsEmpty();
     }
 
+    [Test]
+    public async Task ThePlayersTable_ReadsEntriesAndLurksByAccount_NotByTheNewestName()
+    {
+        using Harness h = await Harness.Create(renamedSince: true);
+        QueuedPost posted = new();
+        using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
+            post: posted.Post, openings: h.Service);
+
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == h.TeamA);
+        await ScoutingReportTestKit.Settle(vm, posted);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedMap?.Map).IsEqualTo("de_nuke");
+            await Assert.That(vm.Players.Single(p => p.SteamId == Id(1)).Name).IsEqualTo("n0")
+                .Because("the row shows the newest name");
+            await Assert.That(vm.Players.Single(p => p.SteamId == Id(1)).TRole).IsEqualTo("entry A")
+                .Because("both entries were played as p0, in the older demo");
+            await Assert.That(vm.Players.Single(p => p.SteamId == Id(4)).TRole).IsEqualTo("lurk")
+                .Because("the lurk was played as p3");
+        }
+    }
+
     // Order matters: a histogram is read left to right.
     private static string Shape(IEnumerable<TendencyBucket> buckets) =>
         string.Join(", ", buckets.Select(b => $"{b.Label}:{b.Count}"));
@@ -399,7 +423,7 @@ public class OpeningTendenciesTests
             Teams.Dispose();
         }
 
-        public static async Task<Harness> Create(bool loadGrenades = true)
+        public static async Task<Harness> Create(bool loadGrenades = true, bool renamedSince = false)
         {
             DemoCacheStore cache = new(null);
             TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
@@ -420,6 +444,17 @@ public class OpeningTendenciesTests
             {
                 cache.Upsert(record);
                 cache.Upsert(Record("/d/other.dem", "de_mirage", 1, null));
+                if (renamedSince)
+                {
+                    // A newer demo of the same ten accounts under other names: one quiet T round for team A.
+                    RoundFactsRows quiet = new()
+                    {
+                        Schema = RoundFactsRecords.Schema,
+                        Clock = new RoundFactsClock { TickRate = Rate },
+                        Rounds = [Round(1, 1000, _teamBSlots, _teamASlots)]
+                    };
+                    cache.Upsert(Record("/d/renamed.dem", "de_nuke", 5, quiet, "def456", "n"));
+                }
             }
 
             await teams.Idle;
