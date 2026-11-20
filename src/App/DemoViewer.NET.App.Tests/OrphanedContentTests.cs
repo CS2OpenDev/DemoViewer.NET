@@ -599,4 +599,47 @@ public class OrphanedContentTests
             await Assert.That(store.TryLoadRecord("/m/a.dem")!.Scoreboard.Single().Kills).IsEqualTo(21);
         }
     }
+
+    /// <summary>
+    ///     Rows rebuilt from the records only cover the records that read. One that did not (held for a
+    ///     moment, or written by a newer build) has no row, and "no row names it" is then no reason to delete
+    ///     it and its siblings: the sweep leaves what the rebuild could not account for.
+    /// </summary>
+    [Test]
+    public async Task AfterARebuild_TheSweepKeepsARecordTheRebuildCouldNotRead()
+    {
+        string root = TempRoot();
+        string unread = new('a', 64);
+        string read = new('b', 64);
+        try
+        {
+            DemoCacheStore store = new(root);
+            store.Upsert(Analysed("/m/a.dem", unread));
+            store.WriteSibling("/m/a.dem", Suffix, "facts");
+            store.Upsert(Analysed("/m/b.dem", read, 1001, 2001));
+            store.SaveIndex();
+            string record = store.SidecarPathFor("/m/a.dem")!;
+            await Assert.That(Path.GetFileName(record)).StartsWith(unread);
+            string[] before = Files(root);
+
+            // The index is lost, and one record does not read at the moment of the rebuild.
+            File.Delete(Path.Combine(root, "index.json"));
+            await File.WriteAllBytesAsync(record, [0x1F, 0x8B, 1, 2, 3, 4, 5]);
+
+            DemoCacheStore reopened = new(root);
+            reopened.ExpireOrphans(DateTime.UtcNow, TimeSpan.FromDays(14));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(reopened.TryGetIndex("/m/b.dem")).IsNotNull();
+                await Assert.That(reopened.TryGetIndex("/m/a.dem")).IsNull();
+                await Assert.That(Files(root)).IsEquivalentTo(before)
+                    .Because("the record that did not read, and its siblings, are still there");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
 }

@@ -139,6 +139,10 @@ public sealed partial class DemoCacheStore
     // True while index.json is on disk, did not read and could not be moved aside. The rows are then only what
     // the records could rebuild, so no file is deleted on their word and nothing is written over the index.
     private volatile bool _indexHeld;
+
+    // File keys whose record did not read when the rows were rebuilt from the records, under _gate. Each is a
+    // file with no row that the stray sweep must not take for one a crashed expiry left behind.
+    private readonly HashSet<string> _unreadAtRebuild = new(StringComparer.Ordinal);
     private int _legacyMigrationVersion; // under _gate
     private int _contentKeyMigrationVersion = ContentKeyMigration.CurrentVersion; // under _gate
     private long _indexVersion; // under _gate
@@ -1854,10 +1858,12 @@ public sealed partial class DemoCacheStore
             return;
         }
 
+        // Nor when they were rebuilt from the records and a record did not read: its files have no row for
+        // that reason alone, and stay for the demo to be listed again or for a later build to read.
         HashSet<string> named;
         lock (_gate)
         {
-            named = [.. _rows.Values.SelectMany(FileKeys)];
+            named = [.. _rows.Values.SelectMany(FileKeys), .. _unreadAtRebuild];
         }
 
         try
@@ -3111,12 +3117,25 @@ public sealed partial class DemoCacheStore
                 string key = name.EndsWith(RecordSuffix, StringComparison.Ordinal)
                     ? name[..^RecordSuffix.Length]
                     : name[..^LegacyRecordSuffix.Length];
+                if (key.Length == 0 || key.Contains('.') || !seen.Add(key))
+                {
+                    continue;
+                }
+
                 // A record with no path is an import no folder has listed yet; its hash still keys it.
-                if (key.Length > 0 && !key.Contains('.') && seen.Add(key)
-                    && RecordAt(key) is { } record
+                if (RecordAt(key) is { } record
                     && (record.Path.Length > 0 || !string.IsNullOrEmpty(record.Sha256)))
                 {
                     found.Add((key, record));
+                }
+                else
+                {
+                    // Held for the moment, or not a record this build reads: it gets no row here, and that
+                    // is not the sweep's "no row names it".
+                    lock (_gate)
+                    {
+                        _unreadAtRebuild.Add(key);
+                    }
                 }
             }
         }
