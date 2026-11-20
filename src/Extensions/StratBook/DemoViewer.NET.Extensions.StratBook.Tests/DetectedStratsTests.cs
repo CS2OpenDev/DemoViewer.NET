@@ -2,6 +2,8 @@
 
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Data;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
@@ -388,6 +390,41 @@ public class DetectedStratsTests
             await Assert.That(vm.Detected.Preview).IsNull();
         });
     }
+
+    [Test]
+    [Category("Integration")]
+    public async Task APreview_SurvivesAListRefresh_UnderABoundList() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using Library library = Library.Create();
+            using StratMiningService mining = library.Service();
+            using StratBookTabViewModel vm = Tab(library, mining);
+            SelectAExecute(vm);
+            // The view's own bindings: the list writes its selection back, null while the rows are replaced.
+            ListBox list = new() { DataContext = vm.Detected };
+            list.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(DetectedStratsViewModel.Rows)));
+            list.Bind(SelectingItemsControl.SelectedItemProperty,
+                new Binding(nameof(DetectedStratsViewModel.SelectedRow)));
+            Window window = new() { Width = 400, Height = 600, Content = list };
+            window.Show();
+            Playback2DTimelineHarness.Pump();
+
+            await vm.Detected.PreviewStratCommand.ExecuteAsync(null);
+            StratPreviewViewModel first = vm.Detected.Preview!;
+            string key = first.Key;
+            vm.Detected.ShowSettled = true;
+            Playback2DTimelineHarness.Pump();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Detected.SelectedRow?.Key).IsEqualTo(key);
+                await Assert.That(vm.Detected.Preview).IsSameReferenceAs(first)
+                    .Because("a refresh reselects the same pattern");
+                await Assert.That(first.Canvas).IsNotNull();
+            }
+
+            window.Close();
+        });
 
     [Test]
     [Category("Integration")]
