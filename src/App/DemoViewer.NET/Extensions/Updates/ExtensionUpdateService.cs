@@ -254,7 +254,7 @@ public sealed class ExtensionUpdateService
             return null;
         }
 
-        return HighestStaged(packId, manifest.Version);
+        return HighestStaged(packId, manifest.Version, skipRefused: true);
     }
 
     /// <summary>True when <c>extensions/&lt;id&gt;/</c> carries the removal marker: Remove was pressed and the next start deletes it.</summary>
@@ -269,14 +269,16 @@ public sealed class ExtensionUpdateService
     public bool PendingRestart => Statuses.Any(s => PendingVersion(s.Pack.Id) is not null);
 
     // The highest compatible version of packId under extensions/<id>/, above a floor when one is given.
-    private SemVersion? HighestStaged(string packId, SemVersion? above)
+    // skipRefused leaves out a copy this launch refused, which the next start refuses again.
+    private SemVersion? HighestStaged(string packId, SemVersion? above, bool skipRefused = false)
     {
         try
         {
             return ExtensionLoader.Discover(_extensionsDirectory).Candidates
                 .Where(c => string.Equals(c.Manifest.Id, packId, StringComparison.Ordinal)
                     && (above is null || c.Manifest.Version > above)
-                    && PackCompatibility.Check(c.Manifest, _host).IsCompatible)
+                    && PackCompatibility.Check(c.Manifest, _host).IsCompatible
+                    && (!skipRefused || RefusedCopy(c.Directory) is null))
                 .Select(c => c.Manifest.Version)
                 .OrderByDescending(v => v)
                 .FirstOrDefault();
@@ -800,6 +802,35 @@ public sealed class ExtensionUpdateService
         _externalRejected.FirstOrDefault(o =>
             string.Equals(IdFolderOf(o.Directory), id, StringComparison.Ordinal) && Directory.Exists(o.Directory));
 
+    // The launch's refusal of the copy in directory, from a declared pack's status or the external list. A
+    // copy refused only for not being newer than the shipped one is not at fault.
+    private LoadOutcome? RefusedCopy(string directory)
+    {
+        string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        return Statuses.SelectMany(s => s.Rejected).Concat(_externalRejected)
+            .FirstOrDefault(o => o.Failure is not LoadFailure.NotNewer
+                && !string.IsNullOrEmpty(o.Directory)
+                && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(o.Directory)), full,
+                    PathComparison));
+    }
+
+    // directory is a copy the loader would consider: a discovered candidate the compatibility check accepts.
+    private bool IsLoadableCopy(string directory)
+    {
+        string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        try
+        {
+            return ExtensionLoader.Discover(_extensionsDirectory).Candidates.Any(c =>
+                string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(c.Directory)), full, PathComparison)
+                && PackCompatibility.Check(c.Manifest, _host).IsCompatible);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Unreadable is not proof of damage: leave the folder alone.
+            return true;
+        }
+    }
+
     // The resolver is caller-supplied; one that throws is a feed failure, never a failed queue item.
     private Uri? TryResolveFeedUrl(string packId, out string logDetail)
     {
@@ -927,7 +958,33 @@ public sealed class ExtensionUpdateService
 
         if (Directory.Exists(installed))
         {
-            return new StageResult(StageOutcome.AlreadyInstalled, installed);
+            // A folder the next start would load is already the install. One this launch refused, or one that
+            // is not a loadable copy of this version, is replaced, unless its assembly is mapped in this process.
+            LoadOutcome? refused = RefusedCopy(installed);
+            if (refused is null && IsLoadableCopy(installed))
+            {
+                return new StageResult(StageOutcome.AlreadyInstalled, installed);
+            }
+
+            if (refused is { AssemblyLoaded: true })
+            {
+                return Refuse(entry, refused.Detail, refused.LogDetail);
+            }
+
+            try
+            {
+                ExtensionStaging.DeleteTree(installed);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return Refuse(entry, "the update could not be written to the app's data folder", ex.Message);
+            }
+
+            // DeleteTree leaves a file that will not delete, and the folder with it.
+            if (Directory.Exists(installed))
+            {
+                return Refuse(entry, "the update could not be written to the app's data folder", null);
+            }
         }
 
         if (entry.Size > ExtensionStaging.MaxBytes)

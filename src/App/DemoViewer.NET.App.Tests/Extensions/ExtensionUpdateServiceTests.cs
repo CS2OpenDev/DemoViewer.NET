@@ -569,8 +569,7 @@ public class ExtensionUpdateServiceTests
         string root = NewRoot();
         try
         {
-            string installed = Path.Combine(root, "extensions", Id, "1.0.1");
-            Directory.CreateDirectory(installed);
+            string installed = StageVersion(Path.Combine(root, "extensions"), "1.0.1");
             await File.WriteAllTextAsync(Path.Combine(installed, "marker.txt"), "mine");
             byte[] zip = ExtensionZip(Id, "1.0.1");
             FakeFeeds.Entry entry = new("1.0.1", zip);
@@ -585,7 +584,112 @@ public class ExtensionUpdateServiceTests
                 await Assert.That(client.Downloads).IsEqualTo(0)
                     .Because("nothing is fetched for a version already on disk");
                 await Assert.That(await File.ReadAllTextAsync(Path.Combine(installed, "marker.txt"))).IsEqualTo("mine");
-                await Assert.That(File.Exists(Path.Combine(installed, "Fake.dll"))).IsFalse();
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(installed, "Fake.dll"))).IsEqualTo("x");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // A staged copy this launch refused is not waiting for a restart: the next start refuses it again. The
+    // feed's copy of the same version is offered, and staging it replaces the refused folder.
+    [Test]
+    public async Task Check_AStagedCopyThisLaunchRefused_IsNotPending_AndStagingReplacesIt()
+    {
+        string root = NewRoot();
+        try
+        {
+            string refused = StageVersion(Path.Combine(root, "extensions"), "1.0.1");
+            byte[] zip = ExtensionZip(Id, "1.0.1");
+            FakeFeeds.Entry entry = new("1.0.1", zip);
+            FakeFeedClient client = new()
+            {
+                Zips = { [entry.Url] = zip }, Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) }
+            };
+            PackStatus status = Status(version: "1.0.0", source: PackSource.Bundled) with
+            {
+                Rejected = [new LoadOutcome(refused, null, LoadFailure.Untrusted, "the signature does not verify")]
+            };
+            ExtensionUpdateService service = NewService(root, client, statuses: [status]);
+
+            ExtensionUpdateState state = await service.CheckAsync(Id);
+            StageResult result = await service.DownloadAndStageAsync(Entry(entry));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(service.PendingVersion(Id)).IsNull();
+                await Assert.That(service.PendingRestart).IsFalse();
+                await Assert.That(state.Status).IsEqualTo(ExtensionUpdateStatus.UpdateAvailable);
+                await Assert.That(state.Offered!.Version).IsEqualTo(SemVersion.Parse("1.0.1"));
+                await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Installed);
+                await Assert.That(client.Downloads).IsEqualTo(1);
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(refused, "Fake.dll")))
+                    .IsEqualTo("not really an assembly");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // A folder for the version that is not a loadable copy of it (no manifest) is replaced, not reported as
+    // installed: nothing would load from it at the next start.
+    [Test]
+    public async Task Download_ExistingTargetWithoutAManifest_IsReplaced()
+    {
+        string root = NewRoot();
+        try
+        {
+            string installed = Path.Combine(root, "extensions", Id, "1.0.1");
+            Directory.CreateDirectory(installed);
+            await File.WriteAllTextAsync(Path.Combine(installed, "marker.txt"), "damaged");
+            byte[] zip = ExtensionZip(Id, "1.0.1");
+            FakeFeeds.Entry entry = new("1.0.1", zip);
+            FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
+
+            StageResult result = await NewService(root, client).DownloadAndStageAsync(Entry(entry));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Installed);
+                await Assert.That(File.Exists(Path.Combine(installed, ExtensionManifest.FileName))).IsTrue();
+                await Assert.That(File.Exists(Path.Combine(installed, "marker.txt"))).IsFalse();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // A refused copy whose assembly this process loaded cannot be deleted before the next start, so staging
+    // that version is refused with the loader's reason instead of reported as installed.
+    [Test]
+    public async Task Download_ARefusedCopyWhoseAssemblyLoaded_IsRefusedWithTheLoadersReason()
+    {
+        string root = NewRoot();
+        try
+        {
+            string refused = StageVersion(Path.Combine(root, "extensions"), "1.0.1");
+            byte[] zip = ExtensionZip(Id, "1.0.1");
+            FakeFeeds.Entry entry = new("1.0.1", zip);
+            FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
+            PackStatus status = Status(version: "1.0.0", source: PackSource.Bundled) with
+            {
+                Rejected = [new LoadOutcome(refused, null, LoadFailure.ReferenceMismatch, "it was built for another app")]
+            };
+
+            StageResult result = await NewService(root, client, statuses: [status]).DownloadAndStageAsync(Entry(entry));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Refused);
+                await Assert.That(result.Detail).IsEqualTo("it was built for another app");
+                await Assert.That(client.Downloads).IsEqualTo(0);
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(refused, "Fake.dll"))).IsEqualTo("x");
             }
         }
         finally
