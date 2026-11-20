@@ -209,10 +209,13 @@ public sealed partial class SuggestedTagsTuningViewModel : ExtensionViewModel
             return;
         }
 
+        bool keptUnread = _profiles.FileProblem is not null;
         _profiles.Save(BuildCandidate());
         _tuning?.InvalidateCache(); // a saved profile is worth a fresh parse next time a map's regions changed underneath it
         IsDirty = false;
-        StatusText = "Saved. Demos built under the old parameters will rebuild in the background.";
+        StatusText = keptUnread
+            ? "Saved. The profile file that could not be read was kept beside the new one. Demos built under the old parameters will rebuild in the background."
+            : "Saved. Demos built under the old parameters will rebuild in the background.";
     }
 
     /// <summary>Sets every parameter row back to the shipped value, without saving.</summary>
@@ -235,9 +238,11 @@ public sealed partial class SuggestedTagsTuningViewModel : ExtensionViewModel
         _baseline = _tuning.BuildStoredReport();
         ApplyReport(_baseline);
         IsDirty = false;
-        StatusText = _baseline.DemosWithVerdicts == 0
-            ? "No demo has a Suggested Tags verdict yet."
-            : $"{_baseline.DemosWithVerdicts} demo(s) with verdicts, {_baseline.DemosWithHandTags} with hand tags to score against.";
+        StatusText = _profiles?.FileProblem is { } problem
+            ? $"{problem} These are the shipped values; a save keeps that file beside the new one."
+            : _baseline.DemosWithVerdicts == 0
+                ? "No demo has a Suggested Tags verdict yet."
+                : $"{_baseline.DemosWithVerdicts} demo(s) with verdicts, {_baseline.DemosWithHandTags} with hand tags to score against.";
     }
 
     private void ApplyReport(TuningReport report)

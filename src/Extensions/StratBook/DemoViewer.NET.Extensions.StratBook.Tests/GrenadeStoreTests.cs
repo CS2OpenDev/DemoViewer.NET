@@ -370,7 +370,7 @@ public class GrenadeStoreTests
     }
 
     // A folder whose first read fails the way a file held open by another process does.
-    private sealed class LockedOnceFolder(IExtensionFolder inner) : IExtensionFolder
+    internal sealed class LockedOnceFolder(IExtensionFolder inner) : IExtensionFolder
     {
         // How many reads still fail.
         public int LockedReads { get; set; } = 1;

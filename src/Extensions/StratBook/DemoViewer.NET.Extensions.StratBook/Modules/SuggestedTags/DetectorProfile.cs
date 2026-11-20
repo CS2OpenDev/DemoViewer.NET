@@ -356,6 +356,7 @@ public sealed class ProfileStore
     private readonly Lock _gate = new();
     private DetectorProfile? _current;
     private string? _memory;
+    private string? _problem;
 
     /// <param name="folder">The suggested-tags store, as the host opened it, or null for a session-only store.</param>
     public ProfileStore(IExtensionFolder? folder)
@@ -382,6 +383,24 @@ public sealed class ProfileStore
         }
     }
 
+    /// <summary>
+    ///     Why the file on disk is not the profile in force, or null when it is: it could not be read, or it
+    ///     does not parse (a hand edit, or a newer build's schema). <see cref="Current" /> is the shipped
+    ///     default meanwhile, and the next <see cref="Save" /> keeps that file under another name before it
+    ///     writes. Reads <see cref="Current" /> first, so the answer is about a file that was looked at.
+    /// </summary>
+    public string? FileProblem
+    {
+        get
+        {
+            lock (_gate)
+            {
+                _current ??= LoadOrSeed();
+                return _problem;
+            }
+        }
+    }
+
     /// <summary>A profile a tuning save has not yet reached the caller's <see cref="Current" /> read from.</summary>
     public event Action? Changed;
 
@@ -403,9 +422,17 @@ public sealed class ProfileStore
             }
             else
             {
+                // The profile being saved was edited from the shipped default, not from the file: a team's
+                // numbers and site overrides may still be in it, so it is kept and not written over.
+                if (_problem is not null && _folder.FileExists(FileName))
+                {
+                    _folder.Move(FileName, $"profile.unreadable-{DateTime.UtcNow.Ticks}.json", false);
+                }
+
                 FolderText.Write(_folder, FileName, json + "\n");
             }
 
+            _problem = null;
             _current = profile;
         }
 
@@ -421,12 +448,25 @@ public sealed class ProfileStore
         lock (_gate)
         {
             _current = null;
+            _problem = null;
         }
     }
 
     private DetectorProfile LoadOrSeed()
     {
-        string? json = TryRead();
+        string? json;
+        try
+        {
+            json = TryRead();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Not "nothing there yet": the file may be a team's profile that another process holds for a
+            // moment, and seeding now would replace it with the shipped default.
+            _problem = $"{FileName} could not be read: {ex.Message}";
+            return DetectorProfile.Default;
+        }
+
         if (json is null)
         {
             // Nothing there yet: seed the file with the shipped default, the way EnsureThemesDirectory's
@@ -440,8 +480,9 @@ public sealed class ProfileStore
         {
             return DetectorProfile.Parse(json);
         }
-        catch (FormatException)
+        catch (FormatException ex)
         {
+            _problem = $"{FileName} does not read as a profile: {ex.Message}";
             return DetectorProfile.Default; // a hand-edited file that no longer parses: run on the shipped numbers
         }
     }
@@ -456,18 +497,7 @@ public sealed class ProfileStore
             }
         }
 
-        try
-        {
-            return FolderText.Read(_folder, FileName);
-        }
-        catch (IOException)
-        {
-            return null;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return null;
-        }
+        return FolderText.Read(_folder, FileName);
     }
 
     private void WriteRaw(string json)
