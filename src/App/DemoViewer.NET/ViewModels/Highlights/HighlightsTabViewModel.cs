@@ -1008,8 +1008,12 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         DemoCacheRecord record = selection.Record;
         CachedHighlightEvent h = selection.Highlight;
         int rate = record.TickRate > 0 ? record.TickRate : 64;
+        // Floored at the round start only when the reel is: that option is off by default.
+        int? roundStart = ReelConfig.DontCrossRoundStart
+            ? ClipWindows.RoundStartFor(record.Rounds.ToClipRounds(), h.Tick)
+            : null;
         (long start, long end) = ClipWindows.Compute(
-            h.Tick, ClipWindows.RoundStartFor(record.Rounds.ToClipRounds(), h.Tick), rate,
+            h.Tick, roundStart, rate,
             ReelConfig.LeadInSeconds, ReelConfig.LeadOutSeconds, record.TickCount, 0, h.ClipStartTick);
         return ReviewEntry.Clip(record.Path, (int)start, (int)end, h.RenderedTitle, ReviewSources.Highlight,
             rate, record.Sha256, new ReviewHighlightRef(h.RulesetId, h.HighlightId, h.Tick, h.PlayerSlot));
