@@ -158,9 +158,17 @@ public sealed class ReelJobService(
             // Single-CS2 interlock: stop a live sync session first; its chip shows
             // "Paused for reel render" throughout. OwnsSessionResources, not IsSessionActive:
             // a Faulted sync session still holds the gRPC host (and port 50051) for fast retry.
-            if (liveSync is not null && (liveSync.State.IsSessionActive || liveSync.OwnsSessionResources))
+            // Parked even when sync was off: SuspendedForReel is what refuses Enable/Reconnect, and
+            // an Enable mid-reel would fight the reel for port 50051, the install and the one CS2.
+            bool syncHeldCs2 = false;
+            if (liveSync is not null)
             {
-                log?.Invoke("Suspending live sync for the reel render.");
+                syncHeldCs2 = liveSync.State.IsSessionActive || liveSync.OwnsSessionResources;
+                if (syncHeldCs2)
+                {
+                    log?.Invoke("Suspending live sync for the reel render.");
+                }
+
                 await liveSync.SuspendForReelAsync().ConfigureAwait(false);
                 suspendedSync = true;
             }
@@ -195,7 +203,7 @@ public sealed class ReelJobService(
             // suspended sync session's CS2 can still be exiting here, and the guard refuses a running CS2.
             if (!request.DryRun)
             {
-                if (suspendedSync)
+                if (syncHeldCs2)
                 {
                     await InstallRecovery
                         .WaitForCs2ExitAsync(InstallRecovery.Cs2ExitTimeout, cancellationToken, isCs2Running)
