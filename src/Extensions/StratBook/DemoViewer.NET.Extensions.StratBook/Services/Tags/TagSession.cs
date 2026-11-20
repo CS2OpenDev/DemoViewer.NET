@@ -265,13 +265,18 @@ public sealed class TagSession : IDisposable
         _factRowsRead = false;
         _saveFailed = false;
 
-        TagLoadResult result = _store?.Load(demo.Sha256, clock) ?? TagLoadResult.Empty();
+        ReleaseCheckOut();
+        TagLoadResult result = TagLoadResult.Empty();
+        if (_store is not null)
+        {
+            result = _store.LoadAndCheckOut(demo.Sha256, clock, this, out IDisposable checkOut);
+            _checkOut = checkOut;
+        }
+
         ClockMismatch = result.ClockMismatch;
         DemoMismatch = result.DemoMismatch;
         Unreadable = result.Unreadable;
         Document = result.Document ?? TagDocument.Create(demo, clock);
-        ReleaseCheckOut();
-        _checkOut = _store?.CheckOut(Document.Demo.Sha256, this);
 
         // Loading is not editing, so nothing here is undoable; but a derived round is a change to the
         // stored document, so it bumps the version and saves like a refresh does. Facts are filled for an

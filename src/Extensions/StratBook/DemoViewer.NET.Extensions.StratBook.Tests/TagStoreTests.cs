@@ -327,6 +327,55 @@ public class TagStoreTests
     }
 
     [Test]
+    public async Task AnAppend_ThatRacesASessionsAttach_IsNotOverwrittenByTheSessionsNextSave()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            TagStore store = new(folder);
+            store.Save(Document(Sha, Instance("Default", 1, 2)));
+
+            // The session's read of the sidecar has its bytes and has not yet checked the document out.
+            using ManualResetEventSlim read = new();
+            using ManualResetEventSlim goOn = new();
+            int reads = 0;
+            folder.AfterRead = path =>
+            {
+                if (path.EndsWith(TagStore.SidecarExtension, StringComparison.Ordinal)
+                    && Interlocked.Increment(ref reads) == 1)
+                {
+                    read.Set();
+                    goOn.Wait(TimeSpan.FromSeconds(30));
+                }
+            };
+
+            using TagSession session = new(store, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(null),
+                () => false, () => Created) { AutoSaveDelay = TimeSpan.FromHours(1) };
+            Task attach = Task.Run(() => session.AttachAsync(Demo, Clock, "/d/match.dem"));
+            await Assert.That(read.Wait(TimeSpan.FromSeconds(30))).IsTrue();
+
+            // An accepted suggestion lands in that window. It either waits for the attach and is routed to the
+            // session, or it would be written behind the session's back.
+            Task<bool> append = Task.Run(() => store.Append(Demo, Clock, Instance("A execute", 100, 200)));
+            await Task.WhenAny(append, Task.Delay(TimeSpan.FromMilliseconds(500)));
+            goOn.Set();
+            await attach;
+            await Assert.That(await append).IsTrue();
+
+            session.Apply(new TagDelta.Add(Instance("B execute", 300, 400)));
+            await session.FlushAsync();
+
+            await Assert.That(store.TryLoad(Sha)!.Instances.Select(i => i.Code))
+                .IsEquivalentTo(["Default", "A execute", "B execute"]);
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
     public async Task CheckOut_IsExclusivePerProcess_AndReleasedOnDispose()
     {
         TagStore store = new(null);

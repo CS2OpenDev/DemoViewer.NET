@@ -12,6 +12,9 @@ internal sealed class FaultyFolder(IExtensionFolder inner) : IExtensionFolder
     /// <summary>Whether the move from the first path to the second fails.</summary>
     public Func<string, string, bool>? FailMove { get; set; }
 
+    /// <summary>Called with the path once a read has its bytes and before the reader gets them.</summary>
+    public Action<string>? AfterRead { get; set; }
+
     public string Path => inner.Path;
 
     public void Create() => inner.Create();
@@ -30,7 +33,12 @@ internal sealed class FaultyFolder(IExtensionFolder inner) : IExtensionFolder
 
     public IEnumerable<string> EnumerateDirectories(string relativePath) => inner.EnumerateDirectories(relativePath);
 
-    public byte[]? Read(string relativePath) => inner.Read(relativePath);
+    public byte[]? Read(string relativePath)
+    {
+        byte[]? bytes = inner.Read(relativePath);
+        AfterRead?.Invoke(relativePath);
+        return bytes;
+    }
 
     public Stream? OpenRead(string relativePath) => inner.OpenRead(relativePath);
 

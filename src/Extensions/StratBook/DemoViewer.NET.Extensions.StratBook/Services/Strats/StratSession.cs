@@ -207,7 +207,19 @@ public sealed class StratSession : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         Close();
 
-        StratLoadResult result = _store.Load(id);
+        StratLoadResult result;
+        IReadOnlyList<PatchOp> recovered = [];
+        using (_store.EnterOpen())
+        {
+            result = _store.Load(id);
+            if (result.Document is { } read)
+            {
+                _readOnly = _store.IsUnresolved(id);
+                recovered = _readOnly ? [] : _store.PendingOps(read);
+                _checkOut = _store.CheckOut(id, this);
+            }
+        }
+
         if (result.Document is not { } loaded)
         {
             Issues = result.Issues;
@@ -218,8 +230,6 @@ public sealed class StratSession : IDisposable
             return result;
         }
 
-        _readOnly = _store.IsUnresolved(id);
-        IReadOnlyList<PatchOp> recovered = _readOnly ? [] : _store.PendingOps(loaded);
         StratDocument document = StratStore.WithPending(loaded, false);
         DateTime now = _utcNow();
         foreach (PatchOp op in recovered)
@@ -227,7 +237,6 @@ public sealed class StratSession : IDisposable
             _buffer.Record(op, now);
         }
 
-        _checkOut = _store.CheckOut(id, this);
         Document = document;
         RecoveredPending = recovered.Count > 0;
         RecoveryNote = _store.TakeNote(id);

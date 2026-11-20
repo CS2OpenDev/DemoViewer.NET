@@ -326,27 +326,31 @@ public sealed class TagStore
 
         string key = Normalize(sha256);
         TagSession? holder;
-        lock (_gate)
-        {
-            holder = _checkedOut.GetValueOrDefault(key);
-        }
 
-        if (holder is not null)
-        {
-            _post(() => ApplyRouted(key, holder, mutate, null));
-            return true;
-        }
-
+        // The holder is read under the gate the write runs under, the one LoadAndCheckOut holds: read before it,
+        // a session could load the document and take it between "nobody holds it" and this write, and its next
+        // save would replace the file without the change.
         lock (_rmwGate)
         {
-            if (TryLoad(key) is not { } document)
+            lock (_gate)
             {
-                return false;
+                holder = _checkedOut.GetValueOrDefault(key);
             }
 
-            mutate(document);
-            return Save(document);
+            if (holder is null)
+            {
+                if (TryLoad(key) is not { } document)
+                {
+                    return false;
+                }
+
+                mutate(document);
+                return Save(document);
+            }
         }
+
+        _post(() => ApplyRouted(key, holder, mutate, null));
+        return true;
     }
 
     /// <summary>
@@ -369,24 +373,26 @@ public sealed class TagStore
         string key = Normalize(demo.Sha256);
         TagInstance copy = instance.Clone();
         TagSession? holder;
-        lock (_gate)
-        {
-            holder = _checkedOut.GetValueOrDefault(key);
-        }
 
-        if (holder is not null)
-        {
-            _post(() => ApplyRouted(key, holder, document => document.Instances.Add(copy.Clone()),
-                () => LoadOrCreate(demo, clock)));
-            return true;
-        }
-
+        // As Update: the holder read and the write are one step against a session's load and check-out.
         lock (_rmwGate)
         {
-            TagDocument document = LoadOrCreate(demo, clock);
-            document.Instances.Add(copy);
-            return Save(document);
+            lock (_gate)
+            {
+                holder = _checkedOut.GetValueOrDefault(key);
+            }
+
+            if (holder is null)
+            {
+                TagDocument document = LoadOrCreate(demo, clock);
+                document.Instances.Add(copy);
+                return Save(document);
+            }
         }
+
+        _post(() => ApplyRouted(key, holder, document => document.Instances.Add(copy.Clone()),
+            () => LoadOrCreate(demo, clock)));
+        return true;
     }
 
     // On the thread the sessions live on. The holder was read when the change was routed; by the time the post
@@ -993,6 +999,26 @@ public sealed class TagStore
         }
 
         return new CheckOutScope(this, key, session);
+    }
+
+    /// <summary>
+    ///     <see cref="Load" /> and <see cref="CheckOut" /> as one step: what a session attaches with. Under the gate
+    ///     every write through the store takes, so a write either lands before the read and is in what the session
+    ///     loads, or finds the session holding the document and is routed to it.
+    /// </summary>
+    /// <param name="sha256">Lowercase-hex SHA-256 of the demo.</param>
+    /// <param name="current">The clock the session's parse is on.</param>
+    /// <param name="session">The session taking the document.</param>
+    /// <param name="checkOut">The handle <see cref="CheckOut" /> returns.</param>
+    internal TagLoadResult LoadAndCheckOut(string sha256, ClockIdentity current, TagSession session,
+        out IDisposable checkOut)
+    {
+        lock (_rmwGate)
+        {
+            TagLoadResult result = Load(sha256, current);
+            checkOut = CheckOut(sha256, session);
+            return result;
+        }
     }
 
     private static string Normalize(string sha256) => sha256.ToLowerInvariant();

@@ -691,6 +691,12 @@ public sealed class StratStore
     }
 
     /// <summary>
+    ///     Holds off every write through the store while a session loads a strat and checks it out, so an import's
+    ///     "is it open" test never falls between the two and replaces the file the session has just read.
+    /// </summary>
+    internal Lock.Scope EnterOpen() => _rmwGate.EnterScope();
+
+    /// <summary>
     ///     The session holding a strat, or null. A writer outside the Strat Book (Create Strat From Round, an
     ///     import) applies its ops through it while it is there instead of saving past it.
     /// </summary>
