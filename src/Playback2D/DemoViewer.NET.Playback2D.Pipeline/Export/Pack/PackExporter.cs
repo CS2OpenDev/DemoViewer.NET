@@ -282,11 +282,14 @@ public sealed class PackExporter
     /// <summary>
     ///     A file's sink, and whether this run has put a frame into it. A sink opens its file no earlier
     ///     than its first frame, so a run that never wrote has nothing at the path that is its own to remove.
+    ///     A sink that opens it later still, at its disposal, says so itself: its frames are not yet a file.
     /// </summary>
     private sealed class WrittenSink(IFrameSink inner) : IFrameSink, IAbortableFrameSink
     {
+        private bool _written;
+
         /// <summary>A frame was written, or a write failed part way: the file may be this run's.</summary>
-        public bool Written { get; private set; }
+        public bool Written => inner is IOutputOpeningFrameSink opening ? opening.OutputOpened : _written;
 
         public async ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
         {
@@ -296,11 +299,11 @@ public sealed class PackExporter
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                Written = true;
+                _written = true;
                 throw;
             }
 
-            Written = true;
+            _written = true;
         }
 
         public ValueTask DisposeAsync() => inner.DisposeAsync();

@@ -26,12 +26,13 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///         33.3 fps.
 ///     </para>
 /// </summary>
-public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink
+public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink, IOutputOpeningFrameSink
 {
     private readonly int _maxFrames;
     private readonly string _outputPath;
     private bool _cancelled;
     private bool _disposed;
+    private bool _opened;
     private readonly List<byte[]> _frames = [];
     private WuColorQuantizer? _quantizer;
     private int _width;
@@ -161,8 +162,12 @@ public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink
     /// <inheritdoc />
     void IAbortableFrameSink.Abort() => _cancelled = true;
 
+    /// <inheritdoc />
+    bool IOutputOpeningFrameSink.OutputOpened => _opened;
+
     private void Write(byte[] palette)
     {
+        _opened = true;
         try
         {
             using FileStream file = new(_outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16);

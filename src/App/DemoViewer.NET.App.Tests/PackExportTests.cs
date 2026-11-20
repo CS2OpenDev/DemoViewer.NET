@@ -423,6 +423,40 @@ public class PackExportTests
         }
     }
 
+    /// <summary>
+    ///     The GIF written with no ffmpeg opens its file only when it is disposed, and never once the session
+    ///     has told it the clip failed. A clip that fails part way has put frames into the sink and nothing
+    ///     on disk, so the GIF at the path is still the earlier pack's.
+    /// </summary>
+    [Test]
+    public async Task Export_Gif_AManagedGifClipThatFailsPartWay_LeavesTheFileThatWasAlreadyThere()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}");
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64, "opener")],
+            Settings(Path.Combine(root, "scrims.gif"), ExportFormats.Gif), Exists);
+        string failing = plan.Clips[0].OutputPath!;
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(failing)!);
+            await File.WriteAllTextAsync(failing, "last week's gif");
+            FakeClips clips = new(framesPerClip: 2) { FailAfterFramesOn = 1, AbortOnFailure = true };
+
+            await Assert.ThrowsAsync<ExportValidationException>(async () =>
+                await new PackExporter(clips, new ManagedGifEncoder()).ExportAsync(plan, null,
+                    CancellationToken.None));
+
+            await Assert.That(await File.ReadAllTextAsync(failing)).IsEqualTo("last week's gif");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
     [Test]
     public async Task Export_Refuses_AQueueWithNothingToRender_BeforeOpeningAFile()
     {
@@ -681,6 +715,16 @@ public class PackExportTests
         }
     }
 
+    /// <summary>The ladder's floor: the real managed GIF sink, which opens its file only at disposal.</summary>
+    private sealed class ManagedGifEncoder : IPackEncoder
+    {
+        public void Prepare(PackSettings settings, CancellationToken ct)
+        {
+        }
+
+        public IFrameSink Open(string outputPath, PackSettings settings) => new ManagedGifSink(outputPath, 10);
+    }
+
     /// <summary>A session's shape without a demo: frames stamped with the clip's number, then the sink disposed.</summary>
     private sealed class FakeClips(int framesPerClip) : IPackClipRenderer
     {
@@ -692,6 +736,9 @@ public class PackExportTests
 
         /// <summary>The clip that writes one frame and then fails.</summary>
         public int? FailAfterFramesOn { get; init; }
+
+        /// <summary>Tells the sink its run failed before disposing it, as the export session does.</summary>
+        public bool AbortOnFailure { get; init; }
 
         public async Task RenderAsync(PackClip clip, PackSettings settings, IFrameSink sink, CancellationToken ct)
         {
@@ -715,6 +762,11 @@ public class PackExportTests
                         throw new ExportValidationException("the demo ended early");
                     }
                 }
+            }
+            catch when (AbortOnFailure)
+            {
+                (sink as IAbortableFrameSink)?.Abort();
+                throw;
             }
             finally
             {

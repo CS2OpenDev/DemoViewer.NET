@@ -42,3 +42,18 @@ internal interface IAbortableFrameSink
     /// <summary>Marks the run failed or cancelled, so the following disposal leaves no output behind.</summary>
     void Abort();
 }
+
+/// <summary>
+///     A sink that can say whether it has opened its output file.
+///     <para>
+///         Most sinks open the file no later than their first frame. One that holds its frames and opens
+///         the file only when it is disposed has, until then, nothing at the path that is its own, however
+///         many frames it took. <c>PackExporter</c> asks for this by type before it removes the file of a
+///         clip that failed. Internal for the reason <see cref="IAbortableFrameSink" /> is.
+///     </para>
+/// </summary>
+internal interface IOutputOpeningFrameSink
+{
+    /// <summary>True once the sink has opened, and so truncated, the file at its output path.</summary>
+    bool OutputOpened { get; }
+}
