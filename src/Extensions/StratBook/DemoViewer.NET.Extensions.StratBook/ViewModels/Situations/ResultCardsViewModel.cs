@@ -60,6 +60,12 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// <summary>The overlay line when no hit in the set had a positions file to stack.</summary>
     public const string NoOverlayNote = "no positions for these rounds; rebuild the index";
 
+    /// <summary>The overlay line when the queue stopped the build before it finished.</summary>
+    public const string OverlayStoppedNote = "overlay stopped before it finished";
+
+    /// <summary>The overlay line when the build failed on a read.</summary>
+    public const string OverlayFailedNote = "overlay failed; the rounds could not be read";
+
     /// <summary>How far past the last matched tick a clip sent to the Review Queue runs.</summary>
     public const int ReviewTailSeconds = 5;
 
@@ -500,6 +506,32 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     // hash, so a positions file another copy of the demo left behind is refused the way the cards
     // refuse it.
     private void BuildOverlay(int generation, int overlay, List<SituationHit> hits)
+    {
+        try
+        {
+            StackOverlay(generation, overlay, hits);
+        }
+        catch (Exception ex)
+        {
+            // A stop from the queue or a read that threw: the answer below is never posted, and nothing else takes
+            // the build off, so Overlay all would stay disabled under "stacking the rounds". Rethrown either way,
+            // so the queue still sees the stop or the failure.
+            string note = ex is OperationCanceledException ? OverlayStoppedNote : OverlayFailedNote;
+            _post(() =>
+            {
+                if (generation != Volatile.Read(ref _generation) || overlay != Volatile.Read(ref _overlayGeneration))
+                {
+                    return;
+                }
+
+                IsOverlayBuilding = false;
+                OverlayLine = note;
+            });
+            throw;
+        }
+    }
+
+    private void StackOverlay(int generation, int overlay, List<SituationHit> hits)
     {
         List<OverlayPoint> points = [];
         int states = 0;

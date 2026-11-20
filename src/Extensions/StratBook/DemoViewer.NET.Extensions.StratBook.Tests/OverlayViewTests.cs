@@ -2,6 +2,7 @@
 
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
+using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
@@ -187,6 +188,43 @@ public class OverlayViewTests
 
         h.Vm.Clear();
         await Assert.That(h.Vm.CanOverlay).IsFalse().Because("no result set to stack");
+    }
+
+    [Test]
+    public async Task AStoppedOverlayBuild_GivesTheButtonBack_AndTheQueueStillSeesTheStop()
+    {
+        using Harness h = new();
+        h.Cache.Upsert(ParsedRecord(DemoA));
+        h.Sidecars.WritePositions(DemoA, Positions(h.Sources.FingerprintFor("de_nuke")));
+        h.Vm.Load([Hit(DemoA, 3, 1000, 1128, 1256)]);
+        await h.Vm.BatchTask;
+
+        // The queue stops the job: its token is cancelled by the time the worker reaches the first hit.
+        using CancellationTokenSource stop = new();
+        await stop.CancelAsync();
+        using (JobScope.Enter(stop.Token))
+        {
+            h.Vm.OverlayAllCommand.Execute(null);
+        }
+
+        bool stopped = false;
+        try
+        {
+            await h.Vm.OverlayTask;
+        }
+        catch (OperationCanceledException)
+        {
+            stopped = true;
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(stopped).IsTrue().Because("the stop is let through to the queue");
+            await Assert.That(h.Vm.IsOverlayBuilding).IsFalse();
+            await Assert.That(h.Vm.CanOverlay).IsTrue().Because("a stopped build is not a build in flight");
+            await Assert.That(h.Vm.OverlayLine).IsNotEqualTo("stacking the rounds");
+            await Assert.That(h.Vm.IsOverlayShown).IsFalse();
+        }
     }
 
     [Test]
