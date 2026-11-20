@@ -2053,9 +2053,15 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     {
         if (LastEvaluatedDemo is { } demo)
         {
-            await RunAsync(demo, _demoKey);
+            await RerunAsync(demo);
         }
     }
+
+    /// <summary>
+    ///     Re-runs <paramref name="demo" /> under the key its open ran with. A re-run that passed no key would
+    ///     be the in-memory-only run: it clears the demo's breakpoints and stops saving new ones.
+    /// </summary>
+    internal Task RerunAsync(ParsedDemo demo) => RunAsync(demo, _demoKey);
 
     private bool CanRerunAnalysis() => !IsRunning && LastEvaluatedDemo is not null;
 
