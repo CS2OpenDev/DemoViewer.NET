@@ -133,6 +133,22 @@ public class AnalysisFactsTests
     public async Task ASidecarWithANullName_IsNotATable(string json) =>
         await Assert.That(FactsCodec.Decode(PlayerMatchFacetTests.Gzip(json))).IsNull();
 
+    /// <summary>
+    ///     The decode inflates no further than its ceiling. A few kilobytes of gzip can inflate to gigabytes, and
+    ///     the whole of it was read into memory before the first byte was parsed.
+    /// </summary>
+    [Test]
+    public async Task ASidecarThatInflatesPastTheCeiling_IsNotATable()
+    {
+        string table = TableStart + """ "dimensions":[],"values":[],"clocks":{},"rows":[]}""";
+        byte[] padded = PlayerMatchFacetTests.Gzip(table + new string(' ', 4096));
+        using (Assert.Multiple())
+        {
+            await Assert.That(FactsCodec.DecodeWithin(padded, table.Length + 4096)).IsNotNull();
+            await Assert.That(FactsCodec.DecodeWithin(padded, table.Length + 4095)).IsNull();
+        }
+    }
+
     [Test]
     public async Task EngineCells_NormalizeToTheSdksKinds()
     {

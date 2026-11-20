@@ -1,5 +1,6 @@
 #region
 
+using System.Buffers;
 using System.Collections;
 using System.Globalization;
 using System.IO.Compression;
@@ -18,6 +19,11 @@ namespace DemoViewer.NET.Services.Facts;
 internal static class FactsCodec
 {
     private const int Format = 1;
+
+    // The most a sidecar may inflate to, the record sidecars' ceiling. A table is a few megabytes at the most;
+    // a sidecar that came in a transfer bundle is whatever the bundle's author put there, and a few kilobytes
+    // of gzip can inflate to gigabytes.
+    private const int MaxInflated = 256 * 1024 * 1024;
 
     // JSON lets a name repeat inside one object. The encoder never writes that, and a column with two cells has
     // no one answer, so the parse refuses it like any other malformed document.
@@ -91,14 +97,20 @@ internal static class FactsCodec
     }
 
     /// <summary>The table in <paramref name="bytes" />, or null when they are not one this format reads.</summary>
-    public static FactTable? Decode(byte[] bytes)
+    public static FactTable? Decode(byte[] bytes) => DecodeWithin(bytes, MaxInflated);
+
+    /// <summary><see cref="Decode" /> with the inflate ceiling given: for tests.</summary>
+    internal static FactTable? DecodeWithin(byte[] bytes, int maxInflated)
     {
         ArgumentNullException.ThrowIfNull(bytes);
         try
         {
-            using MemoryStream input = new(bytes);
-            using GZipStream gzip = new(input, CompressionMode.Decompress);
-            using JsonDocument document = JsonDocument.Parse(gzip, _strict);
+            if (Inflate(bytes, maxInflated) is not { } json)
+            {
+                return null;
+            }
+
+            using JsonDocument document = JsonDocument.Parse(json, _strict);
             JsonElement root = document.RootElement;
             if (root.GetProperty("format").GetInt32() != Format)
             {
@@ -132,6 +144,34 @@ internal static class FactsCodec
     // belongs makes the file one this format does not read.
     private static string Name(JsonElement element) =>
         element.GetString() ?? throw new InvalidDataException("A name is null.");
+
+    // The inflated bytes, or null once they pass max: nothing past the ceiling is read.
+    private static ReadOnlyMemory<byte>? Inflate(byte[] gzipped, int max)
+    {
+        using MemoryStream input = new(gzipped, false);
+        using GZipStream gzip = new(input, CompressionMode.Decompress);
+        using MemoryStream inflated = new();
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        try
+        {
+            int read;
+            while ((read = gzip.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                if (inflated.Length + read > max)
+                {
+                    return null;
+                }
+
+                inflated.Write(buffer, 0, read);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+
+        return inflated.GetBuffer().AsMemory(0, (int)inflated.Length);
+    }
 
     private static void WriteStrings(Utf8JsonWriter json, string name, IReadOnlyList<string> values)
     {
