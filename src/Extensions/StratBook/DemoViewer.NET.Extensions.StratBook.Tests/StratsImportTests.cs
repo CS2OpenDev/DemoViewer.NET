@@ -407,6 +407,27 @@ public class StratsImportTests
     }
 
     [Test]
+    public async Task ANewStrat_WithANullInAList_IsLeftOut()
+    {
+        using Machines m = new();
+        StratDocument strat = Committed(m.There);
+        string file = Directory.EnumerateFiles(m.TherePath, "*" + StratStore.StratExtension,
+            SearchOption.AllDirectories).Single();
+        JsonObject edited = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
+        edited["slots"] = new JsonArray((JsonNode?)null);
+        File.WriteAllText(file, edited.ToJsonString());
+
+        ImportLedger ledger = m.Import();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(m.Here.Index.Any(e => e.Id == strat.Id)).IsFalse();
+            await Assert.That(ledger.Skipped).IsEqualTo(1);
+            await Assert.That(ledger.Added).IsEqualTo(0);
+        }
+    }
+
+    [Test]
     public async Task ANewStrat_WhoseLogEndsInATornLine_IsStillCopied()
     {
         using Machines m = new();

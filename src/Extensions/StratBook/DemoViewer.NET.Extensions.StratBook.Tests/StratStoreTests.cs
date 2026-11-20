@@ -541,6 +541,39 @@ public class StratStoreTests
         }
     }
 
+    // The strict read refuses a null property and lets a null list element through.
+    [Test]
+    [Arguments("steps")]
+    [Arguments("slots")]
+    [Arguments("tags")]
+    [Arguments("branches")]
+    public async Task AStratWithANullInAList_IsUnreadable_NotACrash(string member)
+    {
+        string root = TempRoot();
+        try
+        {
+            StratStore store = new(PackStores.At(root));
+            StratDocument document = store.Create(Team, "de_mirage", "T", "execute", "A exec");
+            string file = StratFile(root, document);
+            JsonObject edited = JsonNode.Parse(await File.ReadAllTextAsync(file))!.AsObject();
+            edited[member] = new JsonArray((JsonNode?)null);
+            await File.WriteAllTextAsync(file, edited.ToJsonString());
+
+            StratStore reopened = new(PackStores.At(root));
+            StratLoadResult loaded = reopened.Load(document.Id);
+            using (Assert.Multiple())
+            {
+                await Assert.That(loaded.Document).IsNull();
+                await Assert.That(loaded.IsUnreadable).IsTrue();
+                await Assert.That(reopened.Index.Any(e => e.Id == document.Id)).IsFalse();
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
     [Test]
     public async Task AMapChange_WhoseHistoryLineFails_LeavesTheStratWhereItWas()
     {

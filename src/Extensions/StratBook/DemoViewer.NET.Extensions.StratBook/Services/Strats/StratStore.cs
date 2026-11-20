@@ -2223,7 +2223,10 @@ public sealed class StratStore
     {
         try
         {
-            return JsonSerializer.Deserialize(json, ImportLedger.Strict(StratJsonContext.Default.StratDocument));
+            return JsonSerializer.Deserialize(json, ImportLedger.Strict(StratJsonContext.Default.StratDocument))
+                is { } document && !HasNullElement(document)
+                    ? document
+                    : null;
         }
         catch (JsonException)
         {
@@ -2235,13 +2238,30 @@ public sealed class StratStore
     {
         try
         {
-            return JsonSerializer.Deserialize(json, ImportLedger.Strict(StratJsonContext.Default.StratDocument));
+            return JsonSerializer.Deserialize(json, ImportLedger.Strict(StratJsonContext.Default.StratDocument))
+                is { } document && !HasNullElement(document)
+                    ? document
+                    : null;
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    // The strict read stops at the property: "steps": [null] still comes back as a list holding a null, and the
+    // validator, the editor and the exporters walk every one of these lists without a null check. A stroke is
+    // checked no deeper: it is an opaque object this store never looks into.
+    private static bool HasNullElement(StratDocument document) =>
+        HasNull(document.Tags) || HasNull(document.Slots) || HasNull(document.Steps) || HasNull(document.Branches)
+        || HasNull(document.Start?.Positions)
+        || document.Steps.Exists(static step => HasNull(step.Via) || HasNull(step.ViaPoints)
+            || HasNull(step.Positions) || HasNull(step.Strokes) || HasNull(step.Assignments)
+            || HasNull(step.Lurk?.Areas) || HasNull(step.Lurk?.AreaPoints)
+            || (step.Assignments?.Exists(static line => HasNull(line.Via) || HasNull(line.ViaPoints)
+                || HasNull(line.Watch?.Places) || HasNull(line.Watch?.Points)) ?? false));
+
+    private static bool HasNull<T>(List<T>? list) where T : class => list?.Contains(null!) ?? false;
 
     private static List<HistoryEntry> ParseHistory(IEnumerable<string> lines)
     {
