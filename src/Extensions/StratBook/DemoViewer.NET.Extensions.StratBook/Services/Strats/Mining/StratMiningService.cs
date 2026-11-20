@@ -391,6 +391,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     {
         IReadOnlyList<RoundSignature> signatures = [];
         IReadOnlyList<MinedPattern> patterns = [];
+        bool mined = false;
         try
         {
             RoundSignatureBuilder.BuildSession? session = null;
@@ -422,6 +423,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
                 {
                     signatures = Signatures.Finish(session);
                     patterns = StratMiner.Mine(signatures);
+                    mined = true;
                     Save(patterns);
                 }).ConfigureAwait(false))
             {
@@ -430,7 +432,13 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            // A file mid-write: the next mine reads it.
+            // A file mid-write: the next mine reads it. A pass that failed before it had patterns has none to
+            // publish, and publishing its empty list would clear the inbox; one that only failed to save them
+            // still shows them.
+            if (!mined)
+            {
+                return;
+            }
         }
 
         Published(signatures, patterns, user);
@@ -462,18 +470,20 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         {
             IReadOnlyList<RoundSignature> signatures = [];
             IReadOnlyList<MinedPattern> patterns = [];
+            bool mined = false;
             try
             {
                 signatures = Signatures.Build();
                 patterns = StratMiner.Mine(signatures);
+                mined = true;
                 Save(patterns);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
-                // A file mid-write: the next mine reads it.
+                // A file mid-write: the next mine reads it. See MineQueuedAsync for what is published.
             }
 
-            if (!Completed(signatures, patterns, user))
+            if (!Completed(signatures, patterns, user, mined))
             {
                 return;
             }
@@ -518,10 +528,15 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         return next.Count(p => p.State == GeneratedState.New && !known.Contains(p.Pattern.Key));
     }
 
-    // Publishes a pass; true when another pass was asked for while it ran.
-    private bool Completed(IReadOnlyList<RoundSignature> signatures, IReadOnlyList<MinedPattern> patterns, bool user)
+    // Publishes a pass that has patterns; true when another pass was asked for while it ran.
+    private bool Completed(IReadOnlyList<RoundSignature> signatures, IReadOnlyList<MinedPattern> patterns, bool user,
+        bool mined)
     {
-        Published(signatures, patterns, user);
+        if (mined)
+        {
+            Published(signatures, patterns, user);
+        }
+
         lock (_gate)
         {
             if (!_rerun)

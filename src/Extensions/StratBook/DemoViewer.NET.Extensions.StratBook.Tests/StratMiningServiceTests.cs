@@ -572,4 +572,36 @@ public class StratMiningServiceTests
             .IsEqualTo(runs)
             .Because("the strat was back in the store when the removal ran");
     }
+
+    [Test]
+    public async Task AMineThatCouldNotReadTheLibrary_LeavesTheInboxAsItWas()
+    {
+        using Library library = Library.Create();
+        bool broken = false;
+        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
+            map => broken ? throw new IOException("a file mid-write") : Sources.FingerprintFor(map), null, null,
+            library.Strats, library.Tags, TestFiles.Mining(Path.Combine(library.Root, "cache"), library.Root),
+            run: _inline) { QuietDelay = Timeout.InfiniteTimeSpan };
+        await service.MineAsync();
+        int found = service.Patterns.Count;
+        DateTime? mined = service.MinedUtc;
+        (int Demos, int Rounds) read = service.LastRead;
+
+        broken = true;
+        await service.MineAsync();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(found).IsGreaterThan(0);
+            await Assert.That(service.Patterns.Count).IsEqualTo(found)
+                .Because("a pass that read nothing has nothing to say about the patterns");
+            await Assert.That(service.MinedUtc).IsEqualTo(mined);
+            await Assert.That(service.LastRead).IsEqualTo(read);
+            await Assert.That(service.IsMining).IsFalse();
+        }
+
+        broken = false;
+        await service.MineAsync();
+        await Assert.That(service.Patterns.Count).IsEqualTo(found);
+    }
 }
