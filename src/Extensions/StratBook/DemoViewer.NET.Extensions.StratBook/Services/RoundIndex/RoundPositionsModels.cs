@@ -214,7 +214,14 @@ internal sealed class RoundPositionsPlayerConverter : JsonConverter<RoundPositio
         reader.Read();
         int slot = reader.GetInt32();
         reader.Read();
-        ulong steamId = ulong.Parse(reader.GetString() ?? "0", System.Globalization.CultureInfo.InvariantCulture);
+        // TryParse, not Parse: a FormatException from here is not the reader's own, so the serializer would let it
+        // through and TryDeserialize would throw where it promises null.
+        if (!ulong.TryParse(reader.GetString() ?? "0", System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out ulong steamId))
+        {
+            throw new JsonException("a player's SteamID64 is not a number");
+        }
+
         reader.Read();
         string name = reader.GetString() ?? "";
         reader.Read();

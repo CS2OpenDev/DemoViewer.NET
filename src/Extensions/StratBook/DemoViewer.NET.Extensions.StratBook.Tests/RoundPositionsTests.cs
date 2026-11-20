@@ -350,6 +350,32 @@ public class RoundPositionsTests
         return build;
     }
 
+    private static string WithPlayer(string player) =>
+        new RoundPositionsDocument
+        {
+            Fingerprint = "x", CadenceTicks = 64, Players = [new RoundPositionsPlayer(0, 1, "n")]
+        }.Serialize().Replace("""[0,"1","n"]""", player, StringComparison.Ordinal);
+
+    [Test]
+    [Arguments("""[0,"x","n"]""")]
+    [Arguments("""[0,"-1","n"]""")]
+    [Arguments("""[0,"99999999999999999999999","n"]""")]
+    [Arguments("""[0,7,"n"]""")]
+    [Arguments("""["a","1","n"]""")]
+    public async Task APlayerTupleThatDoesNotRead_IsAFileThatDoesNotParse(string player)
+    {
+        string json = WithPlayer(player);
+        await Assert.That(json).Contains(player);
+        using (Assert.Multiple())
+        {
+            await Assert.That(RoundPositionsDocument.TryDeserialize(json)).IsNull();
+            await Assert.That(RoundPositionsDocument.TryDeserialize(System.Text.Encoding.UTF8.GetBytes(json)))
+                .IsNull();
+            await Assert.That(RoundPositionsDocument.TryDeserialize(WithPlayer("""[0,"76561198000000001","n"]"""))!
+                .Players.Single().SteamId64).IsEqualTo(76561198000000001UL);
+        }
+    }
+
     // The round-index-format.md example: round 3 on nuke, two sampled steps, slots on both sides.
     private static RoundPositionsDocument FixtureDocument() => new()
     {
