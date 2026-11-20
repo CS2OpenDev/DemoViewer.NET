@@ -2,6 +2,7 @@
 
 using Avalonia.Media.Imaging;
 using CS2DemoKit.Analysis.Visibility;
+using DemoViewer.NET.Services;
 
 #endregion
 
@@ -31,6 +32,13 @@ public static class MapAssetLoader
     /// <param name="width">Target width in pixels.</param>
     public static Bitmap? TryLoadRadarThumbnail(string? mapName, int width)
     {
+        // The card binds the demo header's map name, so this runs for every scanned demo before any is
+        // opened: a rooted or UNC name must not reach the file system at all.
+        if (!PathSafety.IsMapFolderName(mapName))
+        {
+            return null;
+        }
+
         string? dir = MapAssetBundleReader.FindBundleDirectory(mapName);
         if (dir is null || MapAssetBundleReader.TryRead(dir) is not { } bundle)
         {
@@ -43,8 +51,8 @@ public static class MapAssetLoader
             return null;
         }
 
-        string path = Path.Combine(dir, images[0]);
-        if (!File.Exists(path))
+        string? path = PathSafety.FullPathInside(dir, images[0]);
+        if (path is null || !File.Exists(path))
         {
             return null;
         }

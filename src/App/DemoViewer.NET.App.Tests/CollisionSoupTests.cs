@@ -133,5 +133,32 @@ public class CollisionSoupTests
         }
     }
 
+    /// <summary>
+    ///     The map name comes from a demo's header, which whoever wrote the demo controls. A rooted name
+    ///     must not turn the probe into a read of that location: Path.Combine drops everything before a
+    ///     rooted segment, so without a check this finds the bake sitting in the temp folder.
+    /// </summary>
+    [Test]
+    public async Task Find_RefusesARootedOrClimbingMapName()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"dv-hostile-map-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            await File.WriteAllBytesAsync(Path.Combine(dir, "collision.tris" + CollisionSoup.CompressedSuffix), [1, 2, 3]);
+            string climbing = Path.GetRelativePath(Path.Combine(AppContext.BaseDirectory, "assets"), dir);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(CollisionSoup.Find(dir)).IsNull();
+                await Assert.That(CollisionSoup.Find(climbing)).IsNull();
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     private static float Lerp(float a, float b, float t) => a + ((b - a) * t);
 }

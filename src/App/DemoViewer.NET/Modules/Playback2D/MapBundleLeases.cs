@@ -112,6 +112,12 @@ internal static class MapBundleLeases
     {
         // The overlay lives under the config root, which only the App knows, and the bundle reads zones
         // lazily and off the UI thread, so the directory has to be in place before the Lazy publishes.
+        // The map name is the demo header's; one that is not a plain folder name has no bundle.
+        if (!PathSafety.IsMapFolderName(map))
+        {
+            return null;
+        }
+
         string? dir = MapAssetBundleReader.FindBundleDirectory(map);
         if (dir is null || MapAssetPipeline.TryLoadFromDirectory(dir, AppPaths.ZonesDirectory) is not { } bundle)
         {

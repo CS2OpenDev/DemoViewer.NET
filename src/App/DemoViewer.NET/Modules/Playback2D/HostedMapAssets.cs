@@ -10,6 +10,7 @@ using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Hud;
 using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using DemoViewer.NET.Services;
 using SkiaSharp;
 
 #endregion
@@ -38,7 +39,9 @@ internal sealed class HostedMapAssets : IMapAssetsBackend
 
     /// <inheritdoc />
     public MapDescription? Describe(string mapName) =>
-        MapAssetPipeline.TryDescribe(mapName) is not { } facts ? null : new MapDescription(facts.Bounds, facts.Floors);
+        !PathSafety.IsMapFolderName(mapName) || MapAssetPipeline.TryDescribe(mapName) is not { } facts
+            ? null
+            : new MapDescription(facts.Bounds, facts.Floors);
 
     /// <inheritdoc />
     public IIconSource CreateIcons() => new SkiaIconSource();

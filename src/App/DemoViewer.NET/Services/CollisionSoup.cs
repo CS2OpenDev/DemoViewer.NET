@@ -45,7 +45,9 @@ public static class CollisionSoup
     /// <param name="mapName">Map to resolve, e.g. <c>de_mirage</c>.</param>
     public static string? Find(string? mapName)
     {
-        if (string.IsNullOrWhiteSpace(mapName) || !IsMapName(mapName))
+        // The name is the demo header's; a rooted or climbing one would point both probes below at a
+        // location the demo's author chose.
+        if (!PathSafety.IsMapFolderName(mapName) || !IsMapName(mapName))
         {
             return null;
         }
