@@ -183,6 +183,46 @@ public class HostDataRemovalTests
         }
     }
 
+    /// <summary>
+    ///     A ruleset is filed under its extension's id with every '.' and '-' made '_', so "x.y" and "x-y" file
+    ///     "kills" under one id, and that id alone names the facts files and their stamps. The extension
+    ///     declared first keeps it. The other's is dropped, so its delete cannot take the first one's facts.
+    /// </summary>
+    [Test]
+    public async Task ARulesetAnEarlierExtensionAlreadyFiles_IsDroppedAndReported_AndItsFactsAreNotListed()
+    {
+        string tail = Guid.NewGuid().ToString("N")[..8];
+        Pack first = new("dev.example.x" + tail);
+        Pack second = new("dev.example-x" + tail);
+        ServiceCollection services = new();
+        services.AddSingleton<ExtensionShellHub>();
+        services.AddSingleton(new DemoCacheStore(null));
+        await using ServiceProvider sp = services.BuildServiceProvider();
+        ExtensionGuard guard = ExtensionGuard.Standalone(second);
+        PackContributions kept = new(first, () => new ExtensionContext(first, sp)) { LoadedPacks = [first, second] };
+        PackContributions dropped = new(second, () => new ExtensionContext(second, sp), guard: guard)
+        {
+            LoadedPacks = [first, second]
+        };
+
+        kept.Ruleset(new RulesetContribution("kills", () => new MemoryStream()));
+        dropped.Ruleset(new RulesetContribution("kills", () => new MemoryStream()));
+
+        string filed = RulesetContribution.QualifiedId(first.Id, "kills");
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetContribution.QualifiedId(second.Id, "kills")).IsEqualTo(filed)
+                .Because("the two ids file the ruleset under one id, which is the collision");
+            await Assert.That(kept.Rulesets.Select(r => r.RulesetId))
+                .IsEquivalentTo([filed], CollectionOrdering.Matching);
+            await Assert.That(dropped.Rulesets).IsEmpty();
+            await Assert.That(guard.Faults.StateOf(second.FeatureId).Count).IsEqualTo(1);
+            await Assert.That(new HostDataRemoval(dropped, sp).Stores
+                    .Any(s => s.Id.StartsWith("facts:", StringComparison.Ordinal))).IsFalse()
+                .Because("the facts under that id are the first extension's");
+        }
+    }
+
     private sealed class Pack(string id, IEnumerable<StoreDescriptor>? stores = null) : IExtension, IManifestSource
     {
         public ExtensionManifest Manifest { get; } = ExtensionManifest.Parse($$"""

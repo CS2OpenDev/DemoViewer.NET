@@ -249,6 +249,19 @@ internal sealed class PackContributions(
         }
 
         string id = RulesetContribution.QualifiedId(Pack.Id, ruleset.Id);
+
+        // The qualified id makes '.' and '-' the same '_', so two extension ids can file a ruleset under one
+        // id, and that id alone names the facts files and their stamps. The rules keep the first one loaded
+        // and so does this: the later one is dropped here, or its "Delete extension data" would take the
+        // first one's facts.
+        if (EarlierOwnerOf(id, ruleset.Id) is { } owner)
+        {
+            Guard.Report("ruleset", new ArgumentException(
+                $"'{ruleset.Id}' is filed as '{id}', which is already a ruleset of the extension '{owner}'.",
+                nameof(ruleset)));
+            return;
+        }
+
         Func<Stream> open = ruleset.Yaml;
         _rulesets.Add(new ContributedRuleset(id, Pack.Id, Guard.OwnFeature("ruleset", ruleset.FeatureId), () =>
             Guard.Run("ruleset " + id, () =>
@@ -271,16 +284,39 @@ internal sealed class PackContributions(
         return false;
     }
 
-    private bool ListedInManifest(string rulesetId)
+    private bool ListedInManifest(string rulesetId) => ListedInManifest(Pack, rulesetId);
+
+    private static bool ListedInManifest(IExtension pack, string rulesetId)
     {
         try
         {
-            return ExtensionManifests.Of(Pack).Rulesets.Contains(rulesetId, StringComparer.Ordinal);
+            return ExtensionManifests.Of(pack).Rulesets.Contains(rulesetId, StringComparer.Ordinal);
         }
         catch (Manifest.ExtensionManifestException)
         {
             return false;
         }
+    }
+
+    // The extension declared before this one whose manifest lists the same ruleset under the same qualified id.
+    private string? EarlierOwnerOf(string qualifiedId, string rulesetId)
+    {
+        foreach (IExtension other in LoadedPacks ?? FeaturePacks.DeclaredOrNone)
+        {
+            if (string.Equals(other.Id, Pack.Id, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            if (string.Equals(RulesetContribution.QualifiedId(other.Id, rulesetId), qualifiedId,
+                    StringComparison.Ordinal)
+                && ListedInManifest(other, rulesetId))
+            {
+                return other.Id;
+            }
+        }
+
+        return null;
     }
 
     /// <inheritdoc />
