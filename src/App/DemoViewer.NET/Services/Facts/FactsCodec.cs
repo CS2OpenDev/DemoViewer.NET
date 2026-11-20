@@ -19,6 +19,10 @@ internal static class FactsCodec
 {
     private const int Format = 1;
 
+    // JSON lets a name repeat inside one object. The encoder never writes that, and a column with two cells has
+    // no one answer, so the parse refuses it like any other malformed document.
+    private static readonly JsonDocumentOptions _strict = new() { AllowDuplicateProperties = false };
+
     /// <summary>The engine's table as the SDK's, every cell normalized.</summary>
     public static FactTable FromMetric(MetricTable table, FactKey key, string fingerprint, int schema, string grain) =>
         new(key, fingerprint, schema, grain,
@@ -94,7 +98,7 @@ internal static class FactsCodec
         {
             using MemoryStream input = new(bytes);
             using GZipStream gzip = new(input, CompressionMode.Decompress);
-            using JsonDocument document = JsonDocument.Parse(gzip);
+            using JsonDocument document = JsonDocument.Parse(gzip, _strict);
             JsonElement root = document.RootElement;
             if (root.GetProperty("format").GetInt32() != Format)
             {
@@ -102,14 +106,14 @@ internal static class FactsCodec
             }
 
             return new FactTable(
-                new FactKey(root.GetProperty("ruleset").GetString()!, root.GetProperty("output").GetString()!),
-                root.GetProperty("fingerprint").GetString()!,
+                new FactKey(Name(root.GetProperty("ruleset")), Name(root.GetProperty("output"))),
+                Name(root.GetProperty("fingerprint")),
                 root.GetProperty("schema").GetInt32(),
                 root.GetProperty("grain").GetString() ?? "",
-                [.. root.GetProperty("dimensions").EnumerateArray().Select(e => e.GetString()!)],
-                [.. root.GetProperty("values").EnumerateArray().Select(e => e.GetString()!)],
+                [.. root.GetProperty("dimensions").EnumerateArray().Select(Name)],
+                [.. root.GetProperty("values").EnumerateArray().Select(Name)],
                 root.GetProperty("clocks").EnumerateObject()
-                    .ToDictionary(p => p.Name, p => p.Value.GetString()!, StringComparer.Ordinal),
+                    .ToDictionary(p => p.Name, p => Name(p.Value), StringComparer.Ordinal),
                 [
                     .. root.GetProperty("rows").EnumerateArray().Select(r => new FactRow(
                         ReadCells(r.GetProperty("d")),
@@ -123,6 +127,11 @@ internal static class FactsCodec
             return null;
         }
     }
+
+    // The table's names are not nullable, and a reader of the table takes them as present. A JSON null where one
+    // belongs makes the file one this format does not read.
+    private static string Name(JsonElement element) =>
+        element.GetString() ?? throw new InvalidDataException("A name is null.");
 
     private static void WriteStrings(Utf8JsonWriter json, string name, IReadOnlyList<string> values)
     {

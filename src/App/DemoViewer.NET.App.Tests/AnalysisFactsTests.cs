@@ -107,6 +107,32 @@ public class AnalysisFactsTests
         }
     }
 
+    private const string TableStart =
+        """{"format":1,"ruleset":"r","output":"t","fingerprint":"fp","schema":1,"grain":"g",""";
+
+    /// <summary>
+    ///     A sidecar from a transfer bundle is whatever its author wrote. JSON lets a name repeat inside one
+    ///     object, the encoder never writes that, and a table read from it has no one answer for the column: the
+    ///     decode reads as "not a table" like every other malformed file, and does not throw into its callers.
+    /// </summary>
+    [Test]
+    [Arguments(""" "dimensions":[],"values":[],"clocks":{"a":"x","a":"y"},"rows":[]}""")]
+    [Arguments(""" "dimensions":[],"values":[],"clocks":{},"rows":[{"d":{"slot":1,"slot":2},"v":{}}]}""")]
+    [Arguments(""" "dimensions":[],"values":[],"clocks":{},"rows":[{"d":{},"v":{"n":1,"n":2}}]}""")]
+    public async Task ASidecarWithARepeatedName_IsNotATable(string rest) =>
+        await Assert.That(FactsCodec.Decode(PlayerMatchFacetTests.Gzip(TableStart + rest))).IsNull();
+
+    /// <summary>The SDK's table has no null names: a sidecar with a JSON null where one belongs is not a table.</summary>
+    [Test]
+    [Arguments("""{"format":1,"ruleset":null,"output":"t","fingerprint":"fp","schema":1,"grain":"g","dimensions":[],"values":[],"clocks":{},"rows":[]}""")]
+    [Arguments("""{"format":1,"ruleset":"r","output":null,"fingerprint":"fp","schema":1,"grain":"g","dimensions":[],"values":[],"clocks":{},"rows":[]}""")]
+    [Arguments("""{"format":1,"ruleset":"r","output":"t","fingerprint":null,"schema":1,"grain":"g","dimensions":[],"values":[],"clocks":{},"rows":[]}""")]
+    [Arguments("""{"format":1,"ruleset":"r","output":"t","fingerprint":"fp","schema":1,"grain":"g","dimensions":[null],"values":[],"clocks":{},"rows":[]}""")]
+    [Arguments("""{"format":1,"ruleset":"r","output":"t","fingerprint":"fp","schema":1,"grain":"g","dimensions":[],"values":[null],"clocks":{},"rows":[]}""")]
+    [Arguments("""{"format":1,"ruleset":"r","output":"t","fingerprint":"fp","schema":1,"grain":"g","dimensions":[],"values":[],"clocks":{"a":null},"rows":[]}""")]
+    public async Task ASidecarWithANullName_IsNotATable(string json) =>
+        await Assert.That(FactsCodec.Decode(PlayerMatchFacetTests.Gzip(json))).IsNull();
+
     [Test]
     public async Task EngineCells_NormalizeToTheSdksKinds()
     {
