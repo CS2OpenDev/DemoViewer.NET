@@ -530,7 +530,8 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
             entries.AddRange(behaviour.MenuFor(band));
         }
 
-        foreach (Func<TimelineBandViewModel, IEnumerable<MenuEntry>> contributor in BandMenus)
+        // A copy: a contributor may remove its own registration while it is being asked.
+        foreach (Func<TimelineBandViewModel, IEnumerable<MenuEntry>> contributor in BandMenus.ToArray())
         {
             entries.AddRange(contributor(band));
         }

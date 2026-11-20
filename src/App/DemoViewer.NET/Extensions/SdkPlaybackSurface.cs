@@ -140,8 +140,8 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
     {
         ArgumentNullException.ThrowIfNull(items);
         Func<SdkP.PlaybackBand, IEnumerable<SdkP.MenuEntry>> guarded =
-            _guard.Wrap<SdkP.PlaybackBand, IEnumerable<SdkP.MenuEntry>>("band menu", b => [.. items(b)], []);
-        return Own(_surface.AddBandMenu(band => Menu(guarded(Band(band)), _guard)));
+            _guard.Wrap<SdkP.PlaybackBand, IEnumerable<SdkP.MenuEntry>>("band menu", b => Menu(items(b), _guard), []);
+        return Own(_surface.AddBandMenu(band => guarded(Band(band))));
     }
 
     public IDisposable AddModeToggle(SdkP.ModeToggle toggle)
@@ -279,6 +279,8 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
     internal static SdkP.PlaybackBand Band(TimelineBandViewModel band) =>
         new(band.TrackId, band.StartFrameIndex, band.EndFrameIndex, band.Label, band.Tooltip);
 
+    // Called inside the guard, never after it: a null entry or an entry with no Run throws here, and that is
+    // the extension's fault to count, not an exception out of the timeline's right-click.
     private static List<SdkP.MenuEntry> Menu(IEnumerable<SdkP.MenuEntry> entries, ExtensionGuard guard) =>
         [.. entries.Select(e => e with { Run = guard.Wrap("menu entry", e.Run) })];
 
@@ -387,8 +389,7 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
             guard.Run("lane band press", () => inner.OnBandPressed(Band(band)));
 
         public IEnumerable<SdkP.MenuEntry> MenuFor(TimelineBandViewModel band) =>
-            Menu(guard.Run<IReadOnlyList<SdkP.MenuEntry>>("lane menu", () => [.. inner.MenuFor(Band(band))], []),
-                guard);
+            guard.Run<IReadOnlyList<SdkP.MenuEntry>>("lane menu", () => Menu(inner.MenuFor(Band(band)), guard), []);
 
         public void OnLabelRequested(int frame) => guard.Run("lane label", () => inner.OnLabelRequested(frame));
 
