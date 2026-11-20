@@ -508,4 +508,49 @@ public class Playback2DExportMapHoldTests
 
             await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before);
         });
+
+    // The hold is taken before the rest of the setup is read off the host and the tab. A setup that never
+    // came to be has no runner to release it, so the bundle stayed in memory for the life of the process.
+    [Test]
+    public async Task ASetupThatFailsToBuild_GivesItsHoldBack() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            if (MapBundleLeases.Acquire(Map) is not { } probe)
+            {
+                throw new SkipTestException($"no {Map} bundle in this checkout");
+            }
+
+            probe.Dispose();
+
+            int before = MapBundleLeases.HoldersOf(Map);
+            Playback2DFakeContext ctx = new() { MapName = Map, Gate = new FakeModuleFeatureGate() };
+            ctx.AddPlayer(0, "Alpha", 2);
+            Playback2DTabViewModel vm = new();
+            vm.OnActivated(ctx);
+            try
+            {
+                Playback2DExportHost host = new(() => throw new InvalidOperationException("no frames"), null, null,
+                    null);
+                bool threw = false;
+                try
+                {
+                    vm.BuildExportSetup(host);
+                }
+                catch (InvalidOperationException)
+                {
+                    threw = true;
+                }
+
+                await Assert.That(threw).IsTrue();
+                await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before + 1)
+                    .Because("only the tab's own hold is left");
+            }
+            finally
+            {
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+
+            await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before);
+        });
 }
