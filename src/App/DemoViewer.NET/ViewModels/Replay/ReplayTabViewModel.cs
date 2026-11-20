@@ -3,10 +3,13 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.Models;
 using DemoViewer.NET.ViewModels.Common;
+using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.Parser;
+using Microsoft.Extensions.Logging;
 
 #endregion
 
@@ -57,6 +60,8 @@ public sealed partial class ReplayTabViewModel : ObservableObject
 {
     // Cancellation source for in-flight card-build for the currently selected tick group.
     private CancellationTokenSource? _cardBuildCts;
+
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.Replay");
 
     [ObservableProperty]
     private bool _hasTickGroups;
@@ -326,7 +331,33 @@ public sealed partial class ReplayTabViewModel : ObservableObject
 
         // Build cards on a background thread: decompression + proto decoding can be heavy for
         // large tick groups (e.g. the pre-game group with hundreds of frames).
-        _ = BuildCardsAsync(group, cts.Token);
+        _ = BuildCardsObservedAsync(group, cts.Token);
+    }
+
+    // Nothing awaits the build, so a throw in it (the card factory, or the decode in front of it) would fault
+    // a task nobody observes and leave the Parser tab empty under a header promising N messages.
+    private async Task BuildCardsObservedAsync(TickGroup group, CancellationToken ct)
+    {
+        try
+        {
+            await BuildCardsAsync(group, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Superseded by a newer tick group, whose build owns the tab now.
+        }
+#pragma warning disable CA1031 // A tick group whose cards will not build must say so, never go blank.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            AppLog.OperationFailed(DiagLog, $"build the message cards for tick {group.GameTick}", ex);
+            if (!ct.IsCancellationRequested)
+            {
+                ParserHeaderSink?.Invoke(
+                    $"tick {group.GameTick}  •  Couldn't build the message cards: {ex.Message} (details in Diagnostics)");
+                ParserHasMessageCardsSink?.Invoke(false);
+            }
+        }
     }
 
     // navigation-review Phase D: the parallel tick-group navigation (NextTick / PreviousTick /
