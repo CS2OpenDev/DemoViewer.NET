@@ -233,6 +233,18 @@ if (positional.Length == 0)
         return 1;
     }
 
+    // The same fail-fast for the one combination that can never produce a file: the projector reads
+    // snapshots and --bare is the switch that drops them. Reported after the run it cost a whole
+    // analysis, wrote nothing and still exited 0.
+    if (exportFormat is not null && bareMode)
+    {
+        Console.Error.WriteLine("--export requires snapshot mode; it is incompatible with --bare.");
+        return 1;
+    }
+
+    // Validated trimmed above, so hand the registry the same spelling.
+    exportFormat = exportFormat?.Trim();
+
     if (roundDebug)
     {
         ParsedDemo debugDemo = useMmap
@@ -503,9 +515,9 @@ static int RunBench(string demoPath, string rulesDir, string? reportPath,
     // Runs the PlayerRoundStatsProjector over the snapshot result and writes one file per emitted
     // table. Needs snapshot mode (the projector reads MessageSnapshots), so it is incompatible with
     // --bare; on the forward path asking for it is what turns snapshots on.
-    if (exportFormat is not null)
+    if (exportFormat is not null && !WriteRoundExport(exportFormat, exportOut, demoPath, run))
     {
-        WriteRoundExport(exportFormat, exportOut, demoPath, run);
+        return 1;
     }
 
     return 0;
@@ -682,12 +694,13 @@ static void WriteGoldenStatsFiles(
 
 // Runs the PlayerRoundStatsProjector over the snapshot result and writes one file per emitted
 // MetricTable in the requested format. Sibling of WriteGoldenStatsFiles: per-round, not per-game.
-static void WriteRoundExport(string format, string? outPath, string demoPath, AnalysisRun run)
+// False when nothing could be written, which the caller turns into a non-zero exit.
+static bool WriteRoundExport(string format, string? outPath, string demoPath, AnalysisRun run)
 {
     if (run.Snapshots is not { } result)
     {
         Console.Error.WriteLine("--export requires snapshot mode; it is incompatible with --bare.");
-        return;
+        return false;
     }
 
     IOutputFormatter formatter = OutputFormatterRegistry.Get(format)
@@ -718,6 +731,8 @@ static void WriteRoundExport(string format, string? outPath, string demoPath, An
         formatter.WriteToFile(table, path);
         Console.WriteLine($"Export: {path}  ({table.Rows.Count} rows, {table.ValueColumns.Count} value columns)");
     }
+
+    return true;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
