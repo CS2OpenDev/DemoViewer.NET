@@ -244,6 +244,38 @@ public class ScoutingReportLayerTests
     }
 
     [Test]
+    public async Task AnotherTeamRenamed_LeavesTheTeamInView_ItsToggles_VetoTextAndMapAlone()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
+        QueuedPost posted = new();
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), false,
+            post: posted.Post, runSection: _ => _inline, layers: [new Fake("a", ScoutingSides.Both)]);
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        vm.SelectMapCommand.Execute(vm.Maps[^1]);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        ScoutingLayerChipViewModel chip = vm.Layers.Find("a")!;
+        vm.Layers.Toggle(chip, true);
+        vm.NewVetoMap = "de_anc";
+        string map = vm.SelectedMap!.Map;
+        bool twoMaps = vm.Maps.Count > 1 && map != vm.Maps[0].Map;
+
+        teams.Rename(teams.Teams.First(t => t.Id != teamA).Id, "Renamed");
+        await teams.Idle;
+        await ScoutingReportTestKit.Settle(vm, posted);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(twoMaps).IsTrue();
+            await Assert.That(vm.Teams.Select(t => t.Name)).Contains("Renamed");
+            await Assert.That(vm.SelectedTeam?.Id).IsEqualTo(teamA);
+            await Assert.That(vm.Layers.IsOn(vm.Side, chip)).IsTrue().Because("the team in view did not change");
+            await Assert.That(vm.NewVetoMap).IsEqualTo("de_anc");
+            await Assert.That(vm.SelectedMap?.Map).IsEqualTo(map);
+        }
+    }
+
+    [Test]
     public async Task TheNotices_SayWhenTheSampleIsThin_AndWhenDemosHaveNoPositions()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, PostPlantService postPlant) = await Library();

@@ -84,6 +84,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private string? _isolated;
     private bool _shown = true;
 
+    // True while Refresh replaces the picker's rows: the selections written meanwhile are not a team change.
+    private bool _reselecting;
+
     [ObservableProperty]
     private ScoutingBuy _buy = ScoutingBuy.All;
 
@@ -484,6 +487,14 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     partial void OnSelectedTeamChanged(ScoutingReportTeamRow? value)
     {
+        if (!_reselecting)
+        {
+            TeamChanged(value);
+        }
+    }
+
+    private void TeamChanged(ScoutingReportTeamRow? value)
+    {
         VrsRank.SetTeam(value?.Id);
         HltvRank.SetTeam(value?.Id);
         NewVetoMap = "";
@@ -655,19 +666,38 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             return;
         }
 
+        // The team in view comes back as a new row, and a bound picker writes null as the rows are cleared:
+        // neither is the user picking a team, so the toggles, the typed veto map and the map in view stay.
         Guid? keep = SelectedTeam?.Id;
-        Teams.Clear();
-        foreach (ScoutingReportTeamRow row in rows)
+        _reselecting = true;
+        try
         {
-            Teams.Add(row);
+            Teams.Clear();
+            foreach (ScoutingReportTeamRow row in rows)
+            {
+                Teams.Add(row);
+            }
+
+            SelectedTeam = keep is { } id ? Teams.FirstOrDefault(t => t.Id == id) : null;
+        }
+        finally
+        {
+            _reselecting = false;
         }
 
         OnPropertyChanged(nameof(HasTeams));
         OnPropertyChanged(nameof(IsAwaitingTeam));
-        SelectedTeam = keep is { } id ? Teams.FirstOrDefault(t => t.Id == id) : null;
-        if (keep is not null && SelectedTeam is null)
+        if (SelectedTeam is { } kept)
         {
-            Project();
+            OnPropertyChanged(nameof(TeamName));
+            if (ProjectionKey(kept) != _projectedKey)
+            {
+                Project();
+            }
+        }
+        else if (keep is not null)
+        {
+            TeamChanged(null);
         }
     }
 
