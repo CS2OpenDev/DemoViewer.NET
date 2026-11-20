@@ -1869,13 +1869,19 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         bool didParse = parsed is not null;
-        FinishEntry(entry, parsed, failure, cancel.Token); // runs passes OUTSIDE _sync, still inside the slot
-        lock (_sync)
+        try
         {
-            entry.Cancel = null;
+            FinishEntry(entry, parsed, failure, cancel.Token); // runs passes OUTSIDE _sync, still inside the slot
         }
+        finally
+        {
+            lock (_sync)
+            {
+                entry.Cancel = null;
+            }
 
-        cancel.Dispose();
+            cancel.Dispose();
+        }
 
         lock (_sync)
         {
@@ -1980,13 +1986,15 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         RaiseChanged();
-        if (!cancelled)
+        DemoQueueItemState state = DemoQueueItemState.Completed;
+        string? error = null;
+        try
         {
-            using IDisposable collecting =
-                _visitCollectors.Begin(open.Path, merged.Collectors(), merged.ChooseMode(false).Needs);
-            foreach (VisitPass p in merged.Ordered())
+            if (!cancelled)
             {
-                RunPass(p,
+                using IDisposable collecting =
+                    _visitCollectors.Begin(open.Path, merged.Collectors(), merged.ChooseMode(false).Needs);
+                RunPasses(merged.Ordered(), () =>
                     new PassInput(merged.Demo, PassLevel.OpenDemo, parsed, null, ct)
                     {
                         RetainedCollected = RetainedCollected(parsed, open.Path),
@@ -1996,15 +2004,24 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                     });
             }
         }
-
-        if (_parseReleased is { } released)
+        catch (Exception ex)
         {
-            SafeInvoke(() => released(parsed));
+            state = DemoQueueItemState.Failed;
+            error = ex.Message;
+            throw;
         }
-
-        foreach (Entry visit in visits)
+        finally
         {
-            SetTerminal(visit, DemoQueueItemState.Completed, null);
+            // The visits end whatever a pass let through, as in FinishEntry.
+            if (_parseReleased is { } released)
+            {
+                SafeInvoke(() => released(parsed));
+            }
+
+            foreach (Entry visit in visits)
+            {
+                SetTerminal(visit, state, error);
+            }
         }
     }
 
@@ -2059,18 +2076,23 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         // The source stays on the entry through the passes, so a remove during their turn still reaches them.
-        FinishForward(entry, pass, failure, cancelled, cancel.Token);
-
-        lock (_sync)
+        try
         {
-            // A requeued read may already be running again on another worker, under that run's own source.
-            if (ReferenceEquals(entry.Cancel, cancel))
-            {
-                entry.Cancel = null;
-            }
+            FinishForward(entry, pass, failure, cancelled, cancel.Token);
         }
+        finally
+        {
+            lock (_sync)
+            {
+                // A requeued read may already be running again on another worker, under that run's own source.
+                if (ReferenceEquals(entry.Cancel, cancel))
+                {
+                    entry.Cancel = null;
+                }
+            }
 
-        cancel.Dispose();
+            cancel.Dispose();
+        }
 
         lock (_sync)
         {
@@ -2130,9 +2152,14 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             return;
         }
 
-        foreach (VisitPass p in passes)
+        try
         {
-            RunPass(p, new PassInput(demo, level, null, pass!, token) { TableOf = TableOf });
+            RunPasses(passes, () => new PassInput(demo, level, null, pass!, token) { TableOf = TableOf });
+        }
+        catch (Exception ex)
+        {
+            SetTerminal(entry, DemoQueueItemState.Failed, ex.Message);
+            throw;
         }
 
         SetTerminal(entry, DemoQueueItemState.Completed, null);
@@ -2147,6 +2174,12 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         try
         {
             interest = p.Pass.Interest(input.Demo, input.Level);
+        }
+        catch (OutOfMemoryException ex)
+        {
+            // Not swallowed here, but the submitter still hears that its pass ended.
+            EndPass(p, PassOutcome.Failed, ex);
+            throw;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -2176,6 +2209,11 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             EndPass(p, PassOutcome.Cancelled, ex);
             return;
         }
+        catch (OutOfMemoryException ex)
+        {
+            EndPass(p, PassOutcome.Failed, ex);
+            throw;
+        }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             AppLog.QueueOwnerHandlerFailed(DiagLog, ex);
@@ -2184,6 +2222,32 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         EndPass(p, PassOutcome.Ran, null);
+    }
+
+    // A visit's passes, each in its turn. What RunPass lets through (out of memory) ended the pass it came
+    // from; the passes behind it are ended here, so no submitter waits on a visit that is over, and the
+    // exception goes on to the caller, which ends the entry.
+    private static void RunPasses(IReadOnlyList<VisitPass> passes, Func<PassInput> input)
+    {
+        int next = 0;
+        try
+        {
+            while (next < passes.Count)
+            {
+                PassInput turn = input();
+                RunPass(passes[next++], turn);
+            }
+        }
+        catch (Exception ex)
+        {
+            for (; next < passes.Count; next++)
+            {
+                EndPass(passes[next], PassOutcome.Failed, ex);
+            }
+
+            AppLog.QueueOwnerHandlerFailed(DiagLog, ex);
+            throw;
+        }
     }
 
     private static void FailPasses(IReadOnlyList<VisitPass> passes, VisitedDemo demo, Exception failure)
@@ -2551,16 +2615,18 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             w.TrySetResult(parsed!);
         }
 
-        if (cancelled)
+        DemoQueueItemState state = cancelled ? DemoQueueItemState.Cancelled : DemoQueueItemState.Completed;
+        string? error = null;
+        try
         {
-            EndPasses(passes, PassOutcome.Cancelled);
-        }
-        else
-        {
-            using IDisposable collecting = _visitCollectors.Begin(demo.Path, collectors, needs);
-            foreach (VisitPass p in passes)
+            if (cancelled)
             {
-                RunPass(p,
+                EndPasses(passes, PassOutcome.Cancelled);
+            }
+            else
+            {
+                using IDisposable collecting = _visitCollectors.Begin(demo.Path, collectors, needs);
+                RunPasses(passes, () =>
                     new PassInput(demo, level, parsed!, null, token)
                     {
                         RetainedCollected = RetainedCollected(parsed!, demo.Path),
@@ -2570,13 +2636,23 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                     });
             }
         }
-
-        if (_parseReleased is { } released)
+        catch (Exception ex)
         {
-            SafeInvoke(() => released(parsed!));
+            state = DemoQueueItemState.Failed;
+            error = ex.Message;
+            throw;
         }
+        finally
+        {
+            // The entry ends whatever a pass let through: left Running it would hold the heavy lane, and
+            // everyone waiting on its Completion, for the rest of the session.
+            if (_parseReleased is { } released)
+            {
+                SafeInvoke(() => released(parsed!));
+            }
 
-        SetTerminal(entry, cancelled ? DemoQueueItemState.Cancelled : DemoQueueItemState.Completed, null);
+            SetTerminal(entry, state, error);
+        }
     }
 
     private void SetTerminal(Entry entry, DemoQueueItemState state, string? error)
