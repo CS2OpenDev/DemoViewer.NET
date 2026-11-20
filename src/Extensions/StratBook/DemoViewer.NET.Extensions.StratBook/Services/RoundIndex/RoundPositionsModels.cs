@@ -140,7 +140,10 @@ public sealed class RoundPositionsDocument
     {
         try
         {
-            return JsonSerializer.Deserialize<RoundPositionsDocument>(json, JsonOptions);
+            return JsonSerializer.Deserialize<RoundPositionsDocument>(json, JsonOptions) is { } document
+                && IsWellFormed(document)
+                    ? document
+                    : null;
         }
         catch (JsonException)
         {
@@ -154,13 +157,26 @@ public sealed class RoundPositionsDocument
     {
         try
         {
-            return JsonSerializer.Deserialize<RoundPositionsDocument>(utf8, JsonOptions);
+            return JsonSerializer.Deserialize<RoundPositionsDocument>(utf8, JsonOptions) is { } document
+                && IsWellFormed(document)
+                    ? document
+                    : null;
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    // A part can come from someone else's bundle. JSON null lands in a property and in a list as it is, and the
+    // readers compare the demo's hash and walk the rounds, the steps and the players without a null check, so a
+    // part with either reads as one that does not parse.
+    private static bool IsWellFormed(RoundPositionsDocument document) =>
+        document.Demo is not null
+        && document.Places is { } places && !places.Contains(null!)
+        && document.Players is { } players && !players.Contains(null!)
+        && document.Rounds is { } rounds
+        && rounds.TrueForAll(static round => round is { Ct: not null, Pos: not null } && !round.Pos.Contains(null!));
 }
 
 /// <summary>The join keys, so a reader with a hash can refuse a file that belongs to another demo.</summary>

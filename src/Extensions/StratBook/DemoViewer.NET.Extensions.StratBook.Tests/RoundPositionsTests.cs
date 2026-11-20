@@ -376,6 +376,34 @@ public class RoundPositionsTests
         }
     }
 
+    // One member of a valid file replaced by what a bundle from elsewhere can carry in its place.
+    [Test]
+    [Arguments("\"demo\":{", "\"demo\":null,\"was\":{")]
+    [Arguments("\"places\":[", "\"places\":null,\"was\":[")]
+    [Arguments("\"places\":[", "\"places\":[null,")]
+    [Arguments("\"rounds\":[", "\"rounds\":null,\"was\":[")]
+    [Arguments("\"rounds\":[", "\"rounds\":[null,")]
+    [Arguments("\"players\":[", "\"players\":null,\"was\":[")]
+    [Arguments("\"players\":[", "\"players\":[null,")]
+    [Arguments("\"ct\":[", "\"ct\":null,\"was\":[")]
+    [Arguments("\"pos\":[", "\"pos\":null,\"was\":[")]
+    [Arguments("\"pos\":[", "\"pos\":[null,")]
+    public async Task AFileCarryingANull_WhereItsShapeHasNone_IsAFileThatDoesNotParse(string member, string broken)
+    {
+        RoundPositionsDocument document = FixtureDocument();
+        document.Players = [new RoundPositionsPlayer(0, 1, "n")];
+        string valid = document.Serialize();
+        string json = valid.Replace(member, broken, StringComparison.Ordinal);
+        await Assert.That(json).Contains(broken);
+        using (Assert.Multiple())
+        {
+            await Assert.That(RoundPositionsDocument.TryDeserialize(valid)).IsNotNull();
+            await Assert.That(RoundPositionsDocument.TryDeserialize(json)).IsNull();
+            await Assert.That(RoundPositionsDocument.TryDeserialize(System.Text.Encoding.UTF8.GetBytes(json)))
+                .IsNull();
+        }
+    }
+
     // The round-index-format.md example: round 3 on nuke, two sampled steps, slots on both sides.
     private static RoundPositionsDocument FixtureDocument() => new()
     {
