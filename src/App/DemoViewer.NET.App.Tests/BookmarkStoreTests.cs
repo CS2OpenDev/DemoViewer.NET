@@ -133,4 +133,36 @@ public class BookmarkStoreTests
             Cleanup(file);
         }
     }
+
+    /// <summary>
+    ///     A file that does not read is not an empty one. The save that follows keeps its bytes aside instead
+    ///     of replacing every demo's bookmarks with the one list in hand.
+    /// </summary>
+    [Test]
+    public async Task ASaveOverAFileThatDoesNotRead_KeepsItAside()
+    {
+        string file = TempFile();
+        try
+        {
+            const string Cut = "{\"demo-other\":[{\"FrameIndex\":12,\"Tick\":640,\"Label\":\"entry";
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            await File.WriteAllTextAsync(file, Cut);
+            BookmarkStore store = new(file);
+            await Assert.That(store.Load(DemoA).Count).IsEqualTo(0).Because("a load is still best-effort");
+
+            store.Save(DemoA, [new Bookmark(1, 10, "a")]);
+
+            string[] aside = Directory.GetFiles(Path.GetDirectoryName(file)!, Path.GetFileName(file) + ".unreadable-*");
+            using (Assert.Multiple())
+            {
+                await Assert.That(aside.Length).IsEqualTo(1);
+                await Assert.That(aside.Length == 1 ? await File.ReadAllTextAsync(aside[0]) : null).IsEqualTo(Cut);
+                await Assert.That(store.Load(DemoA).Single().Label).IsEqualTo("a");
+            }
+        }
+        finally
+        {
+            Cleanup(file);
+        }
+    }
 }

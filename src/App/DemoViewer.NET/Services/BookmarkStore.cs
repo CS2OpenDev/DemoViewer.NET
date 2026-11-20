@@ -65,7 +65,14 @@ public sealed class BookmarkStore
 
         try
         {
-            Dictionary<string, List<Bookmark>> all = ReadAll();
+            // A file that is there but did not read is moved aside before anything is written: it was read as
+            // empty, so writing over it would replace every demo's bookmarks with the one list in hand. When
+            // it cannot be moved the throw ends the save.
+            if (!TryReadAll(out Dictionary<string, List<Bookmark>> all))
+            {
+                File.Move(_path, $"{_path}.unreadable-{DateTime.UtcNow.Ticks}");
+            }
+
             if (bookmarks.Count > 0)
             {
                 all[demoKey] = [.. bookmarks];
@@ -75,8 +82,7 @@ public sealed class BookmarkStore
                 all.Remove(demoKey);
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            File.WriteAllText(_path, JsonSerializer.Serialize(all, _writeOptions));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(all, _writeOptions));
         }
         catch
         {
@@ -86,21 +92,32 @@ public sealed class BookmarkStore
 
     private Dictionary<string, List<Bookmark>> ReadAll()
     {
-        Dictionary<string, List<Bookmark>> all = new(StringComparer.Ordinal);
+        TryReadAll(out Dictionary<string, List<Bookmark>> all);
+        return all;
+    }
+
+    // False when the file is there but does not read, which a save has to tell apart from no file. The map is
+    // empty then, as it is for a load.
+    private bool TryReadAll(out Dictionary<string, List<Bookmark>> all)
+    {
+        all = new Dictionary<string, List<Bookmark>>(StringComparer.Ordinal);
         if (_path is null || !File.Exists(_path))
         {
-            return all;
+            return true;
         }
 
         try
         {
-            return JsonSerializer.Deserialize<Dictionary<string, List<Bookmark>>>(File.ReadAllText(_path)) is { } read
-                ? new Dictionary<string, List<Bookmark>>(read, StringComparer.Ordinal)
-                : all;
+            if (JsonSerializer.Deserialize<Dictionary<string, List<Bookmark>>>(File.ReadAllText(_path)) is { } read)
+            {
+                all = new Dictionary<string, List<Bookmark>>(read, StringComparer.Ordinal);
+            }
+
+            return true;
         }
         catch
         {
-            return all; // bookmark restore is best-effort
+            return false; // bookmark restore is best-effort
         }
     }
 }
