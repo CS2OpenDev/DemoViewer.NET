@@ -314,6 +314,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // resumes + the active tab), consumed once by ResumeFromIdle. Null when not idle, or when nothing was open.
     private IdleResumeState? _idleResume;
 
+    // The demo close idle entry started. ResumeFromIdleAsync awaits it before reopening anything.
+    private Task _idleClose = Task.CompletedTask;
+
     /// <summary>Toolbar toggle: show/hide the right-side debugger panel.</summary>
     [ObservableProperty]
     private bool _isDebuggerPanelVisible;
@@ -4100,10 +4103,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             IsIdle = true;
 
             // Drop resource usage: the deterministic close (awaits the library fan-out, then an aggressive
-            // compacting reclaim). Guarded so an idle with nothing open pays nothing.
+            // compacting reclaim). Guarded so an idle with nothing open pays nothing. Kept so a Resume pressed
+            // while it still drains waits for it rather than reloading under it.
             if (HasFile)
             {
-                await CloseDemoAsync();
+                _idleClose = CloseDemoAsync();
+                await _idleClose;
             }
         }
         catch (Exception ex)
@@ -4129,6 +4134,19 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (_settings?.CurrentValue.Idle.KeepBackgroundProcessing == false)
         {
             _processingQueue?.Resume();
+        }
+
+        // After the queue resumes, which a close parked with background processing may be waiting on. A close
+        // still draining the old demo would otherwise finish after the reload below, write "No demo loaded."
+        // over it and run its compacting collection with the new demo live; its holds wait would even pick up
+        // the new demo's holds, the counter being shared.
+        try
+        {
+            await _idleClose;
+        }
+        catch
+        {
+            // EnterIdleModeAsync already logged it; the resume goes ahead.
         }
 
         if (_idleResume is not { } resume)
