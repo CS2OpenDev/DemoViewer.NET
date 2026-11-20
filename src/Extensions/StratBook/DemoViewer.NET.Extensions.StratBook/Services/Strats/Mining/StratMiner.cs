@@ -275,6 +275,7 @@ public static class StratMiner
             }
         }
 
+        SeparateTwins(patterns);
         return
         [
             .. patterns
@@ -282,6 +283,49 @@ public static class StratMiner
                 .ThenBy(p => p.Spread)
                 .ThenBy(p => p.Key, StringComparer.Ordinal)
         ];
+    }
+
+    // PatternKey names places and the clustering tells positions inside one place apart, so two clusters of a
+    // group can come out with one key, and the inbox finds, dismisses and promotes a pattern by its key. Such
+    // twins each get a key of their own: the shared key with the medoid's 512-unit cells at every anchor, and
+    // for twins standing in the same cells, with the medoid round, which no two clusters share. Every twin is
+    // rekeyed, none keeps the shared key, so the order they were mined in never hands one twin's dismissal to
+    // the other; state under the shared key moves with StratMiningService.KeyMoves.
+    private static void SeparateTwins(List<MinedPattern> patterns)
+    {
+        Func<MinedPattern, string>[] finer =
+        [
+            p => string.Join(";", p.Medoid.Anchors.Select(a => string.Join(",",
+                a.Select(pawn => Cell(new WorldPoint(pawn.X, pawn.Y, pawn.Z))).Order(StringComparer.Ordinal)))),
+            p => $"{p.Medoid.Sha256 ?? p.Medoid.DemoPath}#{p.Medoid.Round}"
+        ];
+        foreach (Func<MinedPattern, string> detail in finer)
+        {
+            List<int> twins =
+            [
+                .. Enumerable.Range(0, patterns.Count)
+                    .GroupBy(i => patterns[i].Key, StringComparer.Ordinal)
+                    .Where(g => g.Count() > 1)
+                    .SelectMany(g => g)
+            ];
+            foreach (int i in twins)
+            {
+                MinedPattern p = patterns[i];
+                patterns[i] = new MinedPattern
+                {
+                    Key = Hash(p.Key + "|" + detail(p)),
+                    Kind = p.Kind,
+                    Map = p.Map,
+                    Side = p.Side,
+                    Site = p.Site,
+                    Members = p.Members,
+                    Medoid = p.Medoid,
+                    Spread = p.Spread,
+                    UtilityCompared = p.UtilityCompared,
+                    CommonThrows = p.CommonThrows
+                };
+            }
+        }
     }
 
     /// <summary>Rounds of two demos this close (same round number, side and kind) are one demo copied.</summary>
@@ -508,8 +552,11 @@ public static class StratMiner
             .Order(StringComparer.Ordinal);
         string text = string.Join("|", medoid.Map.ToLowerInvariant(), medoid.Side, medoid.Kind, medoid.Site ?? "",
             string.Join(",", throws), string.Join(",", places));
-        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)).AsSpan(0, 8));
+        return Hash(text);
     }
+
+    private static string Hash(string text) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)).AsSpan(0, 8));
 
     // One mine's distance matrices, grown to the largest group and reused for the rest.
     private sealed class Scratch
