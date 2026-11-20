@@ -622,6 +622,66 @@ public class SettingsServiceTests
         }
     }
 
+    // What a user leaves behind after editing the file by hand: a comment and a trailing comma, both of which
+    // the configuration loader reads without complaint.
+    private const string HandEdited =
+        """
+        {
+          // my settings
+          "Theme": "Light",
+          "FirstRunCompleted": true,
+          "Library": { "Folders": ["/demos/major"] },
+        }
+        """;
+
+    /// <summary>
+    ///     A file the loader accepts is a file the writers must merge into. Reading it more strictly than the
+    ///     loader does makes each save start from nothing and replace everything else the file held.
+    /// </summary>
+    [Test]
+    [Arguments("recents")]
+    [Arguments("session")]
+    [Arguments("preference")]
+    public async Task AHandEditedFileTheLoaderAccepts_KeepsItsOtherSectionsAcrossASave(string writer)
+    {
+        string dir = NewTempDir();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), HandEdited);
+            SettingsService svc = new(dir);
+            using (Assert.Multiple())
+            {
+                await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+                await Assert.That(svc.NeedsFirstRun).IsFalse();
+            }
+
+            switch (writer)
+            {
+                case "recents":
+                    svc.SaveRecents([new RecentFile("/demos/a.dem", null, DateTime.UtcNow)]);
+                    break;
+                case "session":
+                    svc.SaveSession(new SessionPayload(null, null, null, false, false, "library"));
+                    break;
+                default:
+                    svc.Write(s => s.UserCategory = UserCategory.Developer);
+                    break;
+            }
+
+            SettingsService fresh = new(dir);
+            using (Assert.Multiple())
+            {
+                await Assert.That(fresh.Current.Theme).IsEqualTo("Light");
+                await Assert.That(fresh.NeedsFirstRun).IsFalse();
+                await Assert.That(string.Join("|", fresh.Current.Library.Folders)).IsEqualTo("/demos/major");
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     /// <summary>
     ///     The fileless (WASM) path persists neither session nor recents: the saves no-op and the loads
     ///     return empty, matching the pre-consolidation in-memory-only behavior. A <c>null</c> config dir

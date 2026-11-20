@@ -42,10 +42,21 @@ public sealed class SettingsService
     /// </summary>
     public const int RecentsFormatVersion = 2;
 
-    // Reused per CA1869: constructing JsonSerializerOptions per call is expensive.
+    // Reused per CA1869: constructing JsonSerializerOptions per call is expensive. The two read settings are
+    // the configuration loader's: it skips comments and takes trailing commas, and a file it accepts has to
+    // read here too, or a write starts from nothing and replaces everything the file held.
     private static readonly JsonSerializerOptions _serializerOptions = new()
     {
-        WriteIndented = true, Converters = { new JsonStringEnumConverter() }
+        WriteIndented = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    // The same leniency for the node reads, which take document options rather than serializer options.
+    private static readonly JsonDocumentOptions _documentOptions = new()
+    {
+        CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true
     };
 
     // In-memory provider backing the WASM / no-filesystem path; null on desktop. A resettable variant
@@ -415,7 +426,8 @@ public sealed class SettingsService
 
         try
         {
-            return JsonNode.Parse(File.ReadAllText(_settingsPath)) as JsonObject ?? new JsonObject();
+            return JsonNode.Parse(File.ReadAllText(_settingsPath), documentOptions: _documentOptions) as JsonObject
+                ?? new JsonObject();
         }
         catch
         {
