@@ -1,5 +1,6 @@
 #region
 
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DemoViewer.NET.Playback2D.Annotations;
@@ -622,6 +623,33 @@ public class AnnotationStoreTests
 
         await Assert.That(saved).IsFalse();
         await Assert.That(File.Exists(path + ".tmp")).IsFalse();
+    }
+
+    /// <summary>
+    ///     A <c>null</c> in either document's element list is dropped, not dereferenced. The merge runs
+    ///     inside a library import, where anything but a <see cref="JsonException" /> ends the whole run
+    ///     rather than this one demo's annotations.
+    /// </summary>
+    [Test]
+    public async Task MergeDocuments_DropsANullElement_FromEitherSide_AndKeepsTheRest()
+    {
+        byte[] mine = Encoding.UTF8.GetBytes(
+            """{"schemaVersion":1,"demo":{"sha256":"x"},"elements":[{"id":"a","kind":"stroke"},null]}""");
+        byte[] theirs = Encoding.UTF8.GetBytes(
+            """{"schemaVersion":1,"demo":{"sha256":"x"},"elements":[null,{"id":"a","kind":"stroke"},{"id":"b","kind":"stroke"}]}""");
+
+        byte[] merged = AnnotationStore.MergeDocuments(mine, theirs);
+
+        using JsonDocument document = JsonDocument.Parse(merged);
+        JsonElement elements = document.RootElement.GetProperty("elements");
+        List<string?> ids = [];
+        foreach (JsonElement element in elements.EnumerateArray())
+        {
+            await Assert.That(element.ValueKind).IsEqualTo(JsonValueKind.Object);
+            ids.Add(element.GetProperty("id").GetString());
+        }
+
+        await Assert.That(string.Join(",", ids)).IsEqualTo("a,b");
     }
 
     [Test]

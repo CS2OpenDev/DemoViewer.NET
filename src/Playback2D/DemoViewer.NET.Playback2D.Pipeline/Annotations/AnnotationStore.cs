@@ -445,9 +445,18 @@ public sealed class AnnotationStore
             JsonSerializer.Deserialize(theirs, AnnotationJsonContext.Default.AnnotationDocumentDto)
             ?? throw new JsonException("Empty annotation document.");
         into.Elements ??= [];
+
+        // A JSON null deserializes to a null entry. It is nobody's annotation, so it is left out of the
+        // merged document rather than failing the merge and costing the elements beside it.
+        into.Elements.RemoveAll(static e => e is null);
         HashSet<string> ids = new(into.Elements.Select(e => e.Id).OfType<string>(), StringComparer.OrdinalIgnoreCase);
-        foreach (AnnotationElementDto element in from.Elements ?? [])
+        foreach (AnnotationElementDto? element in from.Elements ?? [])
         {
+            if (element is null)
+            {
+                continue;
+            }
+
             if (element.Id is null || ids.Add(element.Id))
             {
                 into.Elements.Add(element);
