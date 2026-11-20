@@ -1,6 +1,12 @@
 # Real-GPU render lane, dispatch only. Needs a self-hosted Windows runner carrying the labels
 # below; with none registered a dispatch queues until it is cancelled. Must never be a required
 # check.
+#
+# Dispatch-only does NOT confine the runner. Labels are not bound to a workflow file: any run in
+# this public repository can ask for [self-hosted, windows, gpu], including a pull_request run of
+# ci.yml whose PR edits its runs-on. Before registering the machine, put it in a runner group
+# limited to this workflow at refs/heads/main (or make it ephemeral, one JIT runner per dispatch),
+# and set fork pull request workflows to require approval for all outside collaborators.
 name: gpu
 
 on:
