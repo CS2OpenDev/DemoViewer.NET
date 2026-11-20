@@ -289,6 +289,13 @@ public sealed class SceneExportSession
         // Exactly one terminal report, on every path, is the contract.
         try
         {
+            // A sink closed after a failed or cancelled run would otherwise finalise what it has: a
+            // shorter file that plays, at the path of a job that is about to be reported Failed.
+            if (failure is not null && sink is IAbortableFrameSink abortable)
+            {
+                abortable.Abort();
+            }
+
             await sink.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception ex)

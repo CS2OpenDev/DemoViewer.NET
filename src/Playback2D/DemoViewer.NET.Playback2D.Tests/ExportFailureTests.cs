@@ -1,11 +1,13 @@
 #region
 
 using System.Diagnostics;
+using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using SkiaSharp;
 using TUnit.Core.Exceptions;
 
 #endregion
@@ -158,6 +160,89 @@ public class ExportFailureTests
     }
 
     /// <summary>
+    ///     A run that fails half way must not leave a file that looks finished.
+    ///     <para>
+    ///         The session closes the sink on every path, and closing is where a GIF is written and
+    ///         where ffmpeg muxes. Before the fix a render failure at frame 5 of 12 therefore finalised a
+    ///         five-frame file that plays normally, at the path of a job reported Failed.
+    ///     </para>
+    /// </summary>
+    [Test]
+    public async Task ARenderFailureMidRun_LeavesNoGif()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-fail-{Guid.NewGuid():N}.gif");
+
+        try
+        {
+            using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
+            using CpuSurfaceProvider surfaces = new();
+
+            Exception? failure = null;
+            try
+            {
+                await new SceneExportSession(compositor).RunAsync(
+                    ExportFixtures.Request(12, ExportFormats.Gif, new SKSizeI(64, 48), fps: 20),
+                    new FailingFrameSource(ExportFixtures.Source(12), 5), new ManagedGifSink(path, 20),
+                    surfaces, null, CancellationToken.None);
+            }
+            catch (InvalidOperationException ex)
+            {
+                failure = ex;
+            }
+
+            await Assert.That(failure).IsNotNull();
+            await Assert.That(File.Exists(path)).IsFalse();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>The same failure through the subprocess sink: ffmpeg is stopped, not allowed to mux.</summary>
+    [Test]
+    [Category("Integration")]
+    public async Task ARenderFailureMidRun_LeavesNoFfmpegOutput()
+    {
+        FfmpegLocation located = FfmpegLocator.Locate(null);
+        if (!located.Found)
+        {
+            throw new SkipTestException("no ffmpeg on PATH; the subprocess sink cannot be exercised");
+        }
+
+        string path = Path.Combine(Path.GetTempPath(), $"dv-fail-{Guid.NewGuid():N}.webm");
+
+        try
+        {
+            using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
+            using CpuSurfaceProvider surfaces = new();
+
+            Exception? failure = null;
+            try
+            {
+                await new SceneExportSession(compositor).RunAsync(
+                    ExportFixtures.Request(40, ExportFormats.WebM, new SKSizeI(64, 48), fps: 30),
+                    new FailingFrameSource(ExportFixtures.Source(40), 30),
+                    new FfmpegFrameSink(new FfmpegSinkOptions(path, ExportFormats.WebM, 64, 48, 30,
+                        located.Directory)),
+                    surfaces, null, CancellationToken.None);
+            }
+            catch (InvalidOperationException ex)
+            {
+                failure = ex;
+            }
+
+            await Assert.That(failure).IsNotNull();
+            await Assert.That(failure!.Message).IsEqualTo("the demo could not be decoded");
+            await Assert.That(File.Exists(path)).IsFalse();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
     ///     A sink that only fails when it is closed must fail the run.
     ///     <para>
     ///         This is the partial-file lie: every frame rendered, so the loop succeeded, but the
@@ -256,6 +341,19 @@ public class ExportFailureTests
     private sealed class DirectProgress(Action<ExportProgress> report) : IProgress<ExportProgress>
     {
         public void Report(ExportProgress value) => report(value);
+    }
+
+    /// <summary>A source that stops producing frames part way through, as a corrupt demo region does.</summary>
+    private sealed class FailingFrameSource(ISceneFrameSource inner, int failAtFrame) : ISceneFrameSource
+    {
+        public int FrameCount => inner.FrameCount;
+
+        public SceneTime TimeAt(int frameIndex) => inner.TimeAt(frameIndex);
+
+        public Scene2DFrame FrameAt(int frameIndex) =>
+            frameIndex >= failAtFrame
+                ? throw new InvalidOperationException("the demo could not be decoded")
+                : inner.FrameAt(frameIndex);
     }
 
     /// <summary>Accepts every frame and then fails on close, a container that will not mux.</summary>

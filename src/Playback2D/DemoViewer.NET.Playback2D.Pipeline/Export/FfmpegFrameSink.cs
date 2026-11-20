@@ -32,7 +32,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///         keeps <c>BinaryFolder</c> off <c>GlobalFFOptions</c>.
 ///     </para>
 /// </param>
-/// <param name="DeletePartialOnCancel">Remove a half-written file when the export is cancelled.</param>
+/// <param name="DeletePartialOnCancel">Remove a half-written file when the export is cancelled or fails part way.</param>
 /// <param name="Log">Optional line sink for ffmpeg's stderr.</param>
 public sealed record FfmpegSinkOptions(
     string OutputPath,
@@ -72,7 +72,7 @@ public sealed record FfmpegSinkOptions(
 ///         it stops the process, removes the output, and throws <see cref="FfmpegEncodeException" />.
 ///     </para>
 /// </summary>
-public sealed class FfmpegFrameSink : IFrameSink
+public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
 {
     /// <summary>How many trailing stderr lines are kept to explain a failure.</summary>
     private const int StderrTailLines = 6;
@@ -89,6 +89,7 @@ public sealed class FfmpegFrameSink : IFrameSink
     private readonly ChannelVideoFrameSource _frames = new();
     private readonly FfmpegSinkOptions _options;
     private readonly Queue<string> _stderrTail = new(StderrTailLines);
+    private bool _aborted;
     private bool _disposed;
     private Task<bool>? _encoder;
     private CancellationTokenSource? _kill;
@@ -166,6 +167,25 @@ public sealed class FfmpegFrameSink : IFrameSink
         }
     }
 
+    /// <summary>
+    ///     Stops ffmpeg where it is, so the disposal that follows removes the output rather than muxing it.
+    ///     <para>
+    ///         Without this a run that failed for a reason of its own (a frame that would not decode)
+    ///         still ended its stream cleanly, and a clean end of stream is what tells ffmpeg to
+    ///         finalise the container: a shorter video that plays, where a failed export was reported.
+    ///     </para>
+    /// </summary>
+    void IAbortableFrameSink.Abort()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _aborted = true;
+        _kill?.Cancel();
+    }
+
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
@@ -176,7 +196,7 @@ public sealed class FfmpegFrameSink : IFrameSink
 
         _disposed = true;
 
-        bool cancelled = _kill?.IsCancellationRequested ?? false;
+        bool cancelled = _aborted || (_kill?.IsCancellationRequested ?? false);
         _frames.Complete();
 
         if (_encoder is not null)

@@ -24,3 +24,21 @@ public interface IFrameSink : IAsyncDisposable
     /// <param name="ct">Cancels the write; the sink is still disposed afterwards.</param>
     ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct);
 }
+
+/// <summary>
+///     A sink that can be told its run has failed, before it is disposed.
+///     <para>
+///         Disposal is where a sink finalises its output, and it is called on every path. A sink that
+///         cannot tell a finished run from a failed one finalises both: a render failure half way
+///         through leaves a shorter file that plays normally at the path of a job reported Failed.
+///     </para>
+///     <para>
+///         Internal, and separate from <see cref="IFrameSink" />: that interface is published, and a
+///         caller's own sink owes this nothing. <c>SceneExportSession</c> asks for it by type.
+///     </para>
+/// </summary>
+internal interface IAbortableFrameSink
+{
+    /// <summary>Marks the run failed or cancelled, so the following disposal leaves no output behind.</summary>
+    void Abort();
+}

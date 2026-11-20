@@ -26,7 +26,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///         33.3 fps.
 ///     </para>
 /// </summary>
-public sealed class ManagedGifSink : IFrameSink
+public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink
 {
     private readonly int _maxFrames;
     private readonly string _outputPath;
@@ -157,6 +157,9 @@ public sealed class ManagedGifSink : IFrameSink
 
     /// <summary>Marks the export cancelled so <see cref="DisposeAsync" /> writes nothing.</summary>
     public void Cancel() => _cancelled = true;
+
+    /// <inheritdoc />
+    void IAbortableFrameSink.Abort() => _cancelled = true;
 
     private void Write(byte[] palette)
     {
