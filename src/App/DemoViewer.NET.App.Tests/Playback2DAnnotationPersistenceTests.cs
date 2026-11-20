@@ -1,5 +1,6 @@
 #region
 
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Avalonia.Threading;
 using DemoViewer.NET.Configuration;
@@ -284,6 +285,52 @@ public class Playback2DAnnotationPersistenceTests
         await Assert.That(browser.StatusText).DoesNotContain(".dvann.json");
         await Assert.That(browser.StatusText).Contains("session only");
         await Assert.That(browser.StatusText).Contains("reload");
+    }
+
+    /// <summary>
+    ///     The browser head has one thread, so the blocking flush a tab deactivation calls cannot wait on
+    ///     a save that resumes on the pool: the wait throws or never ends. Holding the save serializer
+    ///     stands in for that missing second thread; the flush has to return anyway, and the save still
+    ///     lands once the serializer frees up.
+    /// </summary>
+    [Test]
+    public async Task Controller_OnBrowser_BlockingFlushDoesNotWaitOnTheSave()
+    {
+        using TempDemo demo = new();
+        using AnnotationSessionController controller =
+            new(new AnnotationStore(demo.AppData), null, static () => true)
+            {
+                AutoSaveDelay = TimeSpan.FromSeconds(30)
+            };
+
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
+
+        SemaphoreSlim serializer = (SemaphoreSlim)typeof(AnnotationSessionController)
+            .GetField("_saveSerializer", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(controller)!;
+        await serializer.WaitAsync();
+        bool returned;
+        try
+        {
+            Task flush = Task.Run(controller.Flush);
+            returned = await Task.WhenAny(flush, Task.Delay(TimeSpan.FromSeconds(5))) == flush;
+        }
+        finally
+        {
+            serializer.Release();
+        }
+
+        await Assert.That(returned).IsTrue()
+            .Because("a blocking wait on the single-threaded WASM runtime throws or hangs the tab switch");
+
+        for (int i = 0; i < 100 && controller.SaveCount == 0; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        await Assert.That(controller.SaveCount).IsEqualTo(1)
+            .Because("the flush still writes, it just does not wait for the write");
     }
 
     /// <summary>

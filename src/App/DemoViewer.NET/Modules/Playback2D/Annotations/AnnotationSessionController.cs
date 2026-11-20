@@ -347,13 +347,24 @@ public sealed class AnnotationSessionController : IDisposable
     ///     <para>
     ///         Deliberately synchronous. A fire-and-forget flush at shutdown races the process exit, and
     ///         losing the stroke someone drew ten seconds before quitting is exactly the failure the
-    ///         autosave exists to prevent. Every await inside is <c>ConfigureAwait(false)</c>, so there is
-    ///         no context to deadlock on, and the payload is a small JSON file, the same trade
+    ///         autosave exists to prevent. The save always resumes on the pool, so there is no context to
+    ///         deadlock on, and the payload is a small JSON file, the same trade
     ///         <c>SettingsService.SaveSession</c> already makes on this thread.
+    ///     </para>
+    ///     <para>
+    ///         Except on the browser head, which has one thread: the pool continuation can only run once
+    ///         this thread returns to the event loop, so blocking on it throws or never returns. There the
+    ///         flush is started and not waited for; it only reaches the tab's in-memory file system anyway.
     ///     </para>
     /// </summary>
     public void Flush()
     {
+        if (_isBrowser())
+        {
+            _ = FlushWithoutWaitingAsync();
+            return;
+        }
+
         try
         {
             FlushAsync().GetAwaiter().GetResult();
@@ -362,6 +373,21 @@ public sealed class AnnotationSessionController : IDisposable
         {
             // Best-effort by contract: a failed write is a status line, never an exception thrown out
             // of a tab switch.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    // The browser's Flush: the same best-effort contract, with nobody waiting to see the exception.
+    private async Task FlushWithoutWaitingAsync()
+    {
+        try
+        {
+            await FlushAsync().ConfigureAwait(false);
+        }
+        catch (IOException)
+        {
         }
         catch (UnauthorizedAccessException)
         {
