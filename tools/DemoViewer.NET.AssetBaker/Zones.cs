@@ -86,7 +86,9 @@ public static class Zones
 
     /// <summary>
     ///     Reads the volumes and the nav out of the per-map vpk, joins them, and writes
-    ///     <paramref name="outPath" />. <paramref name="floors" /> and <paramref name="bundleMapVersion" />
+    ///     <paramref name="outPath" /> unless a self-check failed, in which case the file already there
+    ///     is left alone and <see cref="Result.Written" /> is false.
+    ///     <paramref name="floors" /> and <paramref name="bundleMapVersion" />
     ///     come from the bundle beside the output (a full bake has just computed them; the top-up mode
     ///     reads them back) so the floor keys match what the app already shows.
     /// </summary>
@@ -168,7 +170,15 @@ public static class Zones
         string json = Write(
             mapName, bundleMapVersion, zonesVersion, bakerVersion, floors, places, placeIds, volumes,
             nav, assignment, areaLinks, adjacency, bombRadius);
-        File.WriteAllText(outPath, json);
+
+        // Only a bake that passed its own checks replaces the file. The checks above are returned as
+        // data rather than thrown, so writing first put a zones.json short a bombsite or a hull
+        // over the committed one and left the caller to notice a line of output.
+        bool written = failures.Count == 0;
+        if (written)
+        {
+            File.WriteAllText(outPath, json);
+        }
 
         string adjacencyText = FormatAdjacency(places, adjacency);
         string diagnostic =
@@ -179,7 +189,7 @@ public static class Zones
             $"unreachable={coverage.Unreachable} multi={coverage.Multi} links={areaLinks.Count} " +
             $"adjacency={adjacency.Count}  version {zonesVersion}  {json.Length / 1024.0:F0} KiB";
 
-        return new Result(coverage, notes, failures, adjacencyText, diagnostic);
+        return new Result(coverage, notes, failures, adjacencyText, diagnostic, written);
     }
 
     /// <summary>
@@ -838,7 +848,8 @@ public static class Zones
         IReadOnlyList<string> Notes,
         IReadOnlyList<string> Failures,
         string AdjacencyText,
-        string Diagnostic);
+        string Diagnostic,
+        bool Written);
 
     /// <summary>One row of the coverage table: how much of the nav mesh the volumes and the flood explain.</summary>
     public sealed record Coverage(

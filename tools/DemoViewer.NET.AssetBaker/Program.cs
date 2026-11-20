@@ -247,6 +247,7 @@ if (args.Contains("--zones"))
 
     List<Zones.Coverage> coverage = [];
     List<string> zoneFailures = [];
+    int zonesWritten = 0;
     foreach (string map in zoneMaps)
     {
         string mapVpk = Path.Combine(zonesMapsSource, map + ".vpk");
@@ -254,12 +255,14 @@ if (args.Contains("--zones"))
         if (!File.Exists(mapVpk))
         {
             Console.WriteLine($"  x {map}: no {map}.vpk in {zonesMapsSource}");
+            zoneFailures.Add($"{map}: no {map}.vpk in {zonesMapsSource}");
             continue;
         }
 
         if (!File.Exists(bundlePath))
         {
             Console.WriteLine($"  x {map}: no bundle.json under {zonesRoot}; run a full bake first");
+            zoneFailures.Add($"{map}: no bundle.json under {zonesRoot}");
             continue;
         }
 
@@ -275,6 +278,15 @@ if (args.Contains("--zones"))
             }
 
             Console.WriteLine(zr.Diagnostic);
+            if (zr.Written)
+            {
+                zonesWritten++;
+            }
+            else
+            {
+                Console.WriteLine("  x zones.json NOT written: a self-check failed, the existing file is unchanged");
+            }
+
             coverage.Add(zr.Coverage);
             zoneFailures.AddRange(zr.Failures);
             if (diag)
@@ -291,7 +303,7 @@ if (args.Contains("--zones"))
         }
     }
 
-    Console.WriteLine($"\n{coverage.Count}/{zoneMaps.Length} zone file(s) baked.");
+    Console.WriteLine($"\n{zonesWritten}/{zoneMaps.Length} zone file(s) baked.");
     if (diag)
     {
         Console.WriteLine("\ncoverage (this bake):");
@@ -519,6 +531,12 @@ void BakeMap(string map)
         foreach (string failure in zr.Failures)
         {
             Console.WriteLine($"  ! zones: {failure}");
+            bakeFailures.Add($"{map}: zones: {failure}");
+        }
+
+        if (!zr.Written)
+        {
+            Console.WriteLine("  zones: zones.json NOT written, the existing file (if any) is unchanged");
         }
 
         if (diag)
@@ -528,7 +546,10 @@ void BakeMap(string map)
     }
     catch (Exception ex)
     {
+        // Still optional in the sense that the 2D assets above are already written and kept. It
+        // fails the run all the same: a zones.json that could not be baked is not a clean bake.
         Console.WriteLine($"  zones: (skipped, {ex.GetType().Name}: {ex.Message})");
+        bakeFailures.Add($"{map}: zones: {ex.GetType().Name}: {ex.Message}");
     }
 
     Console.WriteLine();
