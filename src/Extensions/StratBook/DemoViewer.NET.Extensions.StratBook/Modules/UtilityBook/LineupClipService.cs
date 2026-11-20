@@ -248,22 +248,33 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     public void Release()
     {
         Task worker;
-        lock (_gate)
+        // The plan lock first, as a plan takes them: _planned and _ranks are a plan's, read and written under
+        // it alone, and a plan or a visit's choice that began before the release would otherwise put its jobs
+        // back after the clear. It ends here before the worker is waited for, which never needs it held.
+        lock (_planLock)
         {
-            if (_released)
+            lock (_gate)
             {
-                return;
-            }
+                if (_released)
+                {
+                    return;
+                }
 
-            _released = true;
-            _pending.Clear();
-            _planned.Clear();
-            _ranks.Clear();
-            _requested.Clear();
+                _released = true;
+                _pending.Clear();
+                _planned.Clear();
+                _ranks.Clear();
+                _requested.Clear();
+                _evictedAbsentSince.Clear();
+                _evicted = null;
+                worker = WorkerTask;
+            }
+        }
+
+        // The sweep's own table, under the sweep's own lock.
+        lock (_sweepGate)
+        {
             _orphanSince.Clear();
-            _evictedAbsentSince.Clear();
-            _evicted = null;
-            worker = WorkerTask;
         }
 
         // A render still running writes nothing back once released (the pack cancelled its queue item too);
@@ -369,6 +380,11 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
         HashSet<string> replanned = new(jobs.Select(j => j.Stem), StringComparer.OrdinalIgnoreCase);
         lock (_gate)
         {
+            if (_released || _disposed)
+            {
+                return 0;
+            }
+
             _pending.RemoveAll(p => replanned.Contains(p.Stem));
             _pending.AddRange(jobs);
         }
@@ -566,7 +582,14 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
     private int RequestLocked(Guid lineupId, string? techniqueKey)
     {
-        if (_disposed || _directory is null)
+        bool stopped;
+        lock (_gate)
+        {
+            // Released too: a request would put back the session state the release dropped, and plan nothing.
+            stopped = _released || _disposed;
+        }
+
+        if (stopped || _directory is null)
         {
             return 0;
         }

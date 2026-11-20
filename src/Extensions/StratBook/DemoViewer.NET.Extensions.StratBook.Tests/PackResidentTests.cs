@@ -294,6 +294,79 @@ public class PackResidentTests
         }
     }
 
+    [Test]
+    public async Task LineupClips_AReleaseDuringAPlan_LeavesNothingPlanned()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "dvlineuprelease_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            DemoCacheStore cache = new(null);
+            IndexOneGrenade(cache, "/d/a.dem", "de_dust2");
+            IndexOneGrenade(cache, "/d/b.dem", "de_dust2");
+            using GrenadeIndex grenades = new(cache.Library(), lineups: new GrenadeLineupStore(null),
+                scheduleSave: _ => Task.CompletedTask);
+            grenades.Load();
+
+            // The plan stops at its first look for a file: past its released check, before it marks anything.
+            using ManualResetEventSlim entered = new();
+            using ManualResetEventSlim proceed = new();
+            int probes = 0;
+            CountingRenderer renderer = new();
+            using LineupClipService clips = new(
+                () => [.. grenades.Maps().SelectMany(m => grenades.Query(new GrenadeQuery(m)))], PackStores.At(root),
+                () => true, renderer, fileExists: _ =>
+                {
+                    if (Interlocked.Increment(ref probes) == 1)
+                    {
+                        entered.Set();
+                        proceed.Wait(TimeSpan.FromSeconds(30));
+                    }
+
+                    return false;
+                }, planDebounce: TimeSpan.Zero);
+
+            Task<int> plan = Task.Run(clips.Plan);
+            await Assert.That(entered.Wait(TimeSpan.FromSeconds(30))).IsTrue();
+            Task release = Task.Run(clips.Release);
+            await Task.WhenAny(release, Task.Delay(500));
+            proceed.Set();
+            await plan;
+            await release;
+
+            await Assert.That(clips.Pending).IsEmpty()
+                .Because("a plan that was under way when the pack went off queues nothing on the released service");
+
+            int rendersBefore = renderer.Calls;
+            clips.Attach();
+            for (int i = 0; i < 200 && renderer.Calls == rendersBefore; i++)
+            {
+                await Task.Delay(25);
+            }
+
+            await Assert.That(renderer.Calls).IsGreaterThan(rendersBefore)
+                .Because("nothing stays marked planned across the release, so the clip is planned and rendered again");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private sealed class CountingRenderer : ILineupClipRenderer
+    {
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, CS2DemoKit.Parser.ParsedDemo? demo,
+            IReadOnlyList<LineupClipJob> jobs, CancellationToken ct)
+        {
+            Interlocked.Increment(ref _calls);
+            return Task.FromResult<IReadOnlyList<LineupClipJob>>([]);
+        }
+    }
+
     // One grenade row, no zones, so EnsureAssignedLocked mints a fresh anchor on the first query.
     private static void IndexOneGrenade(DemoCacheStore cache, string path, string map)
     {
