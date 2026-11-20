@@ -423,6 +423,14 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        // The path comes off the unauthenticated localhost stream, so any local process can name it. A
+        // share or device path would make DemoViewer authenticate to a host of the sender's choosing.
+        if (path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal))
+        {
+            ReasonText = $"DemoViewer only opens a CS2 demo from a local drive, not {path}.";
+            return;
+        }
+
         try
         {
             await _openDemoInDv(path).ConfigureAwait(true);

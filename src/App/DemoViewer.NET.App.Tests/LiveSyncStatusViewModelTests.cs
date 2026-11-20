@@ -362,6 +362,51 @@ public class LiveSyncStatusViewModelTests
         await Assert.That(svc.EnableCount).IsEqualTo(2);
     }
 
+    // The remote demo path arrives over the unauthenticated localhost gRPC stream, so any local process can
+    // name it. Opening a share or device path would authenticate to a host the sender chose.
+    [Test]
+    [Arguments(@"\\attacker\share\x.dem")]
+    [Arguments(@"\\?\UNC\attacker\share\x.dem")]
+    [Arguments(@"\\.\pipe\x.dem")]
+    [Arguments("//attacker/share/x.dem")]
+    public async Task OpenRemoteDemo_RefusesNetworkAndDevicePaths(string path)
+    {
+        FakeLiveSync svc = new();
+        List<string> opened = [];
+        LiveSyncStatusViewModel vm = new(svc, null, new PlaybackController(), () => { },
+            p =>
+            {
+                opened.Add(p);
+                return Task.CompletedTask;
+            });
+        svc.Raise(new LiveSyncState(LiveSyncStateKind.Degraded, "CS2 is now playing a different demo (x.dem).",
+            RemoteDemoPath: path));
+
+        await vm.OpenRemoteDemoCommand.ExecuteAsync(null);
+
+        await Assert.That(opened).IsEmpty();
+        await Assert.That(vm.ReasonText).Contains("local drive");
+    }
+
+    [Test]
+    public async Task OpenRemoteDemo_OpensALocalPath()
+    {
+        FakeLiveSync svc = new();
+        List<string> opened = [];
+        LiveSyncStatusViewModel vm = new(svc, null, new PlaybackController(), () => { },
+            p =>
+            {
+                opened.Add(p);
+                return Task.CompletedTask;
+            });
+        svc.Raise(new LiveSyncState(LiveSyncStateKind.Degraded, "CS2 is now playing a different demo (x.dem).",
+            RemoteDemoPath: @"C:\cs2\replays\x.dem"));
+
+        await vm.OpenRemoteDemoCommand.ExecuteAsync(null);
+
+        await Assert.That(opened).IsEquivalentTo([@"C:\cs2\replays\x.dem"]);
+    }
+
     // Fake App-side engine: a mutable current state + an inline StateChanged raise (real event → the VM's
     // handler runs, and there is no CS0067). Matches the FIXED ILiveSyncService contract surface.
     private sealed class FakeLiveSync : ILiveSyncService
