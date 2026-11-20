@@ -73,6 +73,33 @@ public class ExtensionUpdateAutoStageRemovalTests
         }
     }
 
+    // Remove pressed after the auto-stage's own removal check, before the move: the marker is the Remove's, and
+    // the stage must leave it for the next start to sweep the id, the new version with it.
+    [Test]
+    public async Task Remove_AfterTheAutoStagesRemovalCheck_Stands()
+    {
+        string root = NewRoot();
+        try
+        {
+            string extensions = Path.Combine(root, "extensions");
+            string running = Stage(extensions, Id, "1.0.0");
+            FakeFeedClient client = Published("1.0.1");
+            ExtensionUpdateService service = new(root, [InstalledStatus(Id, "1.0.0", running)], Host, TrustAll,
+                client, FeedUrl, installTrust: TrustAll)
+            {
+                AfterRemovalCheck = () => ExtensionStaging.MarkForRemoval(extensions, Id)
+            };
+
+            await service.AutoStageAsync();
+
+            await Assert.That(File.Exists(ExtensionStaging.RemovalMarkerPath(extensions, Id))).IsTrue();
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     private static FakeFeedClient Published(string version, bool gated = false)
     {
         byte[] zip = ExtensionZip(Id, version);

@@ -122,6 +122,9 @@ public sealed class ExtensionUpdateService
     /// <summary>The packs this service knows, as handed in.</summary>
     private IReadOnlyList<PackStatus> Statuses { get; }
 
+    /// <summary>Runs in a stage after the removal check, before the new version is moved in. Test seam.</summary>
+    internal Action? AfterRemovalCheck { get; set; }
+
     /// <summary>
     ///     The most recent state of every extension that has been checked this run, in declaration order;
     ///     empty before any check. Settings seeds its rows from this when it opens within the hour.
@@ -994,8 +997,14 @@ public sealed class ExtensionUpdateService
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(installed)!);
-            // An install after Remove, before the restart, is a reinstall: the marker would sweep this copy.
-            File.Delete(marker);
+            AfterRemovalCheck?.Invoke();
+            // An install after Remove, before the restart, is a reinstall: the marker would sweep this copy. The
+            // automatic stage found no marker above, so one here is a Remove pressed since, and it stands.
+            if (userInitiated)
+            {
+                File.Delete(marker);
+            }
+
             try
             {
                 Directory.Move(extracted, installed);
