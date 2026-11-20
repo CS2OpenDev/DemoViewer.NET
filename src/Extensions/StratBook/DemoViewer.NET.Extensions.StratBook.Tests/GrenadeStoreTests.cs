@@ -243,16 +243,47 @@ public class GrenadeStoreTests
             first.For(Map).Anchors.Add(anchor);
             first.Save();
 
-            // An antivirus scan or a sync client holds the file for the first read only.
-            LockedOnceFolder folder = new(PackStores.At(root));
+            // Another process holds the file for as long as this load keeps trying.
+            LockedOnceFolder folder = new(PackStores.At(root)) { LockedReads = int.MaxValue };
             GrenadeLineupStore store = GrenadeLineupStore.In(folder, null);
             store.For(Map).Anchors.Add(new LineupAnchor(Guid.NewGuid(), GrenadeKind.Flash,
                 new WorldPoint(7, 8, 9), new WorldPoint(10, 11, 12), "other"));
             store.Save();
+            folder.LockedReads = 0;
             store.Unload();
 
             await Assert.That(store.For(Map).Anchors.Select(a => a.Id)).Contains(anchor.Id)
                 .Because("a read that failed is not an empty file");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ALineupFileLockedForOneRead_IsReadOnTheNextTry_AndTheSessionsEditsAreSaved()
+    {
+        string root = TempRoot();
+        try
+        {
+            LineupAnchor anchor = new(Guid.NewGuid(), GrenadeKind.Smoke, new WorldPoint(1, 2, 3),
+                new WorldPoint(4, 5, 6), "seed");
+            GrenadeLineupStore first = new(root);
+            first.For(Map).Anchors.Add(anchor);
+            first.Save();
+
+            // An antivirus scan or a sync client holds the file for the first read only.
+            LockedOnceFolder folder = new(PackStores.At(root));
+            GrenadeLineupStore store = GrenadeLineupStore.In(folder, null);
+            LineupAnchor added = new(Guid.NewGuid(), GrenadeKind.Flash, new WorldPoint(7, 8, 9),
+                new WorldPoint(10, 11, 12), "other");
+            store.For(Map).Anchors.Add(added);
+            store.Save();
+
+            await Assert.That(new GrenadeLineupStore(root).For(Map).Anchors.Select(a => a.Id))
+                .IsEquivalentTo([anchor.Id, added.Id])
+                .Because("a file held for a moment is read on the next try, not given up on for the session");
         }
         finally
         {
@@ -303,7 +334,8 @@ public class GrenadeStoreTests
     // A folder whose first read fails the way a file held open by another process does.
     private sealed class LockedOnceFolder(IExtensionFolder inner) : IExtensionFolder
     {
-        private bool _locked = true;
+        // How many reads still fail.
+        public int LockedReads { get; set; } = 1;
 
         public string Path => inner.Path;
 
@@ -326,9 +358,9 @@ public class GrenadeStoreTests
 
         public byte[]? Read(string relativePath)
         {
-            if (_locked)
+            if (LockedReads > 0)
             {
-                _locked = false;
+                LockedReads--;
                 throw new IOException("The process cannot access the file because it is being used by another process.");
             }
 

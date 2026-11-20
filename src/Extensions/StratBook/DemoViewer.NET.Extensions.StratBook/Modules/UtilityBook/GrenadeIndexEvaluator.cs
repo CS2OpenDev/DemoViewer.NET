@@ -426,4 +426,8 @@ internal static partial class GrenadeIndexLog
     [LoggerMessage(EventId = 9, Level = LogLevel.Warning,
         Message = "{fileName}: a handler of the walked grenades failed")]
     public static partial void WalkedHandlerFailed(ILogger logger, string fileName, Exception exception);
+
+    [LoggerMessage(EventId = 10, Level = LogLevel.Warning,
+        Message = "the lineup file is there and could not be read; lineup changes are not saved until it reads")]
+    public static partial void LineupsRefused(ILogger logger);
 }

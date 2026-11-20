@@ -2,7 +2,9 @@
 
 using System.IO.Compression;
 using System.Text.Json;
+using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Extensions.StratBook.Services.Portability;
+using Microsoft.Extensions.Logging;
 
 #endregion
 
@@ -60,6 +62,12 @@ public sealed class GrenadeLineupDocument
 public sealed class GrenadeLineupStore
 {
     public const string FileName = "grenade-lineups.json.gz";
+
+    // The waits between tries at a file another process holds. A scan or a sync client lets go within
+    // milliseconds, and giving up on the first try costs the session every lineup edit.
+    private static readonly int[] _lockedReadWaitsMs = [50, 150];
+
+    private static ILogger? _diagLog;
 
     private readonly Func<byte[]?> _read;
     private readonly Action<byte[]>? _write;
@@ -143,19 +151,33 @@ public sealed class GrenadeLineupStore
     {
         GrenadeLineupDocument? document;
         bool present;
-        try
+        for (int attempt = 0;; attempt++)
         {
-            byte[]? bytes = _read();
-            present = bytes is not null;
-            document = bytes is null ? null : Parse(bytes);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            present = true;
-            document = null;
+            try
+            {
+                byte[]? bytes = _read();
+                present = bytes is not null;
+                document = bytes is null ? null : Parse(bytes);
+                break;
+            }
+            catch (IOException) when (attempt < _lockedReadWaitsMs.Length)
+            {
+                Thread.Sleep(_lockedReadWaitsMs[attempt]);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                present = true;
+                document = null;
+                break;
+            }
         }
 
         _refused = present && document is null;
+        if (_refused)
+        {
+            GrenadeIndexLog.LineupsRefused(_diagLog ??= DiagnosticsLog.CreateLogger(GrenadeIndexLog.Category));
+        }
+
         return document ?? new GrenadeLineupDocument();
     }
 
