@@ -79,6 +79,10 @@ public sealed class LiveSyncService : ILiveSyncService
     private Action<string, long>? _onTickUpdated;
 
     private CsvgVideoSession? _subscribedSession;
+
+    // Set under the lifecycle gate when a reel suspends sync, cleared when the suspension ends. Read
+    // under the gate instead of State, which may be stale off the UI thread.
+    private volatile bool _suspendedForReel;
     private bool _tearingDown;
 
     // 1 while a VerifyMomentAsync owns CS2. The engine's verification flag is a single bool and one
@@ -160,7 +164,7 @@ public sealed class LiveSyncService : ILiveSyncService
             }
 
             CancellationToken ct = enableCts.Token;
-            if (State.IsSessionActive || State.Kind == LiveSyncStateKind.SuspendedForReel)
+            if (State.IsSessionActive || _suspendedForReel || State.Kind == LiveSyncStateKind.SuspendedForReel)
             {
                 // Interlock: while a reel owns CS2, sync Enable/Reconnect are excluded.
                 return;
@@ -304,8 +308,10 @@ public sealed class LiveSyncService : ILiveSyncService
         await _lifecycleGate.WaitAsync(cancellationToken);
         try
         {
-            if (_disposed)
+            if (_disposed || _suspendedForReel)
             {
+                // A Disable (or Reconnect) clicked while a reel was suspending queued behind it: the
+                // session is already stopped, and overwriting SuspendedForReel would offer Enable mid-reel.
                 return;
             }
 
@@ -532,6 +538,7 @@ public sealed class LiveSyncService : ILiveSyncService
         try
         {
             _disposed = true;
+            _suspendedForReel = false;
             _settingsChangeSub?.Dispose();
             await StopSessionCoreAsync();
             SetState(LiveSyncState.Disconnected);
@@ -569,6 +576,7 @@ public sealed class LiveSyncService : ILiveSyncService
             }
 
             await StopSessionCoreAsync();
+            _suspendedForReel = true;
             // COMMIT the state on the UI thread before returning: the reel job's fast-fail
             // paths call EndReelSuspension right after this returns, and a merely-POSTED
             // SuspendedForReel would land after that check, parking the chip at "Paused for
@@ -601,6 +609,7 @@ public sealed class LiveSyncService : ILiveSyncService
 
     private void EndReelSuspensionCore()
     {
+        _suspendedForReel = false;
         if (!_disposed && State.Kind == LiveSyncStateKind.SuspendedForReel)
         {
             SetState(LiveSyncState.Disconnected);
