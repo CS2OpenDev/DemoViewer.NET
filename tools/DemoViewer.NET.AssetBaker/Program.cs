@@ -190,6 +190,14 @@ if (args.Contains("--collision"))
     }
 
     Console.WriteLine($"\n{baked}/{soupMaps.Length} soup(s) baked.");
+
+    // A map that was asked for and not baked, for a missing vpk or a thrown extraction, fails the
+    // run the way a --zones self-check does. The lines above are easy to miss in a nine-map log.
+    if (baked < soupMaps.Length)
+    {
+        Environment.ExitCode = 1;
+    }
+
     return;
 }
 
@@ -339,6 +347,7 @@ Console.WriteLine($"cs2-assets (raw source): {assets}");
 Console.WriteLine($"assets (baked output):  {bakedRoot}");
 Console.WriteLine($"baking {maps.Length} map(s): {string.Join(", ", maps)}\n");
 
+List<string> bakeFailures = [];
 foreach (string map in maps)
 {
     try
@@ -348,7 +357,21 @@ foreach (string map in maps)
     catch (Exception ex)
     {
         Console.WriteLine($"  ✗ {map}: {ex.GetType().Name}: {ex.Message}\n");
+        bakeFailures.Add($"{map}: {ex.GetType().Name}: {ex.Message}");
     }
+}
+
+// One failed map does not stop the others, but it does fail the run: a script that trusts the exit
+// code must not go on to commit a half-baked assets/.
+if (bakeFailures.Count > 0)
+{
+    Console.WriteLine($"{bakeFailures.Count} bake failure(s):");
+    foreach (string f in bakeFailures)
+    {
+        Console.WriteLine("  ! " + f);
+    }
+
+    Environment.ExitCode = 1;
 }
 
 return;
