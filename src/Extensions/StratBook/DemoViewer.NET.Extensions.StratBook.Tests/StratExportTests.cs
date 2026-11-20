@@ -359,6 +359,7 @@ public class StratExportTests
     [Arguments("A exec", "A exec")]
     [Arguments("mid/to:B?", "mid-to-B-")]
     [Arguments("  ", "strat")]
+    [Arguments("a\" -f null \"b", "a- -f null -b")]
     public async Task TheFileStem_IsTheStratName_MadeSafe(string name, string expected)
     {
         await HeadlessSession.RunOnUi(async () =>
@@ -368,6 +369,9 @@ public class StratExportTests
             {
                 await Assert.That(stem).DoesNotContain(c);
             }
+
+            // Legal in a file name on Linux and macOS, so the loop above does not cover it there.
+            await Assert.That(stem).DoesNotContain('"');
 
             if (OperatingSystem.IsWindows())
             {

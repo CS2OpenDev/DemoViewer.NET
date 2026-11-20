@@ -99,6 +99,7 @@ public sealed class FfmpegFrameSink : IFrameSink
     public FfmpegFrameSink(FfmpegSinkOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        RequireQuotablePath(options.OutputPath);
 
         // Before anything is rendered: ffmpeg will not create it, and its refusal would otherwise land
         // after the whole range has been encoded into a pipe going nowhere.
@@ -378,10 +379,45 @@ public sealed class FfmpegFrameSink : IFrameSink
             .CancellableThrough(ct)
             .NotifyOnError(OnStderr);
 
-    private static FFMpegArgumentProcessor Build(FfmpegSinkOptions options, RawVideoPipeSource source) =>
-        FFMpegArguments
+    private static FFMpegArgumentProcessor Build(FfmpegSinkOptions options, RawVideoPipeSource source)
+    {
+        RequireQuotablePath(options.OutputPath);
+
+        return FFMpegArguments
             .FromPipeInput(source)
             .OutputToFile(options.OutputPath, true, arguments => Configure(arguments, options));
+    }
+
+    /// <summary>
+    ///     Refuses an output path that cannot sit inside the quotes FFMpegCore puts round it.
+    ///     <para>
+    ///         FFMpegCore writes the path as <c>"path"</c>, escaping nothing, and the whole command line
+    ///         goes to the process as one string. A double quote in the path closes that token early and
+    ///         the rest of the name is read as ffmpeg options; a trailing backslash escapes the closing
+    ///         quote and swallows the arguments after it. A double quote is a legal file-name character
+    ///         on Linux and macOS, and a strat's name is the default file name.
+    ///     </para>
+    ///     <para>
+    ///         Refused rather than escaped: the quoting belongs to FFMpegCore, and the escaping rules
+    ///         (backslash runs before a quote) are the platform's argument parser's, not ours to guess.
+    ///     </para>
+    /// </summary>
+    private static void RequireQuotablePath(string outputPath)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(outputPath);
+
+        if (outputPath.Contains('"', StringComparison.Ordinal))
+        {
+            throw new ExportValidationException(
+                "The output path contains a double quote, which cannot be passed to ffmpeg. Rename the file.");
+        }
+
+        if (outputPath.EndsWith('\\'))
+        {
+            throw new ExportValidationException(
+                "The output path ends in a backslash, which cannot be passed to ffmpeg. Name a file.");
+        }
+    }
 
     private static void Configure(FFMpegArgumentOptions arguments, FfmpegSinkOptions options)
     {

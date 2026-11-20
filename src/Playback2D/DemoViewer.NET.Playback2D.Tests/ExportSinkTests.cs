@@ -104,6 +104,31 @@ public class FfmpegArgumentTests
         await Assert.That(GlobalFFOptions.Current.BinaryFolder).IsEqualTo(before);
     }
 
+    /// <summary>
+    ///     An output path that would break out of its own quotes is refused, not passed on.
+    ///     <para>
+    ///         FFMpegCore wraps the path in double quotes and escapes nothing, and the whole line reaches
+    ///         the process as one string. A double quote is a legal file-name character on Linux and
+    ///         macOS, and a strat's name is the default file name, so a strat called
+    ///         <c>a" -f null "b</c> used to hand ffmpeg <c>-f null</c> as options of its own.
+    ///     </para>
+    /// </summary>
+    [Test]
+    [Arguments("a\" -f null \"b.webm")]
+    [Arguments("clips\\")]
+    public async Task AnOutputPathThatWouldEscapeItsQuotes_IsRefused(string fileName)
+    {
+        FfmpegSinkOptions options = Options(ExportFormats.WebM) with
+        {
+            OutputPath = Path.Combine(Path.GetTempPath(), fileName)
+        };
+
+        await Assert.That(SceneExportSessionLoopTests.Throws<ExportValidationException>(() =>
+            FfmpegFrameSink.DescribeArguments(options))).IsNotNull();
+        await Assert.That(SceneExportSessionLoopTests.Throws<ExportValidationException>(() =>
+            _ = new FfmpegFrameSink(options))).IsNotNull();
+    }
+
     private static FfmpegSinkOptions Options(string format, int fps = 60) =>
         new("out." + format, format, 1280, 720, fps);
 

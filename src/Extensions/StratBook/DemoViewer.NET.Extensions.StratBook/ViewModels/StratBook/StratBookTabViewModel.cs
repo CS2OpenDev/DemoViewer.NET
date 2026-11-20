@@ -629,10 +629,12 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
     }
 
     // The strat's name as a file name: characters no file system takes become '-', and an unnamed strat is "strat".
+    // A double quote goes too, on every OS: Linux and macOS take it in a file name, but the stem becomes the
+    // export's default path, and the ffmpeg sink refuses a path it cannot quote.
     internal static string ExportFileStem(string? name)
     {
         char[] invalid = Path.GetInvalidFileNameChars();
-        string stem = new((name ?? "").Trim().Select(c => invalid.Contains(c) ? '-' : c).ToArray());
+        string stem = new((name ?? "").Trim().Select(c => c == '"' || invalid.Contains(c) ? '-' : c).ToArray());
         return stem.Length == 0 ? "strat" : stem;
     }
 
