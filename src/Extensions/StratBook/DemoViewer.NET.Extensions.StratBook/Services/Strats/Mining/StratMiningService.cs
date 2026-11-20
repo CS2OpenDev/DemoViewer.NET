@@ -1087,9 +1087,11 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
             }
         }
 
+        // Posted, as every other raise of Changed is: an import gets here off the UI thread, and the inbox
+        // rebuilds its bound rows in the handler.
         if (publish)
         {
-            Publish([.. Patterns.Select(p => p.Pattern)]);
+            _post(() => Publish([.. Patterns.Select(p => p.Pattern)]));
         }
     }
 

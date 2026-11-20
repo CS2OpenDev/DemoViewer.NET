@@ -223,4 +223,38 @@ public class TeamStoresImportTests
             await Assert.That(f.HereBytes(StratMiningFiles.StatePath)).IsEquivalentTo(after);
         }
     }
+
+    // An import runs off the UI thread; the inbox's rows are rebuilt from Changed, on it.
+    [Test]
+    public async Task Mining_RaisesChangedThroughItsPost_NotOnTheImportingThread()
+    {
+        using Folders f = new();
+        File.WriteAllText(Path.Combine(f.There, StratMiningFiles.StatePath),
+            """{"SchemaVersion":1,"Dismissed":["d1"],"Promoted":{}}""");
+        DemoCacheStore cache = new(null);
+        List<Action> posted = [];
+        using StratMiningService service = new(cache.Library(), cache.RoundFacts(), new RoundIndexStore(cache.Data()),
+            StratMiningServiceTests.Sources.FingerprintFor, null, null, new StratStore(null), null,
+            TestFiles.Mining(Path.Combine(f.Here, "cache"), f.Here), posted.Add, a =>
+            {
+                a();
+                return Task.CompletedTask;
+            }) { QuietDelay = Timeout.InfiniteTimeSpan };
+        int changed = 0;
+        service.Changed += () => changed++;
+        posted.Clear();
+
+        service.Import(f.Staged, f.Ledger());
+        int before = changed;
+        foreach (Action action in posted.ToList())
+        {
+            action();
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(before).IsEqualTo(0).Because("Changed is the UI thread's; the caller is an import");
+            await Assert.That(changed).IsEqualTo(1);
+        }
+    }
 }
