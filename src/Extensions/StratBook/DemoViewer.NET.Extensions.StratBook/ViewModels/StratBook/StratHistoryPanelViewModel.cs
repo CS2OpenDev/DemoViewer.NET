@@ -101,6 +101,9 @@ public sealed partial class StratHistoryPanelViewModel : ObservableObject, IDisp
         if (document is null)
         {
             _lastId = null;
+            // The rebuild in flight is no longer the latest: its cancellation has nothing to report on an
+            // empty pane.
+            _sequence++;
             _cts?.Cancel();
             Clear();
             return;

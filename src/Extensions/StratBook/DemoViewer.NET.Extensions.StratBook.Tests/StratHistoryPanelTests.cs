@@ -171,6 +171,28 @@ public class StratHistoryPanelTests
         }
     }
 
+    // Closing the strat cancels the rebuild in flight, and nothing is left to say about it: the pane is empty.
+    [Test]
+    public async Task ClosingTheStratWhileItsHistoryIsComputing_LeavesNoStatus()
+    {
+        StratStore store = new(null);
+        TagStore tags = new(null);
+        StratDocument created = Minimal(HistoryId);
+        store.Save(created, [], null);
+        using StratHistoryPanelViewModel panel = new(store, new StratEvidenceService(tags), tags,
+            new CalloutResolverSource(store), debounce: TimeSpan.FromSeconds(30));
+
+        panel.Configure(created);
+        panel.Configure(null);
+        await panel.Pending;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(panel.StatusLine).IsEqualTo("");
+            await Assert.That(panel.IsComputing).IsFalse();
+        }
+    }
+
     private sealed class Fixture : IDisposable
     {
         public Fixture()

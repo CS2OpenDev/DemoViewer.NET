@@ -138,6 +138,9 @@ public sealed partial class StratRecordPanelViewModel : ObservableObject, IDispo
         if (document is null)
         {
             _lastId = null;
+            // The rebuild in flight is no longer the latest: its cancellation has nothing to report on an
+            // empty panel.
+            _sequence++;
             _cts?.Cancel();
             Clear();
             return;

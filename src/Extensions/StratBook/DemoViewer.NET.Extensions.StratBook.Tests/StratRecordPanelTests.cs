@@ -96,6 +96,25 @@ public class StratRecordPanelTests
             .Because("no newer request is coming to clear it");
     }
 
+    // Closing the strat cancels the rebuild in flight, and nothing is left to say about it: the panel is empty.
+    [Test]
+    public async Task ClosingTheStratWhileItsRecordIsComputing_LeavesNoStatus()
+    {
+        TagStore tags = new(null);
+        using StratRecordPanelViewModel panel = new(new StratEvidenceService(tags), tags,
+            debounce: TimeSpan.FromSeconds(30));
+
+        panel.Configure(Strat());
+        panel.Configure(null);
+        await panel.Pending;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(panel.StatusLine).IsEqualTo("");
+            await Assert.That(panel.IsComputing).IsFalse();
+        }
+    }
+
     [Test]
     public async Task TaggingARound_UpdatesThePanel_WithoutReconfiguring()
     {
