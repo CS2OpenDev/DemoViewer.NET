@@ -76,6 +76,8 @@ public sealed class TagStore
     // an Update and an autosave of one document cannot interleave their replace.
     private readonly Lock _rmwGate = new();
 
+    private static readonly TimeSpan _rowSlack = TimeSpan.FromSeconds(5);
+
     private readonly IExtensionFolder? _folder;
 
     private int _batchDepth; // under _gate
@@ -1059,8 +1061,9 @@ public sealed class TagStore
             }
         }
 
-        // Reconcile against the listing, which costs no reads: a sidecar the index does not name (a crash
-        // after its write and before SaveIndex) is read and added, and a row whose file is gone is dropped.
+        // Reconcile against the listing, which costs no reads: a sidecar the index does not name, or one
+        // written since its row was (a crash after its write and before SaveIndex either way), is read and
+        // its row replaced, and a row whose file is gone is dropped.
         HashSet<string> onDisk = new(StringComparer.Ordinal);
         bool changed = false;
         foreach (string sidecar in EnumerateSidecars(_folder))
@@ -1068,13 +1071,13 @@ public sealed class TagStore
             string name = Path.GetFileName(sidecar);
             string key = Normalize(name[..^SidecarExtension.Length]);
             onDisk.Add(key);
-            bool known;
+            TagIndexEntry? row;
             lock (_gate)
             {
-                known = _index.ContainsKey(key);
+                row = _index.GetValueOrDefault(key);
             }
 
-            if (!known)
+            if (row is null || WrittenAfter(sidecar, row))
             {
                 IndexFile(sidecar);
                 changed = true;
@@ -1093,6 +1096,23 @@ public sealed class TagStore
         if (changed)
         {
             SaveIndex();
+        }
+    }
+
+    // index.json is written on detach and at shutdown only, so a killed process leaves a row behind its file,
+    // with the codes and strat links of the save before. Save stamps the row within milliseconds of writing the
+    // file; a file much newer than that was written since.
+    private bool WrittenAfter(string sidecar, TagIndexEntry row)
+    {
+        try
+        {
+            // A file that is not there answers no time at all, which is never after the row.
+            return (_folder!.LastWriteTimeUtc(sidecar) ?? DateTime.MinValue)
+                > row.ModifiedUtc.ToUniversalTime() + _rowSlack;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return true;
         }
     }
 

@@ -175,6 +175,36 @@ public class TagStoreTests
     }
 
     [Test]
+    public async Task ASidecarRewrittenAfterTheLastSaveIndex_IsReadAgain()
+    {
+        string root = TempRoot();
+        try
+        {
+            TagStore store = new(PackStores.At(root));
+            store.Save(Document(Sha, Instance("A execute", 1, 2)));
+            store.SaveIndex();
+
+            // A crash after an autosave and before SaveIndex: index.json still holds the row of the first write.
+            store.Save(Document(Sha, Instance("A execute", 1, 2),
+                Instance("Default", 3, 4, (TagStore.StratGroup, "a-split"))));
+            File.SetLastWriteTimeUtc(TagStore.SidecarPathFor(root, Sha), DateTime.UtcNow.AddMinutes(1));
+
+            TagStore reopened = new(PackStores.At(root));
+            TagIndexEntry row = reopened.Index.Single();
+            using (Assert.Multiple())
+            {
+                await Assert.That(row.InstanceCount).IsEqualTo(2);
+                await Assert.That(row.Codes).IsEquivalentTo(_twoCodes);
+                await Assert.That(row.StratIds).IsEquivalentTo(_oneStrat);
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
     public async Task AtomicOverwrite_LeavesNoTempFile()
     {
         string root = TempRoot();
