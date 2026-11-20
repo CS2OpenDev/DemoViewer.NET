@@ -413,6 +413,46 @@ public sealed class ScoutingReportNotesStore
         }
     }
 
+    /// <summary>
+    ///     Moves the notes of a team that was merged away onto the team that took it over, by the rules of an
+    ///     import that keeps this machine's: the summary, the in-game leader and a rewritten line stay the
+    ///     surviving team's where it has its own, and stars, left-out lines, seeded lines and written notes are
+    ///     united. Nothing stays filed under <paramref name="from" />. UI thread, like every other mutator.
+    /// </summary>
+    /// <param name="from">The id the merge tombstoned.</param>
+    /// <param name="into">The team that took it over.</param>
+    /// <returns>False when nothing was filed under <paramref name="from" />.</returns>
+    internal bool Rekey(Guid from, Guid into)
+    {
+        if (from == into || _teams.FirstOrDefault(t => t.TeamId == from) is not { } source)
+        {
+            return false;
+        }
+
+        _teams.Remove(source);
+        if (_teams.FirstOrDefault(t => t.TeamId == into) is { } mine)
+        {
+            Fold(mine, source, new ImportLedger(ImportConflictPolicy.KeepMine, static _ => { }));
+        }
+        else
+        {
+            _teams.Add(new ScoutingReportTeamNotes
+            {
+                TeamId = into,
+                Summary = source.Summary,
+                Igl = source.Igl,
+                Starred = source.Starred,
+                Hidden = source.Hidden,
+                Seeded = source.Seeded,
+                Notes = source.Notes,
+                Edits = source.Edits
+            });
+        }
+
+        Commit();
+        return true;
+    }
+
     // True when anything changed. A conflict is counted where the two machines hold different values.
     private static bool Fold(ScoutingReportTeamNotes mine, ScoutingReportTeamNotes incoming, ImportLedger ledger)
     {

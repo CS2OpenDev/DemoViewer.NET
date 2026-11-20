@@ -527,6 +527,60 @@ public class TeamIdentityTests
     // ── 8. Split ─────────────────────────────────────────────────────────────────────────────────
 
     [Test]
+    public async Task AMerge_CarriesWhatTheStoresFiledUnderTheMergedTeam_OntoTheTeamThatTookItOver()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams) = Fresh();
+        await Seed(cache, teams,
+            Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+            Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()),
+            Record("/d/b1.dem", 3, Ids(4, 5, 6, 7, 8), Strangers()),
+            Record("/d/b2.dem", 4, Ids(4, 5, 6, 7, 8), Strangers()));
+        Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+        Guid b = teams.TeamOnSide("/d/b1.dem", 2)!.Id;
+        DateOnly day = new(2026, 11, 1);
+        ScoutingReportNotesStore notes = new(null);
+        VetoHistoryStore vetoes = new(null);
+        TeamRanksStore ranks = new(null);
+        notes.SetSummary(a, "A's read");
+        notes.SetStarred(a, "pool", true);
+        notes.SetSummary(b, "B's read");
+        notes.SetStarred(b, "setups", true);
+        notes.AddNote(b, "watch the lurk");
+        vetoes.Add(new VetoEntry { OpponentTeamId = a, Order = 1, Map = "de_nuke" });
+        vetoes.Add(new VetoEntry { OpponentTeamId = b, Order = 1, Map = "de_mirage" });
+        ranks.Set(a, RankSystem.Hltv, 10, day);
+        ranks.Set(b, RankSystem.Hltv, 12, day);
+        ranks.Set(b, RankSystem.Vrs, 40, day);
+
+        teams.Merge(a, b);
+        MergedTeamStores.Follow(teams.AllTeams, notes, vetoes, ranks);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(notes.TeamIds).IsEquivalentTo([a]);
+            await Assert.That(notes.For(a).Summary).IsEqualTo("A's read")
+                .Because("the team merged into keeps its own summary, as it keeps its own name");
+            await Assert.That(notes.For(a).Starred).IsEquivalentTo(["pool", "setups"]);
+            await Assert.That(notes.For(a).Notes.Select(n => n.Text)).IsEquivalentTo(["watch the lurk"]);
+            await Assert.That(vetoes.TeamIds).IsEquivalentTo([a]);
+            await Assert.That(vetoes.For(a).Select(v => (v.Order, v.Map)))
+                .IsEquivalentTo([(1, "de_nuke"), (2, "de_mirage")], CollectionOrdering.Matching)
+                .Because("the merged team's steps follow the ones already there");
+            await Assert.That(ranks.TeamIds).IsEquivalentTo([a]);
+            await Assert.That(ranks.Current(a, RankSystem.Hltv)!.Rank).IsEqualTo(10)
+                .Because("one rank a day: the team merged into keeps its own");
+            await Assert.That(ranks.Current(a, RankSystem.Vrs)!.Rank).IsEqualTo(40);
+        }
+
+        int raised = 0;
+        notes.Changed += () => raised++;
+        vetoes.Changed += () => raised++;
+        ranks.Changed += () => raised++;
+        MergedTeamStores.Follow(teams.AllTeams, notes, vetoes, ranks);
+        await Assert.That(raised).IsEqualTo(0).Because("nothing is left under the merged id to move");
+    }
+
+    [Test]
     public async Task Split_MakesANewTeam_AndBothSurviveARebuild()
     {
         string root = TempRoot();

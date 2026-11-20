@@ -156,6 +156,41 @@ public sealed class VetoHistoryStore
         }
     }
 
+    /// <summary>
+    ///     Moves the steps of a team that was merged away onto the team that took it over, after the steps already
+    ///     filed there and in the order they had. UI thread, like every other mutator.
+    /// </summary>
+    /// <param name="from">The id the merge tombstoned.</param>
+    /// <param name="into">The team that took it over.</param>
+    /// <returns>False when nothing was filed under <paramref name="from" />.</returns>
+    internal bool Rekey(Guid from, Guid into)
+    {
+        IReadOnlyList<VetoEntry> moving = For(from);
+        if (from == into || moving.Count == 0)
+        {
+            return false;
+        }
+
+        int order = _entries.Where(e => e.OpponentTeamId == into).Select(e => e.Order).DefaultIfEmpty(0).Max();
+        foreach (VetoEntry entry in moving)
+        {
+            _entries[_entries.IndexOf(entry)] = new VetoEntry
+            {
+                Id = entry.Id,
+                OpponentTeamId = into,
+                Order = ++order,
+                Map = entry.Map,
+                Action = entry.Action,
+                ByOpponent = entry.ByOpponent,
+                Note = entry.Note
+            };
+        }
+
+        Save();
+        Changed?.Invoke();
+        return true;
+    }
+
     private static bool Same(VetoEntry a, VetoEntry b) =>
         a.OpponentTeamId == b.OpponentTeamId && a.Order == b.Order && a.Action == b.Action
         && a.ByOpponent == b.ByOpponent && string.Equals(a.Map, b.Map, StringComparison.Ordinal)
