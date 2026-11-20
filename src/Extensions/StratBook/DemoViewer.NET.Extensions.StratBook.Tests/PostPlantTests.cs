@@ -277,6 +277,21 @@ public class PostPlantTests
     }
 
     [Test]
+    public async Task ACtKilledBetweenTheLastSampleAndThePlant_IsNotAliveForTheRetake()
+    {
+        // The plant falls half a second after the sample at 40 s, and the last CT dies between the two: the
+        // sample still holds him, the kill says he was gone when the bomb went down.
+        RoundPositionsDocument positions = Positions("fp");
+        RoundFacts round = Rows().Rounds[6];
+        round.PlantTick = At(Freeze(7), 40) + Rate / 2;
+        round.Kills = [new KillStep { Tick = At(Freeze(7), 40) + Rate / 4, AttackerSlot = 5, VictimSlot = 0 }];
+        positions.Rounds[6] = Stored(7, _teamASlots, s => s <= 40 ? [P(0, 5000, 0), P(5, 0, 0)] : [P(5, 0, 0)]);
+
+        await Assert.That(PostPlantService.RetakeGroup(positions, round, P(5, 0, 0), Rate))
+            .IsEqualTo(PostPlantService.NoCtAlive);
+    }
+
+    [Test]
     public async Task ARecordingCutOffMidRound_KeepsItsPlant_ButNoWinOrLossForIt()
     {
         // Round 10: a plant, the recording stops before the round ends.

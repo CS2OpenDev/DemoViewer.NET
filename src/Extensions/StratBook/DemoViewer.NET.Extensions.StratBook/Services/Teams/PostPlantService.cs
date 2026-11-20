@@ -278,7 +278,13 @@ public sealed class PostPlantService
 
         HashSet<int> ct = [.. stored.Ct];
         int first = Math.Max(0, positions.StepFor(stored, plant));
-        HashSet<int> alive = [.. stored.At(first).Where(p => ct.Contains(p.Slot)).Select(p => p.Slot)];
+        // The sample is the last one at or before the plant, up to a cadence old: a CT killed in between is
+        // still in it, and the kills say he was not alive at the plant (the RetakeRules.Read rule).
+        HashSet<int> alive =
+        [
+            .. stored.At(first).Where(p => ct.Contains(p.Slot)).Select(p => p.Slot)
+                .Where(slot => !round.Kills.Any(k => k.VictimSlot == slot && k.Tick <= plant))
+        ];
         if (alive.Count == 0)
         {
             return NoCtAlive;
