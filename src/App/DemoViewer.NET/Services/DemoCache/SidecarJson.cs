@@ -18,6 +18,11 @@ public static class SidecarJson
     // Guards the rent sized from the gzip trailer, which a corrupt file can set to anything.
     private const int MaxTrailerHint = 256 * 1024 * 1024;
 
+    // The most a gzipped sidecar may inflate to. A stream's compressed size says nothing about this: a
+    // megabyte of gzip can hold a gigabyte, and a record out of a transfer bundle is whatever the bundle's
+    // author put there. Far above any record, table or index this app writes.
+    private const int MaxInflated = 256 * 1024 * 1024;
+
     /// <summary>True when <paramref name="bytes" /> starts with the gzip magic.</summary>
     private static bool IsGzip(ReadOnlySpan<byte> bytes) => bytes.Length >= 2 && bytes[0] == 0x1F && bytes[1] == 0x8B;
 
@@ -58,17 +63,21 @@ public static class SidecarJson
     ///     The value <paramref name="bytes" /> hold, gzipped or plain. Throws on a bad stream or bad JSON; the
     ///     callers own the "bad file = not cached" rule.
     /// </summary>
-    public static T? Deserialize<T>(ArraySegment<byte> bytes, JsonSerializerOptions? options)
+    public static T? Deserialize<T>(ArraySegment<byte> bytes, JsonSerializerOptions? options) =>
+        DeserializeWithin<T>(bytes, options, MaxInflated);
+
+    /// <summary><see cref="Deserialize{T}" /> with the inflated size limit given.</summary>
+    internal static T? DeserializeWithin<T>(ArraySegment<byte> bytes, JsonSerializerOptions? options, int maxInflated)
     {
         if (!IsGzip(bytes))
         {
             return JsonSerializer.Deserialize<T>(SkipBom(bytes), options);
         }
 
-        byte[] inflated = ArrayPool<byte>.Shared.Rent(InflatedHint(bytes));
+        byte[] inflated = ArrayPool<byte>.Shared.Rent(Math.Min(InflatedHint(bytes), maxInflated));
         try
         {
-            int length = Inflate(bytes, ref inflated);
+            int length = Inflate(bytes, ref inflated, maxInflated);
             return JsonSerializer.Deserialize<T>(SkipBom(inflated.AsSpan(0, length)), options);
         }
         finally
@@ -112,22 +121,36 @@ public static class SidecarJson
         return size is > 0 and <= MaxTrailerHint ? (int)size : 64 * 1024;
     }
 
-    private static int Inflate(ArraySegment<byte> gzipped, ref byte[] target)
+    // Throws InvalidDataException once the stream holds more than max bytes, before reading further.
+    private static int Inflate(ArraySegment<byte> gzipped, ref byte[] target, int max)
     {
         using MemoryStream input = new(gzipped.Array!, gzipped.Offset, gzipped.Count, false);
         using GZipStream gzip = new(input, CompressionMode.Decompress);
         int length = 0;
         while (true)
         {
-            if (length == target.Length)
+            // A rented buffer can be longer than was asked for; the limit still ends the read.
+            int room = Math.Min(target.Length, max);
+            if (length == room)
             {
-                byte[] grown = ArrayPool<byte>.Shared.Rent(target.Length * 2);
+                if (room == max)
+                {
+                    if (gzip.ReadByte() < 0)
+                    {
+                        return length;
+                    }
+
+                    throw new InvalidDataException("sidecar inflates past the size limit");
+                }
+
+                byte[] grown = ArrayPool<byte>.Shared.Rent((int)Math.Min((long)target.Length * 2, max));
                 target.AsSpan(0, length).CopyTo(grown);
                 ArrayPool<byte>.Shared.Return(target);
                 target = grown;
+                room = Math.Min(target.Length, max);
             }
 
-            int read = gzip.Read(target, length, target.Length - length);
+            int read = gzip.Read(target, length, room - length);
             if (read == 0)
             {
                 return length;

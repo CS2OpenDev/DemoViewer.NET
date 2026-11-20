@@ -67,6 +67,25 @@ public class SidecarFormatTests
         return record;
     }
 
+    /// <summary>
+    ///     A gzip stream says nothing trustworthy about how far it inflates, and a bundle's records come from
+    ///     whoever made the bundle. One that inflates past the limit is refused before the whole of it is held
+    ///     and parsed.
+    /// </summary>
+    [Test]
+    public async Task AGzippedRecord_ThatInflatesPastTheLimit_IsRefused()
+    {
+        byte[] json = Encoding.UTF8.GetBytes("{\"Players\":[" + string.Join(",", Enumerable.Repeat("{}", 20_000)) + "]}");
+        byte[] bomb = SidecarJson.Gzip(json);
+
+        DemoCacheRecord? whole = SidecarJson.DeserializeWithin<DemoCacheRecord>(bomb, null, json.Length);
+        await Assert.That(whole!.Players.Count).IsEqualTo(20_000).Because("a stream that ends at the limit is within it");
+        await Assert.That(() => SidecarJson.DeserializeWithin<DemoCacheRecord>(bomb, null, json.Length - 1))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => SidecarJson.DeserializeWithin<DemoCacheRecord>(bomb, null, 1024))
+            .Throws<InvalidDataException>();
+    }
+
     private static bool IsGzipFile(string file)
     {
         byte[] head = File.ReadAllBytes(file);
