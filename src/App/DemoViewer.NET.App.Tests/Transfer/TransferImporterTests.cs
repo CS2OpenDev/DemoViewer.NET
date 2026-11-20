@@ -684,4 +684,34 @@ public class TransferImporterTests
             .Throws<InvalidDataException>();
         store.StopFollowingLibrary();
     }
+
+    [Test]
+    [Arguments("null", 0)]
+    [Arguments("[null]", 0)]
+    [Arguments("[null, CLIP]", 1)]
+    public async Task ABundlesReviewQueue_WithNullEntries_DoesNotStopTheImport(string entries, int clips)
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        BundleBuilder bundle = OneDemo(root);
+        string clip = JsonSerializer.Serialize(
+            ReviewEntry.Clip(@"D:\source\match.dem", 10, 20, "a retake", ReviewSources.Manual, 64, Sha),
+            ReviewQueueFile.JsonOptions);
+        bundle.Shared(TransferLayout.ReviewQueueFileName,
+            Encoding.UTF8.GetBytes("{\"schemaVersion\":1,\"entries\":" + entries.Replace("CLIP", clip,
+                StringComparison.Ordinal) + "}"));
+        bundle.Write();
+        ReviewQueue review = new(null);
+        TransferImporter importer = new(new DemoCacheStore(null), review: review);
+
+        TransferSummary summary = await importer.RunAsync(ImportRequest.DataOnly(root),
+            await importer.PreviewAsync(root, CancellationToken.None), null, CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Items.Single(i => i.Sha256 == Sha).Outcome)
+                .IsNotEqualTo(TransferOutcome.Failed);
+            await Assert.That(review.Clips.Count).IsEqualTo(clips);
+        }
+    }
 }

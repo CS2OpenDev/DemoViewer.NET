@@ -622,10 +622,11 @@ internal sealed partial class TransferImporter : ITransferImporter
                 ?? throw new JsonException("Empty review queue file.");
             HashSet<string> imported = new(run.Items.Values.Where(i => i.Outcome != TransferOutcome.Failed)
                 .Select(i => i.Sha256).OfType<string>(), StringComparer.Ordinal);
+            // The serializer lets a JSON null through for the list and for its items; neither is a clip.
             entries =
             [
-                .. parsed.Entries.Where(e => e.Kind == ReviewEntryKind.Section
-                    || (e.Sha256 is { } sha && imported.Contains(sha.ToLowerInvariant())))
+                .. (parsed.Entries ?? []).Where(e => e is not null && (e.Kind == ReviewEntryKind.Section
+                    || (e.Sha256 is { } sha && imported.Contains(sha.ToLowerInvariant()))))
             ];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
