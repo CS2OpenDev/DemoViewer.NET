@@ -101,6 +101,37 @@ public class CliArgsTests
         await Assert.That(Throws.Capture<CliUsageException>(() => args.Require("name"))).IsNotNull();
     }
 
+    /// <summary>
+    ///     A value-taking option given bare is a typo, not an absence. Read as absent it was marked
+    ///     consumed and the command ran on its default: a dropped budget override, a default file name.
+    /// </summary>
+    [Test]
+    public async Task ValueOption_GivenBare_Throws()
+    {
+        CliArgs budget = CliArgs.Parse(["bench", "--gate", "--budget-p99-ms", "--json"]);
+        CliArgs trailing = CliArgs.Parse(["export", "--out"]);
+        CliArgs size = CliArgs.Parse(["render", "--size", "--cpu"]);
+        CliArgs frames = CliArgs.Parse(["bench", "--frames"]);
+        CliArgs layers = CliArgs.Parse(["render", "--layers", "--cpu"]);
+
+        await Assert.That(Throws.Capture<CliUsageException>(() => budget.Double("budget-p99-ms", 1.0)))
+            .IsNotNull();
+        await Assert.That(Throws.Capture<CliUsageException>(() => trailing.String("out"))).IsNotNull();
+        await Assert.That(Throws.Capture<CliUsageException>(() => size.Size("size", default))).IsNotNull();
+        await Assert.That(Throws.Capture<CliUsageException>(() => frames.Int("frames", 1))).IsNotNull();
+        await Assert.That(Throws.Capture<CliUsageException>(() => layers.List("layers"))).IsNotNull();
+    }
+
+    [Test]
+    public async Task ValueOption_Absent_StillFallsBack()
+    {
+        CliArgs args = CliArgs.Parse(["bench", "--json"]);
+
+        await Assert.That(args.String("out")).IsNull();
+        await Assert.That(args.Double("budget-p99-ms", 1.0)).IsEqualTo(1.0);
+        await Assert.That(args.Int("frames", 7)).IsEqualTo(7);
+    }
+
     [Test]
     public async Task ThrowIfUnconsumed_UnknownOption_Throws()
     {

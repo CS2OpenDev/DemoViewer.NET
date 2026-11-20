@@ -71,7 +71,7 @@ internal static class ExportCommand
         // VALIDATOR and not for the picture: same request, two materially different files.
         ScenePalette palette = ResolvePalette(args.String("palette"));
         bool annotations = args.Flag("annotations");
-        if (args.String("annotations") is { Length: > 0 } annotationValue)
+        if (args.FlagValue("annotations") is { Length: > 0 } annotationValue)
         {
             throw new CliUsageException(
                 $"--annotations is a flag and takes no value (got '{annotationValue}'); it burns in " +

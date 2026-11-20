@@ -130,9 +130,36 @@ internal sealed class CliArgs
         return _options.ContainsKey(name);
     }
 
-    /// <summary>The option's value, or null when absent or given bare. Consumes it.</summary>
+    /// <summary>
+    ///     The option's value, or null when absent. Consumes it.
+    ///     <para>
+    ///         Given bare it throws. Every option read through here takes a value, so a bare one is a
+    ///         slip (<c>--budget-p99-ms --json</c>, a trailing <c>--out</c>), and reading it as absent
+    ///         would run the command on the default while marking the option consumed: the silent
+    ///         wrong run this parser exists to refuse. <see cref="Int" />, <see cref="Double" />,
+    ///         <see cref="Size" />, <see cref="List" /> and <see cref="Require" /> all read through it.
+    ///     </para>
+    /// </summary>
     /// <param name="name">The option name without dashes.</param>
+    /// <exception cref="CliUsageException">The option was given without a value.</exception>
     public string? String(string name)
+    {
+        _consumed.Add(name);
+        if (!_options.TryGetValue(name, out string? value))
+        {
+            return null;
+        }
+
+        return value ?? throw new CliUsageException($"--{name} expects a value.");
+    }
+
+    /// <summary>
+    ///     The value a flag was given, or null when it is absent or bare as a flag should be. For the
+    ///     command that wants to say <c>--flag value</c> is wrong rather than leave the stray value
+    ///     consumed. Consumes it.
+    /// </summary>
+    /// <param name="name">The option name without dashes.</param>
+    public string? FlagValue(string name)
     {
         _consumed.Add(name);
         return _options.GetValueOrDefault(name);
@@ -142,7 +169,7 @@ internal sealed class CliArgs
     /// <param name="name">The option name without dashes.</param>
     /// <exception cref="CliUsageException">The option is missing or carries no value.</exception>
     public string Require(string name) =>
-        String(name) ?? throw new CliUsageException($"--{name} <value> is required.");
+        FlagValue(name) ?? throw new CliUsageException($"--{name} <value> is required.");
 
     /// <summary>The option parsed as an integer, or <paramref name="fallback" /> when absent.</summary>
     /// <param name="name">The option name without dashes.</param>
