@@ -325,6 +325,11 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     public bool VetoesAreSessionOnly => _vetoes.IsSessionOnly;
 
+    /// <summary>Set when the veto file could not be read, so the section says why entries do not stick.</summary>
+    public string VetoProblem => _vetoes.FileProblem ?? "";
+
+    public bool HasVetoProblem => _vetoes.FileProblem is not null;
+
     public bool IsCt
     {
         get => Side == ScoutingSide.Ct;
@@ -1083,6 +1088,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         }
 
         OnPropertyChanged(nameof(VetoesAreSessionOnly));
+        OnPropertyChanged(nameof(VetoProblem));
+        OnPropertyChanged(nameof(HasVetoProblem));
         OnPropertyChanged(nameof(HasVetoes));
         if (collect)
         {

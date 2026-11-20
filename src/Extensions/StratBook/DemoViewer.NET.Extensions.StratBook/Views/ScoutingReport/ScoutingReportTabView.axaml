@@ -1248,6 +1248,9 @@
                     <StackPanel Spacing="8" Margin="26 2 6 12" IsVisible="{Binding IsVetoOpen}">
                         <TextBlock Classes="mid" Text="session only: this browser tab forgets veto entries when it reloads"
                                    IsVisible="{Binding VetoesAreSessionOnly}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource StatNegative}" TextWrapping="Wrap"
+                                   Text="{Binding VetoProblem}"
+                                   IsVisible="{Binding HasVetoProblem}" />
                         <TextBlock Classes="mid" Text="no veto steps recorded for this team yet"
                                    IsVisible="{Binding !HasVetoes}" />
                         <ItemsControl ItemsSource="{Binding Vetoes}">
@@ -1299,6 +1302,9 @@
                             <TextBlock Classes="mid"
                                        Text="session only: this browser tab forgets stars, edits and notes when it reloads"
                                        IsVisible="{Binding NotesAreSessionOnly}" />
+                            <TextBlock FontSize="11" Foreground="{DynamicResource StatNegative}" TextWrapping="Wrap"
+                                       Text="{Binding NotesProblem}"
+                                       IsVisible="{Binding HasNotesProblem}" />
                             <TextBox Text="{Binding Summary, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="12"
                                      AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48"
                                      PlaceholderText="summary: your own read, printed at the top of both forms" />

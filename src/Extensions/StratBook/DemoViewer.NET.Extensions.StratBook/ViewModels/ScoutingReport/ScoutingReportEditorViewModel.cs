@@ -175,6 +175,9 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     // The other tab starred or unstarred a line: the rows follow the store. Our own writes find nothing to change.
     private void OnStoreChanged()
     {
+        // A reload after the file was deleted out from under the store reads cleanly again.
+        OnPropertyChanged(nameof(NotesProblem));
+        OnPropertyChanged(nameof(HasNotesProblem));
         if (_teamId is not { } id)
         {
             return;
@@ -319,6 +322,11 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     public bool HasExportUnavailableNote => ExportUnavailableNote.Length > 0;
 
     public bool NotesAreSessionOnly => _store.IsSessionOnly;
+
+    /// <summary>Set when the notes file could not be read, so the long form says why edits do not stick.</summary>
+    public string NotesProblem => _store.FileProblem ?? "";
+
+    public bool HasNotesProblem => _store.FileProblem is not null;
 
     /// <summary>"Export one-pager · 5 starred", or "Export long form".</summary>
     public string ExportLabel => ExportForm == ScoutingReportForm.OnePager

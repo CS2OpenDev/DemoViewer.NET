@@ -382,6 +382,54 @@ public class ScoutingReportEditingTests
     }
 
     [Test]
+    public async Task AStoreFileThatCouldNotBeRead_IsSaidWhereItsEditsAreMade()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"dv-report-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            string notesPath = Path.Combine(root, ScoutingReportNotesStore.FileName);
+            string vetoPath = Path.Combine(root, VetoHistoryStore.FileName);
+            await File.WriteAllTextAsync(notesPath, "{ \"schemaVersion\": 99 }");
+            await File.WriteAllTextAsync(vetoPath, "{ \"schemaVersion\": 99 }");
+            ScoutingReportNotesStore notes = new(StoredFile.At(notesPath));
+            VetoHistoryStore vetoes = new(StoredFile.At(vetoPath));
+            DemoCacheStore cache = new(null);
+            TeamIdentityService teams = new(TestFiles.Teams(null), cache.Library(), run: _inline);
+            using ScoutingReportTabViewModel tab = new(teams, cache.Library(), vetoes, isBrowser: false,
+                post: a => a(), notes: notes, runSection: _ => _inline);
+            List<string?> raised = [];
+            tab.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+            tab.Editor.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(tab.HasVetoProblem).IsTrue();
+                await Assert.That(tab.VetoProblem).IsEqualTo(vetoes.FileProblem);
+                await Assert.That(tab.Editor.HasNotesProblem).IsTrue();
+                await Assert.That(tab.Editor.NotesProblem).IsEqualTo(notes.FileProblem);
+            }
+
+            // The file is deleted out from under the store and re-read: edits stick again, and the line goes.
+            File.Delete(notesPath);
+            File.Delete(vetoPath);
+            notes.Reload();
+            vetoes.Reload();
+            using (Assert.Multiple())
+            {
+                await Assert.That(tab.HasVetoProblem).IsFalse();
+                await Assert.That(tab.Editor.HasNotesProblem).IsFalse();
+                await Assert.That(raised).Contains(nameof(ScoutingReportTabViewModel.HasVetoProblem));
+                await Assert.That(raised).Contains(nameof(ScoutingReportEditorViewModel.HasNotesProblem));
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task Export_WritesTheOnePagerAsHtml_ByDefault_AndTheChosenFormOtherwise()
     {
         List<(string Text, string Stem, string Extension)> written = [];
