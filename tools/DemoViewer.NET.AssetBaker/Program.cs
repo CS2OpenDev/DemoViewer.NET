@@ -97,6 +97,9 @@ if (args.Contains("--icons"))
 // would mean either a wrong CRC or a re-stage. Nothing reads that field in any case: the app finds a
 // soup by the assets/<map>/collision.tris path, which is why the five maps that do ship one work today
 // with collision:null in their bundle.
+//
+// What it writes is collision.tris.gz, the same file the full bake leaves, and never the plain soup:
+// the plain name is probed first, so one left behind would shadow the .gz that ships.
 if (args.Contains("--collision"))
 {
     string? collisionCs2 = args
@@ -149,17 +152,40 @@ if (args.Contains("--collision"))
 
         string mapOut = Path.Combine(soupRoot, map);
         Directory.CreateDirectory(mapOut);
+        string plain = Path.Combine(mapOut, "collision.tris");
+        bool compressing = false;
         try
         {
-            CollisionMesh.Result cm = CollisionMesh.Extract(
-                mapVpk, map, Path.Combine(mapOut, "collision.tris"));
+            CollisionMesh.Result cm = CollisionMesh.Extract(mapVpk, map, plain);
+
+            // Shipped the way the full bake ships it: gzipped, with no plain file beside it. Left
+            // plain, the fresh soup sat next to the committed collision.tris.gz, CollisionSoup probed
+            // the plain name first, and the .gz that actually ships stayed the old geometry.
+            compressing = true;
+            long gzLen = CollisionMesh.CompressAndReplace(plain, plain + ".gz");
             Console.WriteLine($"# {map}");
-            Console.WriteLine(cm.Diagnostic);
+            Console.WriteLine($"{cm.Diagnostic}  gz {gzLen / 1024.0 / 1024.0:F1} MiB");
             baked++;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"  x {map}: {ex.GetType().Name}: {ex.Message}");
+
+            // The plain file never outlives the run, for the reason above. The .gz goes only when
+            // the compression itself failed, since it is then a truncated stream; an extraction that
+            // threw has not touched it.
+            try
+            {
+                File.Delete(plain);
+                if (compressing)
+                {
+                    File.Delete(plain + ".gz");
+                }
+            }
+            catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException)
+            {
+                Console.WriteLine($"  x {map}: partial output left in {mapOut}: {cleanup.Message}");
+            }
         }
     }
 
