@@ -190,6 +190,52 @@ public class ShapeToolTests
         await Assert.That(thrown).IsNotNull();
     }
 
+    /// <summary>
+    ///     The rubber band's end is read through the camera of the pane the shape was pressed in, even
+    ///     once the drag crosses into another band, or the arrow points somewhere the user never dragged.
+    /// </summary>
+    [Test]
+    public async Task DragIntoAnotherPane_EndsWhereTheCursorIsOnThePressPane()
+    {
+        (MapSpace space, PaneSet panes) = AnnotationFakes.Panes(new SKSize(600, 400),
+            new FloorSlice(-448, -384), new FloorSlice(-384, -128));
+        LevelPane lower = panes.Panes[space.IndexOf(MapSpace.IdForZMin(MapSpace.QuantizeZ(-448)))];
+        LevelPane upper = panes.Panes[space.IndexOf(MapSpace.IdForZMin(MapSpace.QuantizeZ(-384)))];
+
+        AnnotationDocument document = new();
+        AnnotationSession session = new(document);
+        FakeToolServices services = new(session, panes);
+        ShapeTool tool = new(ToolKind.Arrow);
+
+        tool.OnPressed(AnnotationFakes.Press(upper, new SKPoint(0, 0)), services);
+
+        SKPoint moveScreen = new(lower.ViewportRect.MidX, lower.ViewportRect.MidY);
+        tool.OnMoved(OnPane(lower, moveScreen, services), services);
+
+        SKPoint expectedMove = services.ScreenToWorld(upper, moveScreen);
+        await Assert.That(session.Wet.Points[^1].X).IsEqualTo(expectedMove.X);
+        await Assert.That(session.Wet.Points[^1].Y).IsEqualTo(expectedMove.Y);
+
+        SKPoint releaseScreen = new(lower.ViewportRect.MidX + 40, lower.ViewportRect.Bottom - 10);
+        tool.OnReleased(OnPane(lower, releaseScreen, services), services);
+
+        SKPoint expectedRelease = services.ScreenToWorld(upper, releaseScreen);
+        InkPoint last = document.Elements[0].Points[1];
+        await Assert.That(last.X).IsEqualTo(expectedRelease.X);
+        await Assert.That(last.Y).IsEqualTo(expectedRelease.Y);
+    }
+
+    private static ToolPointerEvent OnPane(LevelPane pane, SKPoint screen, FakeToolServices services) =>
+        new()
+        {
+            Pane = pane,
+            Screen = screen,
+            PaneLocal = new SKPoint(screen.X - pane.ViewportRect.Left, screen.Y - pane.ViewportRect.Top),
+            World = services.ScreenToWorld(pane, screen),
+            Pressure = 0.5f,
+            Button = ToolPointerButton.Left
+        };
+
     private sealed class Harness
     {
         public Harness(ToolKind kind)

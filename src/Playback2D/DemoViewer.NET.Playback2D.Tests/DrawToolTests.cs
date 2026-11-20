@@ -316,6 +316,59 @@ public class DrawToolTests
         await Assert.That(h.Document.Elements[0].Style.ColorArgb).IsEqualTo(0xFF29B6F6u);
     }
 
+    /// <summary>
+    ///     A stroke belongs to the pane it was pressed in. Dragging across a band boundary keeps arriving
+    ///     with the OTHER pane's world point, which sits a band-height away on the press floor, so the
+    ///     tool has to re-read the cursor through the press pane's camera.
+    /// </summary>
+    [Test]
+    public async Task DragIntoAnotherPane_KeepsSamplingThroughThePressPane()
+    {
+        (MapSpace space, PaneSet panes) = AnnotationFakes.Panes(new SKSize(600, 400),
+            new FloorSlice(-448, -384), new FloorSlice(-384, -128));
+        LevelPane lower = panes.Panes[space.IndexOf(MapSpace.IdForZMin(MapSpace.QuantizeZ(-448)))];
+        LevelPane upper = panes.Panes[space.IndexOf(MapSpace.IdForZMin(MapSpace.QuantizeZ(-384)))];
+
+        AnnotationDocument document = new();
+        AnnotationSession session = new(document);
+        FakeToolServices services = new(session, panes);
+        DrawTool tool = new();
+
+        tool.OnPressed(AnnotationFakes.Press(upper, new SKPoint(0, 0)), services);
+
+        SKPoint moveScreen = new(lower.ViewportRect.MidX, lower.ViewportRect.MidY);
+        InkPoint[] coalesced = [new(5, 5, 0.5f)];
+        tool.OnMoved(OnPane(lower, moveScreen, services, coalesced), services);
+
+        SKPoint expectedMove = services.ScreenToWorld(upper, moveScreen);
+        InkPoint wetLast = session.Wet.Points[^1];
+        await Assert.That(wetLast.X).IsEqualTo(expectedMove.X);
+        await Assert.That(wetLast.Y).IsEqualTo(expectedMove.Y);
+        await Assert.That(session.Wet.Points.Count).IsEqualTo(2)
+            .Because("a coalesced batch read through the other pane's camera is in the wrong space");
+
+        SKPoint releaseScreen = new(lower.ViewportRect.MidX + 40, lower.ViewportRect.Bottom - 10);
+        tool.OnReleased(OnPane(lower, releaseScreen, services), services);
+
+        SKPoint expectedRelease = services.ScreenToWorld(upper, releaseScreen);
+        InkPoint last = document.Elements[0].Points[^1];
+        await Assert.That(last.X).IsEqualTo(expectedRelease.X);
+        await Assert.That(last.Y).IsEqualTo(expectedRelease.Y);
+    }
+
+    private static ToolPointerEvent OnPane(LevelPane pane, SKPoint screen, FakeToolServices services,
+        ReadOnlySpan<InkPoint> coalesced = default) =>
+        new()
+        {
+            Pane = pane,
+            Screen = screen,
+            PaneLocal = new SKPoint(screen.X - pane.ViewportRect.Left, screen.Y - pane.ViewportRect.Top),
+            World = services.ScreenToWorld(pane, screen),
+            Pressure = 0.5f,
+            Button = ToolPointerButton.Left,
+            Intermediate = coalesced
+        };
+
     private sealed class Harness
     {
         public Harness(double zMin = 0)

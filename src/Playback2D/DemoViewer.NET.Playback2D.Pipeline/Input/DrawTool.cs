@@ -3,6 +3,7 @@
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Levels;
+using SkiaSharp;
 
 #endregion
 
@@ -22,6 +23,11 @@ public sealed class DrawTool : IPointerTool
 {
     private TimeEnvelope _envelope = TimeEnvelope.Static;
     private IDisposable? _gesture;
+
+    // The pane the gesture was pressed in. The host resolves the pane under the cursor on every event, so
+    // once a drag crosses a band boundary e.World is in ANOTHER floor's camera; the samples are re-read
+    // through this one, the way PanZoomGesture binds its drag to the press pane.
+    private LevelPane? _pane;
 
     // The previous event's reading of the authoring clock, the START of the span this event's coalesced
     // batch is spread across. It lives on the tool rather than on the wet stroke because it tracks
@@ -46,6 +52,7 @@ public sealed class DrawTool : IPointerTool
 
         AnnotationSession session = ink.Session;
         _gesture = session.Document.BeginGesture("draw");
+        _pane = pane;
         _envelope = session.EnvelopeForNewElement(ink.CurrentTick);
         _lastEventMs = ink.NowMilliseconds;
 
@@ -93,14 +100,18 @@ public sealed class DrawTool : IPointerTool
         // a 60 Hz event arrives 16.7 ms after the last and one DV tick is 15.625 ms, so the whole
         // interpolation happens strictly BELOW the quantization floor BuildTiming rounds to. It is not
         // an approximation of something that could otherwise have been measured.
-        ReadOnlySpan<InkPoint> intermediate = e.Intermediate;
+        //
+        // A batch delivered in another pane's world space carries no screen positions to re-read it by,
+        // so it is dropped; the primary point below still lands where the cursor is.
+        ReadOnlySpan<InkPoint> intermediate = IsPressPane(in e) ? e.Intermediate : default;
         for (int i = 0; i < intermediate.Length; i++)
         {
             long atMs = _lastEventMs + (nowMs - _lastEventMs) * (i + 1) / (intermediate.Length + 1);
             session.Wet.TryAppend(intermediate[i], spacing, atMs);
         }
 
-        session.Wet.TryAppend(new InkPoint(e.World.X, e.World.Y, e.Pressure), spacing, nowMs);
+        SKPoint world = WorldIn(_pane, in e, ink);
+        session.Wet.TryAppend(new InkPoint(world.X, world.Y, e.Pressure), spacing, nowMs);
         _lastEventMs = nowMs;
 
         // Unconditional: the repaint below runs whether or not the spacing filter kept the sample.
@@ -126,7 +137,8 @@ public sealed class DrawTool : IPointerTool
 
         // No _lastEventMs update here: the release is the LAST event of the gesture, and the next press
         // seeds it again. Carrying it forward would be a value nothing can read.
-        session.Wet.TryAppend(new InkPoint(e.World.X, e.World.Y, e.Pressure),
+        SKPoint world = WorldIn(_pane, in e, ink);
+        session.Wet.TryAppend(new InkPoint(world.X, world.Y, e.Pressure),
             session.SampleSpacingFor(session.Wet.Style), ink.NowMilliseconds);
 
         IReadOnlyList<InkPoint> samples = session.Wet.Points;
@@ -189,7 +201,16 @@ public sealed class DrawTool : IPointerTool
     {
         _gesture?.Dispose();
         _gesture = null;
+        _pane = null;
     }
+
+    private bool IsPressPane(in ToolPointerEvent e) => _pane is null || e.Pane?.LevelId == _pane.LevelId;
+
+    // Internal so the shape tool reads its rubber band through the press pane exactly as the pen does.
+    internal static SKPoint WorldIn(LevelPane? pressPane, in ToolPointerEvent e, IToolServices s) =>
+        pressPane is null || e.Pane?.LevelId == pressPane.LevelId
+            ? e.World
+            : s.ScreenToWorld(pressPane, e.Screen);
 
     // Internal so the shape and text tools anchor exactly as the pen does.
     internal static SpaceRef ResolveSpace(LevelPane pane, in ToolPointerEvent e, IInkToolServices s)
