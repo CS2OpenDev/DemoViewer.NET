@@ -160,7 +160,7 @@ public sealed class CameraScriptResolver : IPaneCameraPolicy
 
     private void Pin(LevelPane pane, ViewportTransform stored)
     {
-        ViewportTransform fitted = stored.WithViewport(pane.ViewportRect.Width, pane.ViewportRect.Height);
+        ViewportTransform fitted = Refit(stored, pane.ViewportRect.Width, pane.ViewportRect.Height);
         if (!pane.Camera.IsSettledAt(fitted))
         {
             MovedAnyCamera = true;
@@ -169,6 +169,28 @@ public sealed class CameraScriptResolver : IPaneCameraPolicy
         pane.Camera.Current = fitted;
         pane.Camera.ManualOverride = true; // a scripted camera is data, not a target to lerp toward.
         pane.SyncCameraEpoch();
+    }
+
+    // BaseScale and the pan are in pixels of the pane the transform was captured in, so both follow the
+    // size ratio; WithViewport alone would keep the live pixel scale and crop (or shrink) the map. The
+    // smaller axis ratio decides, as in a fit: everything the live pane showed stays in view and a pane
+    // of another aspect shows more on its longer side. Scaling the pan with the base scale keeps the
+    // world point at the pane centre, so a view panned to a site stays on that site.
+    private static ViewportTransform Refit(ViewportTransform stored, double paneWidth, double paneHeight)
+    {
+        double ratio = stored is { ViewWidth: > 0, ViewHeight: > 0 }
+            ? Math.Min(paneWidth / stored.ViewWidth, paneHeight / stored.ViewHeight)
+            : 1.0;
+
+        // A hand-built transform with no view size, or a pane with no area yet, gives nothing to take a
+        // ratio against. Keep the scale as written rather than pin a zero or non-finite one.
+        if (!double.IsFinite(ratio) || ratio <= 0)
+        {
+            ratio = 1.0;
+        }
+
+        return new ViewportTransform(paneWidth, paneHeight, stored.CenterX, stored.CenterY,
+            stored.BaseScale * ratio, stored.Zoom, stored.PanX * ratio, stored.PanY * ratio);
     }
 
     private static int SlotForSteamId(Scene2DFrame frame, ulong steamId)

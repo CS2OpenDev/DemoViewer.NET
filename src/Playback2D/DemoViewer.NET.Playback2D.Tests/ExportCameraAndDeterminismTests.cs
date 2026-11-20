@@ -46,13 +46,133 @@ public class CameraScriptResolverTests
         {
             ViewportTransform applied = pane.Camera.Current;
 
-            // …and re-viewported onto the export's band. Same world centre and the same scale: the world
-            // rectangle on screen is what a user framed, not the pixel size they framed it in.
+            // …and re-fitted onto the export's band. Same world centre, and the scale follows the pane:
+            // the world rectangle on screen is what a user framed, not the pixel size they framed it in.
             await Assert.That(applied.ViewWidth).IsEqualTo(pane.ViewportRect.Width).Within(0.01);
             await Assert.That(applied.ViewHeight).IsEqualTo(pane.ViewportRect.Height).Within(0.01);
             await Assert.That(applied.CenterX).IsEqualTo(live.CenterX).Within(1e-6);
-            await Assert.That(applied.BaseScale).IsEqualTo(live.BaseScale).Within(1e-9);
+
+            // The band is wider than the live pane was, so height is the limiting axis: the same world
+            // height is on screen, and the extra width shows more of the map rather than cropping it.
+            await Assert.That(applied.ViewHeight / applied.EffectiveScale)
+                .IsEqualTo(live.ViewHeight / live.EffectiveScale).Within(1e-6);
+            await AssertShowsEverythingTheLiveViewDid(live, applied);
         }
+    }
+
+    /// <summary>
+    ///     The direction that crops: a live pane LARGER than the export. Keeping the live pixel scale
+    ///     leaves only part of the map inside the smaller frame.
+    /// </summary>
+    [Test]
+    public async Task MirrorLiveView_OfALargerLivePane_KeepsTheWholeFramedMapInTheExport()
+    {
+        MapSpace space = TwoLevelSpace();
+        WorldBounds extent = new(-2250, -2250, 2250, 2250);
+
+        PaneSet live = new(new StackedLayout());
+        live.Reconcile(space, LevelDisplayMode.Stacked, new SKSize(1900, 1300), extent);
+
+        ImmutableArray<PaneCameraSnapshot> captured =
+        [
+            .. live.Panes.Select(p => new PaneCameraSnapshot(p.LevelId, p.Camera.Current, p.Camera.ManualOverride))
+        ];
+
+        PaneSet exporting = new(new StackedLayout());
+        exporting.Reconcile(space, LevelDisplayMode.Stacked, new SKSize(1280, 720), extent);
+
+        CameraScriptResolver resolver = new(
+            new CameraScript.MirrorLiveView(captured, LevelDisplayMode.Stacked));
+        resolver.Apply(exporting, SyntheticScenes.FullSceneBudget().Frame,
+            new SceneTime(0, 0, 0, 1 / 60.0, true));
+
+        foreach (PaneCameraSnapshot snapshot in captured)
+        {
+            LevelPane exported = exporting.Panes.First(p => p.LevelId == snapshot.LevelId);
+            await AssertShowsEverythingTheLiveViewDid(snapshot.Transform, exported.Camera.Current);
+        }
+    }
+
+    /// <summary>
+    ///     Pan is stored in the live pane's pixels. Carried across unscaled it is a different world
+    ///     distance in the export, and the site the user panned to slides out of the middle.
+    /// </summary>
+    [Test]
+    public async Task Fixed_KeepsTheWorldPointAtThePaneCentre_WhenTheLiveViewWasPannedAndZoomed()
+    {
+        MapSpace space = TwoLevelSpace();
+        PaneSet panes = new(new StackedLayout());
+        panes.Reconcile(space, LevelDisplayMode.Stacked, new SKSize(1920, 1080),
+            new WorldBounds(-2000, -1200, 2000, 1200));
+
+        ViewportTransform live = ViewportTransform.Fit(700, 350, -1000, -800, 1000, 800)
+            .ZoomAbout(500, 100, 2.5)
+            .WithPanDelta(120, -40);
+        (double X, double Y) liveCentre = live.ScreenToWorld(live.ViewWidth / 2, live.ViewHeight / 2);
+
+        Dictionary<MapLevelId, ViewportTransform> byLevel = new();
+        foreach (LevelPane pane in panes.Panes)
+        {
+            byLevel[pane.LevelId] = live;
+        }
+
+        CameraScriptResolver resolver = new(new CameraScript.Fixed(byLevel));
+        resolver.Apply(panes, SyntheticScenes.FullSceneBudget().Frame, new SceneTime(0, 0, 0, 1 / 60.0, true));
+
+        foreach (LevelPane pane in panes.Panes)
+        {
+            ViewportTransform applied = pane.Camera.Current;
+            (double X, double Y) centre = applied.ScreenToWorld(applied.ViewWidth / 2, applied.ViewHeight / 2);
+
+            await Assert.That(centre.X).IsEqualTo(liveCentre.X).Within(1e-6);
+            await Assert.That(centre.Y).IsEqualTo(liveCentre.Y).Within(1e-6);
+            await Assert.That(applied.Zoom).IsEqualTo(live.Zoom).Within(1e-9);
+            await AssertShowsEverythingTheLiveViewDid(live, applied);
+        }
+    }
+
+    /// <summary>
+    ///     A hand-built transform need not carry a view size. There is nothing to take a ratio against,
+    ///     so the scale is kept as written rather than becoming zero, infinite or NaN.
+    /// </summary>
+    [Test]
+    public async Task Fixed_WithNoStoredViewSize_KeepsTheScaleItWasGiven()
+    {
+        MapSpace space = TwoLevelSpace();
+        PaneSet panes = new(new StackedLayout());
+        panes.Reconcile(space, LevelDisplayMode.Stacked, new SKSize(1920, 1080),
+            new WorldBounds(-2000, -1200, 2000, 1200));
+
+        ViewportTransform sizeless = new(0, 0, 100, 200, 0.25, 1, 0, 0);
+        Dictionary<MapLevelId, ViewportTransform> byLevel = new();
+        foreach (LevelPane pane in panes.Panes)
+        {
+            byLevel[pane.LevelId] = sizeless;
+        }
+
+        CameraScriptResolver resolver = new(new CameraScript.Fixed(byLevel));
+        resolver.Apply(panes, SyntheticScenes.FullSceneBudget().Frame, new SceneTime(0, 0, 0, 1 / 60.0, true));
+
+        foreach (LevelPane pane in panes.Panes)
+        {
+            await Assert.That(pane.Camera.Current.BaseScale).IsEqualTo(0.25).Within(1e-12);
+            await Assert.That(pane.Camera.Current.ViewWidth).IsEqualTo(pane.ViewportRect.Width).Within(0.01);
+        }
+    }
+
+    // The world rectangle the live pane showed, corner to corner, is still inside the exported one.
+    private static async Task AssertShowsEverythingTheLiveViewDid(ViewportTransform live, ViewportTransform applied)
+    {
+        (double liveLeft, double liveTop) = live.ScreenToWorld(0, 0);
+        (double liveRight, double liveBottom) = live.ScreenToWorld(live.ViewWidth, live.ViewHeight);
+        (double left, double top) = applied.ScreenToWorld(0, 0);
+        (double right, double bottom) = applied.ScreenToWorld(applied.ViewWidth, applied.ViewHeight);
+
+        const double Slack = 1e-6;
+        await Assert.That(left).IsLessThanOrEqualTo(liveLeft + Slack);
+        await Assert.That(right).IsGreaterThanOrEqualTo(liveRight - Slack);
+        await Assert.That(top).IsGreaterThanOrEqualTo(liveTop - Slack);
+        await Assert.That(bottom).IsLessThanOrEqualTo(liveBottom + Slack);
     }
 
     [Test]
