@@ -316,7 +316,15 @@ public sealed class ReelJobService(
                     // Teardown is best-effort; the install restore is CSVG's stop path.
                 }
 
-                await host.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await host.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Best-effort: a failed container dispose must not skip the gate release, the
+                    // sync un-suspend and the terminal status below.
+                }
             }
 
             reelSlot?.Dispose();
