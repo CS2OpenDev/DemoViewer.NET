@@ -24,6 +24,9 @@ internal sealed record ZoneOverlayResult(ZoneSet Effective, IReadOnlyList<ZoneDi
 /// </summary>
 internal static class ZoneOverlayApplier
 {
+    // Twice the Source 2 world half-extent, so no real corner is ever turned away.
+    private const double MaxCoordinate = 32768;
+
     /// <summary>Applies the overlay.</summary>
     /// <param name="baked">The baked set.</param>
     /// <param name="overlay">The parsed overlay.</param>
@@ -159,6 +162,16 @@ internal static class ZoneOverlayApplier
             diagnostics.Add(new ZoneDiagnostic("zones.overlay.unknown-floor",
                 $"zone '{zone.Name}' names floor {zone.Floor.ToString(CultureInfo.InvariantCulture)}; " +
                 $"this map's floor keys are {keys}", zone.Name));
+            return;
+        }
+
+        // Range first: the resolver grids every volume's box cell by cell, so a corner at 1e9 hangs the
+        // map load, and NaN fails every comparison IsSimple makes and so passes it.
+        if (zone.Polygon.Any(v => !double.IsFinite(v) || Math.Abs(v) > MaxCoordinate))
+        {
+            diagnostics.Add(new ZoneDiagnostic("zones.overlay.bad-polygon",
+                $"zone '{zone.Name}' has a corner outside the map; expected every x and y within " +
+                $"±{MaxCoordinate.ToString(CultureInfo.InvariantCulture)}", zone.Name));
             return;
         }
 

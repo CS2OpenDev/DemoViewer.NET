@@ -201,6 +201,23 @@ public class ZoneOverlayTests
     }
 
     [Test]
+    public async Task PolygonBeyondTheMap_IsSkippedWithADiagnostic()
+    {
+        // The resolver grids every volume's box at 128 units a cell, so a polygon this size would hang
+        // the map load; NaN would slip past the simplicity test.
+        ZoneOverlayResult result = Apply(Overlay(
+            zones:
+            [
+                new ZoneOverlayZone("Huge", ZoneFixtures.Upper, [0, 0, 1e9, 0, 0, 1e9], null, null, false),
+                new ZoneOverlayZone("NaN", ZoneFixtures.Upper, [0, 0, double.NaN, 0, 0, 100], null, null, false)
+            ]));
+
+        await Assert.That(result.Diagnostics.Count(d => d.Code == "zones.overlay.bad-polygon")).IsEqualTo(2);
+        await Assert.That(result.Effective.Places.Any(p => p.Name is "Huge" or "NaN")).IsFalse();
+        await Assert.That(result.Effective.Volumes.Any(v => v.Origin == PlaceOrigin.Custom)).IsFalse();
+    }
+
+    [Test]
     public async Task NameCollisionWithReplaces_GivesTheNameOneOwner()
     {
         ZoneOverlayResult result = Apply(Overlay(
