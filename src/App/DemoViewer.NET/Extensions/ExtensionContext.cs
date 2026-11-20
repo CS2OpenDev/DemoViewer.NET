@@ -232,19 +232,41 @@ internal sealed class ExtensionContext : IExtensionContext
             }
             remove
             {
-                if (gate is not null && value is not null && _forwards.Remove(value, out EventHandler? handler))
+                if (gate is null || value is null)
+                {
+                    return;
+                }
+
+                EventHandler? handler = null;
+                lock (_forwards)
+                {
+                    // The last subscription of an equal delegate, as a plain event removes.
+                    int at = _forwards.FindLastIndex(f => f.Value == value);
+                    if (at >= 0)
+                    {
+                        handler = _forwards[at].Handler;
+                        _forwards.RemoveAt(at);
+                    }
+                }
+
+                if (handler is not null)
                 {
                     gate.Changed -= handler;
                 }
             }
         }
 
-        private readonly Dictionary<Action, EventHandler> _forwards = [];
+        // One pair per subscription: a delegate added twice has two forwarders on the gate, each removable.
+        private readonly List<(Action Value, EventHandler Handler)> _forwards = [];
 
         private EventHandler Forward(Action value)
         {
             EventHandler handler = (_, _) => guard.Run("feature change handler", value);
-            _forwards[value] = handler;
+            lock (_forwards)
+            {
+                _forwards.Add((value, handler));
+            }
+
             return handler;
         }
     }
