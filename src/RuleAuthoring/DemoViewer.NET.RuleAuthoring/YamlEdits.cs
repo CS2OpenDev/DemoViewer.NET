@@ -179,10 +179,60 @@ public static class YamlEdits
             throw new NotSupportedException($"{mapping} uses a merge key; merge keys are not supported");
         }
 
-        int from = doc.StartOfLine((int)keyNode.Start.Index);
+        int keyStart = (int)keyNode.Start.Index;
+        int from = doc.StartOfLine(keyStart);
         int to = doc.StartOfNextLine(doc.EndOf(valueNode));
 
+        // The first key of a mapping that is a sequence item does not own its line: `- id: a` puts
+        // the item's dash in front of it. Deleting from the line start would take the dash too, and
+        // the keys left behind would re-attach to whatever encloses the sequence.
+        ReadOnlySpan<char> before = doc.Text.AsSpan(from, keyStart - from).TrimStart('﻿');
+        if (before.ContainsAnyExcept(' '))
+        {
+            if (before.ContainsAnyExcept(' ', '-'))
+            {
+                throw new NotSupportedException(
+                    $"{mapping.Key(key)} does not start its own line; removing it is not supported");
+            }
+
+            return RemoveKeyAfterDash(doc, map, mapping.Key(key), from, keyStart, to);
+        }
+
         return new TextEdit(from, to - from, "", $"remove {mapping.Key(key)}");
+    }
+
+    // Removes a key that sits behind its sequence item's dash, keeping the dash.
+    //
+    // With keys after it, the next line is pulled up behind the dash: its indentation (the key
+    // column, which is where the removed key started) goes with the removed text, so `- id: a` over
+    // `  run: b` becomes `- run: b`. Only spaces are taken, and no more than that column, so a blank
+    // or shallower line in between is left as it is.
+    //
+    // As the only key, the item stays as a bare dash. That is the same answer RemoveKey gives for the
+    // last key of an ordinary mapping, which leaves its parent key holding nothing.
+    private static TextEdit RemoveKeyAfterDash(
+        YamlDocumentText doc, YamlMappingNode map, YamlPath path, int lineStart, int keyStart, int to)
+    {
+        if (map.Children.Count > 1)
+        {
+            int column = keyStart - lineStart;
+            int end = to;
+            while (end < doc.Text.Length && end - to < column && doc.Text[end] == ' ')
+            {
+                end++;
+            }
+
+            return new TextEdit(keyStart, end - keyStart, "", $"remove {path}");
+        }
+
+        int start = keyStart;
+        while (start > lineStart && doc.Text[start - 1] == ' ')
+        {
+            start--;
+        }
+
+        bool endedALine = to > start && doc.Text[to - 1] is '\n' or '\r';
+        return new TextEdit(start, to - start, endedALine ? doc.NewLine : "", $"remove {path}");
     }
 
     /// <summary>
@@ -375,11 +425,10 @@ public static class YamlEdits
 
         if (node is YamlMappingNode { Style: not MappingStyle.Flow } map)
         {
-            int indentAt = map.Children.Count > 0
-                ? (int)map.Children.Keys.Last().Start.Index
-                : (int)map.Start.Index;
             (int at, string lead) = AppendPoint(doc, map);
-            return (at, lead, doc.IndentOf(indentAt));
+            return (at, lead, map.Children.Count > 0
+                ? KeyIndent(doc, (int)map.Children.Keys.Last().Start.Index)
+                : doc.IndentOf((int)map.Start.Index));
         }
 
         if (node is YamlScalarNode { Value: null or "" } && doc.FindKey(mapping) is { } emptyKey)
@@ -387,7 +436,7 @@ public static class YamlEdits
             int keyStart = (int)emptyKey.Start.Index;
             int at = doc.StartOfNextLine(keyStart);
             bool startsALine = at == 0 || doc.Text[at - 1] is '\n' or '\r';
-            return (at, startsALine ? "" : doc.NewLine, doc.IndentOf(keyStart) + "  ");
+            return (at, startsALine ? "" : doc.NewLine, KeyIndent(doc, keyStart) + "  ");
         }
 
         if (node is YamlMappingNode { Style: MappingStyle.Flow })
@@ -396,6 +445,19 @@ public static class YamlEdits
         }
 
         throw new InvalidOperationException($"{mapping} is not a block mapping");
+    }
+
+    // The indentation a sibling of the key at `keyStart` is written at: the key's COLUMN, not the
+    // leading spaces of its line. The two agree except for the one key of a sequence item that sits
+    // behind the dash (`  - id: a`), where the line's indentation is the dash's and a sibling written
+    // there would end the sequence and land in the mapping around it.
+    private static string KeyIndent(YamlDocumentText doc, int keyStart)
+    {
+        int lineStart = doc.StartOfLine(keyStart);
+        ReadOnlySpan<char> before = doc.Text.AsSpan(lineStart, keyStart - lineStart);
+        return before.Contains('-') && !before.ContainsAnyExcept(' ', '-')
+            ? new string(' ', keyStart - lineStart)
+            : doc.IndentOf(keyStart);
     }
 
     private static string FlowRefusal(YamlPath mapping, string what) =>
