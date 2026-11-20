@@ -250,7 +250,12 @@ public sealed class AnnotationSessionController : IDisposable
             return;
         }
 
-        await FlushAsync().ConfigureAwait(false);
+        // Both awaits here come BACK to the caller's context, unlike every other await in this type.
+        // Everything after them edits the document, and the document's Changed runs the timeline's
+        // rebuild of collections the view is bound to: started on the UI thread, this method has to finish
+        // there, and a write or a read completed by a pool thread would otherwise carry it off. The
+        // blocking Flush() does not come through here, so there is still no context for it to wait on.
+        await FlushAsync();
 
         _demoPath = normalized;
         Clock = clock;
@@ -274,8 +279,7 @@ public sealed class AnnotationSessionController : IDisposable
                 return;
             }
 
-            AnnotationLoadResult result =
-                await _store.LoadAsync(_demoPath, clock).ConfigureAwait(false);
+            AnnotationLoadResult result = await _store.LoadAsync(_demoPath, clock);
 
             ClockMismatch = result.ClockMismatch;
             DemoMismatch = result.DemoMismatch;
@@ -627,7 +631,9 @@ public sealed class AnnotationSessionController : IDisposable
     {
         try
         {
-            await Task.Delay(AutoSaveDelay, ct).ConfigureAwait(false);
+            // Back to the context the change was made on: SaveNowAsync opens by copying the element list,
+            // and a copy taken on a pool thread races the stroke being drawn on the UI thread.
+            await Task.Delay(AutoSaveDelay, ct);
         }
         catch (OperationCanceledException)
         {
@@ -664,7 +670,11 @@ public sealed class AnnotationSessionController : IDisposable
 
         try
         {
-            await _saveSerializer.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            // Always onto the pool from here, even when the serializer is free: the snapshot above is the
+            // only part that belongs to the caller's thread, and what follows stats the sidecar, may hash
+            // the demo and serializes the document.
+            await _saveSerializer.WaitAsync(CancellationToken.None)
+                .ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
         }
         catch (ObjectDisposedException)
         {

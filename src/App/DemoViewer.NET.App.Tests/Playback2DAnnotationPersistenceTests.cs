@@ -1,6 +1,7 @@
 #region
 
 using System.Runtime.CompilerServices;
+using Avalonia.Threading;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Modules.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Annotations;
@@ -354,6 +355,120 @@ public class Playback2DAnnotationPersistenceTests
             new(new AnnotationStore(demo.AppData), null, static () => false);
         await desktop.AttachDemoAsync(demo.DemoPath, demo.Clock);
         await Assert.That(desktop.CanAutoSave).IsTrue();
+    }
+
+    /// <summary>
+    ///     The document is UI-thread state: the timeline rebuilds bound collections off its Changed. An
+    ///     attach started on the UI thread has to come back to it, even when the flush it waits on was
+    ///     finished by a pool thread, which is what an autosave still writing the previous ink does.
+    /// </summary>
+    [Test]
+    public async Task Controller_AttachStartedOnTheUiThread_TouchesTheDocumentOnlyThere()
+    {
+        using TempDemo demo = new();
+        using KeyGate gate = new();
+
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData, gate.Resolve), null)
+            {
+                AutoSaveDelay = TimeSpan.FromMilliseconds(10)
+            };
+            await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+            // An autosave that is inside the store, holding the save serializer, on its own thread.
+            gate.Arm();
+            controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
+            await WaitFor(() => gate.Entered, TimeSpan.FromSeconds(10));
+
+            List<bool> onUiThread = [];
+            controller.Document.Changed += () => onUiThread.Add(Dispatcher.UIThread.CheckAccess());
+
+            Task attach = controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+            await Assert.That(attach.IsCompleted).IsFalse().Because("its flush is queued behind the autosave");
+            gate.Release();
+            await attach;
+
+            await Assert.That(onUiThread).IsNotEmpty();
+            await Assert.That(onUiThread).DoesNotContain(false);
+            await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+        });
+    }
+
+    /// <summary>
+    ///     The debounced save comes back to the UI thread to copy the element list, which is only safe to
+    ///     read where it is written. The write that follows must not stay there: it stats, may hash, and
+    ///     serializes the whole document.
+    /// </summary>
+    [Test]
+    public async Task Controller_DebouncedSave_DoesNotWriteOnTheUiThread()
+    {
+        using TempDemo demo = new();
+        using KeyGate gate = new();
+
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData, gate.Resolve), null)
+            {
+                AutoSaveDelay = TimeSpan.FromMilliseconds(10)
+            };
+            await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+            gate.Arm();
+            controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
+            await WaitFor(() => gate.Entered, TimeSpan.FromSeconds(10));
+
+            // Still on the UI thread, and the save is parked inside the store: it is not being written here.
+            await Assert.That(gate.EnteredOnUiThread).IsFalse();
+            gate.Release();
+            await WaitFor(() => controller.SaveCount > 0, TimeSpan.FromSeconds(10));
+            await Assert.That(File.Exists(demo.SidecarPath)).IsTrue();
+        });
+    }
+
+    // Parks the store's first key lookup after Arm() until Release(). The store asks for a demo's key from
+    // inside a load (once the file is read) and from inside a save (once it holds the save serializer), so
+    // this is the one place a test can hold either open without a seam in the controller.
+    private sealed class KeyGate : IDisposable
+    {
+        private readonly ManualResetEventSlim _entered = new(false);
+        private readonly ManualResetEventSlim _release = new(false);
+        private int _state;
+
+        public Func<string, string> Keys { get; init; } = static _ => "";
+
+        /// <summary>The only demo path whose lookup is parked, or null for any.</summary>
+        public string? Only { get; init; }
+
+        public bool Entered => _entered.IsSet;
+
+        public bool EnteredOnUiThread { get; private set; }
+
+        public void Dispose()
+        {
+            _release.Set();
+            _entered.Dispose();
+            _release.Dispose();
+        }
+
+        public void Arm() => Volatile.Write(ref _state, 1);
+
+        public bool WaitEntered(TimeSpan timeout) => _entered.Wait(timeout);
+
+        public void Release() => _release.Set();
+
+        public string Resolve(string path)
+        {
+            if ((Only is null || string.Equals(path, Only, StringComparison.OrdinalIgnoreCase))
+                && Interlocked.CompareExchange(ref _state, 2, 1) == 1)
+            {
+                EnteredOnUiThread = Dispatcher.UIThread.CheckAccess();
+                _entered.Set();
+                _release.Wait(TimeSpan.FromSeconds(30));
+            }
+
+            return Keys(path);
+        }
     }
 
     private static AnnotationElement Stroke() =>
