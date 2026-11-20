@@ -1151,17 +1151,14 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     }
 
     /// <summary>
-    ///     Step 4, analysis finished: fill the final score and the basic scoreboard from the analysis engine's
+    ///     Step 4, analysis finished: fill the side wins and the basic scoreboard from the analysis engine's
     ///     own per-player game table, so the numbers are the SAME ones the Stats tab shows (no second
     ///     projection to drift out of sync). A null table, or one with no rows, is the legitimate
-    ///     "ran but produced nothing" outcome and surfaces as a message in place of the rows.
+    ///     "ran but produced nothing" outcome and surfaces as a message in place of the rows. The final
+    ///     score is not read here; it arrives through <see cref="SetTeamScores" />.
     /// </summary>
     /// <param name="subjectKey">Identity of the demo this run belongs to; a mismatch is dropped.</param>
     /// <param name="gameTable">The analysis per-player match table, or null when the run produced none.</param>
-    /// <param name="teamScoresBySort">
-    ///     Derived MATCH TOTALS per team, keyed by team-sort (0 = the team that finished CT, 1 = the team
-    ///     that finished T). Not per-side totals; see the SideWins fields.
-    /// </param>
     /// <param name="roundCount">Rounds the analysis resolved, or 0 when unknown.</param>
     /// <param name="accounts">
     ///     The account each slot opens in the Player Overview, coaches already left out. The roster was filled before
@@ -1170,7 +1167,6 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     public void SetAnalysis(
         string? subjectKey,
         MetricTable? gameTable,
-        IReadOnlyDictionary<int, int?>? teamScoresBySort,
         int roundCount,
         IReadOnlyDictionary<int, ulong>? accounts = null)
     {
@@ -1192,10 +1188,10 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         }
 
         // EVERY analysis-stage value is keyed off the one fact "did this run produce a table", not off the
-        // caller's other two arguments. A caller holding per-demo state that outlives an unload could
-        // otherwise hand over the PREVIOUS demo's score dict alongside a null table, and the page would paint
-        // the last match's 13–9 next to an empty scoreboard: the exact "two different scores for one match"
-        // this page must never show. Cheap to enforce here; impossible to notice if it ever happens.
+        // caller's round count. A caller holding per-demo state that outlives an unload could otherwise hand
+        // over the PREVIOUS demo's round count alongside a null table, and the page would paint the last
+        // match's numbers next to an empty scoreboard. Cheap to enforce here; impossible to notice if it ever
+        // happens.
         //
         // The subject key above now rules out the cross-demo case this defends against, but the check stays:
         // it also covers a SAME-demo re-run that produced no table, which no key can distinguish.

@@ -3612,7 +3612,7 @@ public static partial class Variants
         // Post-analysis: drive the REAL SetAnalysis with a synthesized game table, so the capture exercises
         // the same projection (column keys, "—" fallbacks, CT-then-T ordering) the shell feeds it.
         vm.BeginAnalysis(vm.SubjectKey);
-        vm.SetAnalysis(vm.SubjectKey, OverviewGameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
+        vm.SetAnalysis(vm.SubjectKey, OverviewGameTable(), 22);
         // The score is authoritative (CCSTeam.m_iScore), fed separately from the analysis run. Mirror that
         // here, with clan names so the capture shows the pro-demo labelling rather than "ENDED CT".
         vm.SetTeamScores(vm.SubjectKey, 13, 9);

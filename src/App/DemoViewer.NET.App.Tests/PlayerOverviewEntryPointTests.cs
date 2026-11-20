@@ -195,7 +195,7 @@ public class PlayerOverviewEntryPointTests
         MatchOverviewTabViewModel vm = new() { PlayerOverviewOpener = (id, name) => opened.Add((id, name)) };
         vm.BeginOpening("entry_de_nuke.dem", "Nuke", "Server", Demo);
         vm.SetSummary(Demo, demo);
-        vm.SetAnalysis(Demo, stats.GameTable, null, 13, stats.AccountsBySlot);
+        vm.SetAnalysis(Demo, stats.GameTable, 13, stats.AccountsBySlot);
 
         foreach (OverviewStatRow row in vm.PlayerStats)
         {

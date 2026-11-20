@@ -2147,7 +2147,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (StatsTab.GameTable is not null)
         {
             MatchOverviewTab.BeginAnalysis(path);
-            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.TeamScoresBySort,
+            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable,
                 StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
             MatchOverviewTab.SetTeamScores(path,
                 StatsTab.TeamScoresBySort.GetValueOrDefault(0),
@@ -3030,7 +3030,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             open.Report(0.6, "Analysing");
             await Analysis.RunOpenAsync(parsed, demoKey, path, clock);
             ThrowIfSuperseded(open);
-            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.TeamScoresBySort, StatsTab.Rounds.Count,
+            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.Rounds.Count,
                 StatsTab.AccountsBySlot);
             // Per-team round wins from the same evaluation: each team's total across BOTH halves.
             MatchOverviewTab.SetTeamScores(
@@ -4414,7 +4414,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // RunAsync (AnalysisViewModel.cs), so its tables are already built by the time this await
             // returns. Reading them here rather than subscribing keeps the Match Overview's score and
             // scoreboard byte-identical to the Stats tab's with no handler-order dependency.
-            MatchOverviewTab.SetAnalysis(subjectKey, StatsTab.GameTable, StatsTab.TeamScoresBySort,
+            MatchOverviewTab.SetAnalysis(subjectKey, StatsTab.GameTable,
                 StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
             // Per-team round wins from the same evaluation: each team's total across BOTH halves.
             MatchOverviewTab.SetTeamScores(

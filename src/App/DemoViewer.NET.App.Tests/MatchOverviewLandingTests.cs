@@ -273,7 +273,7 @@ public class MatchOverviewLandingTests
             double parsed = content.DesiredSize.Height;
 
             vm.BeginAnalysis(vm.SubjectKey);
-            vm.SetAnalysis(vm.SubjectKey, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
+            vm.SetAnalysis(vm.SubjectKey, GameTable(), 22);
             vm.SetTeamScores(vm.SubjectKey, 13, 9);
             Pump();
             double ready = content.DesiredSize.Height;
@@ -661,7 +661,7 @@ public class MatchOverviewLandingTests
             vm.BeginOpening("no_stats.dem", "Ancient", "Some server", "no_stats.dem");
             ApplyParsedStage(vm);
             vm.BeginAnalysis(vm.SubjectKey);
-            vm.SetAnalysis(vm.SubjectKey, null, null, 0);
+            vm.SetAnalysis(vm.SubjectKey, null, 0);
 
             using (Assert.Multiple())
             {
@@ -689,21 +689,20 @@ public class MatchOverviewLandingTests
             MatchOverviewTabViewModel vm = new();
 
             // Demo A: a complete run, with its authoritative score.
-            Dictionary<int, int?> scores = new() { [0] = 13, [1] = 9 };
             vm.BeginOpening("first.dem", "Mirage", "Server", "first.dem");
             ApplyParsedStage(vm);
             vm.BeginAnalysis(vm.SubjectKey);
-            vm.SetAnalysis(vm.SubjectKey, GameTable(), scores, 22);
+            vm.SetAnalysis(vm.SubjectKey, GameTable(), 22);
             vm.SetTeamScores(vm.SubjectKey, 13, 9);
             await Assert.That(vm.CtTeamScoreDisplay).IsEqualTo("13").Because("demo A really did finish 13-9");
 
-            // Demo B: analysis ran but produced no table, and no score has resolved yet. The stale dict is
+            // Demo B: analysis ran but produced no table, and no score has resolved yet. The round count is
             // passed DELIBERATELY: that is what a caller whose per-demo state outlived the unload would do,
             // and the VM must not trust it.
             vm.BeginOpening("second.dem", "Nuke", "Server", "second.dem");
             ApplyParsedStage(vm);
             vm.BeginAnalysis(vm.SubjectKey);
-            vm.SetAnalysis(vm.SubjectKey, null, scores, 22);
+            vm.SetAnalysis(vm.SubjectKey, null, 22);
 
             using (Assert.Multiple())
             {
@@ -750,7 +749,7 @@ public class MatchOverviewLandingTests
             vm.SetStage("/demos/alpha.dem", "Parsing demo…", 0.9);
             vm.SetTeamNames("/demos/alpha.dem", "NAVI", "FaZe");
             vm.SetTeamScores("/demos/alpha.dem", 13, 9);
-            vm.SetAnalysis("/demos/alpha.dem", GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
+            vm.SetAnalysis("/demos/alpha.dem", GameTable(), 22);
             vm.Fail("/demos/alpha.dem", "alpha exploded");
 
             using (Assert.Multiple())
@@ -930,7 +929,7 @@ public class MatchOverviewLandingTests
             // Finishing the load stops the creep and pins the bar at full.
             ApplyParsedStage(vm);
             vm.BeginAnalysis(vm.SubjectKey);
-            vm.SetAnalysis(vm.SubjectKey, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
+            vm.SetAnalysis(vm.SubjectKey, GameTable(), 22);
             vm.SetTeamScores(vm.SubjectKey, 13, 9);
             await Assert.That(vm.Progress).IsEqualTo(1.0);
 
@@ -1125,7 +1124,7 @@ public class MatchOverviewLandingTests
             ApplyParsedStage(live);
             await Check(live, "live/parsed");
             live.BeginAnalysis(live.SubjectKey);
-            live.SetAnalysis(live.SubjectKey, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
+            live.SetAnalysis(live.SubjectKey, GameTable(), 22);
             live.SetTeamScores(live.SubjectKey, 13, 9);
             await Check(live, "live/ready");
             await Assert.That(live.Completeness).IsNotEqualTo(OverviewCompleteness.Full)
@@ -1367,7 +1366,7 @@ public class MatchOverviewLandingTests
 
             vm.SetStage(key, "Parsing demo…", 0.5);
             vm.BeginAnalysis(key);
-            vm.SetAnalysis(key, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
+            vm.SetAnalysis(key, GameTable(), 22);
             vm.Fail(key, "boom");
 
             using (Assert.Multiple())
@@ -1420,7 +1419,7 @@ public class MatchOverviewLandingTests
             vm.BeginOpening("x.dem", "Nuke", "Server", "/demos/x.dem");
             ApplyParsedStage(vm);
             vm.BeginAnalysis(vm.SubjectKey);
-            vm.SetAnalysis(vm.SubjectKey, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
+            vm.SetAnalysis(vm.SubjectKey, GameTable(), 22);
             using (Assert.Multiple())
             {
                 await Assert.That(vm.CanExploreStats).IsTrue();
