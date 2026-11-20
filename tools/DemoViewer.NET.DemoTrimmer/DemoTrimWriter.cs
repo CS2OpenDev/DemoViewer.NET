@@ -348,7 +348,7 @@ internal static class DemoTrimWriter
 
         if (trimmed.GameInfo?.Cs is { } cs)
         {
-            List<int> retained = [.. cs.RoundStartTicks.Where(t => t <= window.EndTick)];
+            IReadOnlyList<int> retained = RetainedRoundStartTicks(cs.RoundStartTicks, window);
             cs.RoundStartTicks.Clear();
             cs.RoundStartTicks.AddRange(retained);
         }
@@ -356,6 +356,37 @@ internal static class DemoTrimWriter
         before = Describe(source);
         after = Describe(trimmed);
         DemoFormat.WriteFrame(fs, fileInfoFrame.CommandId, window.EndTick, false, trimmed.ToByteArray());
+    }
+
+    /// <summary>
+    ///     The source's <c>round_start_ticks</c> that still name a round the trimmed file contains.
+    ///     <para>
+    ///         Nothing past the cut survives. A contiguous trim keeps everything before it, because it
+    ///         keeps every frame from 0. A checkpoint entry does not: the stream before the entry is
+    ///         gone, so the rounds that started there are dropped with it.
+    ///     </para>
+    ///     <para>
+    ///         The lower bound is not simply the entry tick. A round starts before its own
+    ///         <c>round_freeze_end</c>, and the entry is the last <c>DEM_FullPacket</c> at or before
+    ///         that boundary, so the checkpoint can land between the two. The first kept round's start
+    ///         is then a little before the file's first tick and is still the marker for the round the
+    ///         file opens on, so it is kept.
+    ///     </para>
+    /// </summary>
+    /// <param name="sourceTicks">The source demo's <c>round_start_ticks</c>.</param>
+    /// <param name="window">The retained window.</param>
+    internal static IReadOnlyList<int> RetainedRoundStartTicks(IEnumerable<int> sourceTicks, TrimWindow window)
+    {
+        List<int> ticks = [.. sourceTicks];
+        int from = int.MinValue;
+        if (window.EnteredAtCheckpoint)
+        {
+            int firstBoundary = window.BoundaryTicks.Count > 0 ? window.BoundaryTicks[0] : window.StartTick;
+            int firstKeptRound = ticks.Where(t => t <= firstBoundary).DefaultIfEmpty(window.StartTick).Max();
+            from = Math.Min(window.StartTick, firstKeptRound);
+        }
+
+        return [.. ticks.Where(t => t >= from && t <= window.EndTick)];
     }
 
     private static string Describe(CDemoFileInfo info) => string.Create(CultureInfo.InvariantCulture,
