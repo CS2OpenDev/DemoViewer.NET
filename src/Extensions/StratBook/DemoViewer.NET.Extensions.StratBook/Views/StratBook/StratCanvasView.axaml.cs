@@ -43,6 +43,7 @@ public partial class StratCanvasView : UserControl
 
     // The key that started a hold-pan, latched so a rebind while it is down cannot strand the surface panning.
     private Key? _holdPanKey;
+    private WindowBase? _holdPanWindow;
 
     public StratCanvasView()
     {
@@ -82,6 +83,12 @@ public partial class StratCanvasView : UserControl
         base.OnAttachedToVisualTree(e);
         WatchKeymap(true);
         WatchTools(true);
+        _holdPanWindow = TopLevel.GetTopLevel(this) as WindowBase;
+        if (_holdPanWindow is not null)
+        {
+            _holdPanWindow.Deactivated += OnWindowDeactivated;
+        }
+
         if (_bound is not null)
         {
             OnToolSelected(_bound.Tools.ActiveTool);
@@ -92,8 +99,33 @@ public partial class StratCanvasView : UserControl
     {
         WatchKeymap(false);
         WatchTools(false);
+        if (_holdPanWindow is not null)
+        {
+            _holdPanWindow.Deactivated -= OnWindowDeactivated;
+            _holdPanWindow = null;
+        }
+
+        ReleaseHoldPan();
         base.OnDetachedFromVisualTree(e);
     }
+
+    // The answer to a release that never arrives, as on the 2D view. A key-up goes to whoever has the keyboard
+    // when the key comes up, so Alt+Tab with the pan key down, or the canvas leaving the tree under it, left
+    // the router diverting every left press to a pan until the key was pressed and released again. Window
+    // deactivation rather than LostFocus: that one bubbles from every child, and focus moving to a tool
+    // button mid-hold is not the key coming up.
+    private void ReleaseHoldPan()
+    {
+        if (_holdPanKey is null)
+        {
+            return;
+        }
+
+        _holdPanKey = null;
+        _scene?.SetHoldPan(false);
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e) => ReleaseHoldPan();
 
     private void Bind()
     {

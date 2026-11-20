@@ -70,6 +70,53 @@ public class StratCanvasViewTests
     }
 
     /// <summary>
+    ///     The release that never arrives: the pan key held while the canvas leaves the tree. The key-up goes
+    ///     elsewhere, and the router would pan on every left press until the key was tapped again.
+    /// </summary>
+    [Test]
+    public async Task HoldPan_IsDropped_WhenTheCanvasLeavesTheTreeBeforeTheKeyComesUp()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (StratStore _, StratSession session) = Opened(FiveSteps());
+            using StratCanvasViewModel canvas = Canvas(session, new ManualTicker());
+
+            StratCanvasView view = new() { DataContext = canvas };
+            Window window = new() { Width = 1100, Height = 800, Content = view };
+            window.Show();
+            view.Focus();
+            Playback2DTimelineHarness.Pump();
+            Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
+
+            // The hold is a tool-scope key: with the pen up, Space pans instead of playing.
+            canvas.Tools.SelectTool(ToolKind.Draw);
+            Playback2DTimelineHarness.Pump();
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.Router.IsSpaceHeld).IsTrue();
+
+            window.Content = null;
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.Router.IsSpaceHeld).IsFalse()
+                .Because("a detached canvas will never see the release");
+
+            // Back in the tree, a release of the same key is harmless and a new hold works.
+            window.Content = view;
+            view.Focus();
+            Playback2DTimelineHarness.Pump();
+            window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.Router.IsSpaceHeld).IsTrue();
+            window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.Router.IsSpaceHeld).IsFalse();
+
+            window.Close();
+        });
+    }
+
+    /// <summary>
     ///     On the tab the canvas sits beside the step table, and opening a strat is what binds it: the scene
     ///     under the tab draws the canvas, not the tab's own view-model.
     /// </summary>
