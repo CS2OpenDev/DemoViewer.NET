@@ -203,12 +203,14 @@ jobs:
           user: sid2934
 
       - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
           for package in artifacts/sdk-packages/*.nupkg; do
             dotnet nuget push "$package" \
               --source https://api.nuget.org/v3/index.json \
-              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+              --api-key "$NUGET_API_KEY" \
               --skip-duplicate
           done
 

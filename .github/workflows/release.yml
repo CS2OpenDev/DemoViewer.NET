@@ -366,10 +366,11 @@ jobs:
       - name: Publish GitHub Release (Velopack, all channels)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           repo="${{ github.server_url }}/${{ github.repository }}"
-          tag="${{ github.ref_name }}"
+          tag="$REF_NAME"
           case "$tag" in
             *-beta*) pre=true ;;
             *)       pre=false ;;
@@ -405,9 +406,10 @@ jobs:
         id: assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          tag="${{ github.ref_name }}"
+          tag="$REF_NAME"
           dir="$RUNNER_TEMP/release-assets"
           rm -rf "$dir" && mkdir -p "$dir"
           gh release download "$tag" --repo "${{ github.repository }}" --dir "$dir"
@@ -427,9 +429,10 @@ jobs:
       - name: Set release notes (guide users to the right installer)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          tag="${{ github.ref_name }}"
+          tag="$REF_NAME"
           notes=.github/release-body.md
           case "$tag" in
             *-beta*)
