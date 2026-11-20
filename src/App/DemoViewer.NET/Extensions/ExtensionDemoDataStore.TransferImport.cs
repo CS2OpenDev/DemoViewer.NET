@@ -10,6 +10,9 @@ namespace DemoViewer.NET.Extensions;
 
 internal sealed partial class ExtensionDemoDataStore
 {
+    // The most one imported file may inflate to, header included.
+    private const int MaxImportedFileBytes = 256 * 1024 * 1024;
+
     /// <summary>
     ///     Brings one demo's files of one facet in from a transfer bundle: the main payload
     ///     (<c>&lt;sha&gt;.json.gz</c>) and its parts (<c>&lt;sha&gt;.&lt;part&gt;.json.gz</c>). The headers are
@@ -140,17 +143,31 @@ internal sealed partial class ExtensionDemoDataStore
             using MemoryStream source = new(bytes);
             using GZipStream gzip = new(source, CompressionMode.Decompress);
             using MemoryStream all = new();
-            gzip.CopyTo(all);
-            byte[] plain = all.ToArray();
-            int newline = Array.IndexOf(plain, (byte)'\n');
+            // A bundle's file is someone else's, and a few MB of deflate can claim gigabytes: the inflate stops at
+            // the ceiling instead of running the machine out of memory part-way through an import.
+            byte[] chunk = new byte[1 << 16];
+            int read;
+            while ((read = gzip.Read(chunk, 0, chunk.Length)) > 0)
+            {
+                if (all.Length + read > MaxImportedFileBytes)
+                {
+                    throw new InvalidDataException(
+                        $"The file inflates past {MaxImportedFileBytes / (1024 * 1024)} MB.");
+                }
+
+                all.Write(chunk, 0, read);
+            }
+
+            ReadOnlySpan<byte> plain = all.GetBuffer().AsSpan(0, (int)all.Length);
+            int newline = plain.IndexOf((byte)'\n');
             if (newline < 0)
             {
                 throw new InvalidDataException("No header line.");
             }
 
-            Header header = JsonSerializer.Deserialize<Header>(plain.AsSpan(0, newline), _jsonOptions)
+            Header header = JsonSerializer.Deserialize<Header>(plain[..newline], _jsonOptions)
                 ?? throw new InvalidDataException("Empty header.");
-            return (header, plain[(newline + 1)..]);
+            return (header, plain[(newline + 1)..].ToArray());
         }
         catch (JsonException ex)
         {

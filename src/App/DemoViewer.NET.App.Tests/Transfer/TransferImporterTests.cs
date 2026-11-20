@@ -1,5 +1,6 @@
 #region
 
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using DemoViewer.NET.Debugging;
@@ -641,6 +642,46 @@ public class TransferImporterTests
                 .IsEquivalentTo([(Sha, "rounds"), (other, "rounds")]);
         }
 
+        store.StopFollowingLibrary();
+    }
+
+    [Test]
+    public async Task AFacetFile_ThatInflatesPastTheCeiling_IsRefused()
+    {
+        using TempFolders temp = new();
+        DemoCacheStore cache = new(null);
+        ExtensionDemoDataStore store = new("dev.example.data", temp.New(), cache, a => a(), "1.0.0");
+        byte[] header;
+        using (MemoryStream plain = new())
+        {
+            using (GZipStream inflate = new(new MemoryStream(BundleBuilder.FacetFile("rounds", null, 2, "fp", Sha, "",
+                       "")), CompressionMode.Decompress))
+            {
+                inflate.CopyTo(plain);
+            }
+
+            header = plain.ToArray();
+        }
+
+        // A header line, then zeros past the store's 256 MB ceiling: about a third of a megabyte of gzip.
+        byte[] bomb;
+        using (MemoryStream gz = new())
+        {
+            using (GZipStream gzip = new(gz, CompressionLevel.Fastest, true))
+            {
+                gzip.Write(header);
+                byte[] zeros = new byte[1 << 20];
+                for (int i = 0; i < 257; i++)
+                {
+                    gzip.Write(zeros);
+                }
+            }
+
+            bomb = gz.ToArray();
+        }
+
+        await Assert.That(() => store.Import(Sha, "rounds", [new KeyValuePair<string, byte[]>(Sha + ".json.gz", bomb)]))
+            .Throws<InvalidDataException>();
         store.StopFollowingLibrary();
     }
 }
