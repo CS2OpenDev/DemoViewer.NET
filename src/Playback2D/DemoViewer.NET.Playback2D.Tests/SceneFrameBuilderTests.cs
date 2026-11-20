@@ -411,6 +411,57 @@ public class SceneFrameBuilderTests
         await Assert.That(after.Time.IsDiscontinuity).IsFalse();
     }
 
+    /// <summary>
+    ///     A reset is a new demo, and a new demo may be a new map.
+    ///     <para>
+    ///         The app's 2D tab keeps one builder for its whole life and resets it when another demo is
+    ///         opened. The networked bounds latch on first read, so a builder that kept them across the
+    ///         reset framed Mirage's rectangle on Nuke for the rest of the session.
+    ///     </para>
+    /// </summary>
+    [Test]
+    public async Task Reset_ForgetsTheMapBounds_SoTheNextDemoPublishesItsOwn()
+    {
+        SceneFrameBuilder builder = new();
+        Scene2DFrame first = Build(builder, Input([], RulesWithBounds(-3230f, -3407f, 1890f, 1713f), 1, 64));
+        await Assert.That(first.Map.NetworkedBounds!.Value.MinX).IsEqualTo(-3230.0).Within(0.01);
+
+        builder.Reset();
+
+        Scene2DFrame second = Build(builder, Input([], RulesWithBounds(-3453f, -2887f, 3523f, 4089f), 1, 64));
+        await Assert.That(second.Map.NetworkedBounds).IsNotNull();
+        await Assert.That(second.Map.NetworkedBounds!.Value.MinX).IsEqualTo(-3453.0).Within(0.01);
+        await Assert.That(second.Map.NetworkedBounds!.Value.MaxY).IsEqualTo(4089.0).Within(0.01);
+    }
+
+    [Test]
+    public async Task Reset_ForgetsTheMapBoundsAndTheRoundPanel_WhenTheNextDemoHasNotPublishedThemYet()
+    {
+        SceneFrameBuilder builder = new();
+        FakeEntityView rules = new FakeEntityView().Add(new FakeEntity("CCSGameRulesProxy")
+            .With("m_pGameRules.m_bFreezePeriod", 1)
+            .With("m_pGameRules.m_totalRoundsPlayed", 2)
+            .With("m_pGameRules.m_vMinimapMins", new Vector3(-3230f, -3407f, 0f))
+            .With("m_pGameRules.m_vMinimapMaxs", new Vector3(1890f, 1713f, 0f)));
+        Scene2DFrame first = Build(builder, Input([], rules, 1, 64));
+        await Assert.That(first.Map.NetworkedBounds).IsNotNull();
+        await Assert.That(first.GameInfo.Phase).IsEqualTo("Freeze");
+
+        builder.Reset();
+
+        // Within one demo a frame without the rules entity keeps the panel (a seek can land there). Across
+        // a reset it is the previous match's round and score, and there is nothing to keep.
+        Scene2DFrame second = Build(builder, Input([], new FakeEntityView(), 1, 64));
+        await Assert.That(second.Map.NetworkedBounds).IsNull();
+        await Assert.That(second.GameInfo.Phase).IsEqualTo("—");
+        await Assert.That(second.GameInfo.RoundNumber).IsEqualTo(0);
+    }
+
+    private static FakeEntityView RulesWithBounds(float minX, float minY, float maxX, float maxY) =>
+        new FakeEntityView().Add(new FakeEntity("CCSGameRulesProxy")
+            .With("m_pGameRules.m_vMinimapMins", new Vector3(minX, minY, 0f))
+            .With("m_pGameRules.m_vMinimapMaxs", new Vector3(maxX, maxY, 0f)));
+
     [Test]
     public async Task Build_PublishesAlternatingDoubleBufferedFrames()
     {

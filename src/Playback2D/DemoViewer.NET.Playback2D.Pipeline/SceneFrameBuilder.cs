@@ -139,12 +139,14 @@ public sealed class SceneFrameBuilder
     public IReadOnlyList<HudPlayerRow> LastRoster { get; private set; } = [];
 
     /// <summary>
-    ///     Clears trails, ring history, last-known positions and the once-per-demo section-height read.
-    ///     Call on demo reset / re-activation.
+    ///     Clears trails, ring history, last-known positions, the once-per-demo section-height and
+    ///     map-bounds reads, and the persisted round panel. Call on demo reset / re-activation.
     ///     <para>
-    ///         Deliberately does <b>not</b> clear the networked map bounds: <c>ReadMapBoundsOnce</c>
-    ///         latches on first success, and its resync path only ever reset the section heights,
-    ///         matching the pre-v2 view-model this builder was extracted from behaviour-identically.
+    ///         The networked map bounds go too. <c>ReadMapBoundsOnce</c> latches on first success, and
+    ///         the app's 2D tab keeps one builder across every demo it is pointed at: a latch that
+    ///         outlived the reset published the first demo's map rectangle for every later one. They are
+    ///         re-read from the rules entity on the next <see cref="Build" />, so a reset onto the same
+    ///         demo loses nothing.
     ///     </para>
     /// </summary>
     public void Reset()
@@ -155,9 +157,23 @@ public sealed class SceneFrameBuilder
         _sectionHeights = null;
         _sectionHeightsRead = false;
         _sectionHeightAttempts = 0;
+        _networkedBounds = null;
         _lastFrameIndex = -1;
         _observed = WorldBounds.Default;
         _observedSeeded = false;
+
+        // The round panel persists between frames so a frame without the rules entity does not blank it
+        // (see BuildGameInfo). Across a reset that same persistence shows the previous match's round,
+        // score and bomb until the new demo's entities are read.
+        _hudPhase = "—";
+        _hudBombState = "—";
+        _hudRoundsPlayed = -1;
+        _hudRoundNumber = 0;
+        _hudRoundSeconds = double.NaN;
+        _hudRoundTime = "—";
+        _hudTScore = 0;
+        _hudCtScore = 0;
+        ClearBombTimers();
 
         // TrackerFrameSource.LastRoster is assigned straight from here. Left set across a demo reset it
         // points a HUD source at the PREVIOUS demo's pooled list until the next Build, burning the old
