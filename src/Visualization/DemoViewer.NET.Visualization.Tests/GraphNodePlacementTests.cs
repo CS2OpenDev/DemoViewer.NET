@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Visualization.Internal;
 using DemoViewer.NET.Visualization.Tests.SampleGraphs;
 
 #endregion
@@ -97,6 +98,45 @@ public class GraphNodePlacementTests
         {
             await Assert.That(graph.NodePlacements.ContainsKey(node)).IsFalse()
                 .Because("a node from the previous graph should not still be placed");
+        }
+    }
+
+    /// <summary>
+    ///     Two overlapping layouts where the older one finishes last: the newer graph wins, and the
+    ///     drawn nodes and the layout come from the same call.
+    /// </summary>
+    [Test]
+    public async Task AnOlderLayoutFinishingLast_DoesNotReplaceTheNewerOne()
+    {
+        (IReadOnlyList<IGraphNode> big, IReadOnlyList<IGraphEdge> bigEdges, _) =
+            StressTestGraphs.BuildFanOut();
+        (IReadOnlyList<IGraphNode> small, IReadOnlyList<IGraphEdge> smallEdges, _) =
+            StressTestGraphs.BuildDiamond();
+
+        using ManualResetEventSlim release = new();
+        GraphViewModel graph = new();
+        graph.ComputeLayout = (nodes, edges, groups, tables, style) =>
+        {
+            if (ReferenceEquals(nodes, big))
+            {
+                release.Wait(TimeSpan.FromSeconds(30));
+            }
+
+            return LayoutPipeline.ComputeFullLayout(nodes, edges, groups, tables, style);
+        };
+
+        Task older = graph.SetGraphAsync(big, bigEdges);
+        await graph.SetGraphAsync(small, smallEdges);
+        release.Set();
+        await older;
+
+        await Assert.That(graph.IsLayoutComplete).IsTrue();
+        await Assert.That(graph.Nodes).IsSameReferenceAs(small);
+        await Assert.That(graph.NodePlacements.Count).IsEqualTo(small.Count);
+        foreach (IGraphNode node in small)
+        {
+            await Assert.That(graph.CurrentLayout!.NodePositions.ContainsKey(node)).IsTrue()
+                .Because($"{node.Name} is drawn, so the layout should place it");
         }
     }
 }

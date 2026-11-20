@@ -503,7 +503,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         GraphSummary = summary;
         if (GraphSupported)
         {
-            _ = GraphViewModel.SetGraphAsync([], []);
+            _ = LayOutGraphAsync([], [], null);
         }
     }
 
@@ -538,7 +538,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
                 + (demo is not null ? " (with demo)." : ".");
             if (GraphSupported)
             {
-                _ = GraphViewModel.SetGraphAsync(skeleton.Nodes, skeleton.Edges, skeleton.Groups);
+                _ = LayOutGraphAsync(skeleton.Nodes, skeleton.Edges, skeleton.Groups);
             }
         }
         catch (Exception ex)
@@ -546,6 +546,20 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             AppLog.OperationFailed(DiagLog, "render the rule graph", ex);
             GraphNodeCount = 0;
             GraphSummary = UserFacingError.Describe("render the rule graph", ex);
+        }
+    }
+
+    // Fired per edit and not awaited, so a layout failure would otherwise land on a discarded task.
+    private async Task LayOutGraphAsync(IReadOnlyList<IGraphNode> nodes, IReadOnlyList<IGraphEdge> edges,
+        IReadOnlyList<INodeGroup>? groups)
+    {
+        try
+        {
+            await GraphViewModel.SetGraphAsync(nodes, edges, groups);
+        }
+        catch (Exception ex)
+        {
+            AppLog.OperationFailed(DiagLog, "lay out the rule graph", ex);
         }
     }
 
