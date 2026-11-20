@@ -864,6 +864,57 @@ public class RuleWorkbenchModuleTests
         });
     }
 
+    // ── The file list refreshes under an open, edited buffer ───────────────────────────────────────
+
+    /// <summary>
+    ///     Coming back to the tab (or any change in the user rules folder) rebuilds the dropdown's list. The
+    ///     ComboBox drops its selection when its list is emptied and writes that null back, and the re-select
+    ///     that follows used to read as "the user picked a file": the open buffer was reloaded from disk and
+    ///     every unsaved edit went with it. Needs the view: without the ComboBox there is no write-back.
+    /// </summary>
+    [Test]
+    public async Task RefreshingTheFileList_KeepsTheUnsavedBuffer()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string open = vm.SelectedFile!.FullPath;
+
+            await HeadlessSession.RunOnUi(async () =>
+            {
+                RuleWorkbenchView view = new() { DataContext = vm };
+                Window window = new() { Width = 900, Height = 560, Content = view };
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+
+                vm.OnActivated(new FakeDemoContext(null!));
+                Dispatcher.UIThread.RunJobs();
+                vm.DocumentText += "\n# not saved yet\n";
+                vm.SaveAsName = "a-name-being-typed";
+                await Assert.That(vm.IsDirty).IsTrue();
+
+                // Another ruleset lands in the folder, and the user leaves the tab and comes back.
+                await File.WriteAllTextAsync(Path.Combine(userDir, "other.rules.yaml"),
+                    "ruleset: other_probe\nfor: each_player\nstats:\n  k:\n    count: kill\n    per: match\n");
+                vm.OnDeactivated();
+                vm.OnActivated(new FakeDemoContext(null!));
+                Dispatcher.UIThread.RunJobs();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(vm.OpenableFiles.Any(f => f.FileName == "other.rules.yaml")).IsTrue();
+                    await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(open);
+                    await Assert.That(vm.DocumentText).Contains("# not saved yet");
+                    await Assert.That(vm.IsDirty).IsTrue();
+                    await Assert.That(vm.SaveAsName).IsEqualTo("a-name-being-typed");
+                }
+
+                vm.OnDeactivated();
+                window.Close();
+            });
+        });
+    }
+
     private static List<RulesetDoc> LoadShippedDocs()
     {
         string rulesDir = Path.Combine(DemoTestHelper.RequireRepoRoot(), "rules");

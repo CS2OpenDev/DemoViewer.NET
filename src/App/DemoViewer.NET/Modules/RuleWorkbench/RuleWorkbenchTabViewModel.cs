@@ -106,6 +106,11 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
 
     private bool _loadingDocument; // guards the disk→buffer load from marking the doc dirty
 
+    // True while RefreshFiles rebuilds the dropdown's list. The ComboBox clears its selection when its list
+    // is emptied and writes that null back through the two-way binding, so the selection leaves and returns
+    // without the user having picked anything, and neither change may reload the buffer.
+    private bool _refreshingFiles;
+
     /// <summary>The open file's proposed save-as name (the read-only save-as prompt).</summary>
     [ObservableProperty]
     private string _saveAsName = "";
@@ -805,6 +810,13 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         OnPropertyChanged(nameof(IsExtensionFile));
         OnPropertyChanged(nameof(CanSave));
         OnPropertyChanged(nameof(CanSaveAs));
+        if (_refreshingFiles)
+        {
+            // The same file, re-selected under a rebuilt list (or gone from it). Loading here would replace
+            // an edited buffer with the file on disk, and a typed Save As name with the suggested one.
+            return;
+        }
+
         SaveAsName = SuggestSaveAsName(value);
         LoadSelected();
         RenderGraphForOpenFile(); // graph follows the open ruleset
@@ -1109,6 +1121,25 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     private void RefreshFiles()
     {
         string? previousPath = SelectedFile?.FullPath;
+        _refreshingFiles = true;
+        try
+        {
+            RebuildOpenableFiles();
+            if (previousPath is not null)
+            {
+                SelectedFile = FindOpenable(previousPath);
+            }
+        }
+        finally
+        {
+            _refreshingFiles = false;
+        }
+
+        RefreshEvaluableFiles();
+    }
+
+    private void RebuildOpenableFiles()
+    {
         OpenableFiles.Clear();
         foreach (string? dir in new[] { _shippedDir, _userDir })
         {
@@ -1129,13 +1160,6 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         {
             OpenableFiles.Add(extension);
         }
-
-        if (previousPath is not null)
-        {
-            SelectedFile = FindOpenable(previousPath);
-        }
-
-        RefreshEvaluableFiles();
     }
 
     private void StartWatcher()
