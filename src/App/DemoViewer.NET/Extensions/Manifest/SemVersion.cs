@@ -90,11 +90,14 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
             return false;
         }
 
-        version = new SemVersion(
-            int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
-            int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture),
-            int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture),
-            m.Groups[4].Success ? m.Groups[4].Value : null);
+        if (!TryParseComponent(m.Groups[1].Value, out int major)
+            || !TryParseComponent(m.Groups[2].Value, out int minor)
+            || !TryParseComponent(m.Groups[3].Value, out int patch))
+        {
+            return false;
+        }
+
+        version = new SemVersion(major, minor, patch, m.Groups[4].Success ? m.Groups[4].Value : null);
         return true;
     }
 
@@ -117,11 +120,14 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
             return false;
         }
 
-        version = new SemVersion(
-            int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
-            int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture),
-            int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture),
-            m.Groups[4].Success ? m.Groups[4].Value : null);
+        if (!TryParseComponent(m.Groups[1].Value, out int major)
+            || !TryParseComponent(m.Groups[2].Value, out int minor)
+            || !TryParseComponent(m.Groups[3].Value, out int patch))
+        {
+            return false;
+        }
+
+        version = new SemVersion(major, minor, patch, m.Groups[4].Success ? m.Groups[4].Value : null);
         return true;
     }
 
@@ -135,6 +141,11 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
     public static bool operator >(SemVersion left, SemVersion right) => Compare(left, right) > 0;
     public static bool operator <=(SemVersion left, SemVersion right) => Compare(left, right) <= 0;
     public static bool operator >=(SemVersion left, SemVersion right) => Compare(left, right) >= 0;
+
+    // A numeric component the patterns matched. \d also matches non-ASCII digits and has no length bound, so
+    // a manifest's "1.0.20261120153000" or an Arabic-Indic digit lands here: not a version, never a throw.
+    internal static bool TryParseComponent(string digits, out int value) =>
+        int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out value);
 
     private static int Compare(SemVersion? left, SemVersion? right) =>
         left?.CompareTo(right) ?? (right is null ? 0 : -1);

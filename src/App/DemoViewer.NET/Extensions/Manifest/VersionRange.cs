@@ -1,7 +1,6 @@
 #region
 
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Text.RegularExpressions;
 
 #endregion
@@ -193,7 +192,11 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
             return false;
         }
 
-        int major = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+        if (!SemVersion.TryParseComponent(m.Groups[1].Value, out int major))
+        {
+            return false;
+        }
+
         bool minorWild = m.Groups[2].Success && IsWildcard(m.Groups[2].Value);
         bool patchWild = m.Groups[3].Success && IsWildcard(m.Groups[3].Value);
         // A concrete component after a wildcard ("1.x.3") names nothing a range can mean.
@@ -202,13 +205,35 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
             return false;
         }
 
-        int? minor = m.Groups[2].Success && !minorWild
-            ? int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)
-            : null;
-        int? patch = minor is not null && m.Groups[3].Success && !patchWild
-            ? int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture)
-            : null;
+        int? minor = null;
+        if (m.Groups[2].Success && !minorWild)
+        {
+            if (!SemVersion.TryParseComponent(m.Groups[2].Value, out int value))
+            {
+                return false;
+            }
+
+            minor = value;
+        }
+
+        int? patch = null;
+        if (minor is not null && m.Groups[3].Success && !patchWild)
+        {
+            if (!SemVersion.TryParseComponent(m.Groups[3].Value, out int value))
+            {
+                return false;
+            }
+
+            patch = value;
+        }
+
         if (m.Groups[4].Success && patch is null)
+        {
+            return false;
+        }
+
+        // The ceilings below add one to a component; at int.MaxValue that wraps to a negative bound.
+        if (major == int.MaxValue || minor == int.MaxValue || patch == int.MaxValue)
         {
             return false;
         }

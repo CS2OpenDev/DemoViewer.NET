@@ -216,4 +216,28 @@ public class VersionRangeTests
                 .Because("alphanumeric identifiers may");
         }
     }
+
+    // A manifest is untrusted text read at launch: a component past int.MaxValue (a timestamp build
+    // number, say) or a non-ASCII digit must read as "not a version", never throw out of a Try method.
+    [Test]
+    public async Task OutOfRangeOrNonAsciiComponents_AreNotVersions()
+    {
+        using (Assert.Multiple())
+        {
+            await Assert.That(SemVersion.TryParse("1.0.99999999999", out _)).IsFalse();
+            await Assert.That(SemVersion.TryParse("1.0.20261120153000", out _)).IsFalse();
+            await Assert.That(SemVersion.TryParse("1.0.1\u0663", out _)).IsFalse();
+            await Assert.That(SemVersion.TryParse("2147483647.0.0", out _)).IsTrue();
+            await Assert.That(SemVersion.TryParseInformational("0.1.99999999999.1", out _)).IsFalse();
+            await Assert.That(VersionRange.TryParse("<99999999999", out _)).IsFalse();
+            await Assert.That(VersionRange.TryParse("^1.99999999999", out _)).IsFalse();
+            await Assert.That(VersionRange.TryParse("~1.2.99999999999", out _)).IsFalse();
+            await Assert.That(VersionRange.TryParse(">=1.\u0663", out _)).IsFalse();
+
+            // A ceiling one past int.MaxValue cannot be represented, so the range is refused rather than
+            // wrapping to a negative bound that admits nothing.
+            await Assert.That(VersionRange.TryParse("^2147483647", out _)).IsFalse();
+            await Assert.That(VersionRange.TryParse("~1.2147483647.0", out _)).IsFalse();
+        }
+    }
 }

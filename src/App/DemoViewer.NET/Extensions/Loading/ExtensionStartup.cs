@@ -108,9 +108,10 @@ public static class ExtensionStartup
                 manifests.AddRange(ExtensionLoader.Discover(directory).Candidates.Select(c => c.Manifest));
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            // Nothing staged can be read, so nothing staged claims.
+            // Nothing staged can be read, so nothing staged claims. This runs before the safe-mode return,
+            // so no failure in an installed folder may take a safe-mode launch down with it.
         }
 
         return

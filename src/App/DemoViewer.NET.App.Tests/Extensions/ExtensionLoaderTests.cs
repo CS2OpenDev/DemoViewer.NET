@@ -78,6 +78,32 @@ public class ExtensionLoaderTests
         }
     }
 
+    // An oversized component is a bad manifest like any other; it must not throw out of Discover, which
+    // runs before the safe-mode return at launch.
+    [Test]
+    public async Task Discover_AVersionComponentPastIntMax_IsManifestInvalid_NotAThrow()
+    {
+        string root = NewRoot();
+        try
+        {
+            Stage(root, FakeId, "1.0.0", ManifestJson(FakeId, "1.0.99999999999"));
+            Stage(root, "com.example.tool", "1.0.0", ManifestJson("com.example.tool", "1.0.0", "<99999999999"));
+            Stage(root, "com.example.good", "1.0.0", ManifestJson("com.example.good", "1.0.0"));
+
+            ExtensionLoader.Discovery found = ExtensionLoader.Discover(Path.Combine(root, "extensions"));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(found.Candidates.Select(c => c.Manifest.Id)).IsEquivalentTo(["com.example.good"]);
+                await Assert.That(found.Rejected.Count(o => o.Failure == LoadFailure.ManifestInvalid)).IsEqualTo(2);
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     [Test]
     public async Task Discover_MissingDirectory_FindsNothing()
     {
