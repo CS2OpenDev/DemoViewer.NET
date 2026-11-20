@@ -212,6 +212,84 @@ public class SidecarFormatTests
         }
     }
 
+    /// <summary>
+    ///     A pre-gzip record that is there but cannot be opened is not "no record". A write that took it for
+    ///     one would put a fresh record under the new name, which is read first from then on: the old file's
+    ///     tiers, error report and match date would still be on disk and never seen again.
+    /// </summary>
+    [Test]
+    public async Task AWrite_LeavesAHeldLegacyRecordAlone_RatherThanShadowingIt()
+    {
+        string root = TempRoot();
+        try
+        {
+            DemoCacheStore seed = new(root);
+            seed.Upsert(BigRecord(Demo));
+            seed.SaveIndex();
+            string file = seed.SidecarPathFor(Demo)!;
+            string legacy = seed.LegacySidecarPathFor(Demo)!;
+            await File.WriteAllTextAsync(legacy, JsonSerializer.Serialize(seed.TryLoadRecord(Demo)!, _indented));
+            File.Delete(file);
+
+            DemoCacheStore store = new(root);
+            await using (new FileStream(legacy, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                store.UpdateExisting(Demo, r => r.Map = "de_inferno");
+                await Assert.That(File.Exists(file)).IsFalse().Because("nothing is written over a record that did not read");
+                Assert.Throws<IOException>(() => store.UpdateExistingOrThrow(Demo, r => r.Map = "de_inferno"));
+            }
+
+            DemoCacheRecord? after = new DemoCacheStore(root).TryLoadRecord(Demo);
+            using (Assert.Multiple())
+            {
+                await Assert.That(File.Exists(file)).IsFalse();
+                await Assert.That(after).IsNotNull();
+                await Assert.That(after!.Highlights.Count).IsEqualTo(200);
+                await Assert.That(after.Map).IsEqualTo("de_nuke");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    ///     ...and one that opens but does not parse is moved aside before the fresh record is written, the same
+    ///     as a damaged file under the new name, instead of being deleted as "replaced".
+    /// </summary>
+    [Test]
+    public async Task AWrite_SetsADamagedLegacyRecordAside_RatherThanDeletingIt()
+    {
+        string root = TempRoot();
+        try
+        {
+            DemoCacheStore seed = new(root);
+            seed.Upsert(BigRecord(Demo));
+            seed.SaveIndex();
+            string file = seed.SidecarPathFor(Demo)!;
+            string legacy = seed.LegacySidecarPathFor(Demo)!;
+            const string Damaged = "{ \"Path\": \"/d/format.dem\", \"Highlights\": [ cut short";
+            await File.WriteAllTextAsync(legacy, Damaged);
+            File.Delete(file);
+
+            new DemoCacheStore(root).UpdateExisting(Demo, r => r.Map = "de_inferno");
+
+            string[] aside = Directory.GetFiles(Path.GetDirectoryName(legacy)!, "unreadable-*");
+            using (Assert.Multiple())
+            {
+                await Assert.That(aside.Length).IsEqualTo(1);
+                await Assert.That(aside.Length == 1 ? await File.ReadAllTextAsync(aside[0]) : "").IsEqualTo(Damaged);
+                await Assert.That(File.Exists(legacy)).IsFalse();
+                await Assert.That(new DemoCacheStore(root).TryLoadRecord(Demo)!.Map).IsEqualTo("de_inferno");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     [Test]
     public async Task Remove_TakesBothRecordNames()
     {

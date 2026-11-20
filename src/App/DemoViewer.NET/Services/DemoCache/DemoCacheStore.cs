@@ -1166,10 +1166,14 @@ public sealed partial class DemoCacheStore
 
             bool busy = false;
             bool parsed = false;
-            List<string> damaged = [];
-            foreach (string key in keys)
+            List<(string Key, string File)> damaged = [];
+
+            // Both names a key's record can be under. The pre-gzip one counts the same: the write that
+            // follows puts a fresh record under the new name, which is read first from then on, so a legacy
+            // file that did not read would be left on disk and never seen again.
+            foreach ((string key, string file) in keys.SelectMany(k =>
+                         new[] { (Key: k, File: RecordFile(k)), (Key: k, File: LegacyRecordFile(k)) }))
             {
-                string file = RecordFile(key);
                 byte[] bytes;
                 try
                 {
@@ -1188,7 +1192,7 @@ public sealed partial class DemoCacheStore
 
                 if (TryDeserializeRecord(bytes) is null)
                 {
-                    damaged.Add(key);
+                    damaged.Add((key, file));
                 }
                 else
                 {
@@ -1215,9 +1219,8 @@ public sealed partial class DemoCacheStore
                 return null;
             }
 
-            foreach (string key in damaged)
+            foreach ((string key, string file) in damaged)
             {
-                string file = RecordFile(key);
                 // Not under <key>.*, the names an export, a key move and a delete take as the row's files.
                 string aside = Path.Combine(SidecarDir!,
                     $"unreadable-{DateTime.UtcNow.Ticks}.{Path.GetFileName(file)}");
