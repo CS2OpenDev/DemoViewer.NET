@@ -269,14 +269,8 @@ public sealed class ReelJobService(
             {
                 Cs2CompilationResult result = await session
                     .RunCompilationAsync(compilation, cancellationToken).ConfigureAwait(false);
-                completed = result.ClipResults.Count(r => r.Success);
-                failed = [.. result.ClipResults.Where(r => !r.Success).Select(r => r.ClipIndex)];
-                terminal = new ReelJobStatus(
-                    result.Success ? ReelJobPhase.Completed : ReelJobPhase.Failed,
-                    completed, request.Clips.Count, null,
-                    result.Success ? null : $"{failed.Count} clip(s) failed to capture.",
-                    request.Concatenate ? compilation.Settings.GetConcatenatedOutputPath() : request.OutputDirectory,
-                    failed);
+                terminal = CompilationTerminalStatus(request, result, cancellationToken.IsCancellationRequested,
+                    request.Concatenate ? compilation.Settings.GetConcatenatedOutputPath() : request.OutputDirectory);
             }
             finally
             {
@@ -466,6 +460,43 @@ public sealed class ReelJobService(
             })
         ]
     };
+
+    /// <summary>
+    ///     The real reel's terminal status. CSVG's runner is fail-fast and never throws: the first
+    ///     failed clip, a demo that fails to load and a cancellation all come back as a Failed result
+    ///     holding only the clips it started. So the retryable set is every requested clip without a
+    ///     successful result (matched by <see cref="Cs2ClipResult.ClipIndex" />, because the runner
+    ///     records grouped by demo and start tick, not in request order), and the token decides
+    ///     Cancelled. <see cref="UnfinishedIndices" />' contiguous-tail assumption does not hold here.
+    /// </summary>
+    internal static ReelJobStatus CompilationTerminalStatus(
+        ReelRequest request, Cs2CompilationResult result, bool cancelled, string? outputPath)
+    {
+        HashSet<int> captured = [.. result.ClipResults.Where(r => r.Success).Select(r => r.ClipIndex)];
+        List<int> unfinished = [.. Enumerable.Range(0, request.Clips.Count).Where(i => !captured.Contains(i))];
+        if (cancelled)
+        {
+            return new ReelJobStatus(ReelJobPhase.Cancelled, captured.Count, request.Clips.Count, null,
+                "Cancelled.", null, unfinished);
+        }
+
+        string? error = null;
+        if (!result.Success)
+        {
+            error = $"{unfinished.Count} clip(s) not captured.";
+            if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+            {
+                error += " " + result.ErrorMessage;
+            }
+        }
+
+        return new ReelJobStatus(
+            result.Success ? ReelJobPhase.Completed : ReelJobPhase.Failed,
+            captured.Count, request.Clips.Count, null,
+            error,
+            outputPath,
+            unfinished);
+    }
 
     private static string ClipLabel(ReelRequest request, int index) =>
         index >= 0 && index < request.Clips.Count ? request.Clips[index].Label : $"clip {index + 1}";
