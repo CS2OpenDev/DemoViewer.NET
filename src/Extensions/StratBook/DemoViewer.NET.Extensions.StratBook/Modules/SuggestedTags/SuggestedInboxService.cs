@@ -34,6 +34,11 @@ public sealed class SuggestedInboxService : IDisposable
     // Under _gate; null when no library read is running.
     private HashSet<string>? _changedWhileReading;
 
+    // The list each Publish took, numbered under _gate, and the newest number shown. A worker posts after it
+    // lets go of the gate, so two of them can post in the other order to the one they took their lists in.
+    private long _published;
+    private long _shown;
+
     private volatile bool _isLoaded;
     private Task? _loading;
 
@@ -216,6 +221,7 @@ public sealed class SuggestedInboxService : IDisposable
     private void Publish()
     {
         List<SuggestedInboxItem> items;
+        long number;
         lock (_gate)
         {
             items =
@@ -226,10 +232,22 @@ public sealed class SuggestedInboxService : IDisposable
                     .ThenBy(i => i.Entry.Proposal.Round)
                     .ThenBy(i => i.Entry.Proposal.TriggerTick)
             ];
+            number = ++_published;
         }
 
         _post(() =>
         {
+            lock (_gate)
+            {
+                // A list taken before the one already shown: showing it would put a verdict back to pending.
+                if (number < _shown)
+                {
+                    return;
+                }
+
+                _shown = number;
+            }
+
             Items = items;
             Changed?.Invoke();
         });

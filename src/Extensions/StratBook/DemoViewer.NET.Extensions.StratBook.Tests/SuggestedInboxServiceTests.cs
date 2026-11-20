@@ -53,6 +53,48 @@ public class SuggestedInboxServiceTests
             .Because("the dismiss landed after the read had that demo, and its Changed must not be dropped");
     }
 
+    [Test]
+    public async Task AListPostedAfterANewerOne_IsNotShownOverIt()
+    {
+        using SuggestedTagsReviewHarness h = new();
+        h.Build();
+        const string OtherPath = "/d/other.dem";
+        h.Cache.Upsert(RoundIndexTestData.ParsedRecord(OtherPath, SuggestedTagsTestData.Map, new string('b', 64),
+            Rows()));
+        h.Service.Evaluate(OtherPath, Parse());
+
+        // A worker that took its list and lost the processor before posting it: its post is held until released.
+        bool hold = false;
+        List<Action> held = [];
+        using SuggestedInboxService inbox = new(h.Service, h.Cache.Library(), run: _inline, post: a =>
+        {
+            if (hold)
+            {
+                hold = false;
+                held.Add(a);
+                return;
+            }
+
+            a();
+        });
+        await inbox.LoadAsync();
+
+        // Another surface changes the first demo: that worker's list has the other demo still pending.
+        hold = true;
+        h.Service.Reject(DemoPath, h.Service.Load(DemoPath).Pending[0].Proposal.Id);
+        await Assert.That(held.Count).IsEqualTo(1);
+
+        // Meanwhile the user dismisses a proposal of the other demo here, and that list is shown.
+        SuggestedInboxItem item = inbox.Items.First(i => i.DemoPath == OtherPath && i.Entry.Verdict is null);
+        await Assert.That(await inbox.DismissAsync(item)).IsTrue();
+
+        held[0]();
+
+        await Assert.That(inbox.Items.Single(i => i.DemoPath == OtherPath
+                && i.Entry.Proposal.Id == item.Entry.Proposal.Id).Entry.Verdict).IsNotNull()
+            .Because("the held list was taken before the dismiss, and must not replace the one that shows it");
+    }
+
     private sealed class HookedLibrary(IExtensionLibrary inner, Action<string> onFind) : IExtensionLibrary
     {
         public IReadOnlyList<LibraryDemo> Demos => inner.Demos;
