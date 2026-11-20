@@ -274,6 +274,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private readonly ConcurrentBag<UnknownMessageInfo> _unknownAccumulator = [];
 
+    // The event is process-global: library scans and highlight passes raise it too. Only an open's own parse
+    // feeds the census, so the handler keeps occurrences from the open's parse until its census is built and
+    // drops the rest, which would otherwise pile up in the bag for as long as the app runs.
+    private volatile bool _collectingUnknowns;
+
     /// <summary>
     ///     Window-spawning abstraction. Desktop opens a real
     ///     <c>ParseChainWindow</c>; browser no-ops. Null only when constructed parameterless by the
@@ -758,7 +763,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         Output = new OutputPanelViewModel(Navigation);
         // Accumulate on the parse threads (thread-safe, allocation-light); the grouped Output rows
         // and the per-frame census are built once after parse (see BuildUnknownMessageCensus).
-        _onUnknownMessageType = info => _unknownAccumulator.Add(info);
+        _onUnknownMessageType = info =>
+        {
+            if (_collectingUnknowns)
+            {
+                _unknownAccumulator.Add(info);
+            }
+        };
         DemoParser.OnUnknownMessageType += _onUnknownMessageType;
 
         DebuggerPanel = new DebuggerViewModel(Debugger);
@@ -2969,6 +2980,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             Task<string> demoKeyTask = Task.Run(() => HashAndConfirm(path, rawBytes));
             // The same open item as the interactive funnel. During a reel render the parse throws
             // ReelInProgressException, which the failure handling below surfaces.
+            _collectingUnknowns = true;
             ParsedDemo parsed = await open.ParseAsync(rawBytes);
 
             string demoKey = await demoKeyTask;
@@ -3086,6 +3098,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void BuildUnknownMessageCensus(ParsedDemo parsed)
     {
+        _collectingUnknowns = false;
         if (_unknownAccumulator.IsEmpty)
         {
             ParserTab.UnknownByFrame = null;
@@ -3865,6 +3878,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         HasEntities = false;
         EntityStatusText = "";
         Output.ClearAll();
+        _collectingUnknowns = false;
         _unknownAccumulator.Clear();
         Playback.Unload();
         Navigator.Reset();
@@ -4328,6 +4342,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // annotation, breakpoint and tag stores join on it; hashing here costs no wall time on the load,
             // and hashing once here is what lets every module read the value instead of hashing again.
             Task<string> demoKeyTask = Task.Run(() => HashAndConfirm(localPath, rawBytes));
+            _collectingUnknowns = true;
             ParsedDemo parsed = await open.ParseAsync(rawBytes);
 
             // Fill the Match Overview quick facts + rosters from the parsed result and advance its stage strip
