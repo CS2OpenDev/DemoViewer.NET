@@ -869,7 +869,10 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
         return trackId;
     }
 
-    // Binary search over the (ascending, non-overlapping) band list for the band holding the playhead.
+    // The band holding the playhead: the round track's when it has one there, else the first of any
+    // track's. A linear scan, not a binary search: Bands is every Rounds-row track's bands back to back
+    // in registration order, so it is ascending and non-overlapping only while one track is on the row,
+    // and an extension's track can share it. A few dozen bands at most.
     private void UpdateRoundLabel()
     {
         if (Bands.Count == 0 || CurrentFrameIndex < 0)
@@ -878,27 +881,24 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
             return;
         }
 
-        int lo = 0, hi = Bands.Count - 1;
-        while (lo <= hi)
+        TimelineBandViewModel? other = null;
+        foreach (TimelineBandViewModel band in Bands)
         {
-            int mid = lo + (hi - lo >> 1);
-            TimelineBandViewModel band = Bands[mid];
-            if (CurrentFrameIndex < band.StartFrameIndex)
+            if (CurrentFrameIndex < band.StartFrameIndex || CurrentFrameIndex > band.EndFrameIndex)
             {
-                hi = mid - 1;
+                continue;
             }
-            else if (CurrentFrameIndex > band.EndFrameIndex)
-            {
-                lo = mid + 1;
-            }
-            else
+
+            if (band.TrackId == "round")
             {
                 CurrentRoundLabel = band.Label;
                 return;
             }
+
+            other ??= band;
         }
 
-        CurrentRoundLabel = "";
+        CurrentRoundLabel = other?.Label ?? "";
     }
 
     private static ImmutableSolidColorBrush BrushForBand(TimelineBand band) =>
