@@ -556,6 +556,14 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             _joins.Clear();
         }
 
+        // What the sides pass read goes with the inputs, and a replay queued for it is dropped by the load swap
+        // above, so its ticket goes too.
+        lock (_fromRecords)
+        {
+            _fromRecords.Clear();
+        }
+
+        Volatile.Write(ref _fromRecordsQueued, null);
         _post(() => Changed?.Invoke());
     }
 
@@ -758,19 +766,26 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     // Inputs the sides pass read off records, taken in one replay however many arrived meanwhile.
     private readonly Dictionary<string, DemoSideInput> _fromRecords = new(StringComparer.Ordinal);
 
+    // The replay that takes them, while it is queued. A ticket like _fullSyncWaiting's and not "the dictionary
+    // was empty": a release drops a queued replay without running it, and inputs it left behind would read as a
+    // replay still on its way for the rest of the session.
+    private object? _fromRecordsQueued;
+
     private void LiftFromRecord(DemoSideInput input)
     {
-        bool schedule;
         lock (_fromRecords)
         {
-            schedule = _fromRecords.Count == 0;
             _fromRecords[input.StableKey] = input;
         }
 
-        if (schedule)
+        // Let go before the replay takes what is there, so an input added after that queues the next one, and
+        // again when the task ends, for a replay that was dropped or cancelled.
+        object ticket = new();
+        if (Interlocked.CompareExchange(ref _fromRecordsQueued, ticket, null) is null)
         {
             _ = Schedule(() =>
             {
+                Interlocked.CompareExchange(ref _fromRecordsQueued, null, ticket);
                 List<DemoSideInput> inputs;
                 lock (_fromRecords)
                 {
@@ -779,7 +794,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                 }
 
                 Lift(inputs);
-            });
+            }).ContinueWith(_ => Interlocked.CompareExchange(ref _fromRecordsQueued, null, ticket),
+                TaskScheduler.Default);
         }
     }
 

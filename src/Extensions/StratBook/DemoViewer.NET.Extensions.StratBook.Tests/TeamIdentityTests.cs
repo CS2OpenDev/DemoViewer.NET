@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -467,6 +468,67 @@ public class TeamIdentityTests
         finally
         {
             Directory.Delete(root, true);
+        }
+    }
+
+    // The sides pass queues one replay for however many records it reads meanwhile. Switching the pack off drops
+    // a replay that has not run, and what it would have taken must not be left looking like one still queued.
+    [Test]
+    public async Task ASidesLiftDroppedByARelease_DoesNotStopLaterLifts()
+    {
+        DemoCacheStore cache = new(null);
+        IExtensionLibrary library = cache.Library();
+        cache.Upsert(Record("/d/a.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()));
+        cache.Upsert(Record("/d/b.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()));
+        List<(Action Work, TaskCompletionSource Done)> held = [];
+        bool hold = false;
+        using TeamIdentityService teams = new(TestFiles.Teams(null), library, run: work =>
+        {
+            if (!hold)
+            {
+                work();
+                return Task.CompletedTask;
+            }
+
+            TaskCompletionSource done = new();
+            held.Add((work, done));
+            return done.Task;
+        });
+        await teams.StartAsync();
+        IExtensionRecordPass pass = teams.SidesPass;
+
+        void RunHeld()
+        {
+            foreach ((Action work, TaskCompletionSource done) in held.ToList())
+            {
+                work();
+                done.SetResult();
+            }
+
+            held.Clear();
+        }
+
+        hold = true;
+        pass.Run(library.Detail("/d/a.dem")!, CancellationToken.None);
+        await Assert.That(held.Count).IsEqualTo(1);
+
+        // Off while the replay is queued: it runs after the release and is dropped.
+        teams.Release();
+        RunHeld();
+        teams.Attach();
+        RunHeld();
+        await Assert.That(teams.GetAssignment("/d/b.dem")).IsNull().Because("the release let every side go");
+
+        pass.Run(library.Detail("/d/b.dem")!, CancellationToken.None);
+        int queued = held.Count;
+        RunHeld();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(queued).IsEqualTo(1).Because("a lift after the pack is back on queues its replay");
+            await Assert.That(teams.GetAssignment("/d/b.dem")).IsNotNull();
+            await Assert.That(teams.GetAssignment("/d/a.dem")).IsNull()
+                .Because("a side read before the release went with it");
         }
     }
 
