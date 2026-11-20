@@ -311,6 +311,36 @@ public class SuggestedTagsQueueTests
     }
 
     [Test]
+    public async Task SavingAfterABackgroundReload_AdvancesToTheNextSuggestion()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, _) = Queue(_opener, _execute, _default);
+            using (h)
+            {
+                queue.ReviewCommand.Execute(null);
+                string editing = queue.Selected!.Proposal.Id;
+                string next = queue.Rows[queue.Rows.IndexOf(queue.Selected) + 1].Proposal.Id;
+                await Assert.That(next).IsNotEqualTo(queue.Rows[^1].Proposal.Id)
+                    .Because("the fixture needs a row between the edited one and the last");
+                queue.Execute(StratBookActions.SuggestionEdit);
+
+                // The service's Changed for the open demo, as a sweep raises it: every row object is replaced.
+                queue.Reload();
+                await Assert.That(queue.IsEditing).IsTrue().Because("the edited suggestion is still there");
+                queue.Editor!.SaveCommand.Execute(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts.ContainsKey(editing)).IsTrue();
+                    await Assert.That(queue.Selected?.Proposal.Id).IsEqualTo(next)
+                        .Because("the save advances from the edited suggestion, not to the end of the queue");
+                }
+            }
+        });
+    }
+
+    [Test]
     public async Task AnotherCode_AcceptsAsRecoded_WithTheNewCodeAndPositions()
     {
         await HeadlessSession.RunOnUi(async () =>
