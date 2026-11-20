@@ -318,6 +318,9 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
     private void Merge(LibraryDemo entry, bool raise)
     {
         string fileName = Path.GetFileName(entry.FilePath);
+        // Before the document: read after it, the stamp could be a newer write's and date these rows as that
+        // write's.
+        long computedAt = _store.ComputedAtTicks(entry.FilePath);
         RoundIndexDocument? document = _store.TryRead(entry.FilePath);
         if (document is null)
         {
@@ -355,11 +358,21 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         }
 
         RoundIndexedEvent indexed = new(entry.FilePath, DemoKeys.StableKey(entry.FilePath), entry.Sha256,
-            document.Map, _store.ComputedAtTicks(entry.FilePath));
+            document.Map, computedAt);
         lock (_gate)
         {
             // A merge posted before a release lands after it: released means empty.
             if (!_attached)
+            {
+                return;
+            }
+
+            // The read above ran outside the gate. Load walks the library while the evaluator's Written is
+            // already subscribed, so the evaluator can rewrite this sidecar and merge it between that read and
+            // here: what is loaded is then the newer write, and these rows are the ones it replaced.
+            if ((_loaded.TryGetValue(DemoKey(entry), out LoadedDemo? resident)
+                 || LoadedAtLocked(entry.FilePath, out resident))
+                && resident.ComputedAtTicks > computedAt)
             {
                 return;
             }
