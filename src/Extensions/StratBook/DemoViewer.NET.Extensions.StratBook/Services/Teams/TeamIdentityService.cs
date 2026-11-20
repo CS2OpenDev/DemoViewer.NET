@@ -1978,7 +1978,9 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
 
     private void SaveIndex()
     {
-        if (_indexFile is null || !_attached)
+        // Refused, the replay ran over no teams and minted every team it assigned: an index naming those ids
+        // would outlive the session, and the next one, reading teams.json again, would find none of them.
+        if (_indexFile is null || _teamsRefused || !_attached)
         {
             return;
         }

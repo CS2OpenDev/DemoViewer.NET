@@ -855,6 +855,52 @@ public class TeamIdentityTests
     }
 
     [Test]
+    public async Task ARefusedTeamsFile_LeavesTheIndexAlone_SoTheNextSessionStillFindsItsTeams()
+    {
+        string root = TempRoot();
+        try
+        {
+            (DemoCacheStore cache, TeamIdentityService teams) = Fresh(root);
+            await Seed(cache, teams,
+                Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()));
+            Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+            cache.SaveIndex();
+            teams.Dispose();
+
+            string teamsPath = Path.Combine(root, "teams.json");
+            string indexPath = Path.Combine(root, "cache", "team-index.json");
+            string good = await File.ReadAllTextAsync(teamsPath);
+            string index = await File.ReadAllTextAsync(indexPath);
+            await File.WriteAllTextAsync(teamsPath, "{ \"schemaVersion\": 1, \"teams\": [ oops");
+
+            // The refused session replays over no teams at all, so every team it holds is minted for the session.
+            (DemoCacheStore refusedCache, TeamIdentityService refused) = Fresh(root);
+            await refused.StartAsync();
+            refusedCache.Upsert(Record("/d/a3.dem", 3, Ids(1, 2, 3, 4, 5), Strangers()));
+            await refused.Idle;
+            using (Assert.Multiple())
+            {
+                await Assert.That(refused.TeamsFileProblem).IsNotNull();
+                await Assert.That(refused.TeamOnSide("/d/a3.dem", 2)).IsNotNull()
+                    .Because("the session still works in memory");
+                await Assert.That(await File.ReadAllTextAsync(indexPath)).IsEqualTo(index)
+                    .Because("an index naming teams that teams.json does not hold is never written");
+            }
+
+            refused.Dispose();
+            await File.WriteAllTextAsync(teamsPath, good);
+            (_, TeamIdentityService next) = Fresh(root);
+            await next.StartAsync();
+            await Assert.That(next.TeamOnSide("/d/a1.dem", 2)?.Id).IsEqualTo(a);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task TheBrowserHost_IsSessionOnly_AndEveryApiStillWorks()
     {
         (DemoCacheStore cache, TeamIdentityService teams) = Fresh();
