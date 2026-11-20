@@ -181,7 +181,12 @@ public sealed class SuggestedTagsTuningService
 
             if (Inputs(path) is null)
             {
-                fired[path] = null;
+                // Under the lock the jobs take: one queued earlier in this loop may already be writing.
+                lock (fired)
+                {
+                    fired[path] = null;
+                }
+
                 continue;
             }
 
