@@ -39,6 +39,23 @@ public class SuggestedInboxModuleTests
     }
 
     [Test]
+    public async Task CountsTooLargeToSum_CapTheBadge_AndDoNotThrow()
+    {
+        DemoCacheStore cache = CacheWithPending("/d/a.dem", int.MaxValue);
+        cache.Upsert(ParsedRecord("/d/b.dem"));
+        cache.SetSuggestionCount("/d/b.dem", int.MaxValue);
+        ProposalStore proposals = new(cache.Data());
+        SuggestedInboxModule module = new(() => throw new InvalidOperationException("never built here"), () => true,
+            proposals);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(proposals.PendingTotal()).IsEqualTo(int.MaxValue);
+            await Assert.That(module.CreateTabs(null!).Single().Badge).IsNotNull();
+        }
+    }
+
+    [Test]
     public async Task WithThePackOn_TheBadge_FollowsTheIndex()
     {
         DemoCacheStore cache = CacheWithPending("/d/a.dem", 0);

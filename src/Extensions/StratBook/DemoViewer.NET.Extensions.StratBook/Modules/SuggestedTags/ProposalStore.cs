@@ -228,8 +228,12 @@ public sealed class ProposalStore
     /// <summary>Every demo's stamp.</summary>
     public IReadOnlyList<DemoDataStamp> Stamps() => Data.Stamps(Facet);
 
-    /// <summary>Proposals with no verdict yet across every demo: the badge.</summary>
-    public int PendingTotal() => Stamps().Sum(s => s.Count);
+    /// <summary>
+    ///     Proposals with no verdict yet across every demo: the badge. Summed wide and capped, because a stamp's
+    ///     count can come from a transfer bundle's manifest and a checked int sum over two made-up counts would
+    ///     throw out of the tab that shows the badge.
+    /// </summary>
+    public int PendingTotal() => (int)Math.Min(int.MaxValue, Stamps().Sum(s => (long)s.Count));
 
     /// <summary>Are the demo's proposals current under <paramref name="fingerprint" /> (the detector set)?</summary>
     /// <param name="demoPath">The demo's path.</param>
