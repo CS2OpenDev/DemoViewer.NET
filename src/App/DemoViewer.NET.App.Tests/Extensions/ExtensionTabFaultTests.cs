@@ -91,6 +91,39 @@ public class ExtensionTabFaultTests
             }
         });
 
+    /// <summary>
+    ///     A tab whose view model throws while it is activated has already been given its view, so it is
+    ///     deactivated like any other: the view model is told and the view dropped. Left as it was, the tab
+    ///     read as never activated, and its view stayed alive behind whatever the user went to next.
+    /// </summary>
+    [Test]
+    public async Task ATabWhoseActivationThrows_IsStillDeactivated_AndItsViewDropped() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            ActivationThrows viewModel = new();
+            WorkspaceTabDescriptor tab = new()
+            {
+                TabId = "bad.activate",
+                Header = "Activate",
+                ViewModelFactory = () => viewModel,
+                ViewFactory = () => new TextBlock { Text = "activate view" }
+            };
+            FaultRig rig = new();
+            ExtensionGuards.Register(tab, rig.Guard);
+
+            ExtensionTabs.Activate(tab, null!);
+            bool shown = tab.ActiveContent is not null;
+            ExtensionTabs.Deactivate(tab);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(shown).IsTrue();
+                await Assert.That(viewModel.Deactivated).IsEqualTo(1);
+                await Assert.That(tab.ActiveContent).IsNull();
+                await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(1);
+            }
+        });
+
     private const string PackFeature = "pack.throwing";
 
     private static string? PlaceholderText(MainViewModel vm) => (vm.SelectedTab?.ActiveContent as TextBlock)?.Text;
@@ -170,6 +203,15 @@ public class ExtensionTabFaultTests
 
         public IEnumerable<WorkspaceTabDescriptor> CreateTabs(IModuleHost host) =>
             throw new InvalidOperationException("create");
+    }
+
+    private sealed class ActivationThrows : IWorkspaceTabViewModel
+    {
+        public int Deactivated { get; private set; }
+
+        public void OnActivated(IModuleContext context) => throw new InvalidOperationException("activate");
+
+        public void OnDeactivated() => Deactivated++;
     }
 
     private sealed class ThrowingLifecycle : IWorkspaceTabViewModel
