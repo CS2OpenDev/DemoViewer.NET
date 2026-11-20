@@ -114,6 +114,12 @@ internal sealed class StratBookDataPortability : IExtensionDataPortability
         if (to.Lineups is { } lineups && import.StagedOwn(StoreRoot.Cache) is { } ownCache)
         {
             LineupImport result = lineups.ImportLineups(ownCache, import.Policy);
+            if (result.Refused)
+            {
+                ledger.Report($"no lineups were imported: {GrenadeLineupStore.FileName} on this machine could not "
+                              + "be read");
+            }
+
             lineupMap = result.LineupMap;
             Count(result.Added, ledger.CountAdded);
             Count(result.Aliased + result.Paths, ledger.CountMerged);

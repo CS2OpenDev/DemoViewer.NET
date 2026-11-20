@@ -59,7 +59,14 @@ public sealed record LineupImport(
     int Added,
     int Aliased,
     int Skipped,
-    int Paths);
+    int Paths)
+{
+    /// <summary>
+    ///     True when nothing was imported because this machine's lineup file is there and could not be read:
+    ///     anything merged into the empty document standing in for it would never be saved.
+    /// </summary>
+    public bool Refused { get; init; }
+}
 
 /// <summary>
 ///     What to look for. Every filter left null matches everything; <see cref="Map" /> is the one
@@ -514,6 +521,12 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         bool changed = false;
         lock (_gate)
         {
+            RecoverLineupsLocked();
+            if (LineupStore.IsRefused)
+            {
+                return new LineupImport(lineupMap, 0, 0, 0, 0) { Refused = true };
+            }
+
             foreach ((string map, MapLineups theirs) in imported.Maps)
             {
                 MapLineups mine = LineupStore.For(map);
@@ -662,6 +675,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     // loaded; cached until a demo on the map comes or goes. Under _gate.
     private Dictionary<string, Guid> EnsureAssignedLocked(string map)
     {
+        RecoverLineupsLocked();
         if (_assignments.TryGetValue(map, out Dictionary<string, Guid>? cached))
         {
             return cached;
@@ -809,6 +823,34 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     // A demo's content hash as the stores write it: 64 lowercase hex characters.
     private static bool IsContentKey(string demo) =>
         demo.Length == 64 && demo.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    // Under _gate. A lineup file another process held at the first read is tried again, so the session does
+    // not stay on the empty document that stood in for it. When the file reads, every assignment made against
+    // that empty document goes, and so does a pending save of it: the save gate keeps a flush that already
+    // took such a copy from writing it over the file once the store accepts writes again.
+    private void RecoverLineupsLocked()
+    {
+        if (!LineupStore.CanRecover)
+        {
+            return;
+        }
+
+        bool recovered;
+        lock (_saveGate)
+        {
+            recovered = LineupStore.Recover();
+            if (recovered)
+            {
+                Interlocked.Exchange(ref _pendingLineups, null);
+            }
+        }
+
+        if (recovered)
+        {
+            InvalidateLocked(null);
+            _post(() => Changed?.Invoke());
+        }
+    }
 
     // Under _gate. Only the copy is taken here; the gzip and write of the whole file (over a second on a
     // big library) run as a scheduled item, outside the lock. The newest copy wins.

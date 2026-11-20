@@ -78,6 +78,10 @@ public sealed class GrenadeLineupStore
     // the store falls back to never replaces the lineups whose ids strat steps and clips are named by.
     private volatile bool _refused;
 
+    // True when the refusal came from a read that threw (a lock, a denied open) and not from a file that was
+    // read and is not a lineup document: the first may read a moment later, the second will not.
+    private bool _retryable;
+
     /// <param name="directory">The folder holding <see cref="FileName" />, or null to keep everything in memory.</param>
     public GrenadeLineupStore(string? directory)
         : this(directory is null ? () => null : () => ReadFile(Path.Combine(directory, FileName)),
@@ -147,10 +151,68 @@ public sealed class GrenadeLineupStore
     /// <summary>Drops the in-memory document; the next use reads the file again. In memory this empties the store.</summary>
     public void Unload() => _loaded = null;
 
+    /// <summary>
+    ///     True while the file is there and was not read: the store holds an empty document in its place and
+    ///     <see cref="Write" /> does nothing, so an edit made now is not kept. Reads the file on first use.
+    /// </summary>
+    public bool IsRefused
+    {
+        get
+        {
+            _ = Doc;
+            return _refused;
+        }
+    }
+
+    /// <summary>True when <see cref="Recover" /> has a read to try again. Cheap; reads nothing.</summary>
+    public bool CanRecover => _loaded is not null && _refused && _retryable;
+
+    /// <summary>
+    ///     Tries the file again after a read that threw. A scan or a sync client can hold it for longer than
+    ///     <see cref="Load" /> waits, and without this the session would stay on the empty document, dropping
+    ///     every edit, until the store is unloaded. True when the file's document replaced the empty one: what
+    ///     was edited meanwhile is gone with it, a <see cref="MapLineups" /> handed out earlier is stale, and a
+    ///     <see cref="Snapshot" /> taken earlier must not be written. Not thread-safe, like the rest of the store.
+    /// </summary>
+    public bool Recover()
+    {
+        if (!CanRecover)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (_read() is not { } bytes)
+            {
+                // The file went away: there is nothing left to protect, and the session's document stands.
+                _refused = false;
+                _retryable = false;
+                return false;
+            }
+
+            if (Parse(bytes) is not { } document)
+            {
+                _retryable = false; // it reads now, and it is not a lineup document: refused until an unload
+                return false;
+            }
+
+            _loaded = document;
+            _refused = false;
+            _retryable = false;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     private GrenadeLineupDocument Load()
     {
         GrenadeLineupDocument? document;
         bool present;
+        bool threw = false;
         for (int attempt = 0;; attempt++)
         {
             try
@@ -168,11 +230,13 @@ public sealed class GrenadeLineupStore
             {
                 present = true;
                 document = null;
+                threw = true;
                 break;
             }
         }
 
         _refused = present && document is null;
+        _retryable = threw;
         if (_refused)
         {
             GrenadeIndexLog.LineupsRefused(_diagLog ??= DiagnosticsLog.CreateLogger(GrenadeIndexLog.Category));

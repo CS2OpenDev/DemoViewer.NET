@@ -330,6 +330,95 @@ public class GrenadeStoreTests
     }
 
     [Test]
+    public async Task ALineupFileHeldPastTheFirstRead_IsReadOnceItIsFree_AndAnImportIsSavedBesideIt()
+    {
+        string root = TempRoot();
+        try
+        {
+            LineupAnchor anchor = new(Guid.NewGuid(), GrenadeKind.Smoke, new WorldPoint(1, 2, 3),
+                new WorldPoint(4, 5, 6), "seed");
+            GrenadeLineupStore first = new(root);
+            first.For(Map).Anchors.Add(anchor);
+            first.Save();
+
+            // Held for every try of the first load, free afterwards.
+            LockedOnceFolder folder = new(PackStores.At(root)) { LockedReads = 3 };
+            GrenadeLineupStore store = GrenadeLineupStore.In(folder, null);
+            DemoCacheStore cache = new(null);
+            using GrenadeIndex index = new(cache.Library(), lineups: store, scheduleSave: a =>
+            {
+                a();
+                return Task.CompletedTask;
+            });
+            int before = store.For(Map).Anchors.Count;
+
+            LineupAnchor theirs = new(Guid.NewGuid(), GrenadeKind.Flash, new WorldPoint(700, 800, 9),
+                new WorldPoint(1000, 1100, 12), "other");
+            GrenadeLineupDocument imported = new();
+            imported.Maps[Map] = new MapLineups { Anchors = [theirs] };
+            LineupImport result = index.ImportLineups(imported, ImportConflictPolicy.KeepMine);
+            index.FlushLineups();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(before).IsEqualTo(0).Because("the first load gave up on the held file");
+                await Assert.That(folder.LockedReads).IsEqualTo(0);
+                await Assert.That(result.Added).IsEqualTo(1);
+                await Assert.That(new GrenadeLineupStore(root).For(Map).Anchors.Select(a => a.Id))
+                    .IsEquivalentTo([anchor.Id, theirs.Id])
+                    .Because("an import counted as added is on disk, beside the lineups that were there");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task AnImportIntoALineupFileThatDoesNotParse_IsLeftOut_AndTheFileIsKept()
+    {
+        string root = TempRoot();
+        try
+        {
+            Directory.CreateDirectory(root);
+            string file = Path.Combine(root, GrenadeLineupStore.FileName);
+            byte[] theirs = "{\"schemaVersion\":99,\"maps\":{}}"u8.ToArray();
+            await File.WriteAllBytesAsync(file, theirs);
+
+            DemoCacheStore cache = new(null);
+            using GrenadeIndex index = new(cache.Library(), lineups: new GrenadeLineupStore(root), scheduleSave: a =>
+            {
+                a();
+                return Task.CompletedTask;
+            });
+            GrenadeLineupDocument imported = new();
+            imported.Maps[Map] = new MapLineups
+            {
+                Anchors =
+                [
+                    new LineupAnchor(Guid.NewGuid(), GrenadeKind.Flash, new WorldPoint(7, 8, 9),
+                        new WorldPoint(10, 11, 12), "other")
+                ]
+            };
+            LineupImport result = index.ImportLineups(imported, ImportConflictPolicy.KeepMine);
+            index.FlushLineups();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.Added).IsEqualTo(0)
+                    .Because("a lineup that will never be saved is not reported as added");
+                await Assert.That(result.LineupMap).IsEmpty();
+                await Assert.That(await File.ReadAllBytesAsync(file)).IsEquivalentTo(theirs);
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ADemoWalkedThisSession_GivesItsLineupAFlight()
     {
         DemoCacheStore cache = new(null);
