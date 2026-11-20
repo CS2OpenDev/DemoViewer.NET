@@ -554,6 +554,41 @@ public class FfmpegEncoderProbeTests
         await Assert.That(result.Detail).IsEqualTo("could not read `ffmpeg -encoders`");
     }
 
+    /// <summary>
+    ///     The deadline covers handing the child its input, not only waiting for it afterwards.
+    ///     <para>
+    ///         The test encode's payload is larger than a pipe buffer, and it used to be written before
+    ///         the timed wait began. An encoder that hangs while initialising stops reading, the write
+    ///         blocks, and nothing but the caller's own cancel ever ended it: <c>dv2d</c> has no such
+    ///         cancel and hung for good. A process that sleeps without touching stdin is that encoder.
+    ///     </para>
+    /// </summary>
+    [Test]
+    [Category("Integration")]
+    public async Task AChildThatNeverReadsItsInput_IsEndedByTheDeadline()
+    {
+        (string executable, string[] arguments) = OperatingSystem.IsWindows()
+            ? ("powershell", new[] { "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 20" })
+            : ("sleep", new[] { "20" });
+
+        long startedMs = Environment.TickCount64;
+        Task<(int Exit, string StdOut, string StdErr)> probe = Task.Run(() =>
+            FfmpegEncoderProbe.RunProcess(executable, arguments, new byte[1 << 20], TimeSpan.FromSeconds(2),
+                CancellationToken.None));
+
+        // Bounded here as well, so a regression fails this test rather than hanging the suite. The child
+        // ends on its own after 20 s either way, which is what releases the blocked write.
+        Task finished = await Task.WhenAny(probe, Task.Delay(TimeSpan.FromSeconds(12)));
+        long elapsedMs = Environment.TickCount64 - startedMs;
+
+        await Assert.That(ReferenceEquals(finished, probe)).IsTrue();
+        await Assert.That(elapsedMs).IsLessThan(12_000);
+
+        (int exit, _, string detail) = await probe;
+        await Assert.That(exit).IsEqualTo(-1);
+        await Assert.That(detail).IsEqualTo("the probe did not finish within 2 s");
+    }
+
     private static string? RequireFfmpeg()
     {
         FfmpegLocation located = FfmpegLocator.Locate(null);
