@@ -1005,13 +1005,29 @@ public sealed class TagStore
 
             // A document without a demo header cannot be matched to anything, so it is as unreadable as
             // a truncated one.
-            return document?.Demo is { Sha256.Length: > 0 } ? document : null;
+            return document?.Demo is { Sha256.Length: > 0 } && IsWellFormed(document) ? document : null;
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    // A sidecar can come from someone else's bundle, and JSON null lands in a property or in a list as it
+    // is, whatever the annotations say. Every reader walks these without a null check, the index projection
+    // in this class's constructor among them, so a document carrying one is unreadable, not half-loaded.
+    private static bool IsWellFormed(TagDocument document) =>
+        document.Clock is { Kind: not null }
+        && document.Instances is { } instances
+        && instances.TrueForAll(static i => i is { Code: not null, Source: not null }
+            && HasLabels(i.Labels)
+            && HasLabels(i.Facts)
+            && i.Positions is { } positions && !positions.Contains(null!)
+            && i.Movements is { } movements
+            && movements.TrueForAll(static m => m is { From: not null, To: not null }));
+
+    private static bool HasLabels(List<TagLabel>? labels) =>
+        labels is not null && labels.TrueForAll(static l => l is { Group: not null, Value: not null });
 
     // Materialized here: the listing is lazy, and a folder that vanishes mid-walk must read as empty
     // rather than throw out of the caller's loop.
@@ -1093,7 +1109,7 @@ public sealed class TagStore
 
         lock (_gate)
         {
-            foreach (TagIndexEntry entry in file.Entries.Where(e => !string.IsNullOrEmpty(e.Sha256)))
+            foreach (TagIndexEntry entry in file.Entries.Where(e => !string.IsNullOrEmpty(e?.Sha256)))
             {
                 _index[Normalize(entry.Sha256)] = entry;
             }

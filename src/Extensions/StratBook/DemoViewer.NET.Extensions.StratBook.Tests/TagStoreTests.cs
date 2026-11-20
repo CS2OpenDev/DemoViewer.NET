@@ -455,4 +455,63 @@ public class TagStoreIdentityTests
         await Assert.That(store.TryLoad(Sha)).IsNotNull();
         await Assert.That(store.Index.Single().Sha256).IsEqualTo(Sha);
     }
+
+    // What System.Text.Json accepts whatever the annotations say: null for a property, and null in a list.
+    [Test]
+    [Arguments("\"instances\":[null]")]
+    [Arguments("\"instances\":null")]
+    [Arguments("\"instances\":[{\"code\":\"x\",\"labels\":[null]}]")]
+    [Arguments("\"instances\":[{\"code\":\"x\",\"labels\":null}]")]
+    [Arguments("\"instances\":[{\"code\":\"x\",\"facts\":[null]}]")]
+    [Arguments("\"instances\":[{\"code\":\"x\",\"movements\":[{\"from\":null}]}]")]
+    [Arguments("\"clock\":null,\"instances\":[]")]
+    public async Task ASidecarCarryingANull_IsUnreadable_ToTheImportAndToTheNextStart(string body)
+    {
+        string json = $"{{\"demo\":{{\"sha256\":\"{Sha}\"}},{body}}}";
+        string root = TempRoot();
+        string planted = TempRoot();
+        try
+        {
+            TagStore store = new(PackStores.At(root));
+            TagImportResult result = store.Import(Sha, json, null, ImportConflictPolicy.KeepBoth);
+
+            // The same file already in the folder, as an import by a build before this check left it.
+            string path = TagStore.SidecarPathFor(planted, Sha);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, json);
+            TagStore restarted = new(PackStores.At(planted));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.Tags).IsEqualTo(TagImportOutcome.Refused);
+                await Assert.That(File.Exists(TagStore.SidecarPathFor(root, Sha))).IsFalse();
+                await Assert.That(restarted.Index.Count).IsEqualTo(0);
+                await Assert.That(restarted.Load(Sha, Clock).Unreadable).IsTrue();
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+            DeleteQuietly(planted);
+        }
+    }
+
+    [Test]
+    public async Task ANullRowInTheIndex_IsSkipped()
+    {
+        string root = TempRoot();
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "index.json"), "{\"version\":1,\"entries\":[null]}");
+
+            TagStore store = new(PackStores.At(root));
+
+            await Assert.That(store.Index.Count).IsEqualTo(0);
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
 }
