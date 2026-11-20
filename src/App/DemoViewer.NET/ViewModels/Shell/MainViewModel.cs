@@ -3289,7 +3289,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // Pass the tracker's currently-iterating frame index so the debugger can later
             // "Jump to" the frame containing the bad packet. We capture it here rather than
             // having the debugger reach into EntityTracker, so the parser stays UI-agnostic.
-            Debugger.CheckParserState(packetCount, hasNewDecodeError, deltaUnknownDelta, tracker.CurrentFrameIndex);
+            // The replay runs on the seek's pool thread: match there against the debugger's snapshot,
+            // record on the UI thread, where the panel's bindings and breakpoint list live.
+            if (Debugger.MatchParserState(packetCount, hasNewDecodeError, deltaUnknownDelta) is { } hit)
+            {
+                int frameIndex = tracker.CurrentFrameIndex;
+                Dispatcher.UIThread.Post(() => Debugger.RecordParserHit(hit, frameIndex));
+            }
         };
 
         // Surface per-packet decode failures in the Output panel's "Decode errors"
