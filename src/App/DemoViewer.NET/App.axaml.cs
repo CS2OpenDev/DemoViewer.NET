@@ -1357,10 +1357,13 @@ public class App : Application
             sp.GetRequiredService<DemoLibraryService>(),
             sp.GetRequiredService<IDemoProcessingQueue>(),
             // Whatever the case: the importer refuses an id that is a loaded one's but for its case, and has
-            // to be handed that extension's store to see it.
-            id => sp.GetService<PackContributionSet>()?.Packs
-                .FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.OrdinalIgnoreCase))?.Context.Data
-                as ExtensionDemoDataStore,
+            // to be handed that extension's store to see it. The exact id first: a case-sensitive file system
+            // can hold two packs a case apart, and each one's data is its own.
+            id => sp.GetService<PackContributionSet>()?.Packs is { } loaded
+                ? (loaded.FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.Ordinal))
+                    ?? loaded.FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.OrdinalIgnoreCase)))
+                ?.Context.Data as ExtensionDemoDataStore
+                : null,
             AppPaths.DemoCacheDir is { } cacheDir ? Path.Combine(cacheDir, ExtensionFolders.DataDirectoryName) : null,
             () => TransferEnvironment.Local(sp.GetRequiredService<MergedRulesBuild>(), packs),
             new DemoImportCurrency(
