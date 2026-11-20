@@ -1025,7 +1025,8 @@ public class App : Application
 
         // The extension updater: checks each extension's feed, stages a
         // newer version under <config root>/extensions/ for the loader to take at the next start. Judged by
-        // the same trust policy the loader runs in Main. Desktop only: the browser has no config root.
+        // the same trust policy the loader runs in Main, over the setting as the next launch will read it, so
+        // the updater never stages a copy that launch would refuse. Desktop only: the browser has no config root.
         if (AppPaths.ConfigRoot is { } extensionsConfigRoot)
         {
             // Only the extensions this app ships update from its feed; a third-party one is the user's to replace.
@@ -1033,7 +1034,7 @@ public class App : Application
                 extensionsConfigRoot,
                 [.. FeaturePacks.Statuses.Where(st => st.Source is not PackSource.External)],
                 ExtensionHost.Current,
-                TrustPolicy.Default,
+                TrustPolicy.ForLaunch(ExtensionStartup.ReadAllowUnverified(AppPaths.SettingsFile)),
                 HttpExtensionFeedClient.Shared,
                 id => ExtensionFeedSource.Resolve(
                     sp.GetRequiredService<IOptionsMonitor<AppSettings>>().CurrentValue.Extensions.FeedUrl, id),
