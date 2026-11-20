@@ -39,6 +39,9 @@ public sealed class ExtensionUpdateService
     private readonly IReadOnlyList<string> _catalogue;
     private readonly IReadOnlyList<string> _shippedIds;
     private readonly IReadOnlyList<LoadOutcome> _externalRejected;
+    // Folders a stage emptied of the copy that was in them. The launch's refusals are a list made once, and
+    // what a later stage puts in one of these folders is not the copy the launch refused. Under _sync.
+    private readonly HashSet<string> _replaced = new(StringComparer.FromComparison(PathComparison));
     // Two stages of one entry share the .staging paths, so stages run one at a time: each waits for the
     // tail of the chain and the second then finds the first's result, not its files.
     private readonly Lock _stageSync = new();
@@ -803,10 +806,19 @@ public sealed class ExtensionUpdateService
             string.Equals(IdFolderOf(o.Directory), id, StringComparison.Ordinal) && Directory.Exists(o.Directory));
 
     // The launch's refusal of the copy in directory, from a declared pack's status or the external list. A
-    // copy refused only for not being newer than the shipped one is not at fault.
+    // copy refused only for not being newer than the shipped one is not at fault, and a folder a stage has
+    // replaced since no longer holds the copy the refusal was about.
     private LoadOutcome? RefusedCopy(string directory)
     {
         string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        lock (_sync)
+        {
+            if (_replaced.Contains(full))
+            {
+                return null;
+            }
+        }
+
         return Statuses.SelectMany(s => s.Rejected).Concat(_externalRejected)
             .FirstOrDefault(o => o.Failure is not LoadFailure.NotNewer
                 && !string.IsNullOrEmpty(o.Directory)
@@ -984,6 +996,11 @@ public sealed class ExtensionUpdateService
             if (Directory.Exists(installed))
             {
                 return Refuse(entry, "the update could not be written to the app's data folder", null);
+            }
+
+            lock (_sync)
+            {
+                _replaced.Add(Path.TrimEndingDirectorySeparator(Path.GetFullPath(installed)));
             }
         }
 

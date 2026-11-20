@@ -650,7 +650,8 @@ public class ExtensionUpdateServiceTests
     }
 
     // A staged copy this launch refused is not waiting for a restart: the next start refuses it again. The
-    // feed's copy of the same version is offered, and staging it replaces the refused folder.
+    // feed's copy of the same version is offered, and staging it replaces the refused folder. The fresh copy
+    // in that folder is not the one the launch refused: it is pending, and a second stage leaves it alone.
     [Test]
     public async Task Check_AStagedCopyThisLaunchRefused_IsNotPending_AndStagingReplacesIt()
     {
@@ -671,15 +672,23 @@ public class ExtensionUpdateServiceTests
             ExtensionUpdateService service = NewService(root, client, statuses: [status]);
 
             ExtensionUpdateState state = await service.CheckAsync(Id);
+            SemVersion? pendingBefore = service.PendingVersion(Id);
+            bool restartBefore = service.PendingRestart;
             StageResult result = await service.DownloadAndStageAsync(Entry(entry));
+            ExtensionUpdateState after = await service.CheckAsync(Id);
+            StageResult again = await service.DownloadAndStageAsync(Entry(entry));
 
             using (Assert.Multiple())
             {
-                await Assert.That(service.PendingVersion(Id)).IsNull();
-                await Assert.That(service.PendingRestart).IsFalse();
+                await Assert.That(pendingBefore).IsNull();
+                await Assert.That(restartBefore).IsFalse();
                 await Assert.That(state.Status).IsEqualTo(ExtensionUpdateStatus.UpdateAvailable);
                 await Assert.That(state.Offered!.Version).IsEqualTo(SemVersion.Parse("1.0.1"));
                 await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Installed);
+                await Assert.That(service.PendingVersion(Id)).IsEqualTo(SemVersion.Parse("1.0.1"));
+                await Assert.That(service.PendingRestart).IsTrue();
+                await Assert.That(after.Status).IsEqualTo(ExtensionUpdateStatus.PendingRestart);
+                await Assert.That(again.Outcome).IsEqualTo(StageOutcome.AlreadyInstalled);
                 await Assert.That(client.Downloads).IsEqualTo(1);
                 await Assert.That(await File.ReadAllTextAsync(Path.Combine(refused, "Fake.dll")))
                     .IsEqualTo("not really an assembly");
