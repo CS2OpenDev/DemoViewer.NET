@@ -415,23 +415,23 @@ public sealed class StratStore
     {
         lock (_rmwGate)
         {
-            bool removed;
+            bool removed = false;
             string? path;
             lock (_gate)
             {
-                removed = _index.Remove(id) | _memoryStrats.Remove(id) | _memoryHistory.Remove(id);
                 path = _paths.GetValueOrDefault(id);
-                _logHeads.Remove(id);
-                _notes.Remove(id);
-                _unresolved.Remove(id);
             }
 
+            // The files first, the rows after: a move that fails puts back what already moved and leaves the
+            // strat listed, so false means it is still there. Half a delete (the strat in the trash, its log
+            // beside where it was) would be rebuilt from that log at the next start.
             if (path is not null)
             {
                 string folder = Path.GetDirectoryName(path)!;
                 string trash = Path.Combine(folder, TrashFolderName);
                 string stamp =
                     _utcNow().ToString("yyyyMMddTHHmmssZ", System.Globalization.CultureInfo.InvariantCulture);
+                List<(string From, string To)> moved = [];
                 try
                 {
                     foreach (string file in new[] { path, HistoryPathBeside(path) }.Where(_folder!.FileExists)
@@ -446,20 +446,25 @@ public sealed class StratStore
                         }
 
                         _folder.Move(file, target, false);
+                        moved.Add((file, target));
                     }
                 }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                 {
-                    return false;
-                }
+                    if (!MoveBack(moved))
+                    {
+                        // The strat file is in the trash to stay: the strat is gone from here, whatever the
+                        // answer below says about the rest.
+                        Forget(id);
+                    }
 
-                lock (_gate)
-                {
-                    _paths.Remove(id);
+                    return false;
                 }
 
                 removed = true;
             }
+
+            removed |= Forget(id);
 
             if (!removed)
             {
@@ -470,6 +475,37 @@ public sealed class StratStore
         RaiseChanged(id);
         Deleted?.Invoke(id);
         return true;
+    }
+
+    // Under _rmwGate. A delete's moves undone, the last first; false when one would not go back.
+    private bool MoveBack(List<(string From, string To)> moved)
+    {
+        bool all = true;
+        for (int i = moved.Count - 1; i >= 0; i--)
+        {
+            try
+            {
+                _folder!.Move(moved[i].To, moved[i].From, false);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                all = false;
+            }
+        }
+
+        return all;
+    }
+
+    // Everything the store holds in memory about a strat; true when it held any of it.
+    private bool Forget(Guid id)
+    {
+        lock (_gate)
+        {
+            _logHeads.Remove(id);
+            _notes.Remove(id);
+            _unresolved.Remove(id);
+            return _index.Remove(id) | _memoryStrats.Remove(id) | _memoryHistory.Remove(id) | _paths.Remove(id);
+        }
     }
 
     /// <summary>
@@ -1888,6 +1924,13 @@ public sealed class StratStore
             string name = Path.GetFileName(log);
             if (!Guid.TryParse(name[..^HistoryExtension.Length], out Guid id)
                 || _folder!.FileExists(Path.Combine(Path.GetDirectoryName(log)!, id.ToString("D") + StratExtension)))
+            {
+                continue;
+            }
+
+            // A delete that moved the strat and could not move its log: deleted, not half-committed.
+            if (_folder.FileExists(Path.Combine(Path.GetDirectoryName(log)!, TrashFolderName,
+                    id.ToString("D") + StratExtension)))
             {
                 continue;
             }

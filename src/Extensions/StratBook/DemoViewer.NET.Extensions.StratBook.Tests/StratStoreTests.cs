@@ -585,4 +585,64 @@ public class StratStoreTests
             DeleteQuietly(root);
         }
     }
+
+    [Test]
+    public async Task ADelete_WhoseLogWillNotMove_PutsTheStratBack_AndSaysItFailed()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            StratStore store = new(folder);
+            StratDocument document = store.Create(Team, "de_mirage", "T", "execute", "A exec");
+            string trash = Path.Combine(StratStore.FolderFor(root, Team, "de_mirage"), ".trash");
+            folder.FailMove = (from, to) => from.EndsWith(StratStore.HistoryExtension, StringComparison.Ordinal)
+                && to.Contains(".trash", StringComparison.Ordinal);
+
+            bool deleted = store.Delete(document.Id);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(deleted).IsFalse();
+                await Assert.That(File.Exists(StratFile(root, document))).IsTrue()
+                    .Because("a delete that failed is one that did not happen");
+                await Assert.That(File.Exists(Path.Combine(trash, document.Id + ".dvstrat.json"))).IsFalse();
+                await Assert.That(store.TryLoad(document.Id)).IsNotNull();
+                await Assert.That(store.Index.Count).IsEqualTo(1);
+            }
+
+            folder.FailMove = null;
+            await Assert.That(store.Delete(document.Id)).IsTrue();
+            await Assert.That(new StratStore(PackStores.At(root)).Index.Count).IsEqualTo(0);
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
+    public async Task ALogLeftBesideATrashedStrat_DoesNotBringTheStratBack()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            StratStore store = new(folder);
+            StratDocument document = store.Create(Team, "de_mirage", "T", "execute", "A exec");
+
+            // The log will not move, and neither will the strat file on its way back out of the trash.
+            folder.FailMove = (from, _) => from.EndsWith(StratStore.HistoryExtension, StringComparison.Ordinal)
+                || from.Contains(".trash", StringComparison.Ordinal);
+            await Assert.That(store.Delete(document.Id)).IsFalse();
+            await Assert.That(File.Exists(LogFile(root, document))).IsTrue();
+
+            await Assert.That(new StratStore(PackStores.At(root)).Index.Count).IsEqualTo(0)
+                .Because("the strat is in the trash; its stranded log is not a first commit to recover");
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
 }
