@@ -41,6 +41,9 @@ public sealed partial class DemoCacheStore
     // Record sidecars written before gzip. Still read; replaced at the demo's next write.
     private const string LegacyRecordSuffix = ".json";
 
+    // The pause before a record file that would not open is tried the second and last time.
+    private const int HeldRecordRetryMs = 50;
+
     private static readonly JsonSerializerOptions _jsonOptions = new();
 
     private static ILogger? _diagLog;
@@ -1078,10 +1081,14 @@ public sealed partial class DemoCacheStore
     ///     The record for a demo if one exists, else a fresh identity-tier record for
     ///     <paramref name="path" />. The entry point for every evaluator that is about to fill a tier.
     /// </summary>
-    public DemoCacheRecord LoadOrCreate(string path, long size, long modifiedTicks)
+    public DemoCacheRecord LoadOrCreate(string path, long size, long modifiedTicks) =>
+        LoadOrCreateForWrite(path, size, modifiedTicks, out _);
+
+    // held: see LoadForWrite. The record returned then must not be written.
+    private DemoCacheRecord LoadOrCreateForWrite(string path, long size, long modifiedTicks, out bool held)
     {
         SettleBeforeWrite(path);
-        DemoCacheRecord? existing = TryLoadRecord(path);
+        DemoCacheRecord? existing = LoadForWrite(path, out held);
 
         // A record whose file no longer matches describes a DIFFERENT demo at the same path: the user
         // replaced or re-downloaded it. Keeping any tier would attribute the old match's rosters and score to
@@ -1110,6 +1117,108 @@ public sealed partial class DemoCacheStore
         }
 
         return new DemoCacheRecord { Path = path, Size = size, ModifiedTicks = modifiedTicks, Sha256 = sha };
+    }
+
+    // The record a write starts from, or null for a fresh one. A record FILE that is there but did not load is
+    // not "no record": the fresh one written over it would erase what only the record holds, the user's error
+    // report and match date among it. A file that cannot be opened is tried once more and then left alone,
+    // with held set so the caller writes nothing; one that opens but does not parse is moved aside first.
+    private DemoCacheRecord? LoadForWrite(string path, out bool held)
+    {
+        held = false;
+        for (int attempt = 0;; attempt++)
+        {
+            if (TryLoadRecord(path) is { } record)
+            {
+                return record;
+            }
+
+            if (CacheRoot is null)
+            {
+                return null;
+            }
+
+            List<string> keys;
+            lock (_gate)
+            {
+                keys = ReadKeys(RowFor(path).Row, path);
+            }
+
+            bool busy = false;
+            bool parsed = false;
+            List<string> damaged = [];
+            foreach (string key in keys)
+            {
+                string file = RecordFile(key);
+                byte[] bytes;
+                try
+                {
+                    if (!File.Exists(file))
+                    {
+                        continue;
+                    }
+
+                    bytes = File.ReadAllBytes(file);
+                }
+                catch (Exception)
+                {
+                    busy = true;
+                    continue;
+                }
+
+                if (TryDeserializeRecord(bytes) is null)
+                {
+                    damaged.Add(key);
+                }
+                else
+                {
+                    parsed = true;
+                }
+            }
+
+            // A file that reads now may be the one the load just missed; a second load that still declines
+            // it has judged it another demo's.
+            if ((busy || parsed) && attempt == 0)
+            {
+                if (busy)
+                {
+                    Thread.Sleep(HeldRecordRetryMs);
+                }
+
+                continue;
+            }
+
+            if (busy)
+            {
+                SidecarFormatLog.RecordHeld(Log, Path.GetFileName(path));
+                held = true;
+                return null;
+            }
+
+            foreach (string key in damaged)
+            {
+                string file = RecordFile(key);
+                // Not under <key>.*, the names an export, a key move and a delete take as the row's files.
+                string aside = Path.Combine(SidecarDir!,
+                    $"unreadable-{DateTime.UtcNow.Ticks}.{Path.GetFileName(file)}");
+                try
+                {
+                    lock (_fileStripes[StripeIndex(key)])
+                    {
+                        File.Move(file, aside);
+                    }
+
+                    SidecarFormatLog.RecordSetAside(Log, Path.GetFileName(file), Path.GetFileName(aside));
+                }
+                catch (Exception)
+                {
+                    held = true;
+                    return null;
+                }
+            }
+
+            return null;
+        }
     }
 
     /// <summary>
@@ -1195,7 +1304,17 @@ public sealed partial class DemoCacheStore
 
         lock (_rmwGate)
         {
-            DemoCacheRecord? record = TryLoadRecord(path);
+            DemoCacheRecord? record = LoadForWrite(path, out bool held);
+            if (held)
+            {
+                if (mustLand)
+                {
+                    throw new IOException("The demo's cache record is in use and could not be read.");
+                }
+
+                return;
+            }
+
             if (record is null)
             {
                 // The stamps the row has for the path when it lists it: a stat of a network path can stall.
@@ -1431,7 +1550,12 @@ public sealed partial class DemoCacheStore
     {
         lock (_rmwGate)
         {
-            DemoCacheRecord record = LoadOrCreate(path, size, modifiedTicks);
+            DemoCacheRecord record = LoadOrCreateForWrite(path, size, modifiedTicks, out bool held);
+            if (held)
+            {
+                return;
+            }
+
             record.Size = size;
             record.ModifiedTicks = modifiedTicks;
             mutate(record);

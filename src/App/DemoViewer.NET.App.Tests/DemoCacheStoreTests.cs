@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.DemoProcessing;
 
 #endregion
 
@@ -55,6 +56,83 @@ public class DemoCacheStoreTests
         CtClan = "NAVI",
         TClan = "FaZe"
     };
+
+    /// <summary>
+    ///     A record file that is there but does not parse is not "no record". Whatever a later tier fill writes,
+    ///     the bytes it could not read are kept beside it, since they may hold what the user typed.
+    /// </summary>
+    [Test]
+    public async Task ARecordFileThatDoesNotParse_IsKeptAside_NotWrittenOver()
+    {
+        string root = TempRoot();
+        try
+        {
+            DemoCacheStore store = new(root);
+            store.Upsert(Record("/demos/unparsed.dem"));
+            store.SaveIndex();
+            string file = store.SidecarPathFor("/demos/unparsed.dem")!;
+            byte[] damaged = "{ \"Path\": \"/demos/unparsed.dem\", \"Size\": \"not a number\" }"u8.ToArray();
+            await File.WriteAllBytesAsync(file, damaged);
+
+            // A second store: the first still holds the record it wrote in its one-record cache.
+            DemoCacheStore reopened = new(root);
+            reopened.UpdateExisting("/demos/unparsed.dem", r => r.AnalysisState = DemoAnalysisState.Pending);
+
+            string[] aside = Directory.GetFiles(Path.GetDirectoryName(file)!, "unreadable-*." + Path.GetFileName(file));
+            using (Assert.Multiple())
+            {
+                await Assert.That(aside.Length).IsEqualTo(1);
+                await Assert.That(aside.Length == 1 && File.ReadAllBytes(aside[0]).AsSpan().SequenceEqual(damaged))
+                    .IsTrue();
+                await Assert.That(reopened.TryLoadRecord("/demos/unparsed.dem")!.AnalysisState)
+                    .IsEqualTo(DemoAnalysisState.Pending).Because("the write itself still lands");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    ///     A record file something else holds open reads as nothing for a moment. A tier fill that started from
+    ///     a fresh record then would replace everything the file holds, so it waits for a later pass instead.
+    /// </summary>
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ARecordFileThatIsHeld_IsNotReplacedByAFreshRecord(bool throughUpdate)
+    {
+        string root = TempRoot();
+        try
+        {
+            DemoCacheStore store = new(root);
+            store.Upsert(Record("/demos/held.dem"));
+            store.SaveIndex();
+            string file = store.SidecarPathFor("/demos/held.dem")!;
+
+            DemoCacheStore reopened = new(root);
+            using (new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                if (throughUpdate)
+                {
+                    reopened.Update("/demos/held.dem", 1000, 2000, r => r.AnalysisState = DemoAnalysisState.Pending);
+                }
+                else
+                {
+                    reopened.UpdateExisting("/demos/held.dem", r => r.AnalysisState = DemoAnalysisState.Pending);
+                }
+            }
+
+            DemoCacheRecord? after = new DemoCacheStore(root).TryLoadRecord("/demos/held.dem");
+            await Assert.That(after!.Players).Count().IsEqualTo(4)
+                .Because("a file that could not be read was not replaced by a record with nothing in it");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
 
     [Test]
     public async Task Upsert_WritesASidecar_AndTheIndexRoundTripsAcrossReopen()
