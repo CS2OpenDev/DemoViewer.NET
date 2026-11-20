@@ -420,6 +420,27 @@ public class EncoderProbeCacheTests
         await Assert.That(inner.Calls.Count).IsEqualTo(2);
     }
 
+    /// <summary>
+    ///     An ffmpeg that could not be read is a fact about a moment, not about the machine. The probe
+    ///     already refuses to remember the empty listing for that reason; a cache that remembers the
+    ///     answer built from it undoes that, and every later export of the session lands on the software
+    ///     floor (or has its named encoder refused) until Re-check.
+    /// </summary>
+    [Test]
+    public async Task AnFfmpegThatCouldNotBeRead_IsAskedAgain_NotRememberedAsUnavailable()
+    {
+        // No such folder: the listing cannot be read, and no process is ever started.
+        string nowhere = Path.Combine(Path.GetTempPath(), $"dv-noffmpeg-{Guid.NewGuid():N}");
+        EncoderProbeCache cache = new(new FfmpegEncoderProbe());
+
+        EncoderProbeResult first = cache.Verify("h264_nvenc", nowhere, false, CancellationToken.None);
+        cache.Verify("h264_nvenc", nowhere, false, CancellationToken.None);
+
+        await Assert.That(first.Works).IsFalse();
+        await Assert.That(first.Detail).Contains("could not read");
+        await Assert.That(cache.Hits).IsEqualTo(0);
+    }
+
     [Test]
     public async Task Clear_ForgetsEverything()
     {

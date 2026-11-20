@@ -30,6 +30,13 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 /// </remarks>
 public readonly record struct EncoderProbeResult(string Encoder, bool Works, string Detail)
 {
+    /// <summary>
+    ///     True when the probe could not ask: ffmpeg's encoder listing was unreadable. The answer is
+    ///     still "unavailable" for this export, but it is not a fact about the machine, and
+    ///     <see cref="EncoderProbeCache" /> does not remember it.
+    /// </summary>
+    internal bool Inconclusive { get; init; }
+
     /// <summary>A one-line description for a log or a JSON payload.</summary>
     public string Describe() => string.Create(CultureInfo.InvariantCulture,
         $"{Encoder}: {(Works ? "ok" : "unavailable")} — {Detail}");
@@ -108,10 +115,12 @@ public sealed class FfmpegEncoderProbe : IEncoderProbe
 
         if (!listed.Contains(encoderName))
         {
-            return new EncoderProbeResult(encoderName, false,
-                listed.Count == 0
-                    ? "could not read `ffmpeg -encoders`"
-                    : "not built into this ffmpeg");
+            return listed.Count == 0
+                ? new EncoderProbeResult(encoderName, false, "could not read `ffmpeg -encoders`")
+                {
+                    Inconclusive = true
+                }
+                : new EncoderProbeResult(encoderName, false, "not built into this ffmpeg");
         }
 
         if (trustListing)
@@ -431,7 +440,9 @@ public sealed class EncoderProbeCache(IEncoderProbe? inner = null) : IEncoderPro
         EncoderProbeResult result = _inner.Verify(encoderName, binaryFolder, trustListing, ct);
 
         // A cancelled probe is not a fact about the machine; caching it would poison the next export.
-        if (!ct.IsCancellationRequested)
+        // Nor is one whose listing could not be read: FfmpegEncoderProbe.ListEncoders does not remember
+        // that either, and this must agree with it or the session is on the software floor until Re-check.
+        if (!ct.IsCancellationRequested && !result.Inconclusive)
         {
             _results[key] = result;
         }
