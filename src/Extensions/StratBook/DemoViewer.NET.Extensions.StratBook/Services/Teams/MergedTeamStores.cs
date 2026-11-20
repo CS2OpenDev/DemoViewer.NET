@@ -13,23 +13,24 @@ internal static class MergedTeamStores
     ///     move, so it runs on every Team Identity change: that also catches up a merge made before the stores
     ///     followed one. UI thread, where the three stores mutate.
     /// </summary>
-    /// <param name="teams">Every team, hidden included.</param>
+    /// <param name="teams">Every team, hidden included, as <see cref="TeamIdentityService.MergeLineage" /> copied them.</param>
     /// <param name="notes">The Scouting Report notes.</param>
     /// <param name="vetoes">The veto history.</param>
     /// <param name="ranks">The team ranks.</param>
-    public static void Follow(IReadOnlyList<Team> teams, ScoutingReportNotesStore notes, VetoHistoryStore vetoes,
-        TeamRanksStore ranks)
+    public static void Follow(IReadOnlyList<(Guid Id, Guid[] MergedFrom)> teams, ScoutingReportNotesStore notes,
+        VetoHistoryStore vetoes, TeamRanksStore ranks)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(vetoes);
         ArgumentNullException.ThrowIfNull(ranks);
         HashSet<Guid> live = [.. teams.Select(t => t.Id)];
-        foreach (Team team in teams)
+        foreach ((Guid Id, Guid[] MergedFrom) team in teams)
         {
-            // Copied first: a merge on the teams queue adds to this list while the UI thread is here. An id that
-            // names a team again is that team's, whatever an older list says.
-            foreach (Guid from in team.MergedFrom.ToArray().Where(id => !live.Contains(id)))
+            // The lists are copies taken under the service's gate: a merge on the teams queue adds to the live
+            // one while the UI thread is here. An id that names a team again is that team's, whatever an older
+            // list says.
+            foreach (Guid from in team.MergedFrom.Where(id => !live.Contains(id)))
             {
                 notes.Rekey(from, team.Id);
                 vetoes.Rekey(from, team.Id);

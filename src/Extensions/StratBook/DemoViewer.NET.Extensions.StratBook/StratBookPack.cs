@@ -339,7 +339,7 @@ public sealed class StratBookPack : IExtension
             // what they hold under the tombstone moves onto the team that took it over. Team Identity raises on
             // the UI thread, where the stores mutate, and it raises once its file is read, which catches up a
             // merge made before the stores followed one.
-            teams.Changed += () => MergedTeamStores.Follow(teams.AllTeams, notes, vetoes, ranks);
+            teams.Changed += () => MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks);
             return teams;
         });
         // Demo Provenance Labels: the override from teams.json else the heuristic over the cache row and

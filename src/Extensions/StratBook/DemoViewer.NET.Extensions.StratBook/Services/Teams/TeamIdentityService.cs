@@ -386,6 +386,19 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         }
     }
 
+    // Every team's id with the ids it was merged from, the lists copied under the gate: AllTeams hands out the
+    // live teams, whose MergedFrom a merge on the teams queue grows while another thread reads it.
+    internal IReadOnlyList<(Guid Id, Guid[] MergedFrom)> MergeLineage
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _teams.Teams.Select(t => (t.Id, t.MergedFrom.ToArray()))];
+            }
+        }
+    }
+
     /// <summary>The team marked as us, or null.</summary>
     public Team? Us
     {

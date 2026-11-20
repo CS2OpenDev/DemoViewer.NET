@@ -553,7 +553,7 @@ public class TeamIdentityTests
         ranks.Set(b, RankSystem.Vrs, 40, day);
 
         teams.Merge(a, b);
-        MergedTeamStores.Follow(teams.AllTeams, notes, vetoes, ranks);
+        MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks);
 
         using (Assert.Multiple())
         {
@@ -576,7 +576,7 @@ public class TeamIdentityTests
         notes.Changed += () => raised++;
         vetoes.Changed += () => raised++;
         ranks.Changed += () => raised++;
-        MergedTeamStores.Follow(teams.AllTeams, notes, vetoes, ranks);
+        MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks);
         await Assert.That(raised).IsEqualTo(0).Because("nothing is left under the merged id to move");
     }
 
