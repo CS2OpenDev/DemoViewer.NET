@@ -2063,7 +2063,11 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
         lock (_sync)
         {
-            entry.Cancel = null;
+            // A requeued read may already be running again on another worker, under that run's own source.
+            if (ReferenceEquals(entry.Cancel, cancel))
+            {
+                entry.Cancel = null;
+            }
         }
 
         cancel.Dispose();
@@ -2085,6 +2089,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         IReadOnlyList<VisitPass> passes;
         VisitedDemo demo;
         PassLevel level;
+        // Decided under the lock: once it is released another worker may pick the requeued entry, and its
+        // state then describes that run.
+        bool requeued = false;
         lock (_sync)
         {
             demo = entry.Visit!.Demo;
@@ -2092,6 +2099,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             if (cancelled && entry is { Preempted: true, CancelRequested: false })
             {
                 RequeueLocked(entry);
+                requeued = true;
                 passes = [];
             }
             else
@@ -2102,7 +2110,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             }
         }
 
-        if (entry is { Requeued: true, State: DemoQueueItemState.Queued })
+        if (requeued)
         {
             RaiseChanged();
             return;
