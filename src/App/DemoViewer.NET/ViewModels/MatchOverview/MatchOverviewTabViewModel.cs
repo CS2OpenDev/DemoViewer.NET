@@ -1731,7 +1731,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         }
 
         MatchDateError = string.Empty;
-        _setMatchTime(key, utc);
+        ApplyMatchTime(key, utc);
     }
 
     [RelayCommand]
@@ -1739,7 +1739,21 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     {
         if (SubjectKey is { } key)
         {
-            _setMatchTime?.Invoke(key, null);
+            ApplyMatchTime(key, null);
+        }
+    }
+
+    // The date is the user's and lives only in the demo's record, so a record write that does not land is said
+    // here rather than passed over: nothing repaints, and the field would go on showing a date that is not kept.
+    private void ApplyMatchTime(string key, DateTime? utc)
+    {
+        try
+        {
+            _setMatchTime?.Invoke(key, utc);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MatchDateError = "Could not save: " + ex.Message;
         }
     }
 

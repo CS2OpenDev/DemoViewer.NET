@@ -323,6 +323,56 @@ public class ErrorReportStoreTests
         }
     }
 
+    /// <summary>
+    ///     A record write that does not land is a save that did not happen. The window holds the only copy of
+    ///     the notes, so the save has to throw, and the store must not go on serving the report from memory as
+    ///     though it were on disk.
+    /// </summary>
+    [Test]
+    public async Task ASaveWhoseRecordWriteFails_Throws_AndLeavesNoReportBehind()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"dv-error-report-{Guid.NewGuid():N}");
+        try
+        {
+            string demo = Path.Combine(root, "unwritable.dem");
+            DemoCacheStore store = new(root);
+            store.Upsert(Record(demo, "sha-unwritable"));
+
+            // A directory where the record file goes: the write's rename fails on every OS.
+            string file = store.SidecarPathFor(demo)!;
+            File.Delete(file);
+            Directory.CreateDirectory(file);
+
+            bool threw = false;
+            try
+            {
+                DemoErrorReportStore.Save(store, demo, "round 3 has no winner", Snapshot(demo), _first);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                threw = true;
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(threw).IsTrue().Because("the caller keeps the notes on screen only when told");
+                await Assert.That(DemoErrorReportStore.TryLoad(store, demo)).IsNull()
+                    .Because("a report that is not on disk is gone at the next launch");
+                await Assert.That(store.TryGetIndex(demo)).IsNotNull().Because("the demo keeps its row");
+            }
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(root, true);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
+
     [Test]
     public async Task DeletingAReport_LeavesTheRestOfTheRecordAlone()
     {

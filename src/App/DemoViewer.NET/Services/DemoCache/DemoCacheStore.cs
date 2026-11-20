@@ -1,5 +1,6 @@
 #region
 
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -1173,7 +1174,21 @@ public sealed partial class DemoCacheStore
     ///         it instead of discarding the tier this call just wrote.
     ///     </para>
     /// </summary>
-    public void UpdateExisting(string path, Action<DemoCacheRecord> mutate)
+    public void UpdateExisting(string path, Action<DemoCacheRecord> mutate) => UpdateRecord(path, mutate, false);
+
+    /// <summary>
+    ///     <see cref="UpdateExisting" /> for a change nothing can compute again: what the user typed or chose.
+    ///     A tier that fails to reach the disk is filled by a later pass, so that failure is passed over; this
+    ///     one would be lost at the next launch while the store went on serving it from memory. So a record
+    ///     write that does not land throws what stopped it, with the row and the cached record as they were
+    ///     before the call: a reader sees what is on disk.
+    /// </summary>
+    /// <param name="path">The demo's path.</param>
+    /// <param name="mutate">The change.</param>
+    public void UpdateExistingOrThrow(string path, Action<DemoCacheRecord> mutate) =>
+        UpdateRecord(path, mutate, true);
+
+    private void UpdateRecord(string path, Action<DemoCacheRecord> mutate, bool mustLand)
     {
         ArgumentNullException.ThrowIfNull(mutate);
         SettleBeforeWrite(path);
@@ -1191,7 +1206,7 @@ public sealed partial class DemoCacheStore
             }
 
             mutate(record);
-            Upsert(record);
+            UpsertRecord(record, mustLand);
         }
     }
 
@@ -1205,7 +1220,10 @@ public sealed partial class DemoCacheStore
     ///         never erases the analysis another path of the same bytes produced.
     ///     </para>
     /// </summary>
-    public void Upsert(DemoCacheRecord record)
+    public void Upsert(DemoCacheRecord record) => UpsertRecord(record, false);
+
+    // mustLand: see UpdateExistingOrThrow. A write that is turned away or fails throws instead of returning.
+    private void UpsertRecord(DemoCacheRecord record, bool mustLand)
     {
         if (string.IsNullOrEmpty(record.Path))
         {
@@ -1259,15 +1277,22 @@ public sealed partial class DemoCacheStore
                 if (!ReleaseKey(claimant, pathKey))
                 {
                     // Nothing changes: the path keeps its old row and stamps, so the next drift check retries.
+                    if (mustLand)
+                    {
+                        throw new IOException("The demo's cache files are in use by another of its paths.");
+                    }
+
                     return;
                 }
             }
 
             DemoCacheIndexEntry row;
+            DemoCacheIndexEntry? replaced;
             lock (_gate)
             {
                 DemoCacheIndexEntry? oldRow = oldKey is null ? null : _rows.GetValueOrDefault(oldKey);
                 DemoCacheIndexEntry? target = _rows.GetValueOrDefault(newKey);
+                replaced = oldKey == newKey ? target : null;
                 List<DemoLocation> locations = [.. (target?.Locations ?? []).Where(l => !SamePath(l.Path, path))];
                 // Only ConfirmLocation confirms a path a fingerprint attached: a write is no full read.
                 bool confirmed = target is null || LocationIn(target, path)?.Confirmed != false;
@@ -1309,13 +1334,30 @@ public sealed partial class DemoCacheStore
             record.Locations = row.Locations;
             byte[] bytes = SidecarJson.SerializeGzip(record, _jsonOptions);
 
+            string? cachedKey;
+            byte[]? cachedBytes;
             lock (_gate)
             {
+                (cachedKey, cachedBytes) = (_lastRecordKey, _lastRecordBytes);
                 _lastRecordKey = newKey;
                 _lastRecordBytes = bytes;
             }
 
-            WriteSidecar(path, bytes);
+            if (WriteSidecar(path, bytes) is { } failure && mustLand)
+            {
+                // The file is still the last one that landed. The cached record and, for a row that only
+                // changed in place, the row go back to describing it before the failure is passed on.
+                lock (_gate)
+                {
+                    (_lastRecordKey, _lastRecordBytes) = (cachedKey, cachedBytes);
+                    if (replaced is not null)
+                    {
+                        Link(newKey, replaced);
+                    }
+                }
+
+                ExceptionDispatchInfo.Throw(failure);
+            }
 
             if (CacheRoot is null)
             {
@@ -2415,7 +2457,10 @@ public sealed partial class DemoCacheStore
         return keys.Select(k => Path.Combine(SidecarDir!, k + suffix)).FirstOrDefault(File.Exists);
     }
 
-    private void WriteSidecar(string demoPath, byte[] bytes) =>
+    // Null when the record is where a reader finds it, else what stopped the write. A tier fill ignores it.
+    private Exception? WriteSidecar(string demoPath, byte[] bytes)
+    {
+        Exception? failure = null;
         WithWriteKey(demoPath, (key, row) =>
         {
             if (CacheRoot is null)
@@ -2428,10 +2473,12 @@ public sealed partial class DemoCacheStore
                 return;
             }
 
+            bool landed = false;
             try
             {
                 string file = RecordFile(key);
                 AtomicFile.WriteAllBytes(file, bytes);
+                landed = true;
 
                 // Only once the new file reads back: otherwise the legacy record stays the reader's fallback.
                 string legacy = LegacyRecordFile(key);
@@ -2448,11 +2495,14 @@ public sealed partial class DemoCacheStore
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Rebuildable.
+                failure = landed ? null : ex;
             }
         });
+        return failure;
+    }
 
     // Runs write under the stripe of the key a demo's files are written under. The key is resolved again
     // once the stripe is held, since a rename may have moved the row to another key meanwhile.

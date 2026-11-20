@@ -26,7 +26,7 @@ public static class MatchTimeOverrides
     {
         ArgumentNullException.ThrowIfNull(store);
         long ticks = utc.ToUniversalTime().Ticks;
-        store.UpdateExisting(path, r =>
+        store.UpdateExistingOrThrow(path, r =>
         {
             r.MatchMeta ??= new DemoMatchMeta();
             r.MatchMeta.MatchTimeUtcTicks = ticks;
@@ -40,7 +40,7 @@ public static class MatchTimeOverrides
     public static void Clear(DemoCacheStore store, string path)
     {
         ArgumentNullException.ThrowIfNull(store);
-        store.UpdateExisting(path, r =>
+        store.UpdateExistingOrThrow(path, r =>
         {
             if (r.MatchMeta is not { MatchTimeSource: MatchTimeSource.UserOverride } meta)
             {
