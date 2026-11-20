@@ -218,4 +218,20 @@ public class FloorSplitterTests
         s.Reset();
         await Assert.That(s.HasSectionHeights).IsFalse();
     }
+
+    [Test]
+    public async Task WildZ_IsIgnored_AndDoesNotBreakTheSplit()
+    {
+        FloorSplitter s = new();
+        Repeat(s, -100, 10);
+
+        // A Z far outside any map: one saturates the bucket index, the other would size the histogram
+        // at hundreds of millions of buckets.
+        s.Observe(1e12);
+        s.Observe(-1e10);
+
+        await Assert.That(s.Slices.Count).IsEqualTo(1);
+        await Assert.That(s.Slices[0].MinZ).IsGreaterThan(-200);
+        await Assert.That(s.Slices[0].MaxZ).IsLessThan(0);
+    }
 }

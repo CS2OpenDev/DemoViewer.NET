@@ -28,6 +28,10 @@ internal sealed class FloorSplitter
     // unused trailing slots) is not a real boundary.
     private const double SectionSentinel = 3.0e38;
 
+    // Well past any playable Z (the Source 2 world is +-16384 units), and small enough that the dense
+    // histogram over the whole range stays a few thousand buckets.
+    private const double MaxAbsZ = 1e5;
+
     // Peak-and-valley tuning (#1). A floor is a DWELL PEAK holding ≥ this fraction of all observed Z samples
     // (filters transient catwalk/box-jump noise). Nuke's lightly-used upper floor is ~5% of samples, so this
     // is deliberately low; a single-floor map still has only one such peak.
@@ -253,13 +257,18 @@ internal sealed class FloorSplitter
         return true;
     }
 
-    /// <summary>Folds one observed Z value into the running histogram. Non-finite samples are ignored.</summary>
+    /// <summary>
+    ///     Folds one observed Z value into the running histogram. Non-finite samples, and samples further
+    ///     from 0 than any map reaches, are ignored.
+    /// </summary>
     public void Observe(double z)
     {
         // (int)Math.Floor(NaN / w) is 0 under .NET's saturating conversions, so an unfiltered bad sample
         // does not throw. It invents a phantom dwell band at Z ∈ [0, BucketWidth) and can split a
-        // single-floor map in two.
-        if (!double.IsFinite(z))
+        // single-floor map in two. A finite but wild Z is worse: the histogram is a dense array over the
+        // observed bucket extent, so 1e10 sizes it at gigabytes, and 1e12 saturates the bucket index and
+        // wraps the extent negative so every Slices read throws until Reset.
+        if (!double.IsFinite(z) || Math.Abs(z) > MaxAbsZ)
         {
             return;
         }
