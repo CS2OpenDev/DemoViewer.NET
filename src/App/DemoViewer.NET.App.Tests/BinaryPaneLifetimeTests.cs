@@ -17,6 +17,7 @@ namespace DemoViewer.NET.AppTests;
 ///     new view whose panes keep their DataContext after the tab is left. A pane that stayed subscribed to
 ///     its view model kept that whole dead view reachable, one more per visit.
 /// </summary>
+[TUnit.Core.Category("Render")]
 public class BinaryPaneLifetimeTests
 {
     [Test]
