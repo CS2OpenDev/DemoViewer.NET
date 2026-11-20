@@ -476,10 +476,20 @@ public sealed class LiveSyncService : ILiveSyncService
             applying => ApplyingRemote = applying);
     }
 
-    /// <summary>Engine status → service state (any thread; SetState marshals + dedups).</summary>
+    /// <summary>Engine status → service state (any thread; applied on the UI thread, SetState dedups).</summary>
     private void OnEngineStatus(LiveSyncState status)
     {
-        if (_tearingDown || _disposed || State.Kind == LiveSyncStateKind.Faulted)
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            // Checked where it is applied, not where it was published: CSVG's Faulted is itself
+            // only posted, so a status published between that post and its apply would read the
+            // pre-Faulted state here and land after Faulted. Always a Post: PublishStatus calls
+            // this under the engine's publish gate.
+            Dispatcher.UIThread.Post(() => OnEngineStatus(status));
+            return;
+        }
+
+        if (_tearingDown || _disposed || _engine is null || State.Kind == LiveSyncStateKind.Faulted)
         {
             // A dead session's terminal copy (CS2 quit / launch failure) outranks pipeline chatter.
             return;
