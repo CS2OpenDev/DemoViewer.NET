@@ -207,6 +207,60 @@ public class GrenadeStoreTests
     }
 
     [Test]
+    public async Task ALineupFileANewerBuildWrote_IsNeverOverwritten()
+    {
+        string root = TempRoot();
+        try
+        {
+            Directory.CreateDirectory(root);
+            string file = Path.Combine(root, GrenadeLineupStore.FileName);
+            byte[] newer = Gzip("""{"schemaVersion":2,"maps":{}}"""u8.ToArray());
+            await File.WriteAllBytesAsync(file, newer);
+
+            GrenadeLineupStore store = new(root);
+            store.For(Map).Anchors.Add(new LineupAnchor(Guid.NewGuid(), GrenadeKind.Smoke, new WorldPoint(1, 2, 3),
+                new WorldPoint(4, 5, 6), "seed"));
+            store.Save();
+
+            await Assert.That(await File.ReadAllBytesAsync(file)).IsEquivalentTo(newer)
+                .Because("a downgrade must not replace the newer build's lineups with an empty document");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ALineupFileLockedOnRead_IsNotReplaced_AndTheNextLoadSeesIt()
+    {
+        string root = TempRoot();
+        try
+        {
+            LineupAnchor anchor = new(Guid.NewGuid(), GrenadeKind.Smoke, new WorldPoint(1, 2, 3),
+                new WorldPoint(4, 5, 6), "seed");
+            GrenadeLineupStore first = new(root);
+            first.For(Map).Anchors.Add(anchor);
+            first.Save();
+
+            // An antivirus scan or a sync client holds the file for the first read only.
+            LockedOnceFolder folder = new(PackStores.At(root));
+            GrenadeLineupStore store = GrenadeLineupStore.In(folder, null);
+            store.For(Map).Anchors.Add(new LineupAnchor(Guid.NewGuid(), GrenadeKind.Flash,
+                new WorldPoint(7, 8, 9), new WorldPoint(10, 11, 12), "other"));
+            store.Save();
+            store.Unload();
+
+            await Assert.That(store.For(Map).Anchors.Select(a => a.Id)).Contains(anchor.Id)
+                .Because("a read that failed is not an empty file");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ADemoWalkedThisSession_GivesItsLineupAFlight()
     {
         DemoCacheStore cache = new(null);
@@ -244,5 +298,55 @@ public class GrenadeStoreTests
         }
 
         return buffer.ToArray();
+    }
+
+    // A folder whose first read fails the way a file held open by another process does.
+    private sealed class LockedOnceFolder(IExtensionFolder inner) : IExtensionFolder
+    {
+        private bool _locked = true;
+
+        public string Path => inner.Path;
+
+        public void Create() => inner.Create();
+
+        public bool FileExists(string relativePath) => inner.FileExists(relativePath);
+
+        public bool DirectoryExists(string relativePath) => inner.DirectoryExists(relativePath);
+
+        public void SetLastWriteTimeUtc(string relativePath, DateTime value) =>
+            inner.SetLastWriteTimeUtc(relativePath, value);
+
+        public DateTime? LastWriteTimeUtc(string relativePath) => inner.LastWriteTimeUtc(relativePath);
+
+        public IEnumerable<string> EnumerateFiles(string relativePath, string searchPattern) =>
+            inner.EnumerateFiles(relativePath, searchPattern);
+
+        public IEnumerable<string> EnumerateDirectories(string relativePath) =>
+            inner.EnumerateDirectories(relativePath);
+
+        public byte[]? Read(string relativePath)
+        {
+            if (_locked)
+            {
+                _locked = false;
+                throw new IOException("The process cannot access the file because it is being used by another process.");
+            }
+
+            return inner.Read(relativePath);
+        }
+
+        public Stream? OpenRead(string relativePath) => inner.OpenRead(relativePath);
+
+        public void WriteAtomic(string relativePath, ReadOnlySpan<byte> content) =>
+            inner.WriteAtomic(relativePath, content);
+
+        public void WriteAtomic(string relativePath, Action<Stream> write) => inner.WriteAtomic(relativePath, write);
+
+        public void Append(string relativePath, string line) => inner.Append(relativePath, line);
+
+        public void Move(string fromRelativePath, string toRelativePath, bool overwrite) =>
+            inner.Move(fromRelativePath, toRelativePath, overwrite);
+
+        public void Delete(string relativePath) => inner.Delete(relativePath);
     }
 }

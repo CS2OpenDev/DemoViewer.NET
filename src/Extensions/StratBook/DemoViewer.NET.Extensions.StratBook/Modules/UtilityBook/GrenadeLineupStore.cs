@@ -65,6 +65,11 @@ public sealed class GrenadeLineupStore
     private readonly Action<byte[]>? _write;
     private GrenadeLineupDocument? _loaded;
 
+    // Set by each read of the file: true when one was there and could not be read or parsed (held open by
+    // another process, written by a newer build, corrupt). Writes are then refused, so the empty document
+    // the store falls back to never replaces the lineups whose ids strat steps and clips are named by.
+    private volatile bool _refused;
+
     /// <param name="directory">The folder holding <see cref="FileName" />, or null to keep everything in memory.</param>
     public GrenadeLineupStore(string? directory)
         : this(directory is null ? () => null : () => ReadFile(Path.Combine(directory, FileName)),
@@ -129,10 +134,30 @@ public sealed class GrenadeLineupStore
     public HashSet<Guid> AnchorIds() => [.. Doc.Maps.Values.SelectMany(m => m.Anchors).Select(a => a.Id)];
 
     // Read on first use, not in the constructor: the file holds every flight and the index is built on the UI thread.
-    private GrenadeLineupDocument Doc => _loaded ??= Read() ?? new GrenadeLineupDocument();
+    private GrenadeLineupDocument Doc => _loaded ??= Load();
 
     /// <summary>Drops the in-memory document; the next use reads the file again. In memory this empties the store.</summary>
     public void Unload() => _loaded = null;
+
+    private GrenadeLineupDocument Load()
+    {
+        GrenadeLineupDocument? document;
+        bool present;
+        try
+        {
+            byte[]? bytes = _read();
+            present = bytes is not null;
+            document = bytes is null ? null : Parse(bytes);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            present = true;
+            document = null;
+        }
+
+        _refused = present && document is null;
+        return document ?? new GrenadeLineupDocument();
+    }
 
     /// <summary>A map's lineups, created empty on first use.</summary>
     public MapLineups For(string map)
@@ -175,7 +200,7 @@ public sealed class GrenadeLineupStore
     public void Write(GrenadeLineupDocument snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        if (_write is null)
+        if (_write is null || _refused)
         {
             return;
         }
@@ -229,17 +254,8 @@ public sealed class GrenadeLineupStore
         }
     }
 
-    private static byte[]? ReadFile(string file)
-    {
-        try
-        {
-            return File.Exists(file) ? File.ReadAllBytes(file) : null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
+    // Throws when the file is there but cannot be read, which the caller tells apart from no file.
+    private static byte[]? ReadFile(string file) => File.Exists(file) ? File.ReadAllBytes(file) : null;
 
     // Gzipped or plain, sniffed by the magic bytes.
     private static GrenadeLineupDocument? Parse(byte[] bytes, JsonSerializerOptions? options = null)
