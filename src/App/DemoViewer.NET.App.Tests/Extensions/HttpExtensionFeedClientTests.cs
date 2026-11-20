@@ -1,5 +1,6 @@
 #region
 
+using System.Buffers;
 using System.Net;
 using DemoViewer.NET.Extensions.Updates;
 
@@ -97,6 +98,72 @@ public class HttpExtensionFeedClientTests
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             client.DownloadAsync(_url, destination, 100 * 1024, null, cts.Token));
         await Assert.That(destination.Length).IsLessThan(100 * 1024);
+    }
+
+    // A stalled read is abandoned, not cancelled, and can still complete into the buffer it was handed. That
+    // buffer must not go back to the shared pool: the next renter on this thread would get it and see the late
+    // bytes. The manual clock fires the stall on this thread, so the client's cleanup runs here too.
+    [Test]
+    public async Task Download_ThatStalls_DoesNotHandItsBufferToTheNextRenter()
+    {
+        ManualTimers clock = new();
+        GatedStream body = new([0xAB]);
+        using GatedHandler handler = new(body);
+        using HttpExtensionFeedClient client = new(handler, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(1), clock);
+        using MemoryStream destination = new();
+
+        Task download = client.DownloadAsync(_url, destination, 1024 * 1024, null, CancellationToken.None);
+        await body.ReadPending.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await WaitForOneTimer(clock);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        byte[] next = ArrayPool<byte>.Shared.Rent(80 * 1024);
+        Array.Clear(next);
+        body.Release();
+        bool untouched = next.All(b => b == 0);
+        ArrayPool<byte>.Shared.Return(next);
+
+        ExtensionDownloadException? ex = await Assert.ThrowsAsync<ExtensionDownloadException>(() => download);
+        using (Assert.Multiple())
+        {
+            await Assert.That(ex!.Message).IsEqualTo("the transfer stalled");
+            await Assert.That(untouched).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task Feed_ThatStalls_DoesNotHandItsBufferToTheNextRenter()
+    {
+        ManualTimers clock = new();
+        GatedStream body = new("AAAA"u8.ToArray());
+        using GatedHandler handler = new(body);
+        using HttpExtensionFeedClient client = new(handler, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(1), clock);
+
+        Task<string> feed = client.GetFeedAsync(_url, CancellationToken.None);
+        await body.ReadPending.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await WaitForOneTimer(clock);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        char[] next = ArrayPool<char>.Shared.Rent(16 * 1024);
+        Array.Clear(next);
+        body.Release();
+        bool untouched = next.All(c => c == '\0');
+        ArrayPool<char>.Shared.Return(next);
+
+        ExtensionDownloadException? ex = await Assert.ThrowsAsync<ExtensionDownloadException>(() => feed);
+        using (Assert.Multiple())
+        {
+            await Assert.That(ex!.Message).IsEqualTo("the transfer stalled");
+            await Assert.That(untouched).IsTrue();
+        }
+    }
+
+    // The header budget's timer is gone once the headers are in; the one left is the stall budget's.
+    private static async Task WaitForOneTimer(ManualTimers clock)
+    {
+        using CancellationTokenSource limit = new(TimeSpan.FromSeconds(10));
+        while (clock.Pending != 1)
+        {
+            await Task.Delay(5, limit.Token);
+        }
     }
 
     // ExtensionUpdateService reads a missing feed off the exception's status code, so the client must keep it.
@@ -210,12 +277,84 @@ public class HttpExtensionFeedClientTests
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
+    private sealed class GatedHandler(GatedStream body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(body) });
+    }
+
+    // Its first read waits, deaf to cancellation, until Release; then it writes its fill into the buffer it was
+    // handed, inline on the releasing thread, as a socket receive landing late would.
+    private sealed class GatedStream(byte[] fill) : Stream
+    {
+        private readonly TaskCompletionSource _gate = new();
+        private bool _served;
+
+        public TaskCompletionSource ReadPending { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public void Release() => _gate.TrySetResult();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            if (_served)
+            {
+                return 0;
+            }
+
+            _served = true;
+            ReadPending.TrySetResult();
+            await _gate.Task;
+            int n = Math.Min(buffer.Length, fill.Length);
+            fill.AsSpan(0, n).CopyTo(buffer.Span);
+            buffer.Span[n..].Fill(fill[0]);
+            return buffer.Length;
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count,
+            CancellationToken cancellationToken) =>
+            ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     // Timers fire only when the test advances the clock, on the advancing thread.
     private sealed class ManualTimers : TimeProvider
     {
         private readonly Lock _gate = new();
         private readonly List<Timer> _timers = [];
         private DateTimeOffset _now = new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
+
+        public int Pending
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _timers.Count;
+                }
+            }
+        }
 
         public override DateTimeOffset GetUtcNow()
         {
