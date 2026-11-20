@@ -13,8 +13,9 @@ public readonly record struct FloorSlice(double MinZ, double MaxZ)
 
 /// <summary>
 ///     Heuristic multi-floor (Z) splitter. Buckets observed player Z values into a running
-///     histogram and finds clusters separated by an empty-bucket gap ≥ G (a player can't span floors within
-///     one tick). Each cluster is a <see cref="FloorSlice" />, ordered low→high. A single cluster ⇒ one
+///     histogram and finds dwell peaks separated by a density valley (an empty-gap rule merges Nuke's two
+///     floors once stair traffic fills the gap; see <c>ComputeSlices</c>). Each cluster is a
+///     <see cref="FloorSlice" />, ordered low→high. A single cluster ⇒ one
 ///     slice (the common case). Metadata-free: when per-map Z thresholds arrive they replace the
 ///     heuristic boundaries, same slice abstraction.
 ///     <para>
@@ -89,18 +90,13 @@ internal sealed class FloorSplitter
 
     /// <summary>Creates a splitter. A non-positive argument takes its default.</summary>
     /// <param name="bucketWidth">The Z histogram bucket width, in world units.</param>
-    /// <param name="gapThreshold">The empty Z span, in world units, that separates two floors.</param>
-    public FloorSplitter(double bucketWidth = 64, double gapThreshold = 180)
+    public FloorSplitter(double bucketWidth = 64)
     {
         BucketWidth = bucketWidth > 0 ? bucketWidth : 64;
-        GapThreshold = gapThreshold > 0 ? gapThreshold : 180;
     }
 
     /// <summary>Histogram bucket width in world units (fixed, e.g. 64u).</summary>
     private double BucketWidth { get; }
-
-    /// <summary>Minimum empty-Z gap (world units) that separates two floors (e.g. ~180u).</summary>
-    public double GapThreshold { get; }
 
     /// <summary>True when authoritative (bundle-supplied) floor bands are in force (histogram bypassed).</summary>
     public bool HasAuthoritativeFloors => _authoritativeFloors is { Count: > 0 };
