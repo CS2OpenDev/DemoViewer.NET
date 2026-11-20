@@ -320,9 +320,9 @@ internal sealed class ExtensionFolder : IExtensionFolder
     private string ResolveFolder(string relativePath)
     {
         ArgumentNullException.ThrowIfNull(relativePath);
-        if (relativePath.Length == 0 || relativePath == ".")
+        if (relativePath.Split('/', '\\').All(s => s.Length == 0 || s == "."))
         {
-            return Path;
+            return Path; // "", "." and "./": every spelling of the folder itself
         }
 
         return PackDataRemover.ResolveSafe(Path, relativePath)

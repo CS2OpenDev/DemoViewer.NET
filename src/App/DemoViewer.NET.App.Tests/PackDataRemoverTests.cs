@@ -120,6 +120,28 @@ public class PackDataRemoverTests
         }
     }
 
+    /// <summary>
+    ///     The path that resolves to the root is refused however it is spelled: the full path keeps a trailing
+    ///     separator, so <c>./</c> came out as the root with one and passed the "under the root" test.
+    /// </summary>
+    [Test]
+    [Arguments("./")]
+    [Arguments(".\\")]
+    [Arguments("./.")]
+    [Arguments("././")]
+    public async Task ResolveSafe_RefusesEverySpellingOfTheRootItself(string relative)
+    {
+        string root = TempRoot("self");
+        using (Assert.Multiple())
+        {
+            await Assert.That(PackDataRemover.ResolveSafe(root, relative)).IsNull();
+            await Assert.That(PackDataRemover.ResolveSafe(root, "a/b"))
+                .IsEqualTo(Path.GetFullPath(Path.Combine(root, "a", "b")));
+            await Assert.That(PackDataRemover.ResolveSafe(root, "a/"))
+                .IsEqualTo(Path.GetFullPath(Path.Combine(root, "a")) + Path.DirectorySeparatorChar);
+        }
+    }
+
     [Test]
     public async Task Delete_RefusesARootedPath()
     {

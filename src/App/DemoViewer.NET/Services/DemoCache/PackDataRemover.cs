@@ -364,7 +364,12 @@ public sealed class PackDataRemover
         string rootWithSeparator = rootFull.EndsWith(Path.DirectorySeparatorChar)
             ? rootFull
             : rootFull + Path.DirectorySeparatorChar;
-        return candidate.StartsWith(rootWithSeparator, StringComparison.Ordinal) ? candidate : null;
+        // The full path keeps a trailing separator, so "./" comes out as the root with one: it starts with
+        // the root and is still the root.
+        return candidate.StartsWith(rootWithSeparator, StringComparison.Ordinal)
+               && candidate.Length > rootWithSeparator.Length
+            ? candidate
+            : null;
     }
 
     // Strips packId's payload and every stamp whose id is in facetIds from every record that has one, listed or
