@@ -65,11 +65,18 @@ public sealed class ReelJobService(
                 throw new InvalidOperationException("A highlight reel is already being generated.");
             }
 
+            // Running BEFORE the job is scheduled: the guard above reads Status, and the job's own
+            // first SetStatus runs later on the pool, so a second Start in that gap would pass.
+            // Only the property is set here; the job's first SetStatus raises StatusChanged with
+            // this same value, and raising it from here could land after a fast terminal status.
+            Status = new ReelJobStatus(ReelJobPhase.StartingSession, 0, request.Clips.Count, null, null, null, []);
             _lastRequest = request;
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
             CancellationToken token = _cts.Token;
-            _job = Task.Run(() => RunAsync(request, token), token);
+            // No token on Task.Run: a cancel before scheduling would skip RunAsync entirely and
+            // leave Status at StartingSession forever. RunAsync observes the token itself.
+            _job = Task.Run(() => RunAsync(request, token));
         }
     }
 
