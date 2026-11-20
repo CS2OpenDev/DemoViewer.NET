@@ -710,7 +710,8 @@ internal sealed class ExtensionPasses(string extensionId, Func<DemoScheduler?> s
         }
     }
 
-    // Only the extension's own passes reach its handlers, on the UI thread.
+    // Only the extension's own passes reach its handlers, on the UI thread. One post per handler: the post
+    // guards what it is given as one call, so a handler that throws would otherwise skip the ones after it.
     private void OnOutstandingChanged(string passId)
     {
         Action? handlers;
@@ -722,7 +723,10 @@ internal sealed class ExtensionPasses(string extensionId, Func<DemoScheduler?> s
         if (handlers is not null && _subscribed is { } source
             && string.Equals(source.OwnerOf(passId), extensionId, StringComparison.Ordinal))
         {
-            _post(handlers);
+            foreach (Action handler in handlers.GetInvocationList().Cast<Action>())
+            {
+                _post(handler);
+            }
         }
     }
 

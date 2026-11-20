@@ -76,6 +76,30 @@ public class ExtensionSettingsStoreTests
         await Assert.That(told).IsEquivalentTo(["flag", "other", "flag"], CollectionOrdering.Matching);
     }
 
+    /// <summary>
+    ///     The host's settings page listens to the same event the extension does, and the context posts a change
+    ///     as the extension's. One guarded call over the whole list stops at the first throw, so the page after
+    ///     a throwing extension handler would never hear the change and would show a stale value.
+    /// </summary>
+    [Test]
+    public async Task AHandlerThatThrows_DoesNotKeepTheChangeFromTheHandlersAfterIt()
+    {
+        FaultRig rig = new();
+        ExtensionSettingsStore store = new("dev.example.settings", null, a => rig.Guard.Wrap("posted callback", a)());
+        List<string> told = [];
+        store.Changed += _ => throw new InvalidOperationException("extension handler");
+        store.Changed += told.Add;
+
+        store.Set("flag", true);
+        await Assert.That(store.Remove("flag")).IsTrue();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(told).IsEquivalentTo(["flag", "flag"], CollectionOrdering.Matching);
+            await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(2);
+        }
+    }
+
     [Test]
     public async Task AValueThatDoesNotReadAsTheAskedType_AnswersTheFallback()
     {

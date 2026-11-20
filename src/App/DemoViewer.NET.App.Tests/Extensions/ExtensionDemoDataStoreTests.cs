@@ -43,6 +43,40 @@ public class ExtensionDemoDataStoreTests
             Count = 3
         };
 
+    /// <summary>
+    ///     A change is posted as the extension's, one handler at a time: a throw costs the handlers after it
+    ///     nothing.
+    /// </summary>
+    [Test]
+    public async Task AChangeHandlerThatThrows_DoesNotKeepTheChangeFromTheHandlersAfterIt()
+    {
+        string root = NewRoot();
+        try
+        {
+            DemoCacheStore library = new(null);
+            Seed(library, Demo, "AAAA");
+            FaultRig rig = new();
+            ExtensionDemoDataStore store = new("dev.example.data",
+                Path.Combine(root, ExtensionFolders.DataDirectoryName, "dev.example.data"), library,
+                a => rig.Guard.Wrap("posted callback", a)(), "1.2.3");
+            List<string?> told = [];
+            store.Changed += _ => throw new InvalidOperationException("extension handler");
+            store.Changed += told.Add;
+
+            store.Write(Demo, Rounds("one"));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(told is [Demo]).IsTrue();
+                await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(1);
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     [Test]
     public async Task AFacet_RoundTripsWithItsParts_AndItsStampNeedsNoFile()
     {

@@ -604,11 +604,18 @@ internal sealed partial class ExtensionDemoDataStore : IExtensionDemoData
         return changed;
     }
 
+    // One post per handler: the post guards what it is given as one call, so a handler that throws would
+    // otherwise stop the change reaching the handlers after it.
     private void Raise(string? demoPath)
     {
-        if (Changed is { } handlers)
+        if (Changed is not { } handlers)
         {
-            _post(() => handlers(demoPath));
+            return;
+        }
+
+        foreach (Action<string?> handler in handlers.GetInvocationList().Cast<Action<string?>>())
+        {
+            _post(() => handler(demoPath));
         }
     }
 

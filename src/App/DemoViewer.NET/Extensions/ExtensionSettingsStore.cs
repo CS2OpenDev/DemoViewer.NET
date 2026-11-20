@@ -139,11 +139,19 @@ internal sealed class ExtensionSettingsStore : IExtensionSettings
         return true;
     }
 
+    // One post per handler. The post runs what it is given as the extension's, in one guarded call, and the
+    // host's settings page listens here too: posted as one, a handler that throws would stop the change
+    // reaching every handler after it.
     private void Raise(Action<string>? changed, string key)
     {
-        if (changed is not null)
+        if (changed is null)
         {
-            _post(() => changed(key));
+            return;
+        }
+
+        foreach (Action<string> handler in changed.GetInvocationList().Cast<Action<string>>())
+        {
+            _post(() => handler(key));
         }
     }
 
