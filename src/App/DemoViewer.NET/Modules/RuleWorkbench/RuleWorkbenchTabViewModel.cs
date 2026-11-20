@@ -68,15 +68,25 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     // An extension's ruleset has no file; its entry carries this prefix, the owner and the id instead of a path.
     private const string ExtensionPathPrefix = "extension:";
 
+    // The evaluation line while there are no results to describe.
+    private const string EvalPrompt = "Evaluate the open ruleset against the loaded demo.";
+
     private IModuleContext? _context;
 
+    // Moves on whenever the results stop describing the loaded demo; a run in flight compares it.
+    private int _demoGeneration;
+
     private ICurrentDemoSource? _demoSource;
+
+    // The demo the last evaluation was started on. Weak: results outlive the demo they came from only
+    // until the tab is next shown, and must not keep a parsed demo alive until then.
+    private WeakReference<ParsedDemo>? _evaluatedDemo;
 
     [ObservableProperty]
     private string _documentText = "";
 
     [ObservableProperty]
-    private string _evalSummary = "Evaluate the open ruleset against the loaded demo.";
+    private string _evalSummary = EvalPrompt;
 
     /// <summary>Node count of the open ruleset's focused graph (0 = nothing open), the deterministic, sync test hook.</summary>
     [ObservableProperty]
@@ -299,6 +309,14 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     {
         _context = context;
         _demoSource = context as ICurrentDemoSource; // first-party demo access
+
+        // DemoReset is only heard while the tab is active, and a demo is usually opened from another tab.
+        if (_evaluatedDemo is { } evaluated
+            && !(evaluated.TryGetTarget(out ParsedDemo? on) && ReferenceEquals(on, _demoSource?.CurrentDemo)))
+        {
+            DropResultsOfThePreviousDemo();
+        }
+
         _context.Advanced += OnAdvanced;
         _context.DemoReset += OnDemoReset;
         RefreshFiles();
@@ -383,9 +401,18 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
 
         IsEvaluating = true;
         EvalSummary = $"Evaluating {scopeLabel}…";
+        _evaluatedDemo = new WeakReference<ParsedDemo>(demo);
+        int generation = _demoGeneration;
         try
         {
             EvalOutcome outcome = await Task.Run(() => ComputeEvaluation(docs, demo));
+            if (generation != _demoGeneration)
+            {
+                // Another demo was opened while this ran. Its boards, fire ticks and players are the
+                // previous demo's, and shown now they would read as this one's.
+                EvalSummary = "The demo changed while evaluating — evaluate again for the demo that is open now.";
+                return;
+            }
 
             // Back on the UI thread: apply the off-thread results to the observable collections.
             foreach (WorkbenchScoreboard board in outcome.Boards)
@@ -737,7 +764,26 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         };
 
     private void OnAdvanced(IPlaybackSnapshot snapshot) => RefreshLivePlayers();
-    private void OnDemoReset() => RefreshLivePlayers();
+    private void OnDemoReset()
+    {
+        DropResultsOfThePreviousDemo();
+        RefreshLivePlayers();
+    }
+
+    // The boards, the trace and its ticks describe the demo they were evaluated on. Once another is loaded
+    // they are taken down, and a run still in flight is told to stand down (the generation) rather than
+    // put them back when it finishes.
+    private void DropResultsOfThePreviousDemo()
+    {
+        _demoGeneration++;
+        _evaluatedDemo = null;
+        Boards.Clear();
+        ClearTrace();
+        if (!IsEvaluating)
+        {
+            EvalSummary = EvalPrompt;
+        }
+    }
 
     private void RefreshLivePlayers()
     {

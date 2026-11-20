@@ -965,6 +965,65 @@ public class RuleWorkbenchModuleTests
         });
     }
 
+    // ── Results belong to the demo they were evaluated on ──────────────────────────────────────────
+
+    [Test]
+    public async Task DemoReset_ClearsThePreviousDemosResults()
+    {
+        ParsedDemo demo = DemoTestHelper.GetOrParse(DemoTestHelper.RequireDemo());
+
+        await WithTempRules(async (vm, _) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            FakeDemoContext context = new(demo);
+            vm.OnActivated(context);
+            await vm.EvaluateCommand.ExecuteAsync(null);
+            await Assert.That(vm.Boards.Count).IsGreaterThan(0);
+            await Assert.That(vm.TraceTargets.Count).IsGreaterThan(0);
+
+            context.RaiseDemoReset();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Boards.Count).IsEqualTo(0);
+                await Assert.That(vm.TraceTargets.Count).IsEqualTo(0);
+                await Assert.That(vm.TraceFires.Count).IsEqualTo(0);
+                await Assert.That(vm.EvalSummary).DoesNotContain("Evaluated");
+            }
+
+            vm.OnDeactivated();
+        });
+    }
+
+    [Test]
+    public async Task AnEvaluationThatFinishesAfterADemoReset_IsDropped()
+    {
+        ParsedDemo demo = DemoTestHelper.GetOrParse(DemoTestHelper.RequireDemo());
+
+        await WithTempRules(async (vm, _) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            FakeDemoContext context = new(demo);
+            vm.OnActivated(context);
+
+            // The run is on the pool by the time ExecuteAsync returns; the reset lands before it finishes.
+            Task run = vm.EvaluateCommand.ExecuteAsync(null);
+            await Assert.That(vm.IsEvaluating).IsTrue();
+            context.RaiseDemoReset();
+            await run;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.IsEvaluating).IsFalse();
+                await Assert.That(vm.Boards.Count).IsEqualTo(0);
+                await Assert.That(vm.TraceTargets.Count).IsEqualTo(0);
+                await Assert.That(vm.EvalSummary).Contains("demo changed");
+            }
+
+            vm.OnDeactivated();
+        });
+    }
+
     private static List<RulesetDoc> LoadShippedDocs()
     {
         string rulesDir = Path.Combine(DemoTestHelper.RequireRepoRoot(), "rules");
