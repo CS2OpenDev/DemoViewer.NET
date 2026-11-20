@@ -355,6 +355,8 @@ public sealed class AnnotationSessionController : IDisposable
     ///         Except on the browser head, which has one thread: the pool continuation can only run once
     ///         this thread returns to the event loop, so blocking on it throws or never returns. There the
     ///         flush is started and not waited for; it only reaches the tab's in-memory file system anyway.
+    ///         One started just before <see cref="Dispose" /> writes nothing: the save looks at the disposed
+    ///         flag once it resumes, and by then it is set. The flush at tab deactivation still lands.
     ///     </para>
     /// </summary>
     public void Flush()
