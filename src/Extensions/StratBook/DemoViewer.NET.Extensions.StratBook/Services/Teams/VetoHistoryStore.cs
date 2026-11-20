@@ -115,8 +115,16 @@ public sealed class VetoHistoryStore
         }
 
         bool changed = false;
+        int dropped = 0;
         foreach (VetoEntry entry in file.Entries)
         {
+            if (teams.IsDropped(entry.OpponentTeamId))
+            {
+                dropped++;
+                ledger.CountSkipped();
+                continue;
+            }
+
             VetoEntry incoming = new()
             {
                 Id = entry.Id,
@@ -147,6 +155,11 @@ public sealed class VetoHistoryStore
                     changed = true;
                 }
             }
+        }
+
+        if (dropped > 0)
+        {
+            ledger.Report($"{dropped} veto step(s) were left out: their team was deleted on this machine");
         }
 
         if (changed)

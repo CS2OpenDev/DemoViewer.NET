@@ -370,11 +370,19 @@ public sealed class ScoutingReportNotesStore
         }
 
         bool changed = false;
+        int dropped = 0;
         foreach (ScoutingReportTeamNotes incoming in file.Teams)
         {
             if (file.SchemaVersion < ScoutingReportNotesFile.CurrentSchema)
             {
                 RemapKeys(incoming);
+            }
+
+            if (teams.IsDropped(incoming.TeamId))
+            {
+                dropped++;
+                ledger.CountSkipped();
+                continue;
             }
 
             Guid teamId = teams.Map(incoming.TeamId);
@@ -405,6 +413,11 @@ public sealed class ScoutingReportNotesStore
             {
                 ledger.CountSkipped();
             }
+        }
+
+        if (dropped > 0)
+        {
+            ledger.Report($"the notes of {dropped} team(s) were left out: the team was deleted on this machine");
         }
 
         if (changed)

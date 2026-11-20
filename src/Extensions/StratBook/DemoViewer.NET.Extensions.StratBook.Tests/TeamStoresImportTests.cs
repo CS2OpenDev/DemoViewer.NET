@@ -157,6 +157,53 @@ public class TeamStoresImportTests
     }
 
     [Test]
+    public async Task WhatPointsAtATeamDeletedHere_IsLeftOut_NotFiledUnderTheDeadId()
+    {
+        using Folders f = new();
+        Guid dead = Guid.Parse("33333333-3333-4333-8333-333333333333");
+        TeamIdMap map = new(new Dictionary<Guid, Guid> { [_theirs] = _ours }, [dead]);
+        f.WriteThere(ScoutingReportNotesStore.FileName, new ScoutingReportNotesFile
+        {
+            Teams = { new ScoutingReportTeamNotes { TeamId = dead, Summary = "their summary" } }
+        }, ScoutingReportNotesFile.JsonOptions);
+        f.WriteThere(VetoHistoryStore.FileName, new VetoHistoryFile
+        {
+            Entries =
+            {
+                new VetoEntry { OpponentTeamId = dead, Order = 1, Map = "de_nuke" },
+                new VetoEntry { OpponentTeamId = _theirs, Order = 1, Map = "de_inferno" }
+            }
+        }, VetoHistoryFile.JsonOptions);
+        f.WriteThere(TeamRanksStore.FileName, new TeamRanksFile
+        {
+            Entries = { new RankEntry { TeamId = dead, System = RankSystem.Hltv, Rank = 12, AsOf = new(2026, 11, 1) } }
+        }, TeamRanksFile.JsonOptions);
+        ScoutingReportNotesStore notes = new(f.HereFile(ScoutingReportNotesStore.FileName));
+        VetoHistoryStore vetoes = new(f.HereFile(VetoHistoryStore.FileName));
+        TeamRanksStore ranks = new(f.HereFile(TeamRanksStore.FileName));
+
+        ImportLedger notesLedger = f.Ledger();
+        notes.Import(f.Staged, map, notesLedger);
+        ImportLedger vetoLedger = f.Ledger();
+        vetoes.Import(f.Staged, map, vetoLedger);
+        ImportLedger rankLedger = f.Ledger();
+        ranks.Import(f.Staged, map, rankLedger);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(notes.TeamIds).IsEmpty();
+            await Assert.That((notesLedger.Added, notesLedger.Skipped)).IsEqualTo((0, 1));
+            await Assert.That(vetoes.TeamIds).IsEquivalentTo([_ours])
+                .Because("the step of a team that lives here still lands");
+            await Assert.That((vetoLedger.Added, vetoLedger.Skipped)).IsEqualTo((1, 1));
+            await Assert.That(ranks.TeamIds).IsEmpty();
+            await Assert.That((rankLedger.Added, rankLedger.Skipped)).IsEqualTo((0, 1));
+            await Assert.That(f.Lines.Count(l => l.Contains("deleted on this machine", StringComparison.Ordinal)))
+                .IsEqualTo(3).Because("each store says what it left out");
+        }
+    }
+
+    [Test]
     public async Task Watches_TakeTheMappedOpponent_AndAreAddedOnce()
     {
         using Folders f = new();

@@ -180,8 +180,16 @@ public sealed class TeamRanksStore
         }
 
         bool changed = false;
+        int dropped = 0;
         foreach (RankEntry entry in file.Entries.Where(e => e.Rank > 0))
         {
+            if (teams.IsDropped(entry.TeamId))
+            {
+                dropped++;
+                ledger.CountSkipped();
+                continue;
+            }
+
             RankEntry incoming = new()
             {
                 Id = entry.Id, TeamId = teams.Map(entry.TeamId), System = entry.System, Rank = entry.Rank,
@@ -209,6 +217,11 @@ public sealed class TeamRanksStore
                     changed = true;
                 }
             }
+        }
+
+        if (dropped > 0)
+        {
+            ledger.Report($"{dropped} team rank(s) were left out: their team was deleted on this machine");
         }
 
         if (changed)
