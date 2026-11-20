@@ -440,6 +440,7 @@ void BakeMap(string map)
     //     extractable physics still bakes its 2D assets.
     CollisionMeshRef? collision = null;
     const string TrisName = "collision.tris";
+    bool hadSoup = File.Exists(Path.Combine(outDir, TrisName + ".gz"));
     try
     {
         CollisionMesh.Result cm = CollisionMesh.Extract(vpk, map, Path.Combine(outDir, TrisName));
@@ -473,6 +474,19 @@ void BakeMap(string map)
         catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException)
         {
             Console.WriteLine($"  collision: partial output left in {outDir} — {cleanup.Message}");
+        }
+
+        // "Optional" covers a map that never had a soup. One that shipped a soup and now bakes
+        // without it has just lost its line of sight, and the delete above is what took it: the
+        // extraction can throw before writing a byte, with the previous bake's .gz still intact.
+        // The delete stays, for the consistency it was written for, but it is no longer quiet.
+        if (hadSoup)
+        {
+            Console.WriteLine(
+                $"  collision: the {TrisName}.gz from the previous bake was REMOVED and the bundle now " +
+                "records no mesh. Restore both from git unless the map really lost its physics.");
+            bakeFailures.Add(
+                $"{map}: collision extraction failed and the previous {TrisName}.gz was removed");
         }
     }
 
