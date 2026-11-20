@@ -688,8 +688,10 @@ public class App : Application
         registry.Reloaded += (_, _) => RepaintForThemeReload(registry, monitor.CurrentValue.Theme);
     }
 
+    // Any settings write fires OnChange, not only a theme change, so the editor's app-wide preview wins while
+    // it is up. Re-applying the saved theme here snapped the app off it until the next edit.
     private static void ApplyTheme(ThemeRegistry registry, string? theme) =>
-        Current!.RequestedThemeVariant = registry.VariantFor(theme);
+        Current!.RequestedThemeVariant = registry.AppPreviewVariant ?? registry.VariantFor(theme);
 
     // Points the whole app at `variant` and repaints it, the same bounce RepaintForThemeReload uses, so the
     // code-drawn surfaces re-read their colours. The theme editor's preview and its restore both go through here.
@@ -745,7 +747,7 @@ public class App : Application
         }
 
         WorkbenchYamlHighlighting.ClearCache();
-        ThemeVariant active = registry.VariantFor(activeThemeId);
+        ThemeVariant active = registry.AppPreviewVariant ?? registry.VariantFor(activeThemeId);
         Current.RequestedThemeVariant = ThemeVariant.Default;
         Current.RequestedThemeVariant = active;
     }
@@ -949,8 +951,16 @@ public class App : Application
                 {
                     ActiveThemeId = () => monitor.CurrentValue.Theme,
                     UseTheme = id => sp.GetRequiredService<SettingsService>().Write(s => s.Theme = id),
-                    ShowAppIn = ShowAppIn,
-                    RestoreApp = () => ShowAppIn(registry.VariantFor(monitor.CurrentValue.Theme))
+                    ShowAppIn = variant =>
+                    {
+                        registry.AppPreviewVariant = variant;
+                        ShowAppIn(variant);
+                    },
+                    RestoreApp = () =>
+                    {
+                        registry.AppPreviewVariant = null;
+                        ShowAppIn(registry.VariantFor(monitor.CurrentValue.Theme));
+                    }
                 });
         });
         // Library transfer: the Settings Export… and Import… wizards. The exporter and importer are looked up

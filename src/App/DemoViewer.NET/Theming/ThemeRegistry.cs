@@ -306,6 +306,13 @@ public sealed class ThemeRegistry
     public ThemeVariant? PreviewVariant { get; private set; }
 
     /// <summary>
+    ///     The preview variant while the editor is showing the whole app in it, else null. Set and cleared by the
+    ///     editor host; a settings write or a theme reload re-applies this rather than the saved theme, so the
+    ///     preview does not vanish under an unrelated write.
+    /// </summary>
+    public ThemeVariant? AppPreviewVariant { get; set; }
+
+    /// <summary>
     ///     Starts (or restarts) the editor preview with every token of <paramref name="palette" />, and returns the
     ///     variant to show it under. A restart is needed only when the base changes; a token edit goes through
     ///     <see cref="UpdatePreview(string, Color)" />.
@@ -363,5 +370,6 @@ public sealed class ThemeRegistry
 
         _previewDict = null;
         PreviewVariant = null;
+        AppPreviewVariant = null;
     }
 }
