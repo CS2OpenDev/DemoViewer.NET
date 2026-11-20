@@ -296,15 +296,24 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     {
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
+        // Taken now: the next seek disposes this source, and Token throws once it has.
+        CancellationToken token = cts.Token;
         SeekCts = cts;
         oldCts?.Cancel();
         oldCts?.Dispose();
 
         try
         {
-            await Task.Delay(150, cts.Token);
+            await Task.Delay(150, token);
         }
         catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // The delay may have finished before a newer seek cancelled this one, with the continuation
+        // still queued behind it on the UI thread.
+        if (token.IsCancellationRequested)
         {
             return;
         }
@@ -326,7 +335,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                     "EntityTrackingTabViewModel.SeekService must be wired before SeekEntitiesAsync.");
             }
 
-            SeekResult result = await Task.Run(() => SeekService.SeekToFrame(frameIndex, frames), cts.Token);
+            SeekResult result = await Task.Run(() => SeekService.SeekToFrame(frameIndex, frames), token);
 
             if (cts.IsCancellationRequested)
             {
@@ -393,15 +402,24 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     {
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
+        // Taken now: the next seek disposes this source, and Token throws once it has.
+        CancellationToken token = cts.Token;
         SeekCts = cts;
         oldCts?.Cancel();
         oldCts?.Dispose();
 
         try
         {
-            await Task.Delay(150, cts.Token);
+            await Task.Delay(150, token);
         }
         catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // The delay may have finished before a newer seek cancelled this one, with the continuation
+        // still queued behind it on the UI thread.
+        if (token.IsCancellationRequested)
         {
             return;
         }
@@ -424,7 +442,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             }
 
             SeekResult result = await Task.Run(
-                () => SeekService.SeekToFrameNoSnapshot(frameIndex, frames), cts.Token);
+                () => SeekService.SeekToFrameNoSnapshot(frameIndex, frames), token);
 
             if (cts.IsCancellationRequested)
             {
@@ -488,15 +506,24 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     {
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
+        // Taken now: the next seek disposes this source, and Token throws once it has.
+        CancellationToken token = cts.Token;
         SeekCts = cts;
         oldCts?.Cancel();
         oldCts?.Dispose();
 
         try
         {
-            await Task.Delay(150, cts.Token);
+            await Task.Delay(150, token);
         }
         catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // The delay may have finished before a newer seek cancelled this one, with the continuation
+        // still queued behind it on the UI thread.
+        if (token.IsCancellationRequested)
         {
             return;
         }
@@ -524,7 +551,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             SeekResult result = await Task.Run(
                 () => SeekService.SeekToFrameWithSnapshotAt(snapshotAt, endFrameIdx, takeSnapshot, frames),
-                cts.Token);
+                token);
 
             if (cts.IsCancellationRequested)
             {

@@ -60,4 +60,49 @@ public class EntitySeekSupersedeTests
         await b.WaitAsync(TimeSpan.FromSeconds(10));
         await Assert.That(Volatile.Read(ref finallies)).IsEqualTo(1);
     }
+
+    /// <summary>
+    ///     The newer seek disposes the older one's token source. An older seek whose 150 ms delay had
+    ///     already finished, with its continuation still queued behind the UI thread, went on to read
+    ///     the disposed source's Token and reported the ObjectDisposedException as a failed seek.
+    /// </summary>
+    [Test]
+    public async Task ASeekWhoseDelayFinishedBeforeANewerOne_DoesNotReportAFailure()
+    {
+        List<string> statuses = [];
+        int finallies = 0;
+
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            EntityTrackingTabViewModel vm = new()
+            {
+                FrameSource = () => [],
+                SeekService = new EntitySeekService(() => throw new OperationCanceledException()),
+                OnSeekFinally = () => finallies++
+            };
+            vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(EntityTrackingTabViewModel.EntityStatusText))
+                {
+                    statuses.Add(vm.EntityStatusText);
+                }
+            };
+
+            Task a = vm.SeekEntitiesAsync(1);
+
+            // The UI thread stays busy past A's delay, so A's continuation queues behind this work item,
+            // and the next selection is handled before it runs.
+            Thread.Sleep(400);
+            Task b = vm.SeekEntitiesAsync(2);
+
+            await Task.WhenAll(a, b).WaitAsync(TimeSpan.FromSeconds(10));
+        });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(statuses.Any(s => s.Contains("seek the entity state", StringComparison.Ordinal)))
+                .IsFalse().Because(string.Join(" | ", statuses));
+            await Assert.That(finallies).IsEqualTo(1);
+        }
+    }
 }
