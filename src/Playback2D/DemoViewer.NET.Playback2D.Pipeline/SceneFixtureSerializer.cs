@@ -150,9 +150,9 @@ public static class SceneFixtureSerializer
 
         if (dto.Points is { } points)
         {
-            foreach (TrailPointDto p in points)
+            foreach (TrailPointDto? p in points)
             {
-                trail.Points.Add(new GrenadeTrailPoint(p.X, p.Y, p.Z));
+                trail.Points.Add(p is null ? throw NullElement() : new GrenadeTrailPoint(p.X, p.Y, p.Z));
             }
         }
 
@@ -162,9 +162,9 @@ public static class SceneFixtureSerializer
     private static TokenRouteLine FromDto(TokenRouteDto dto)
     {
         TokenRouteLine route = new() { Team = dto.Team };
-        foreach (TrailPointDto p in dto.Points ?? [])
+        foreach (TrailPointDto? p in dto.Points ?? [])
         {
-            route.Points.Add(new GrenadeTrailPoint(p.X, p.Y, p.Z));
+            route.Points.Add(p is null ? throw NullElement() : new GrenadeTrailPoint(p.X, p.Y, p.Z));
         }
 
         return route;
@@ -434,11 +434,15 @@ public static class SceneFixtureSerializer
         List<TOut> result = new(source.Count);
         foreach (TIn item in source)
         {
-            result.Add(project(item));
+            // System.Text.Json does not enforce nullable annotations on list elements, so "[null]" reaches
+            // here; Read promises JsonException for a malformed fixture, not a NullReferenceException.
+            result.Add(item is null ? throw NullElement() : project(item));
         }
 
         return result;
     }
+
+    private static JsonException NullElement() => new("Scene fixture list contains a null element.");
 
     // A corpus fixture is data, not code: an enum name this build does not know falls back to the zero
     // value rather than throwing, so one stale member cannot make a whole fixture unreadable.
