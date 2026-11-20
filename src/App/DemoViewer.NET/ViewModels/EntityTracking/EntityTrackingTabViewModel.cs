@@ -200,7 +200,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     public Action? OnSeekCompleted { get; set; }
 
     /// <summary>
-    ///     Optional callback that runs at the end of every seek. MainViewModel uses it
+    ///     Optional callback that runs at the end of every seek a newer seek did not supersede.
+    ///     MainViewModel uses it
     ///     to clear <c>Debugger.Suppress</c> (the JumpToHitFrame helper sets this so
     ///     the back-navigation seek doesn't re-fire the same breakpoint).
     /// </summary>
@@ -373,7 +374,12 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 IsSeekingEntities = false;
             }
 
-            OnSeekFinally?.Invoke();
+            // Cancelling does not stop a replay already running, so a superseded seek can land here while
+            // the newer one is still replaying; only a seek nothing newer replaced may end the pipeline.
+            if (SeekCts is null || ReferenceEquals(SeekCts, cts))
+            {
+                OnSeekFinally?.Invoke();
+            }
         }
     }
 
@@ -464,7 +470,12 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 IsSeekingEntities = false;
             }
 
-            OnSeekFinally?.Invoke();
+            // Cancelling does not stop a replay already running, so a superseded seek can land here while
+            // the newer one is still replaying; only a seek nothing newer replaced may end the pipeline.
+            if (SeekCts is null || ReferenceEquals(SeekCts, cts))
+            {
+                OnSeekFinally?.Invoke();
+            }
         }
     }
 
@@ -559,7 +570,12 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 IsSeekingEntities = false;
             }
 
-            OnSeekFinally?.Invoke();
+            // Cancelling does not stop a replay already running, so a superseded seek can land here while
+            // the newer one is still replaying; only a seek nothing newer replaced may end the pipeline.
+            if (SeekCts is null || ReferenceEquals(SeekCts, cts))
+            {
+                OnSeekFinally?.Invoke();
+            }
         }
     }
 

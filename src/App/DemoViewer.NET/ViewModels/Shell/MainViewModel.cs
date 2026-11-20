@@ -3869,6 +3869,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         _unloadGeneration++;
         _demoBytes = null;
+        // A breakpoint command's suppression is lifted by the end of the seek it started; one the unload
+        // cancels before it gets that far would leave every breakpoint off for the next demo.
+        Debugger.Suppress = false;
         // Drop our handle to the previous open's visit (it may still be running on a reload: that is
         // fine and pre-existing; it holds only the OLD demo, which is being replaced anyway). CloseDemoAsync
         // captures the handle before calling this, so the explicit-close await is unaffected.
