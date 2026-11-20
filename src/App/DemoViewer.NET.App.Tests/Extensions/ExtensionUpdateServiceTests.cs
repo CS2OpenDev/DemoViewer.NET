@@ -375,6 +375,62 @@ public class ExtensionUpdateServiceTests
         }
     }
 
+    // The manifest is read whole before the trust check, so its size is bounded on its own: a padded one that
+    // deflates to almost nothing is refused before it is read or judged.
+    [Test]
+    public async Task Download_OversizedManifest_RefusedBeforeItIsReadOrJudged()
+    {
+        string root = NewRoot();
+        try
+        {
+            string padded = FakeFeeds.Manifest(Id, new FakeFeeds.Entry("1.0.1")) + new string(' ', 2 * 1024 * 1024);
+            byte[] zip = Zip((ExtensionManifest.FileName, padded), ("Fake.dll", "x"));
+            FakeFeeds.Entry entry = new("1.0.1", zip);
+            FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
+            RecordingTrust trust = new(true);
+
+            StageResult result = await NewService(root, client, trust).DownloadAndStageAsync(Entry(entry));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Refused);
+                await Assert.That(result.Detail).Contains($"{ExtensionManifest.FileName} is larger than");
+                await Assert.That(trust.Asked).IsEmpty();
+                await Assert.That(NothingStaged(root)).IsTrue();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // ReadStagedManifest bounds the file it reads whatever wrote it.
+    [Test]
+    public async Task ReadStagedManifest_OversizedFile_ReturnsAProblemWithoutParsing()
+    {
+        string root = NewRoot();
+        try
+        {
+            string dir = StageVersion(root, "1.0.1");
+            await File.AppendAllTextAsync(Path.Combine(dir, ExtensionManifest.FileName),
+                new string(' ', 2 * 1024 * 1024));
+
+            ExtensionManifest? manifest =
+                ExtensionStaging.ReadStagedManifest(dir, Id, SemVersion.Parse("1.0.1"), out string? problem);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(manifest).IsNull();
+                await Assert.That(problem).Contains("is larger than");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     [Test]
     public async Task Download_Untrusted_RefusedAndTheStagingDirectoryRemoved()
     {

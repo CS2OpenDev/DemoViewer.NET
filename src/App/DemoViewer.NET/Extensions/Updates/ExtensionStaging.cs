@@ -42,6 +42,15 @@ public static class ExtensionStaging
     /// <summary>A zip whose entries would unpack to more than this, or whose download is larger, is refused.</summary>
     public const long MaxBytes = 512L * 1024 * 1024;
 
+    /// <summary>
+    ///     The largest <c>extension.json</c> read: it is read whole before the trust check, so it is bounded on
+    ///     its own and not only by <see cref="MaxBytes" />.
+    /// </summary>
+    internal const long MaxManifestBytes = 1024 * 1024;
+
+    private static string ManifestTooLarge =>
+        $"the archive's {ExtensionManifest.FileName} is larger than {MaxManifestBytes / 1024} KB";
+
     /// <summary><c>&lt;extensions&gt;/.staging</c>.</summary>
     public static string StagingRoot(string extensionsDirectory) =>
         Path.Combine(extensionsDirectory, StagingDirectoryName);
@@ -233,6 +242,12 @@ public static class ExtensionStaging
                     return $"the archive entry '{shortName}' has an unsafe path";
                 }
 
+                if (entry.Length > MaxManifestBytes
+                    && string.Equals(relative, ExtensionManifest.FileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return ManifestTooLarge;
+                }
+
                 bool isDirectory = entry.FullName.EndsWith('/') || entry.FullName.EndsWith('\\');
                 string? full = PathSafety.FullPathInside(target, relative);
                 if (full is null)
@@ -292,6 +307,12 @@ public static class ExtensionStaging
         if (!File.Exists(path))
         {
             problem = $"the archive has no {ExtensionManifest.FileName} at its root";
+            return null;
+        }
+
+        if (new FileInfo(path).Length > MaxManifestBytes)
+        {
+            problem = ManifestTooLarge;
             return null;
         }
 
