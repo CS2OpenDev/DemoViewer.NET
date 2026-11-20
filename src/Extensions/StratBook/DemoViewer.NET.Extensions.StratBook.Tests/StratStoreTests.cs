@@ -510,6 +510,53 @@ public class StratStoreTests
     }
 
     [Test]
+    public async Task ABookOrCalloutsFileThatDoesNotParse_IsNeverSavedOver()
+    {
+        string root = TempRoot();
+        try
+        {
+            StratStore store = new(PackStores.At(root));
+            StratBook book = store.LoadBook(Team);
+            book.Notes = "defaults first";
+            book.SlotDefaults["e1"] = new Dictionary<string, string> { ["A"] = "76561198000000001" };
+            CalloutTable table = store.LoadCallouts(Team, "de_mirage");
+            table.Aliases.Add(new CalloutAlias { Alias = "palace", Place = "PalaceInterior", Primary = true });
+            table.Aliases.Add(new CalloutAlias { Alias = "jungle", Place = "Jungle" });
+            await Assert.That(store.SaveBook(book) && store.SaveCallouts(Team, table)).IsTrue();
+
+            // A hand-edit that left a typo: what the stored text was is still there to be repaired.
+            string bookFile = Path.Combine(root, "team-" + TeamId, "book.json");
+            string calloutsFile = Path.Combine(root, "team-" + TeamId, "de_mirage", "callouts.json");
+            string brokenBook = "{ not json" + await File.ReadAllTextAsync(bookFile);
+            string brokenCallouts = "{ not json" + await File.ReadAllTextAsync(calloutsFile);
+            await File.WriteAllTextAsync(bookFile, brokenBook);
+            await File.WriteAllTextAsync(calloutsFile, brokenCallouts);
+
+            // What every caller does: load, change one thing, save.
+            StratBook fresh = store.LoadBook(Team);
+            fresh.SlotDefaults["e2"] = new Dictionary<string, string> { ["B"] = "76561198000000002" };
+            CalloutTable empty = store.LoadCallouts(Team, "de_mirage");
+            empty.Aliases.Add(new CalloutAlias { Alias = "con", Place = "Connector" });
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.SaveBook(fresh)).IsFalse();
+                await Assert.That(store.SaveCallouts(Team, empty)).IsFalse();
+                await Assert.That(await File.ReadAllTextAsync(bookFile)).IsEqualTo(brokenBook);
+                await Assert.That(await File.ReadAllTextAsync(calloutsFile)).IsEqualTo(brokenCallouts);
+            }
+
+            // Repaired, or deleted, the file takes a save again.
+            File.Delete(calloutsFile);
+            await Assert.That(store.SaveCallouts(Team, empty)).IsTrue();
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
     [Arguments("steps")]
     [Arguments("slots")]
     [Arguments("owner")]

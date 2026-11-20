@@ -770,9 +770,14 @@ public sealed class StratStore
             return false;
         }
 
+        string? path = _folder is null ? null : Path.Combine(book.Owner.FolderName, BookFileName);
+        if (StoredIsUnreadable(path, StratJsonContext.Default.StratBook))
+        {
+            return false;
+        }
+
         string json = JsonSerializer.Serialize(book, StratJsonContext.Default.StratBook);
-        return WriteSmallFile(book.Owner.FolderName,
-            _folder is null ? null : Path.Combine(book.Owner.FolderName, BookFileName), json, _memoryBooks);
+        return WriteSmallFile(book.Owner.FolderName, path, json, _memoryBooks);
     }
 
     /// <summary>An owner's callouts for a map, or an empty table when none is stored or it cannot be read.</summary>
@@ -828,10 +833,14 @@ public sealed class StratStore
 
         table.Map = table.Map.ToLowerInvariant();
         string key = owner.FolderName + "/" + table.Map;
+        string? path = _folder is null ? null : Path.Combine(FolderIn(owner, table.Map), CalloutsFileName);
+        if (StoredIsUnreadable(path, StratJsonContext.Default.CalloutTable))
+        {
+            return false;
+        }
+
         string json = JsonSerializer.Serialize(table, StratJsonContext.Default.CalloutTable);
-        return WriteSmallFile(key, _folder is null ? null : Path.Combine(FolderIn(owner, table.Map), CalloutsFileName),
-            json,
-            _memoryCallouts);
+        return WriteSmallFile(key, path, json, _memoryCallouts);
     }
 
     /// <summary>Index rows matching every non-null filter, by name.</summary>
@@ -2163,6 +2172,26 @@ public sealed class StratStore
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             return null;
+        }
+    }
+
+    // The loads above answer a fresh book or table for a file that is there and cannot be read, and every caller
+    // changes what it loaded and saves it back. Saving then would replace the stored file with that one change,
+    // so the save is refused while the file is held by another process or does not parse, as it is for a strat.
+    private bool StoredIsUnreadable<T>(string? path, JsonTypeInfo<T> type) where T : class
+    {
+        if (path is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return FolderText.Read(_folder!, path) is { } json && JsonSerializer.Deserialize(json, type) is null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return true;
         }
     }
 
