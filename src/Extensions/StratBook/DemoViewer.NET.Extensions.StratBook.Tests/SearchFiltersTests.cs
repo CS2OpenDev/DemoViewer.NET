@@ -1,5 +1,10 @@
 #region
 
+using System.Globalization;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Data;
+using Avalonia.Threading;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
@@ -211,6 +216,52 @@ public class SearchFiltersTests
 
             // Two tick-anchored fields must hold at the same tick: late is after the second kill, so CT up never coincides.
             await Assert.That(lateAndUp).IsEmpty();
+        }
+    }
+
+    [Test]
+    [Category("Integration")]
+    [NotInParallel(TestLanes.HeadlessUi)]
+    public async Task ReplacingAFieldsOptions_UnderABoundComboBox_NeverReadsAnEmptyList()
+    {
+        List<string> seen = [];
+        List<Exception> thrown = [];
+        await HeadlessSession.RunOnUi(() =>
+        {
+            SearchFilterField<int?> field = new("Side",
+                [new SearchFilterOption<int?>("Any", null), new SearchFilterOption<int?>("T", 2)]);
+            field.Selected = field.Options[1];
+            ComboBox box = new() { DataContext = field };
+            box.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(field.Options)));
+            box.Bind(SelectingItemsControl.SelectedItemProperty, new Binding(nameof(field.Selected)));
+            Window window = new() { Width = 300, Height = 200, Content = box };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            // What the rail's owner does on every change: read the value.
+            field.Changed += () =>
+            {
+                try
+                {
+                    seen.Add(field.Value?.ToString(CultureInfo.InvariantCulture) ?? "any");
+                }
+                catch (ArgumentOutOfRangeException ex)
+                {
+                    thrown.Add(ex);
+                }
+            };
+
+            field.Replace([new SearchFilterOption<int?>("Any", null), new SearchFilterOption<int?>("CT", 3)]);
+            Dispatcher.UIThread.RunJobs();
+            seen.Add($"ends {field.Selected?.Display}");
+            window.Close();
+            return Task.CompletedTask;
+        });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(thrown).IsEmpty().Because("the value is read while the list is rebuilt");
+            await Assert.That(seen).IsEquivalentTo(["any", "ends Any"], CollectionOrdering.Matching)
+                .Because("T is no longer offered: one change, to any");
         }
     }
 
