@@ -3005,6 +3005,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _moduleContext?.SetGameEvents(parsed.AllGameEvents); // pre-decoded timeline for event-driven modules
             _moduleContext?.SetMapName(parsed.MapName); // data-driven map identity for asset selection
             _moduleContext?.SetDemoSha256(demoKey); // the persisted-store join key, hashed once above
+            Bookmarks.SetDemo(demoKey); // a bookmark is a frame index: only this demo's are shown
             _moduleContext?.SetDemo(parsed); // expose the loaded demo to the first-party Workbench
             _heldDemo = new HeldDemo(path, parsed);
             BuildUnknownMessageCensus(parsed);
@@ -3872,6 +3873,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _moduleContext?.SetGameClock(0);
         _moduleContext?.SetMapName(null);
         _moduleContext?.SetDemoSha256(null);
+        Bookmarks.SetDemo(null);
         _moduleContext?.SetDemo(null);
         // ClearAndTrim, not Clear: these grow to one slot per frame (~131k on a long demo) and
         // Clear() does not shrink the backing array, so a closed demo left 1 MB of nulls in each.
@@ -4378,6 +4380,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _moduleContext?.SetGameEvents(parsed.AllGameEvents); // pre-decoded timeline for event-driven modules
             _moduleContext?.SetMapName(parsed.MapName); // data-driven map identity for asset selection
             _moduleContext?.SetDemoSha256(demoKey); // the persisted-store join key, hashed once above
+            Bookmarks.SetDemo(demoKey); // a bookmark is a frame index: only this demo's are shown
             _moduleContext?.SetDemo(parsed); // expose the loaded demo to the first-party Workbench
             _heldDemo = localPath is null ? null : new HeldDemo(localPath, parsed);
             BuildUnknownMessageCensus(parsed);

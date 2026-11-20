@@ -74,11 +74,11 @@ public static class AppPaths
     public static string? SettingsFile => Resolve("settings.json");
 
     /// <summary>
-    ///     Persisted bookmarks: <c>SessionState.json</c>. Per-demo working data; kept SEPARATE from the config file.
+    ///     Persisted bookmarks: <c>Bookmarks.v2.json</c>. Per-demo working data; kept SEPARATE from the config file.
     ///     <c>null</c> on
-    ///     WASM.
+    ///     WASM. Its predecessor <c>SessionState.json</c> held one list for every demo and is left where it is.
     /// </summary>
-    public static string? BookmarksFile => Resolve("SessionState.json");
+    public static string? BookmarksFile => Resolve("Bookmarks.v2.json");
 
     /// <summary>
     ///     Persisted analysis-graph breakpoints: <c>GraphBreakpoints.v2.json</c>. Per-demo; kept SEPARATE.
