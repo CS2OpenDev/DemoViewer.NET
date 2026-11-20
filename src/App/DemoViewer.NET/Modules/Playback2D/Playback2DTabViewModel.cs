@@ -91,7 +91,10 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // The WHOLE demo's kills, pre-built ONCE at load from IModuleContext.GetEventTimeline("player_death")
     // (decoupling display from the push cadence, no kill lost to a render-skipped frame). Rebuilt if the
     // roster arrives after activation (names depend on it). _killWindow is reusable render scratch.
-    private readonly List<KillFeedRow> _allKills = [];
+    //
+    // REPLACED on a rebuild, never cleared and refilled: a running export holds the list it was set up
+    // with and reads it on a pool thread for minutes, so a list is not touched again once it is here.
+    private List<KillFeedRow> _allKills = [];
 
     private readonly AnnotationSessionController _annotationController;
     private readonly AnnotationTrack _annotationTrack;
@@ -1064,15 +1067,19 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // the scoreboard as it stood the instant Start was pressed and burns that into every frame of the
     // video, and it drifts with the live viewport if the user resumes playback while the export runs.
     // The kill timeline is safe to capture because it is the whole demo's, windowed by tick inside the
-    // source.
+    // source, and because the list captured here is never written again: a roster re-seed or a demo swap
+    // gives the tab a NEW list (BuildKillTimeline), so the run keeps the kills that go with its frames.
     //
     // The roster reads the export's own frame too, and for the same reason: LastRoster is the condition
     // of the players in the frame just built, so a card and the disc it names cannot disagree. Both
     // closures ignore their tick argument: the source IS the tick, and asking it for a different one
     // would be asking a positional reader to seek.
-    internal Func<TrackerFrameSource, IHudDataSource> BuildExportHud() =>
-        src => new TimelineHudDataSource(_allKills, _tickRate, _ => ClockReading.From(src.LastGameInfo),
+    internal Func<TrackerFrameSource, IHudDataSource> BuildExportHud()
+    {
+        List<KillFeedRow> kills = _allKills;
+        return src => new TimelineHudDataSource(kills, _tickRate, _ => ClockReading.From(src.LastGameInfo),
             rosterAt: _ => src.LastRoster);
+    }
 
     // A CAPTURE, taken once when Start is pressed. Panning the live window afterwards changes nothing
     // about the video. With no live surface (a designer, a VM-only test) the fallback is an empty Fixed
@@ -2541,9 +2548,10 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // seek shows the right kills. Rebuilt when the roster (re)seeds, since names depend on it.
     private void BuildKillTimeline()
     {
-        _allKills.Clear();
+        List<KillFeedRow> kills = [];
         if (_context is null)
         {
+            _allKills = kills;
             return;
         }
 
@@ -2566,7 +2574,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             int attackerTeam = _timelineData?.TeamForSlotAtTick(attackerSlot, ev.Tick) ?? 0;
             int victimTeam = _timelineData?.TeamForSlotAtTick(victimSlot, ev.Tick) ?? 0;
 
-            _allKills.Add(new KillFeedRow(
+            kills.Add(new KillFeedRow(
                 ev.Tick,
                 NameForSlot(attackerSlot),
                 assister >= 0 && _nameBySlot.TryGetValue(assister, out string? an) ? an : null,
@@ -2582,6 +2590,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
                 attackerTeam,
                 victimTeam));
         }
+
+        // Published whole, after the last row is in: a reader on another thread sees the old list or this one.
+        _allKills = kills;
 
         // Force the next UpdateKillFeedWindow to publish (the underlying set just changed).
         _lastKillCount = -1;

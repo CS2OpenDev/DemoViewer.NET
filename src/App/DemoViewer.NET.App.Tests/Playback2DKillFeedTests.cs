@@ -1,9 +1,13 @@
 #region
 
 using System.Globalization;
+using CS2DemoKit.Parser;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Playback2D.Hud;
+using DemoViewer.NET.Playback2D.Pipeline;
+using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using DemoViewer.NET.Playback2D.Pipeline.Hud;
 
 #endregion
@@ -265,6 +269,51 @@ public class Playback2DKillFeedTests
         await Assert.That(row.AttackerTeam).IsEqualTo(0);
         await Assert.That(row.VictimTeam).IsEqualTo(0);
         await Assert.That(row.Victim).IsEqualTo("Smith").Because("the row itself is unaffected");
+    }
+
+    /// <summary>
+    ///     An export's HUD keeps the kills of the demo it was set up on. The tab rebuilds its kill list on
+    ///     every roster seed (a demo swap, a tab re-activation), and an export that shared that list would
+    ///     draw the next demo's kills over this demo's frames, or read the list while it was being refilled.
+    /// </summary>
+    [Test]
+    public async Task AnExportsKillFeed_KeepsItsDemosKills_WhenTheTabMovesToAnotherDemo()
+    {
+        (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Activate(Kill(1000, 0, 1, "ak47"));
+
+        // Never replayed: the kill rows are windowed by tick alone, and the clock and roster readers answer
+        // "nothing yet" for a source that has built no frame.
+        DemoFrame frame = new()
+        {
+            CommandKind = EDemoCommands.DemPacket,
+            FrameNumber = 0,
+            ServerTick = 1000,
+            HeaderLength = 0,
+            RawLength = 0,
+            RawStart = 0,
+            IsCompressed = false
+        };
+        using TrackerFrameSource source = new([frame], new SceneFrameBuilder(), 0, 0, 60, 1.0, 64);
+        IHudDataSource hud = vm.BuildExportHud()(source);
+        await Assert.That(hud.At(1000).KillRows.Single().Attacker).IsEqualTo("Neo");
+
+        // The user opens another demo while the export is still rendering this one.
+        ctx.Timelines["player_death"] = [Kill(1000, 1, 0, "awp"), Kill(1001, 1, 0, "awp")];
+        ctx.RaiseDemoReset();
+
+        // A different tick, so the source's own per-tick window cache cannot answer for it.
+        IReadOnlyList<KillFeedRow> drawn = hud.At(1001).KillRows;
+        using (Assert.Multiple())
+        {
+            await Assert.That(drawn.Count).IsEqualTo(1);
+            await Assert.That(drawn[0].Attacker).IsEqualTo("Neo");
+            await Assert.That(drawn[0].Weapon).IsEqualTo("ak47");
+        }
+
+        // The tab itself is on the new demo.
+        ctx.Push(1, 1001);
+        await Assert.That(vm.KillFeed.Count).IsEqualTo(2);
+        await Assert.That(vm.KillFeed[0].Attacker).IsEqualTo("Smith");
     }
 
     // ── Setup + builders ──
