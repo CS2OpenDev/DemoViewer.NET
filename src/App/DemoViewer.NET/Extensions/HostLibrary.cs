@@ -29,8 +29,13 @@ internal sealed class HostLibrary : IExtensionLibrary
     // The shown key of a row projected while the packs contributed: never a key the facts answer.
     private const string DeferredKey = "\0deferred";
 
-    private readonly ConditionalWeakTable<DemoCacheIndexEntry, LibraryDemo> _projected = new();
+    // Replaced, not cleared, when the shown key moves: a projection still running under the old key then
+    // lands in a table nobody reads.
+    private ConditionalWeakTable<DemoCacheIndexEntry, LibraryDemo> _projected = new();
     private string? _shownKey;
+
+    // Bumped with each replacement of _projected, so a list built under the old key is not published.
+    private long _generation;
     private bool _deferred;
     private int _recheckPosted;
     private volatile bool _hasFactsStamps;
@@ -119,7 +124,7 @@ internal sealed class HostLibrary : IExtensionLibrary
     private static bool HasFactsStamp(DemoCacheIndexEntry entry) =>
         entry.PackStamps.Any(s => StampedFacts.RulesetOf(s.Id) is not null);
 
-    private IFactsVisibility? Revalidate()
+    private Projection Revalidate()
     {
         (IFactsVisibility? visibility, string key) = Shown();
         lock (_gate)
@@ -128,13 +133,20 @@ internal sealed class HostLibrary : IExtensionLibrary
             if (!string.Equals(key, _shownKey, StringComparison.Ordinal))
             {
                 _shownKey = key;
-                _projected.Clear();
+                _projected = new ConditionalWeakTable<DemoCacheIndexEntry, LibraryDemo>();
+                _generation++;
                 _demosVersion = -1;
             }
-        }
 
-        return visibility;
+            return new Projection(visibility, _projected, _generation);
+        }
     }
+
+    // A visibility with the row table and the generation it was read with.
+    private readonly record struct Projection(
+        IFactsVisibility? Visibility,
+        ConditionalWeakTable<DemoCacheIndexEntry, LibraryDemo> Rows,
+        long Generation);
 
     /// <summary>
     ///     Raises a library-wide change when the rulesets whose facts the rows show moved since the last read, so a
@@ -171,7 +183,7 @@ internal sealed class HostLibrary : IExtensionLibrary
     {
         get
         {
-            IFactsVisibility? visibility = Revalidate();
+            Projection shown = Revalidate();
             long version = _store.IndexVersion;
             lock (_gate)
             {
@@ -181,11 +193,16 @@ internal sealed class HostLibrary : IExtensionLibrary
                 }
             }
 
-            List<LibraryDemo> demos = [.. _store.Contents.Select(e => Project(e, visibility))];
+            List<LibraryDemo> demos = [.. _store.Contents.Select(e => Project(e, shown))];
             lock (_gate)
             {
-                field = demos;
-                _demosVersion = version;
+                // The shown key moved while this list was built: it is this reader's, never the cache.
+                if (shown.Generation == _generation)
+                {
+                    field = demos;
+                    _demosVersion = version;
+                }
+
                 return demos;
             }
         }
@@ -256,12 +273,12 @@ internal sealed class HostLibrary : IExtensionLibrary
     public LibraryDemoDetail DetailOf(DemoCacheRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
-        IFactsVisibility? visibility = Revalidate();
+        Projection shown = Revalidate();
         DemoCacheIndexEntry? entry = _store.TryGetIndex(record.Path);
         LibraryDemo demo = entry is not null && entry.MatchesFile(record.Size, record.ModifiedTicks)
             && _store.TryGetPrimary(record.Path) is { } primary
-                ? Project(primary, visibility)
-                : ProjectRow(record.ToIndexEntry(), visibility);
+                ? Project(primary, shown)
+                : ProjectRow(record.ToIndexEntry(), shown.Visibility);
         return new LibraryDemoDetail(demo, record.TickRate, record.TickCount, record.ServerStartTick,
             [
                 .. record.Players.Select(p =>
@@ -276,8 +293,8 @@ internal sealed class HostLibrary : IExtensionLibrary
     /// <summary>The row for an index entry: the same instance for the same entry object while the shown facts hold.</summary>
     public LibraryDemo Project(DemoCacheIndexEntry entry) => Project(entry, Revalidate());
 
-    private LibraryDemo Project(DemoCacheIndexEntry entry, IFactsVisibility? visibility) =>
-        _projected.GetValue(entry, e => ProjectRow(e, visibility));
+    private static LibraryDemo Project(DemoCacheIndexEntry entry, Projection shown) =>
+        shown.Rows.GetValue(entry, e => ProjectRow(e, shown.Visibility));
 
     private static LibraryDemo ProjectRow(DemoCacheIndexEntry entry, IFactsVisibility? visibility) =>
         new(entry.Path, Path.GetFileName(entry.Path), entry.Map, new DateTime(entry.ModifiedTicks, DateTimeKind.Local),
@@ -372,7 +389,7 @@ internal sealed class HostLibrary : IExtensionLibrary
                 : _store.TryGetIndex(path) is { } written && HasFactsStamp(written);
         }
 
-        IFactsVisibility? visibility = Revalidate();
+        Projection projection = Revalidate();
         LibraryChange change;
         lock (_gate)
         {
@@ -408,7 +425,7 @@ internal sealed class HostLibrary : IExtensionLibrary
                     (null, null) => LibraryChangeKind.Removed,
                     (null, _) => LibraryChangeKind.Added,
                     (_, null) => LibraryChangeKind.Removed,
-                    _ => OnlyFactsMoved(Project(before, visibility), Project(after, visibility))
+                    _ => OnlyFactsMoved(Project(before, projection), Project(after, projection))
                         ? LibraryChangeKind.FactsUpdated
                         : LibraryChangeKind.Updated
                 });

@@ -3,6 +3,7 @@
 using System.Text.Json.Nodes;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -290,6 +291,72 @@ public class HostLibraryTests
             new LibraryChange("/nfs/one.dem", LibraryChangeKind.Updated)
         ], CollectionOrdering.Matching);
         await Assert.That(library.Find("/nfs/one.dem")!.CtScore).IsEqualTo(15);
+    }
+
+    // A list projected under the facts visibility a ruleset toggle just replaced is not kept: a reader after
+    // the toggle sees the new visibility, from Demos and from Find alike.
+    [Test]
+    public async Task AProjectionInFlightWhenTheShownRulesetsMove_IsNotKept()
+    {
+        DemoCacheStore store = new(null);
+        DemoCacheRecord record = Parsed("/d/one.dem");
+        string stamp = StampedFacts.StampId("r1");
+        record.SetStamp(new PackStamp(stamp, 1, "fp"));
+        store.Upsert(record);
+        BlockingFacts facts = new();
+        HostLibrary library = new(store, null, () => true, a => a(), () => facts);
+
+        Task<IReadOnlyList<LibraryDemo>> inFlight = Task.Run(() => library.Demos);
+        await Assert.That(facts.Entered.Wait(TimeSpan.FromSeconds(10))).IsTrue();
+        facts.On = false;
+        library.RecheckFacts();
+        facts.Release.Set();
+        await inFlight.WaitAsync(TimeSpan.FromSeconds(10));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(library.Demos.Single().Fact(stamp)).IsNull();
+            await Assert.That(library.Find("/d/one.dem")!.Fact(stamp)).IsNull();
+        }
+    }
+
+    private sealed class BlockingFacts : IAnalysisFacts, IFactsVisibility
+    {
+        private int _blocked;
+
+        public volatile bool On = true;
+
+        public ManualResetEventSlim Entered { get; } = new();
+
+        public ManualResetEventSlim Release { get; } = new();
+
+        public IReadOnlyList<FactKey> Declared => [];
+
+        public IRoundFacts RoundFacts => NoFacts.Instance;
+
+        public string ShownKey => On ? "on" : "off";
+
+        public bool Shows(string stampId)
+        {
+            bool on = On;
+            if (on && Interlocked.Exchange(ref _blocked, 1) == 0)
+            {
+                Entered.Set();
+                Release.Wait(TimeSpan.FromSeconds(10));
+            }
+
+            return on;
+        }
+
+        public bool IsOff(string rulesetId) => !On;
+
+        public FactStatus Status(string demoPath, FactKey key) => FactStatus.Absent;
+
+        public bool IsCurrent(string demoPath, FactKey key) => false;
+
+        public FactTable? TryGet(string demoPath, FactKey key) => null;
+
+        public IReadOnlyList<LibraryHighlight> Highlights(string demoPath) => [];
     }
 
     [Test]
