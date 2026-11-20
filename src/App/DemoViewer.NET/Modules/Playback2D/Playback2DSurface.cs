@@ -470,14 +470,27 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
         object? content = handle.Content;
         handle.Content = null;
         SidePane = null;
-        (content as IDisposable)?.Dispose();
-        handle.RaiseClosed();
+        try
+        {
+            (content as IDisposable)?.Dispose();
+        }
+        finally
+        {
+            handle.RaiseClosed();
+        }
     }
 
+    // A view model or Closed handler that throws still leaves the pane removed.
     private void Remove(PaneHandle handle)
     {
-        CloseSide(handle);
-        _panes.Remove(handle);
+        try
+        {
+            CloseSide(handle);
+        }
+        finally
+        {
+            _panes.Remove(handle);
+        }
     }
 
     internal void OpenPanel(Playback2DPanel panel)
@@ -518,18 +531,31 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
 
         Panels.Remove(panel);
         object? content = panel.Hide();
-        (content as IDisposable)?.Dispose();
-        panel.Refresh();
-        panel.RaiseClosed();
-        RaisePanelsChanged();
+        try
+        {
+            (content as IDisposable)?.Dispose();
+        }
+        finally
+        {
+            panel.Refresh();
+            panel.RaiseClosed();
+            RaisePanelsChanged();
+        }
     }
 
+    // A view model or Closed handler that throws still leaves the panel removed and unbound.
     internal void RemovePanel(Playback2DPanel panel)
     {
-        ClosePanel(panel);
-        if (_panels.Remove(panel))
+        try
         {
-            panel.Unbind();
+            ClosePanel(panel);
+        }
+        finally
+        {
+            if (_panels.Remove(panel))
+            {
+                panel.Unbind();
+            }
         }
     }
 

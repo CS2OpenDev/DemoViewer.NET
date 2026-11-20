@@ -35,15 +35,27 @@ internal sealed class SdkPlaybackContribution(SdkP.IPlaybackContribution inner, 
     // Detach undoes what Attach added even when the extension forgot a handle or threw.
     public void Detach()
     {
-        guard.Run("playback detach", Inner.Detach);
-        _surface?.Dispose();
-        _surface = null;
+        try
+        {
+            guard.Run("playback detach", Inner.Detach);
+            _surface?.Dispose();
+        }
+        finally
+        {
+            _surface = null;
+        }
     }
 
     public void Dispose()
     {
-        _surface?.Dispose();
-        _surface = null;
+        try
+        {
+            _surface?.Dispose();
+        }
+        finally
+        {
+            _surface = null;
+        }
     }
 }
 
@@ -268,9 +280,11 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
     {
         _surface.KeymapChanged -= OnKeymapChanged;
         _surface.Deactivated -= OnDeactivated;
+        // One at a time under the guard: a pane's view model or Closed handler that throws is the extension's
+        // fault, and must not leave the registrations after it on the tab.
         foreach (IDisposable owned in _owned.ToArray())
         {
-            owned.Dispose();
+            _guard.Run("playback detach", owned.Dispose);
         }
 
         _owned.Clear();

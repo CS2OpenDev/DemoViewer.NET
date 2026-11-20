@@ -200,6 +200,67 @@ public class ExtensionPlaybackFaultTests
         vm.Dispose();
     }
 
+    // An open pane whose view model's Dispose and Closed handler throw is taken down at detach with
+    // everything registered after it: the throw is counted, and the key handler does not outlive the switch-off.
+    [Test]
+    public async Task APaneWhoseTeardownThrows_DoesNotStrandTheRegistrationsAfterIt()
+    {
+        (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
+        FaultRig rig = new();
+        PaneThenKeyContribution fake = new();
+        SdkPlaybackContribution hosted = new(fake, rig.Guard);
+        hosted.Attach(vm.Surface, ctx);
+        fake.Pane!.Open();
+
+        Exception? thrown = null;
+        try
+        {
+            hosted.Detach();
+        }
+        catch (Exception ex)
+        {
+            thrown = ex;
+        }
+
+        bool handled = vm.Surface.TryHandleKey(Key.F9, KeyModifiers.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(thrown).IsNull();
+            await Assert.That(handled).IsFalse();
+            await Assert.That(fake.Keys).IsEqualTo(0).Because("the key handler went with the detach");
+            await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsGreaterThanOrEqualTo(1);
+        }
+
+        vm.Dispose();
+    }
+
+    private sealed class PaneThenKeyContribution : Sdk.IPlaybackContribution
+    {
+        public Sdk.IPaneHandle? Pane { get; private set; }
+        public int Keys { get; private set; }
+
+        public void Attach(Sdk.IPlaybackSurface surface, IModuleContext context)
+        {
+            Pane = surface.AddPane(Sdk.PanePlacement.Side, 0, () => new ThrowingViewModel());
+            Pane.Closed += () => throw new InvalidOperationException("closed");
+            _ = surface.AddKeyHandler((_, _) =>
+            {
+                Keys++;
+                return true;
+            });
+        }
+
+        public void Detach()
+        {
+        }
+    }
+
+    private sealed class ThrowingViewModel : IDisposable
+    {
+        public void Dispose() => throw new InvalidOperationException("view model dispose");
+    }
+
     private sealed class ThrowingContribution : Sdk.IPlaybackContribution
     {
         public const string EntryHeader = "Throws when run";
