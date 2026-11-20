@@ -334,6 +334,95 @@ public class PackExportTests
         }
     }
 
+    /// <summary>
+    ///     A pack that ends before a frame reached its encoder has written nothing, so there is nothing of
+    ///     its own to remove. The tab's default path is fixed for the session: what sits there is the pack
+    ///     the last Export made, and cancelling a second one while its first demo parses must not cost it.
+    /// </summary>
+    [Test]
+    public async Task Export_Video_CancelledBeforeAnyFrame_LeavesTheFileThatWasAlreadyThere()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}.mp4");
+        await File.WriteAllTextAsync(path, "last week's pack");
+        using CancellationTokenSource cts = new();
+        FakeClips clips = new(framesPerClip: 2) { OnRender = _ => cts.Cancel() };
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64, "opener")], Settings(path), Exists);
+
+        try
+        {
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await new PackExporter(clips, new FakeEncoder()).ExportAsync(plan, null, cts.Token));
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("last week's pack");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task Export_Video_WithNoClipThatRenders_LeavesTheFileThatWasAlreadyThere()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}.mp4");
+        await File.WriteAllTextAsync(path, "last week's pack");
+        FakeClips clips = new(framesPerClip: 2) { FailOn = 1 };
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64, "opener")], Settings(path), Exists);
+
+        try
+        {
+            await Assert.ThrowsAsync<ExportValidationException>(async () =>
+                await new PackExporter(clips, new FakeEncoder()).ExportAsync(plan, null, CancellationToken.None));
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("last week's pack");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>The GIF pack's half: a clip that fails before its sink saw a frame leaves the earlier GIF of that name.</summary>
+    [Test]
+    public async Task Export_Gif_AClipThatFailsBeforeAnyFrame_LeavesTheFileThatWasAlreadyThere()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}");
+        PackPlan plan = PackPlanner.Plan(
+            [Clip("/d/a.dem", 0, 64, "opener"), Clip("/d/b.dem", 0, 64, "smokes")],
+            Settings(Path.Combine(root, "scrims.gif"), ExportFormats.Gif), Exists);
+        string failing = plan.Clips[0].OutputPath!;
+        string written = plan.Clips[1].OutputPath!;
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(failing)!);
+            await File.WriteAllTextAsync(failing, "last week's gif");
+            await File.WriteAllTextAsync(written, "half a gif");
+
+            // Clip 1 fails before a frame; clip 2 writes one frame and then fails.
+            FakeClips clips = new(framesPerClip: 2) { FailOn = 1, FailAfterFramesOn = 2 };
+            PackResult? result = null;
+            try
+            {
+                result = await new PackExporter(clips, new FakeEncoder()).ExportAsync(plan, null,
+                    CancellationToken.None);
+            }
+            catch (ExportValidationException)
+            {
+                // Neither clip rendered, which is the pack's own refusal; the files are the subject here.
+            }
+
+            await Assert.That(result).IsNull();
+            await Assert.That(await File.ReadAllTextAsync(failing)).IsEqualTo("last week's gif");
+            await Assert.That(File.Exists(written)).IsFalse();
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
     [Test]
     public async Task Export_Refuses_AQueueWithNothingToRender_BeforeOpeningAFile()
     {
@@ -601,11 +690,15 @@ public class PackExportTests
 
         public Action<int>? OnRender { get; init; }
 
+        /// <summary>The clip that writes one frame and then fails.</summary>
+        public int? FailAfterFramesOn { get; init; }
+
         public async Task RenderAsync(PackClip clip, PackSettings settings, IFrameSink sink, CancellationToken ct)
         {
             try
             {
                 OnRender?.Invoke(clip.Number);
+                ct.ThrowIfCancellationRequested();
                 Demos.Add(clip.Entry.DemoPath);
                 if (clip.Number == FailOn)
                 {
@@ -617,6 +710,10 @@ public class PackExportTests
                 for (int i = 0; i < framesPerClip; i++)
                 {
                     await sink.WriteAsync(frame, settings.Side, settings.Side, ct);
+                    if (clip.Number == FailAfterFramesOn)
+                    {
+                        throw new ExportValidationException("the demo ended early");
+                    }
                 }
             }
             finally
