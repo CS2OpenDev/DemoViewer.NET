@@ -588,21 +588,22 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
     }
 
-    // A running retained parse of this demo that decodes user commands: an open can take its result.
+    // A running retained parse of this demo that decodes user commands: an open can take its result. A visit
+    // is marked running before its read is chosen, and until then Forward and UserCommands say nothing: a
+    // waiter added then would be handed a parse without user commands, or none at all by a forward read.
     private Entry? JoinableParseLocked(string path) => _entries.FirstOrDefault(e =>
         e is
         {
-            Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running, Finalizing: false, Forward: false,
-            UserCommands: true
+            Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running, ModeChosen: true,
+            Finalizing: false, Forward: false, UserCommands: true
         }
         && PathEquals(e.Path, path));
 
-    // A running retained parse of this demo, passes included, that an open cannot take: it skips user commands.
+    // A running retained parse of this demo, passes included, that an open cannot take: it skips user commands,
+    // or its read is not chosen yet and may come to.
     private Entry? UnjoinableParseLocked(string path) => _entries.FirstOrDefault(e =>
-        e is
-        {
-            Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running, Forward: false, UserCommands: false
-        }
+        e is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running }
+            and ({ ModeChosen: false } or { Forward: false, UserCommands: false })
         && PathEquals(e.Path, path));
 
     // ── User opens ───────────────────────────────────────────────────────
@@ -1835,6 +1836,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             (forward, entry.Needs, entry.UserCommands) =
                 entry.Visit!.ChooseMode(_forwardPass is not null || ForwardRead is not null);
             entry.Forward = forward;
+            entry.ModeChosen = true;
         }
 
         if (forward)
@@ -1920,6 +1922,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         {
             entry.Forward = false;
             entry.UserCommands = true;
+            entry.ModeChosen = true;
             entry.Detail = "On the open demo's parse";
             entry.Cancel = cancel;
             if (entry.CancelRequested)
@@ -2560,6 +2563,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         if (best is not null)
         {
             best.State = DemoQueueItemState.Running;
+            best.ModeChosen = false; // a visit picked again chooses again
             best.PromotedSeq = 0;
             if (!light && best.Path.Length > 0)
             {
@@ -3194,6 +3198,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
         // Read forward instead of retained; fixed once it runs.
         public bool Forward { get; set; }
+
+        // False from the pick until the run has set UserCommands and Forward for this start.
+        public bool ModeChosen { get; set; }
 
         // What a forward read's rules run declared; null until it starts.
         public CollectorSet? DeclaredCollectors { get; set; }
