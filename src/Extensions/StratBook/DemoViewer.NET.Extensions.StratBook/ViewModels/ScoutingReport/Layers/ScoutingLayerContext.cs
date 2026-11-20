@@ -246,6 +246,12 @@ public sealed class ScoutingLayerContext
 
     public string Window { get; }
 
+    /// <summary>
+    ///     The player (SteamID64 as text) whose setup the stage shows alone, others fading; null shows everyone.
+    ///     Only a build for the stage carries it: the long form and the export's pictures draw every player.
+    /// </summary>
+    public string? Isolated { get; init; }
+
     /// <summary>"de_nuke T": how every Review title card of the scope starts.</summary>
     public string Prefix => $"{Map} {Side.Label()}";
 

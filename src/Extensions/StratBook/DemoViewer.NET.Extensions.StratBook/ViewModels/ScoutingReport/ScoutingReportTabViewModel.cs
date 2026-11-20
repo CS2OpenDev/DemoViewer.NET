@@ -1075,20 +1075,28 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private void SetIsolated(string? key)
     {
         _isolated = key;
-        if (Layers.Find("setups")?.Layer is SetupsLayer setups)
-        {
-            setups.Isolated = key;
-        }
+        Layers.Isolated = key;
     }
 
     // Rebuilds only the Setups layer for the scope in view, so an isolate does not rebuild the whole stage.
     private void RebuildSetups()
     {
-        if (Side != ScoutingSide.Ct || Layers.Find("setups") is not { Context: { } context } chip)
+        if (Side != ScoutingSide.Ct || Layers.Find("setups") is not { } chip)
         {
             return;
         }
 
+        if (chip.Context is not { } shown)
+        {
+            // The scope's own build is still out, with the isolation it started under.
+            Layers.Rebuild(chip.Id);
+            return;
+        }
+
+        ScoutingLayerContext context = new(shown.Data, shown.Map, shown.Side, shown.Buy, shown.Window)
+        {
+            Isolated = _isolated
+        };
         Task<ScoutingLayerResult> build = ScoutingLayerRegistry.Build(chip.Layer, context, CancellationToken.None);
         if (build.IsCompleted)
         {
@@ -1101,7 +1109,10 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
         void Take(Task<ScoutingLayerResult> landed)
         {
-            if (_disposed || !ReferenceEquals(chip.Context, context) || !landed.IsCompletedSuccessfully)
+            // Dropped behind another scope, and behind a later isolate or Show all.
+            if (_disposed || !landed.IsCompletedSuccessfully || context.Isolated != _isolated
+                || chip.Context is not { } now || !ReferenceEquals(now.Data, shown.Data) || now.Map != shown.Map
+                || now.Side != shown.Side || now.Buy != shown.Buy || now.Window != shown.Window)
             {
                 return;
             }
