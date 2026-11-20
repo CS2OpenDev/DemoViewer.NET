@@ -272,6 +272,49 @@ public class Playback2DExportStatusSurfaceTests
             await Assert.That(shell.Chips.Contains(status.Chip)).IsTrue();
         });
 
+    /// <summary>
+    ///     An export takes minutes with no input, like a reel render, so it holds idle off the same way: idle
+    ///     closes the demo, and that must not happen under an encode. The exit path already counts it as work
+    ///     in flight. Covers the 2D tab's export and an extension's mounted export alike.
+    /// </summary>
+    [Test]
+    public async Task ARunningExport_HoldsOffIdle() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            FakeExportJob tabJob = new();
+            FakeExportJob mountedJob = new();
+            using Playback2DExportStatusViewModel tabStatus = new(tabJob);
+            using Playback2DExportStatusViewModel mountedStatus = new(mountedJob);
+            MainViewModel shell = new();
+            try
+            {
+                shell.AttachPlayback2DExportStatus(tabStatus);
+                shell.MountExportStatus("test.export", "test.feature", mountedStatus);
+                bool before = shell.IsIdleBlocked();
+
+                tabJob.Push(new ExportJobStatus(ExportPhase.Rendering, 1, 100, 0, TimeSpan.Zero, "clip.webm", null));
+                bool tabRunning = shell.IsIdleBlocked();
+                tabJob.Push(new ExportJobStatus(ExportPhase.Completed, 100, 100, 60, TimeSpan.FromMinutes(1),
+                    "clip.webm", null));
+                bool tabDone = shell.IsIdleBlocked();
+
+                mountedJob.Push(new ExportJobStatus(ExportPhase.Rendering, 1, 100, 0, TimeSpan.Zero, "s.webm", null));
+                bool mountedRunning = shell.IsIdleBlocked();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(before).IsFalse().Because("an attached but idle export is no work at all");
+                    await Assert.That(tabRunning).IsTrue();
+                    await Assert.That(tabDone).IsFalse().Because("a finished export no longer holds idle off");
+                    await Assert.That(mountedRunning).IsTrue();
+                }
+            }
+            finally
+            {
+                shell.Dispose();
+            }
+        });
+
     private static (Window Window, Playback2DExportStatusView View) Show(
         Playback2DExportStatusViewModel status)
     {

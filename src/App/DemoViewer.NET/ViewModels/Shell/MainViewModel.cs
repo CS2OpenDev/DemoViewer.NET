@@ -4055,14 +4055,17 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     // What must NOT be interrupted by idle. Playback is the primary signal (paused / ended both read false),
-    // but a running reel render or an ACTIVE live-sync session are long-running operations with no per-frame
-    // input either: closing the demo under them would break work in flight, so they block idle too. Evaluated
-    // fresh each poll tick (ReelJob / LiveSync are attached after the ctor by the desktop host).
-    private bool IsIdleBlocked() =>
+    // but a running reel render, a running export or an ACTIVE live-sync session are long-running operations
+    // with no per-frame input either: closing the demo under them would break work in flight, so they block
+    // idle too. Evaluated fresh each poll tick (ReelJob / LiveSync / the export status are attached after the
+    // ctor).
+    internal bool IsIdleBlocked() =>
         Playback.IsPlaying
         || _tutorial.IsActive
         || ReelJob is { Status.IsRunning: true }
-        || LiveSync is { State.IsSessionActive: true };
+        || LiveSync is { State.IsSessionActive: true }
+        || Playback2DExportStatus is { IsRunning: true }
+        || _shellChips.OfType<ExportChipSlot>().Any(slot => slot.IsRunning);
 
     /// <summary>
     ///     Enters idle mode: captures where to resume, shows the idle overlay, optionally parks background
