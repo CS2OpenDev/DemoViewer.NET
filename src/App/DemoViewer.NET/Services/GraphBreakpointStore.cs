@@ -272,8 +272,8 @@ public sealed class GraphBreakpointStore
     /// <param name="json">The file's bytes.</param>
     /// <exception cref="JsonException">The bytes are not a breakpoints map.</exception>
     public static Dictionary<string, List<PersistedGraphBreakpoint>> Parse(ReadOnlySpan<byte> json) =>
-        new(JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(json, _options)
-            ?? throw new JsonException("Empty breakpoints file."), StringComparer.Ordinal);
+        WithoutNulls(JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(json, _options)
+            ?? throw new JsonException("Empty breakpoints file."));
 
     /// <summary>A breakpoints map as this store writes its file.</summary>
     /// <param name="byDemo">The map.</param>
@@ -300,8 +300,9 @@ public sealed class GraphBreakpointStore
 
         Dictionary<string, List<PersistedGraphBreakpoint>> all = new(ReadAll(), StringComparer.Ordinal);
         List<string> changed = [];
-        foreach ((string demoKey, List<PersistedGraphBreakpoint> theirs) in imported)
+        foreach ((string demoKey, List<PersistedGraphBreakpoint>? list) in imported)
         {
+            List<PersistedGraphBreakpoint> theirs = [.. (list ?? []).Where(b => b is not null)];
             if (theirs.Count == 0)
             {
                 continue;
@@ -345,6 +346,23 @@ public sealed class GraphBreakpointStore
 
     private Dictionary<string, List<PersistedGraphBreakpoint>> ReadAll() => ReadAllFrom(_path);
 
+    // The serializer lets a JSON null through for a demo's list and for its items. Neither is a breakpoint, and
+    // every reader and the merge expect none, so a file from a bundle or an older write loses them here.
+    private static Dictionary<string, List<PersistedGraphBreakpoint>> WithoutNulls(
+        Dictionary<string, List<PersistedGraphBreakpoint>> byDemo)
+    {
+        Dictionary<string, List<PersistedGraphBreakpoint>> clean = new(StringComparer.Ordinal);
+        foreach ((string demoKey, List<PersistedGraphBreakpoint>? list) in byDemo)
+        {
+            if (list is not null)
+            {
+                clean[demoKey] = [.. list.Where(b => b is not null)];
+            }
+        }
+
+        return clean;
+    }
+
     private static Dictionary<string, List<PersistedGraphBreakpoint>> ReadAllFrom(string? path)
     {
         if (path is null || !File.Exists(path))
@@ -354,9 +372,8 @@ public sealed class GraphBreakpointStore
 
         try
         {
-            return JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(
-                    File.ReadAllText(path), _options)
-                ?? new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal);
+            return WithoutNulls(JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(
+                File.ReadAllText(path), _options) ?? []);
         }
         catch
         {

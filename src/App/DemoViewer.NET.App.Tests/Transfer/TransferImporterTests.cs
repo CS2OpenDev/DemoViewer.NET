@@ -714,4 +714,59 @@ public class TransferImporterTests
             await Assert.That(review.Clips.Count).IsEqualTo(clips);
         }
     }
+
+    [Test]
+    public async Task ABundlesBreakpoints_WithANullList_DoNotStopTheImport()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string config = temp.New();
+        string extData = temp.New();
+        const string Extension = "dev.example.data";
+        BundleBuilder bundle = new(root);
+        TransferFile main = bundle.File(
+            TransferLayout.ExtensionFacetFile(Sha, Extension, "rounds", TransferLayout.DemoFileName(".json.gz")),
+            BundleBuilder.FacetFile("rounds", null, 2, "fp", Sha, @"D:\source\match.dem", "payload"));
+        bundle.Demo(Sha, "match.dem", 4096, [bundle.Record(BundleBuilder.ParsedRecord(Sha, 4096)), main],
+            facetCounts: new Dictionary<string, int> { [main.Path] = 24 });
+        bundle.Shared(TransferLayout.GraphBreakpointsFileName, Encoding.UTF8.GetBytes($"{{\"{Sha}\": null}}"));
+        bundle.Write();
+        GraphBreakpointStore store = new(Path.Combine(config, "GraphBreakpoints.v2.json"));
+        TransferImporter importer = new(new DemoCacheStore(null), config, store, extensionDataRoot: extData);
+
+        await importer.RunAsync(ImportRequest.DataOnly(root), await importer.PreviewAsync(root, CancellationToken.None),
+            null, CancellationToken.None);
+        string storeRoot = Path.Combine(extData, Extension, ExtensionDemoDataStore.DirectoryName);
+
+        await Assert.That(ExtensionDemoDataStore.CountsIn(storeRoot).GetValueOrDefault((Sha, "rounds")))
+            .IsEqualTo(24).Because("the extension data after the breakpoints is still imported");
+    }
+
+    [Test]
+    public async Task ImportedNullBreakpoints_AreDropped_AndAFileHoldingThemHeals()
+    {
+        using TempFolders temp = new();
+        string config = temp.New();
+        string breakpointsFile = Path.Combine(config, "GraphBreakpoints.v2.json");
+        GraphBreakpointStore store = new(breakpointsFile);
+        const string Other = "4444444444444444444444444444444444444444444444444444444444444444";
+
+        IReadOnlyList<string> changed = store.ImportMerge(new Dictionary<string, List<PersistedGraphBreakpoint>>
+        {
+            [Sha] = [null!, _theirs], [Other] = null!
+        }, ConflictPolicy.KeepBoth);
+        File.WriteAllText(Path.Combine(config, "poisoned.json"), $"{{\"{Sha}\": [null], \"{Other}\": null}}");
+        GraphBreakpointStore poisoned = new(Path.Combine(config, "poisoned.json"));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(changed).IsEquivalentTo([Sha]);
+            await Assert.That(store.Load(Sha)).IsEquivalentTo([_theirs], CollectionOrdering.Matching);
+            await Assert.That(GraphBreakpointStore.Parse(Encoding.UTF8.GetBytes(
+                    $"{{\"{Sha}\": [null], \"{Other}\": null}}")).SelectMany(p => p.Value ?? [null!]))
+                .IsEmpty();
+            await Assert.That(poisoned.Load(Sha)).IsEmpty();
+            await Assert.That(poisoned.LoadAll().Values.Any(l => l is null)).IsFalse();
+        }
+    }
 }
