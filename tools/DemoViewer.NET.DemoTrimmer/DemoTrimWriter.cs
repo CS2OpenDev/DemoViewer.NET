@@ -138,7 +138,11 @@ internal static class DemoTrimWriter
         int spawnGroupsOffset = 0;
         string fileInfoBefore, fileInfoAfter;
 
-        using (FileStream fs = new(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
+        // Written beside the destination and moved over it only once it is whole. The header offsets
+        // are patched last, so a file abandoned part-way is a zero-offset stub, and under the final
+        // name that stub replaced whatever good candidate an earlier run had left there.
+        using PendingOutput pending = new(outputPath + ".tmp");
+        using (FileStream fs = new(pending.TempPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
         {
             DemoFormat.WriteFileHeader(fs, 0, 0); // patched at the end
 
@@ -210,6 +214,8 @@ internal static class DemoTrimWriter
             DemoFormat.WriteFileHeader(fs, fileInfoOffset, spawnGroupsOffset);
         }
 
+        pending.MoveTo(outputPath);
+
         return new TrimResult
         {
             Path = outputPath,
@@ -231,6 +237,40 @@ internal static class DemoTrimWriter
             IdentityFirstDivergentFrame = firstDivergentFrame,
             SynthesizedTeams = teamSamples ?? []
         };
+    }
+
+    /// <summary>
+    ///     The file a candidate is written to before it has earned its name. Disposing it without
+    ///     <see cref="MoveTo" /> deletes it, which is what an exception anywhere in the write does.
+    /// </summary>
+    private sealed class PendingOutput(string tempPath) : IDisposable
+    {
+        private bool _moved;
+
+        public string TempPath { get; } = tempPath;
+
+        public void Dispose()
+        {
+            if (_moved)
+            {
+                return;
+            }
+
+            try
+            {
+                File.Delete(TempPath);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // The write's own exception is the one worth reporting; a stray .tmp is not.
+            }
+        }
+
+        public void MoveTo(string destination)
+        {
+            File.Move(TempPath, destination, true);
+            _moved = true;
+        }
     }
 
     /// <summary>
