@@ -289,8 +289,12 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         _includeHudRoster = seed.ExportIncludeHudRoster;
         _includeAnnotations = seed.ExportIncludeAnnotations;
         _includeVision = seed.ExportIncludeVision;
-        _selectedSize = Sizes.FirstOrDefault(s => s.Width == seed.ExportWidth && s.Height == seed.ExportHeight)
-            ?? Sizes[0];
+        // A saved size that matches no preset was a custom one: reopen it as custom, or the next Start persists
+        // the dormant fallback preset over it.
+        ExportSizeOption? savedPreset =
+            Sizes.FirstOrDefault(s => s.Width == seed.ExportWidth && s.Height == seed.ExportHeight);
+        _useCustomSize = savedPreset is null;
+        _selectedSize = savedPreset ?? Sizes[0];
         _customWidthText = seed.ExportWidth.ToString(CultureInfo.InvariantCulture);
         _customHeightText = seed.ExportHeight.ToString(CultureInfo.InvariantCulture);
         _outputPath = BuildDefaultPath(seed, _scene.FileStem);

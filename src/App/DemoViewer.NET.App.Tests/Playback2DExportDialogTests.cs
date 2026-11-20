@@ -533,6 +533,35 @@ public class Playback2DExportDialogTests
     }
 
     /// <summary>
+    ///     A saved size that is no preset was a custom one. It used to reopen as the 720p preset with the
+    ///     custom fields hidden, and the next Start wrote 720p over it.
+    /// </summary>
+    [Test]
+    public async Task ACustomSize_SeedsAsCustom_AndPersistsBack()
+    {
+        AppSettings written = new();
+        Playback2DExportDialogViewModel vm = Dialog(
+            defaults: new Playback2DSettings { ExportWidth = 1000, ExportHeight = 560 },
+            job: new StubExportJobService(),
+            persist: mutate => mutate(written));
+
+        await Assert.That(vm.UseCustomSize).IsTrue();
+        await Assert.That(vm.ResolvedSize.Width).IsEqualTo(1000);
+        await Assert.That(vm.ResolvedSize.Height).IsEqualTo(560);
+
+        vm.StartCommand.Execute(null);
+
+        await Assert.That(written.Playback2D.ExportWidth).IsEqualTo(1000);
+        await Assert.That(written.Playback2D.ExportHeight).IsEqualTo(560);
+
+        // A preset stays a preset.
+        Playback2DExportDialogViewModel preset = Dialog(
+            defaults: new Playback2DSettings { ExportWidth = 1920, ExportHeight = 1080 });
+        await Assert.That(preset.UseCustomSize).IsFalse();
+        await Assert.That(preset.SelectedSize!.Width).IsEqualTo(1920);
+    }
+
+    /// <summary>
     ///     The fileless branch, explicitly. <c>SettingsWasmRoundTripTests</c> reflects over the whole class
     ///     and would catch a missing <c>WriteInMemory</c> row too, but a key that only ever travels is
     ///     half a setting: this one asserts the round trip AND the dialog reading it back.
