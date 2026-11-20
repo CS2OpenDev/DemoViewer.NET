@@ -59,7 +59,9 @@ public sealed class AnnotationSessionController : IDisposable
 
     private readonly Lock _styleGate = new();
 
+    private int _attachGeneration;
     private bool _attached;
+    private bool _awaitingSidecar;
     private CancellationTokenSource? _debounce;
     private DemoIdentity? _demo;
     private string? _demoPath;
@@ -255,7 +257,18 @@ public sealed class AnnotationSessionController : IDisposable
         // rebuild of collections the view is bound to: started on the UI thread, this method has to finish
         // there, and a write or a read completed by a pool thread would otherwise carry it off. The
         // blocking Flush() does not come through here, so there is still no context for it to wait on.
+        //
+        // Attaches are started fire-and-forget, so a second one can begin while this one is parked at
+        // either await. The newest owns the controller: an older one stands down where it resumes rather
+        // than point the controller back at its demo, or put that demo's ink into a document that is by
+        // then the next demo's and will be saved under the next demo's name.
+        int generation = ++_attachGeneration;
+
         await FlushAsync();
+        if (generation != _attachGeneration)
+        {
+            return;
+        }
 
         _demoPath = normalized;
         Clock = clock;
@@ -267,6 +280,7 @@ public sealed class AnnotationSessionController : IDisposable
         // Loading is not editing. Without this the Reset below raises Changed, which schedules an
         // autosave, which drops an empty .dvann.json next to every demo the user has ever opened.
         _loading = true;
+        _awaitingSidecar = true;
         try
         {
             Session.Document.Reset([]);
@@ -274,22 +288,32 @@ public sealed class AnnotationSessionController : IDisposable
 
             if (_demoPath is null || _store is null || !IsEnabled)
             {
+                _awaitingSidecar = false;
                 StatusText = DescribeLocation();
                 StateChanged?.Invoke();
                 return;
             }
 
             AnnotationLoadResult result = await _store.LoadAsync(_demoPath, clock);
+            if (generation != _attachGeneration)
+            {
+                return;
+            }
 
             ClockMismatch = result.ClockMismatch;
             DemoMismatch = result.DemoMismatch;
             Session.Document.Reset(result.Elements);
+            _awaitingSidecar = false;
             StatusText = DescribeLocation();
             StateChanged?.Invoke();
         }
         finally
         {
-            _loading = false;
+            // The flag is the newest attach's; one that was overtaken leaves it alone.
+            if (generation == _attachGeneration)
+            {
+                _loading = false;
+            }
         }
     }
 
@@ -646,6 +670,16 @@ public sealed class AnnotationSessionController : IDisposable
     private async Task SaveNowAsync(CancellationToken ct)
     {
         if (_disposed || _demoPath is null || _store is null || !IsEnabled || DemoMismatch)
+        {
+            return;
+        }
+
+        // Between an attach emptying the document and that demo's sidecar arriving, the document is a
+        // placeholder for a file not read yet. Further down, an empty document over an existing sidecar
+        // means "the user erased everything" and is written; a flush in this window (the next attach's, a
+        // tab switch, shutdown) would erase the very file being waited for. Left set by a load that threw,
+        // so that placeholder is never written either.
+        if (_awaitingSidecar)
         {
             return;
         }

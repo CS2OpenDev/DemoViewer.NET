@@ -426,6 +426,94 @@ public class Playback2DAnnotationPersistenceTests
         });
     }
 
+    /// <summary>
+    ///     Between an attach emptying the document and its sidecar arriving, the document is a
+    ///     placeholder. A flush in that window (a tab switch, shutdown) must not write it: an empty
+    ///     document over an existing sidecar is how the user clearing their ink is spelled.
+    /// </summary>
+    [Test]
+    public async Task Controller_AFlushWhileTheSidecarIsLoading_DoesNotWriteTheEmptyPlaceholder()
+    {
+        using TempDemo demo = new();
+        const string Sha = "5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e";
+        AnnotationElement seeded = Stroke();
+        await new AnnotationStore(demo.AppData).SaveAsync(demo.DemoPath,
+            new DemoIdentity(Sha, "match.dem", 8), demo.Clock, [seeded]);
+
+        using KeyGate gate = new() { Keys = _ => Sha };
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData, gate.Resolve), null);
+
+        // The load has read the file and not yet returned.
+        gate.Arm();
+        Task attach = Task.Run(() => controller.AttachDemoAsync(demo.DemoPath, demo.Clock));
+        await Assert.That(gate.WaitEntered(TimeSpan.FromSeconds(10))).IsTrue();
+
+        controller.Flush();
+
+        gate.Release();
+        await attach;
+
+        AnnotationLoadResult onDisk =
+            await new AnnotationStore(demo.AppData, _ => Sha).LoadAsync(demo.DemoPath, demo.Clock);
+        using (Assert.Multiple())
+        {
+            await Assert.That(onDisk.Elements.Count).IsEqualTo(1);
+            await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+            await Assert.That(controller.Document.Elements[0]).IsEqualTo(seeded);
+        }
+    }
+
+    /// <summary>
+    ///     An attach that another attach has overtaken stands down: its sidecar belongs to a demo the
+    ///     controller is no longer on, and applying it would put that demo's ink under this one's name for
+    ///     the next save to write there.
+    /// </summary>
+    [Test]
+    public async Task Controller_ALoadThatFinishesAfterTheNextDemoAttached_IsNotApplied()
+    {
+        using TempDemo first = new();
+        using TempDemo second = new();
+        const string FirstSha = "aa1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e";
+        const string SecondSha = "bb1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e";
+        string Sha(string path) =>
+            string.Equals(path, first.DemoPath, StringComparison.OrdinalIgnoreCase) ? FirstSha : SecondSha;
+
+        AnnotationElement firstInk = Stroke();
+        AnnotationElement secondInk = Stroke();
+        AnnotationStore seed = new(first.AppData);
+        await seed.SaveAsync(first.DemoPath, new DemoIdentity(FirstSha, "match.dem", 8), first.Clock, [firstInk]);
+        await seed.SaveAsync(second.DemoPath, new DemoIdentity(SecondSha, "match.dem", 8), second.Clock,
+            [secondInk]);
+
+        using KeyGate gate = new() { Keys = Sha, Only = first.DemoPath };
+        using AnnotationSessionController controller = new(new AnnotationStore(first.AppData, gate.Resolve), null);
+
+        gate.Arm();
+        Task slow = Task.Run(() => controller.AttachDemoAsync(first.DemoPath, first.Clock));
+        await Assert.That(gate.WaitEntered(TimeSpan.FromSeconds(10))).IsTrue();
+
+        // The user opens the next demo before the first one's sidecar has come back.
+        await controller.AttachDemoAsync(second.DemoPath, second.Clock);
+
+        gate.Release();
+        await slow;
+
+        await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+        await Assert.That(controller.Document.Elements[0]).IsEqualTo(secondInk);
+
+        await controller.FlushAsync();
+        AnnotationStore reader = new(first.AppData, Sha);
+        AnnotationLoadResult firstOnDisk = await reader.LoadAsync(first.DemoPath, first.Clock);
+        AnnotationLoadResult secondOnDisk = await reader.LoadAsync(second.DemoPath, second.Clock);
+        using (Assert.Multiple())
+        {
+            await Assert.That(firstOnDisk.Elements.Count).IsEqualTo(1);
+            await Assert.That(firstOnDisk.Elements[0]).IsEqualTo(firstInk);
+            await Assert.That(secondOnDisk.Elements.Count).IsEqualTo(1);
+            await Assert.That(secondOnDisk.Elements[0]).IsEqualTo(secondInk);
+        }
+    }
+
     // Parks the store's first key lookup after Arm() until Release(). The store asks for a demo's key from
     // inside a load (once the file is read) and from inside a save (once it holds the save serializer), so
     // this is the one place a test can hold either open without a seam in the controller.
