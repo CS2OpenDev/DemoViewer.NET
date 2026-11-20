@@ -228,6 +228,16 @@ internal sealed class ExtensionFolder : IExtensionFolder
     public IEnumerable<string> EnumerateFiles(string relativePath, string searchPattern)
     {
         ArgumentNullException.ThrowIfNull(searchPattern);
+
+        // A name pattern only: the runtime joins a directory part of the pattern onto the folder, so one
+        // would list files outside it.
+        if (searchPattern.Contains('/', StringComparison.Ordinal)
+            || searchPattern.Contains('\\', StringComparison.Ordinal)
+            || searchPattern == "..")
+        {
+            throw new ArgumentException($"'{searchPattern}' is not a file name pattern.", nameof(searchPattern));
+        }
+
         string folder = ResolveFolder(relativePath);
         return Directory.Exists(folder)
             ? Directory.EnumerateFiles(folder, searchPattern).Select(f => System.IO.Path.GetRelativePath(Path, f))
