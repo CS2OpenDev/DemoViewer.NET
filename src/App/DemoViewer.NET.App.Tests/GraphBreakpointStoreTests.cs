@@ -137,6 +137,37 @@ public sealed class GraphBreakpointStoreTests
     }
 
     /// <summary>
+    ///     The legacy file is the only copy of what it holds until the new file is written. A carry whose write
+    ///     failed leaves it for the next launch, and only a file that cannot be parsed is given up on.
+    /// </summary>
+    [Test]
+    public async Task ALegacyFileWhoseCarryCouldNotBeWritten_IsKeptForTheNextLaunch()
+    {
+        using ConfigDir dir = new();
+        WriteLegacy(dir, "demo-f",
+            """
+            {"TargetKind":"Node","NodeName":"Alive","EdgeSource":null,"EdgeDest":null,
+             "EdgeLabel":null,"EdgeConditionLabel":null,"Condition":"value > 2","Enabled":true}
+            """);
+        // A folder where the new file goes: nothing can be written there.
+        Directory.CreateDirectory(AppPaths.GraphBreakpointsFile!);
+
+        GraphBreakpointStore.MigrateLegacyFile();
+
+        await Assert.That(File.Exists(AppPaths.LegacyGraphBreakpointsFile!)).IsTrue()
+            .Because("nothing was carried, so the breakpoints exist nowhere else");
+
+        Directory.Delete(AppPaths.GraphBreakpointsFile!, true);
+        GraphBreakpointStore.MigrateLegacyFile();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(new GraphBreakpointStore().Load("demo-f").Single().Condition).IsEqualTo("value > 2");
+            await Assert.That(File.Exists(AppPaths.LegacyGraphBreakpointsFile!)).IsFalse();
+        }
+    }
+
+    /// <summary>
     ///     The file holds every demo's breakpoints. One that does not read is not an empty one: a save for one
     ///     demo keeps the bytes aside rather than replacing them with that demo alone.
     /// </summary>

@@ -165,13 +165,28 @@ public sealed class GraphBreakpointStore
             return;
         }
 
+        Dictionary<string, List<LegacyGraphBreakpoint>>? legacyByDemo;
         try
         {
-            Dictionary<string, List<LegacyGraphBreakpoint>>? legacyByDemo =
-                JsonSerializer.Deserialize<Dictionary<string, List<LegacyGraphBreakpoint>>>(
-                    File.ReadAllText(legacy), _options);
+            legacyByDemo = JsonSerializer.Deserialize<Dictionary<string, List<LegacyGraphBreakpoint>>>(
+                File.ReadAllText(legacy), _options);
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            // A legacy file that cannot be parsed cannot be carried. Fall through to the delete: the
+            // alternative is re-attempting a failing parse on every launch, forever.
+            legacyByDemo = null;
+        }
+        catch
+        {
+            // The file is there and was not read this time (in use, access denied). It is the only copy
+            // of what it holds, so it stays for the next launch.
+            return;
+        }
 
-            if (legacyByDemo is { Count: > 0 })
+        if (legacyByDemo is { Count: > 0 })
+        {
+            try
             {
                 using Lock.Scope gate = _writeGate.EnterScope();
                 bool readable = TryReadAllFrom(current, out Dictionary<string, List<PersistedGraphBreakpoint>> merged);
@@ -191,11 +206,13 @@ public sealed class GraphBreakpointStore
 
                 Write(current, readable, JsonSerializer.SerializeToUtf8Bytes(merged, _options));
             }
-        }
-        catch
-        {
-            // A legacy file that cannot be read cannot be carried. Fall through to the delete: the
-            // alternative is re-attempting a failing parse on every launch, forever.
+            catch
+            {
+                // Nothing was carried: the disk is full, the new file is in use, or one that does not
+                // read could not be moved aside. Deleting the legacy file now would destroy the
+                // breakpoints this method exists to keep, so it stays and the next launch tries again.
+                return;
+            }
         }
 
         try
