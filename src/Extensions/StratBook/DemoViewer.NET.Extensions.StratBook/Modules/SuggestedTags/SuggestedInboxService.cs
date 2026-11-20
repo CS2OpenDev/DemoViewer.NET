@@ -29,6 +29,12 @@ public sealed class SuggestedInboxService : IDisposable
     private readonly Func<Action, Task> _run;
     private readonly SuggestedTagsService _suggestions;
     private Dictionary<string, IReadOnlyList<SuggestedInboxItem>> _byDemo = new(StringComparer.OrdinalIgnoreCase);
+
+    // Demos whose suggestions changed while a library read ran, which may have read them before the change.
+    // Under _gate; null when no library read is running.
+    private HashSet<string>? _changedWhileReading;
+
+    private volatile bool _isLoaded;
     private Task? _loading;
 
     /// <param name="suggestions">The engine: proposals, verdicts, accept, dismiss and restore.</param>
@@ -54,7 +60,7 @@ public sealed class SuggestedInboxService : IDisposable
     public IReadOnlyList<SuggestedInboxItem> Items { get; private set; } = [];
 
     /// <summary>True once the first library read finished.</summary>
-    public bool IsLoaded { get; private set; }
+    public bool IsLoaded => _isLoaded;
 
     public bool IsLoading
     {
@@ -146,6 +152,11 @@ public sealed class SuggestedInboxService : IDisposable
 
     private void ReadAll()
     {
+        lock (_gate)
+        {
+            _changedWhileReading ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
         Dictionary<string, IReadOnlyList<SuggestedInboxItem>> all = new(StringComparer.OrdinalIgnoreCase);
         foreach (DemoDataStamp stamp in _suggestions.Proposals.Stamps().Where(s => s.Fingerprint is not null))
         {
@@ -155,12 +166,21 @@ public sealed class SuggestedInboxService : IDisposable
             }
         }
 
+        HashSet<string> changed;
         lock (_gate)
         {
             _byDemo = all;
+            changed = _changedWhileReading ?? [];
+            _changedWhileReading = null;
+            _isLoaded = true;
         }
 
-        IsLoaded = true;
+        // After the wholesale assignment, or it would discard these; a change from here on is read on its own.
+        foreach (string path in changed)
+        {
+            ReadDemo(path);
+        }
+
         Publish();
     }
 
@@ -218,9 +238,20 @@ public sealed class SuggestedInboxService : IDisposable
     // Another surface (Review mode, the background sweep) changed a demo: read it again off the UI thread.
     private void OnSuggestionsChanged(string path)
     {
-        if (!IsLoaded)
+        lock (_gate)
         {
-            return;
+            // A library read running may already have this demo, and replaces what a read beside it would
+            // write, so it re-reads the demo when it lands. Before the first read nothing is shown.
+            if (_changedWhileReading is { } pending)
+            {
+                pending.Add(path);
+                return;
+            }
+
+            if (!_isLoaded)
+            {
+                return;
+            }
         }
 
         _ = _run(() =>
