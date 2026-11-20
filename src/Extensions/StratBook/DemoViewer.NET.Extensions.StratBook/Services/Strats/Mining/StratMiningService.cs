@@ -1070,17 +1070,21 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
     private void Publish(IReadOnlyList<MinedPattern> patterns)
     {
-        MiningState state;
+        // The flags are read under the gate: an import changes the dismissed and promoted sets in place from its
+        // own thread, and holding the reference alone does not keep a lookup off a set being resized. The raise
+        // stays outside, since a handler rebuilds bound rows.
+        IReadOnlyList<DetectedPattern> detected;
         lock (_gate)
         {
-            state = _state;
+            MiningState state = _state;
+            detected =
+            [
+                .. patterns.Select(p => new DetectedPattern(p, state.Dismissed.Contains(p.Key),
+                    state.Promoted.TryGetValue(p.Key, out Guid id) ? id : null))
+            ];
         }
 
-        Patterns =
-        [
-            .. patterns.Select(p => new DetectedPattern(p, state.Dismissed.Contains(p.Key),
-                state.Promoted.TryGetValue(p.Key, out Guid id) ? id : null))
-        ];
+        Patterns = detected;
         Changed?.Invoke();
     }
 
