@@ -524,6 +524,44 @@ public class HighlightScanServiceTests
         await WaitForAsync(() => processedCount == 1, "resumed after interactive release");
     }
 
+    /// <summary>
+    ///     The open demo is held back from every plan while its harvest is being written. A user who removes
+    ///     that save from the queue before it runs must not leave the demo held back for the rest of the
+    ///     session. Sets the ambient queue, so it runs alone.
+    /// </summary>
+    [Test]
+    [NotInParallel]
+    public async Task OpenHarvestRemovedBeforeItRan_DoesNotKeepTheDemoFromLaterScans()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-open-harvest-{Guid.NewGuid():N}.dem");
+        await File.WriteAllBytesAsync(path, [1]);
+        using HeavyJobGate gate = new();
+        using DemoProcessingQueue queue = new(gate, a => a(), _ => SyntheticDemo());
+        queue.Pause();
+        IDemoProcessingQueue? ambient = QueueWork.Ambient;
+        QueueWork.Ambient = queue;
+        try
+        {
+            using HighlightScanService scanner = new(new DemoCacheStore(null), new FakeHarvester(), () => [],
+                () => true, a => a());
+
+            scanner.OnOpenDemoEvaluated(path, null!, null!);
+            await Assert.That(scanner.Wants(path)).IsFalse().Because("sanity: the harvest is pending");
+
+            DemoQueueItemSnapshot save =
+                queue.Snapshot().Single(s => s.DisplayName == "Save: open demo's highlights");
+            queue.RemoveByUser(save.Id);
+
+            await WaitForAsync(() => scanner.Wants(path) && scanner.WantsIfRulesRun(path),
+                "the removed harvest to stop holding the demo back");
+        }
+        finally
+        {
+            QueueWork.Ambient = ambient;
+            File.Delete(path);
+        }
+    }
+
     private sealed class FakeHarvester : IHighlightHarvester
     {
         private const string CurrentFingerprint = "fp-A";
