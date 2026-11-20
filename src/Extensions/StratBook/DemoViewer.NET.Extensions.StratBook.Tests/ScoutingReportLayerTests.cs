@@ -2,6 +2,7 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
@@ -183,6 +184,37 @@ public class ScoutingReportLayerTests
             await Assert.That(row.AwpToolTip).IsEqualTo("no round captures on this map; rebuild the round index");
             await Assert.That(vm.Maps.Single(m => m.Map == "de_mirage").CtLabel).IsEqualTo("—")
                 .Because("a map with no Round Facts has nothing to count");
+        }
+    }
+
+    [Test]
+    public async Task WhenMiningPublishes_TheLongFormTakesTheStratLines_WithoutReselectingTheTeam()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
+        QueuedPost posted = new();
+        IReadOnlyList<MinedPattern>? patterns = null;
+        Action? published = null;
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), false,
+            post: posted.Post, runSection: _ => _inline, layers: [new Mined()], minedPatterns: () => patterns,
+            watchMinedPatterns: handler =>
+            {
+                published = handler;
+                return new Unwatch();
+            });
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        List<string> before = [.. vm.Editor.Findings.Select(f => f.Text).Where(t => t.EndsWith(" mined", StringComparison.Ordinal))];
+
+        patterns = [];
+        published!();
+        await ScoutingReportTestKit.Settle(vm, posted);
+        List<string> after = [.. vm.Editor.Findings.Select(f => f.Text).Where(t => t.EndsWith(" mined", StringComparison.Ordinal))];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(before).IsEmpty();
+            await Assert.That(after).IsNotEmpty()
+                .Because("the long form is rebuilt over the published patterns");
         }
     }
 
@@ -371,6 +403,13 @@ public class ScoutingReportLayerTests
         }
     }
 
+    private sealed class Unwatch : IDisposable
+    {
+        public void Dispose()
+        {
+        }
+    }
+
     private sealed class Fake(string id, ScoutingSides sides, bool onCt = false, bool onT = false, bool strip = false)
         : ScoutingLayerBase(id, id, strip ? ScoutingLayerPlacement.Strip : ScoutingLayerPlacement.Map, sides,
             new ScoutingSwatch(ScoutingMarkShape.Dot, ScoutingColor.Ct), "D")
@@ -385,6 +424,17 @@ public class ScoutingReportLayerTests
                 Marks = [new ScoutingMapMark(0, 0, 0, ScoutingMarkShape.Dot, ScoutingColor.Ct)],
                 Legend = [new ScoutingLegendEntry(Swatch, Id)]
             });
+    }
+
+    // Stands in for the strats layer: one read saying how many patterns the miner has published.
+    private sealed class Mined() : ScoutingLayerBase("strats", "Strats", ScoutingLayerPlacement.Map,
+        ScoutingSides.T, new ScoutingSwatch(ScoutingMarkShape.Dot, ScoutingColor.T), "S")
+    {
+        public override Task<ScoutingLayerResult> BuildAsync(ScoutingLayerContext context,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(context.Data.Sources.MinedPatterns?.Invoke() is { } patterns
+                ? new ScoutingLayerResult { Reads = [new ScoutingRead($"{patterns.Count} mined")] }
+                : ScoutingLayerResult.Empty("not mined"));
     }
 
     private sealed class Slow() : ScoutingLayerBase("setups", "Setups", ScoutingLayerPlacement.Map, ScoutingSides.Ct,

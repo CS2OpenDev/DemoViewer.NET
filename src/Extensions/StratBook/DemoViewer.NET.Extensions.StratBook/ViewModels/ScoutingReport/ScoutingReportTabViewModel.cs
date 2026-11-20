@@ -2,6 +2,7 @@
 
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Avalonia.Threading;
@@ -67,6 +68,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     // The long form's layer lines for the current loads, by map; empty until every load has landed.
     private IReadOnlyList<ScoutingReportFindingSource> _layerFindings = [];
+
+    // The long form the last Land asked for: an older one landing after it is dropped.
+    private Task? _longForm;
     private ScoutingReportData? _data;
     private bool _disposed;
     private readonly IDisposable? _minedWatch;
@@ -445,13 +449,37 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         _minedWatch?.Dispose();
     }
 
-    // Strat Mining published or dropped its patterns: only the two layers that read them rebuild, in place.
+    // Strat Mining published or dropped its patterns: only the two layers that read them rebuild, in place. The
+    // long form reads them too, so it lands again under the new patterns' key; the maps and players stay put.
     private void OnMinedPatternsChanged()
     {
-        if (!_disposed)
+        if (_disposed)
         {
-            Layers.Rebuild(_stratLayerIds);
+            return;
         }
+
+        Layers.Rebuild(_stratLayerIds);
+        if (_data is { } data)
+        {
+            LoadTask = Task.WhenAll(LoadTask, Land(data, Volatile.Read(ref _generation)));
+        }
+    }
+
+    // Which patterns the miner holds now, for the long form's key: a re-mine publishes new pattern objects.
+    private string MinedStamp()
+    {
+        if (_sources.MinedPatterns?.Invoke() is not { } patterns)
+        {
+            return "";
+        }
+
+        HashCode hash = new();
+        foreach (MinedPattern pattern in patterns)
+        {
+            hash.Add(RuntimeHelpers.GetHashCode(pattern));
+        }
+
+        return string.Create(CultureInfo.InvariantCulture, $"{patterns.Count}:{hash.ToHashCode()}");
     }
 
     partial void OnSelectedTeamChanged(ScoutingReportTeamRow? value)
@@ -718,15 +746,16 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     }
 
     // Once every load is in: the pool's team-scoped columns, the notices, the players and the long form. The long
-    // form is built once per load and layer set, whichever tab asks first.
+    // form is built once per load, layer set and mined patterns, whichever tab asks first.
     private Task Land(ScoutingReportData data, int generation)
     {
         Task<IReadOnlyList<ScoutingReportFindingSource>> longForm = _loads.Share(data, "long-form",
-            string.Join(',', Layers.All.Select(c => c.Id)),
+            string.Join(',', Layers.All.Select(c => c.Id)) + "|" + MinedStamp(),
             () => data.All.IsCompleted
                 ? BuildLongForm(data)
                 : data.All.ContinueWith(_ => BuildLongForm(data), CancellationToken.None,
                     TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default).Unwrap());
+        _longForm = longForm;
         if (longForm.IsCompleted)
         {
             Landed(data, generation, longForm);
@@ -739,7 +768,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     private void Landed(ScoutingReportData data, int generation, Task<IReadOnlyList<ScoutingReportFindingSource>> longForm)
     {
-        if (_disposed || generation != Volatile.Read(ref _generation) || !ReferenceEquals(data, _data))
+        if (_disposed || generation != Volatile.Read(ref _generation) || !ReferenceEquals(data, _data)
+            || !ReferenceEquals(longForm, _longForm))
         {
             return;
         }
