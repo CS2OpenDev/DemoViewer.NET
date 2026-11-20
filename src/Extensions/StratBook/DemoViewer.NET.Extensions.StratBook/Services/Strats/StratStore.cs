@@ -2110,11 +2110,13 @@ public sealed class StratStore
             ? "the map is not a folder name"
             : null;
 
+    // Strict, as an imported file is read: a hand-edited "steps": null would otherwise come back as a document
+    // with a null where every reader expects a list, and throw far from here. It reads as unreadable instead.
     private static StratDocument? Parse(string json)
     {
         try
         {
-            return JsonSerializer.Deserialize(json, StratJsonContext.Default.StratDocument);
+            return JsonSerializer.Deserialize(json, ImportLedger.Strict(StratJsonContext.Default.StratDocument));
         }
         catch (JsonException)
         {

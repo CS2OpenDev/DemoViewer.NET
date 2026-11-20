@@ -508,4 +508,36 @@ public class StratStoreTests
             DeleteQuietly(root);
         }
     }
+
+    [Test]
+    [Arguments("steps")]
+    [Arguments("slots")]
+    [Arguments("owner")]
+    public async Task AStratWithANullWhereItsShapeHasNone_IsUnreadable_NotACrash(string member)
+    {
+        string root = TempRoot();
+        try
+        {
+            StratStore store = new(PackStores.At(root));
+            StratDocument document = store.Create(Team, "de_mirage", "T", "execute", "A exec");
+            string file = StratFile(root, document);
+            JsonObject edited = JsonNode.Parse(await File.ReadAllTextAsync(file))!.AsObject();
+            edited[member] = null;
+            await File.WriteAllTextAsync(file, edited.ToJsonString());
+
+            // No index.json was written, so the start reads every strat file to rebuild it.
+            StratStore reopened = new(PackStores.At(root));
+            StratLoadResult loaded = reopened.Load(document.Id);
+            using (Assert.Multiple())
+            {
+                await Assert.That(loaded.Document).IsNull();
+                await Assert.That(loaded.IsUnreadable).IsTrue();
+                await Assert.That(reopened.Index.Any(e => e.Id == document.Id)).IsFalse();
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
 }
