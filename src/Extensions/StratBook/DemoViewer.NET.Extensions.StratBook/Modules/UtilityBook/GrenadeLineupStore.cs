@@ -360,8 +360,10 @@ public sealed class GrenadeLineupStore
                 document = JsonSerializer.Deserialize<GrenadeLineupDocument>(bytes, options);
             }
 
-            if (document is not { SchemaVersion: GrenadeLineupDocument.CurrentSchema }
-                || document.Maps.Values.Any(m => m is null))
+            // The local read is not strict about nulls, and everything below and after dereferences these.
+            if (document is not { SchemaVersion: GrenadeLineupDocument.CurrentSchema, Maps: not null }
+                || document.Maps.Values.Any(m => m is null || m.Anchors is null || m.Aliases is null
+                                                 || m.Paths is null || m.Anchors.Contains(null!)))
             {
                 return null;
             }
@@ -375,7 +377,9 @@ public sealed class GrenadeLineupStore
 
             return document;
         }
-        catch (Exception ex) when (ex is JsonException or InvalidDataException or IOException)
+        // ArgumentException: two map keys that differ only in case collide under the comparer above. The app
+        // never writes that, so the file is not one of its own and reads as not a lineup document.
+        catch (Exception ex) when (ex is JsonException or InvalidDataException or IOException or ArgumentException)
         {
             return null;
         }

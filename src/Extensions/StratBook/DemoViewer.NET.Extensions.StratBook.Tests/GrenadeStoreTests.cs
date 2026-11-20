@@ -419,6 +419,41 @@ public class GrenadeStoreTests
     }
 
     [Test]
+    [Arguments("{\"schemaVersion\":1,\"maps\":{\"de_mirage\":{},\"DE_MIRAGE\":{}}}")]
+    [Arguments("{\"schemaVersion\":1,\"maps\":{\"de_mirage\":{\"paths\":null}}}")]
+    [Arguments("{\"schemaVersion\":1,\"maps\":{\"de_mirage\":{\"anchors\":null}}}")]
+    [Arguments("{\"schemaVersion\":1,\"maps\":{\"de_mirage\":{\"aliases\":null}}}")]
+    [Arguments("{\"schemaVersion\":1,\"maps\":null}")]
+    public async Task ALineupFileWithCollidingMapsOrANullTable_IsNotALineupDocument_AndIsNotReplaced(string json)
+    {
+        string root = TempRoot();
+        try
+        {
+            Directory.CreateDirectory(root);
+            string file = Path.Combine(root, GrenadeLineupStore.FileName);
+            byte[] theirs = System.Text.Encoding.UTF8.GetBytes(json);
+            await File.WriteAllBytesAsync(file, theirs);
+
+            GrenadeLineupDocument? staged = GrenadeLineupStore.ReadFrom(PackStores.At(root));
+            GrenadeLineupStore store = new(root);
+            store.For(Map).Anchors.Add(new LineupAnchor(Guid.NewGuid(), GrenadeKind.Flash, new WorldPoint(7, 8, 9),
+                new WorldPoint(10, 11, 12), "other"));
+            store.Save();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(staged).IsNull().Because("a bundle's copy that does not read is left out");
+                await Assert.That(await File.ReadAllBytesAsync(file)).IsEquivalentTo(theirs)
+                    .Because("a file that does not read is refused, not written over");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task ADemoWalkedThisSession_GivesItsLineupAFlight()
     {
         DemoCacheStore cache = new(null);
