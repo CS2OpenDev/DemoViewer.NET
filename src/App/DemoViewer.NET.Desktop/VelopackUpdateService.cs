@@ -52,6 +52,9 @@ internal sealed class VelopackUpdateService : IUpdateService
     /// </summary>
     private (UpdateManager Manager, UpdateInfo Info, bool IsBeta)? _pending;
 
+    // _pending is written on a pool thread after a check and read on the UI thread by the download.
+    private readonly Lock _pendingGate = new();
+
     /// <summary>
     ///     Downloaded and waiting for the process to exit. Set by <see cref="DownloadAndApplyAsync" />,
     ///     applied by <see cref="ApplyStagedUpdate" /> once the Avalonia lifetime has returned.
@@ -77,7 +80,8 @@ internal sealed class VelopackUpdateService : IUpdateService
 
         try
         {
-            _pending = null;
+            // The last check's answer stands until this one completes: the banner may still offer it, and a
+            // check that fails or is cancelled must not withdraw an update already found.
             UpdateInfo? best = await Task.Run(stable.CheckForUpdatesAsync, ct).ConfigureAwait(false);
             (UpdateManager Manager, UpdateInfo Info, bool IsBeta)?
                 pending = best is null ? null : (stable, best, false);
@@ -100,7 +104,10 @@ internal sealed class VelopackUpdateService : IUpdateService
                 pending = chosen with { Info = new UpdateInfo(chosen.Info.TargetFullRelease, false) };
             }
 
-            _pending = pending;
+            lock (_pendingGate)
+            {
+                _pending = pending;
+            }
 
             return best is null
                 ? UpdateCheckResult.UpToDate()
@@ -122,7 +129,13 @@ internal sealed class VelopackUpdateService : IUpdateService
     public async Task<bool> DownloadAndApplyAsync(IProgress<int>? progress = null, CancellationToken ct = default)
     {
         // A beta found before the user unsubscribed is not installed after it.
-        if (_pending is not { } pending || (pending.IsBeta && !_subscribedToBeta()))
+        (UpdateManager Manager, UpdateInfo Info, bool IsBeta)? current;
+        lock (_pendingGate)
+        {
+            current = _pending;
+        }
+
+        if (current is not { } pending || (pending.IsBeta && !_subscribedToBeta()))
         {
             return false;
         }
