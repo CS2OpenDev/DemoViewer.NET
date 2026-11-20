@@ -343,10 +343,21 @@ public sealed class AnnotationStore
                 await JsonSerializer
                     .SerializeAsync(stream, dto, AnnotationJsonContext.Default.AnnotationDocumentDto, ct)
                     .ConfigureAwait(false);
+
+                // On disk before the rename: a rename can reach the disk before the data it points at,
+                // and after a power loss that is a sidecar of the right length with nothing in it.
+                await stream.FlushAsync(ct).ConfigureAwait(false);
+                stream.Flush(true);
             }
 
             File.Move(temp, path, true);
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            // Not a failed save, so it is not turned into false; but the half-written temp is still ours.
+            TryDelete(temp);
+            throw;
         }
         catch (IOException)
         {

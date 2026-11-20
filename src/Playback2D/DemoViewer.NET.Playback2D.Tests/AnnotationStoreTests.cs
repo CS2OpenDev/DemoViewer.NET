@@ -626,6 +626,39 @@ public class AnnotationStoreTests
     }
 
     /// <summary>
+    ///     A save cancelled while it is writing leaves no temp file beside the demo and the sidecar as it
+    ///     was. The debounced autosave is cancelled by the next stroke, so this is an ordinary path, and
+    ///     cancellation is the one failure the save does not turn into <c>false</c>.
+    /// </summary>
+    [Test]
+    public async Task Save_Cancelled_LeavesNoTempFile_AndThePreviousSidecar()
+    {
+        using TempTree tree = new();
+        AnnotationStore store = new(tree.AppData);
+        await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
+        string path = store.ResolvePath(tree.DemoPath)!;
+        byte[] before = await File.ReadAllBytesAsync(path);
+
+        using CancellationTokenSource cancelled = new();
+        await cancelled.CancelAsync();
+
+        bool threw = false;
+        try
+        {
+            await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock,
+                [AnnotationFakes.Stroke(), AnnotationFakes.Stroke()], cancelled.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            threw = true;
+        }
+
+        await Assert.That(threw).IsTrue();
+        await Assert.That(File.Exists(path + ".tmp")).IsFalse();
+        await Assert.That((await File.ReadAllBytesAsync(path)).AsSpan().SequenceEqual(before)).IsTrue();
+    }
+
+    /// <summary>
     ///     A <c>null</c> in either document's element list is dropped, not dereferenced. The merge runs
     ///     inside a library import, where anything but a <see cref="JsonException" /> ends the whole run
     ///     rather than this one demo's annotations.
