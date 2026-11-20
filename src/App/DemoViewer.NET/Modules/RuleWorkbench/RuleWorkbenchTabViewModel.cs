@@ -104,6 +104,9 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     [NotifyCanExecuteChangedFor(nameof(EvaluateAdvancedCommand))]
     private bool _isEvaluating;
 
+    // The open file exists and its last load threw: the buffer is a blank stand-in, not the file's content.
+    private bool _loadFailed;
+
     private bool _loadingDocument; // guards the disk→buffer load from marking the doc dirty
 
     // True while RefreshFiles rebuilds the dropdown's list. The ComboBox clears its selection when its list
@@ -256,7 +259,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     public bool GraphSupported { get; } = !OperatingSystem.IsBrowser();
 
     /// <summary>Save-in-place is allowed only for an editable open file (user, or shipped in DeveloperMode) that is dirty.</summary>
-    public bool CanSave => _userDir is not null && SelectedFile is not null && IsDirty && !IsReadOnlyFile;
+    public bool CanSave =>
+        _userDir is not null && SelectedFile is not null && IsDirty && !IsReadOnlyFile && !_loadFailed;
 
     /// <summary>Save-As is offered whenever a file is open and the user overlay is writable.</summary>
     public bool CanSaveAs => _userDir is not null && SelectedFile is not null;
@@ -867,6 +871,11 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             return; // a read-only shipped file must go through Save-As
         }
 
+        if (_loadFailed)
+        {
+            return; // the buffer is not this file's content; see LoadSelected
+        }
+
         WriteBuffer(SelectedFile.FullPath);
     }
 
@@ -912,6 +921,13 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         {
             Summary = $"Not saved: {name} already exists. "
                 + "Pick another name, or open that ruleset and save it in place.";
+            return;
+        }
+
+        if (isOpenFile && _loadFailed)
+        {
+            Summary = $"Not saved: {name} could not be read, so what is shown is not its content. "
+                + "Open it again, or pick another name.";
             return;
         }
 
@@ -994,16 +1010,25 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         }
 
         string path = SelectedFile.FullPath;
+        Exception? failure = null;
         try
         {
             _loadingDocument = true;
             DocumentText = _extensionTexts.TryGetValue(path, out string? yaml) ? yaml
                 : File.Exists(path) ? File.ReadAllText(path) : "";
             IsDirty = false;
+            _loadFailed = false;
         }
-        catch
+        catch (Exception ex)
         {
+            // The file is there and did not read (held by another program, no access). The blank buffer
+            // stands in for it and is not its content: it is not dirty, whatever the file open before
+            // was, and it cannot be saved over the file until a load of it succeeds.
+            AppLog.OperationFailed(DiagLog, "open the ruleset", ex);
+            failure = ex;
             DocumentText = "";
+            IsDirty = false;
+            _loadFailed = true;
         }
         finally
         {
@@ -1012,6 +1037,11 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
 
         OnPropertyChanged(nameof(CanSave));
         Check();
+        if (failure is not null)
+        {
+            // After the check, which writes its own summary.
+            Summary = UserFacingError.Describe("open the ruleset", failure);
+        }
     }
 
     /// <summary>

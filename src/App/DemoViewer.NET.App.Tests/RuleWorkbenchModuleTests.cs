@@ -915,6 +915,56 @@ public class RuleWorkbenchModuleTests
         });
     }
 
+    /// <summary>
+    ///     A ruleset that is there but cannot be read (another program holds it) is not an empty ruleset. The
+    ///     buffer shown in its place must not be saveable over it, whether the dirty flag came across from
+    ///     the file open before or from typing into the blank editor.
+    /// </summary>
+    [Test]
+    public async Task ARulesetThatCannotBeRead_IsNotSavedOver()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            const string Held = "ruleset: held_probe\nfor: each_player\nstats:\n  k:\n    count: kill\n    per: match\n";
+            string held = Path.Combine(userDir, "held.rules.yaml");
+            await File.WriteAllTextAsync(held, Held);
+
+            vm.NewFileCommand.Execute(null); // lists held.rules.yaml too, and opens a draft
+            vm.DocumentText += "\n# an edit to the draft\n";
+            await Assert.That(vm.IsDirty).IsTrue();
+
+            using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                vm.SelectedFile = vm.OpenableFiles.First(f => f.FileName == "held.rules.yaml");
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.IsDirty).IsFalse().Because("the draft's flag does not describe this file");
+                await Assert.That(vm.CanSave).IsFalse();
+                await Assert.That(vm.Summary).Contains("Couldn't open the ruleset");
+            }
+
+            vm.SaveCommand.Execute(null);
+            await Assert.That(await File.ReadAllTextAsync(held)).IsEqualTo(Held);
+
+            // Typing into the blank editor does not make it this file's content either.
+            vm.DocumentText = "ruleset: typed_over\n";
+            await Assert.That(vm.CanSave).IsFalse();
+            vm.SaveCommand.Execute(null);
+            vm.SaveAsName = "held";
+            vm.SaveAsCommand.Execute(null);
+            await Assert.That(await File.ReadAllTextAsync(held)).IsEqualTo(Held);
+
+            // Opening it again once it reads is the way back.
+            vm.SelectedFile = vm.OpenableFiles.First(f => f.FileName != "held.rules.yaml" && !f.IsShipped);
+            vm.SelectedFile = vm.OpenableFiles.First(f => f.FileName == "held.rules.yaml");
+            await Assert.That(vm.DocumentText).IsEqualTo(Held);
+            vm.DocumentText += "# now editable\n";
+            await Assert.That(vm.CanSave).IsTrue();
+        });
+    }
+
     private static List<RulesetDoc> LoadShippedDocs()
     {
         string rulesDir = Path.Combine(DemoTestHelper.RequireRepoRoot(), "rules");
