@@ -132,6 +132,10 @@ public sealed partial class DemoCacheStore
     // Keyed by row key: every location of one content reads the same bytes.
     private byte[]? _lastRecordBytes;
     private string? _lastRecordKey;
+
+    // Counts every change to a record or to the slot above, under _gate. A read fetches its file with no lock
+    // held, so it compares this across the fetch and only remembers bytes no write has overtaken.
+    private long _recordWrites;
     // True while index.json is on disk, did not read and could not be moved aside. The rows are then only what
     // the records could rebuild, so no file is deleted on their word and nothing is written over the index.
     private volatile bool _indexHeld;
@@ -818,6 +822,12 @@ public sealed partial class DemoCacheStore
     public DemoCacheRecord? TryLoadRecord(string path) => TryLoadRecord(path, true);
 
     /// <summary>
+    ///     Test hook: runs once a read has its record in hand and before it takes the cache's lock again, the
+    ///     gap a concurrent write lands in. There is no other way to stand a write in that gap on purpose.
+    /// </summary>
+    internal Action? RecordReadForTest { get; set; }
+
+    /// <summary>
     ///     <see cref="TryLoadRecord(string)" />, leaving the capacity-1 cache alone when
     ///     <paramref name="remember" /> is false: a reader walking many demos does not evict the one the user
     ///     is looking at.
@@ -830,10 +840,12 @@ public sealed partial class DemoCacheStore
         DemoCacheIndexEntry? row;
         List<string> keys;
         byte[]? cached = null;
+        long writesSeen;
         lock (_gate)
         {
             (cacheKey, row) = RowFor(path);
             keys = ReadKeys(row, path);
+            writesSeen = _recordWrites;
             if (_lastRecordKey is not null && string.Equals(_lastRecordKey, cacheKey, StringComparison.Ordinal))
             {
                 cached = _lastRecordBytes;
@@ -854,12 +866,20 @@ public sealed partial class DemoCacheStore
                 byte[]? bytes = ReadRecordBytes(key);
                 if (bytes is not null && TryDeserializeRecord(bytes) is { } record && Belongs(record, row))
                 {
+                    RecordReadForTest?.Invoke();
                     if (remember)
                     {
                         lock (_gate)
                         {
-                            _lastRecordKey = cacheKey;
-                            _lastRecordBytes = bytes;
+                            // The file was read with no lock held. A write since the look above has already
+                            // cached what it wrote, or dropped what was cached; these bytes are from before
+                            // it, and remembering them would hand the next read-modify-write the record as
+                            // it was before that write. They are still returned: the write raises Changed.
+                            if (writesSeen == _recordWrites)
+                            {
+                                _lastRecordKey = cacheKey;
+                                _lastRecordBytes = bytes;
+                            }
                         }
                     }
 
@@ -1460,6 +1480,7 @@ public sealed partial class DemoCacheStore
                 (cachedKey, cachedBytes) = (_lastRecordKey, _lastRecordBytes);
                 _lastRecordKey = newKey;
                 _lastRecordBytes = bytes;
+                _recordWrites++;
             }
 
             if (WriteSidecar(path, bytes) is { } failure && mustLand)
@@ -1469,6 +1490,7 @@ public sealed partial class DemoCacheStore
                 lock (_gate)
                 {
                     (_lastRecordKey, _lastRecordBytes) = (cachedKey, cachedBytes);
+                    _recordWrites++;
                     if (replaced is not null)
                     {
                         Link(newKey, replaced);
@@ -1918,6 +1940,7 @@ public sealed partial class DemoCacheStore
                 lock (_gate)
                 {
                     Link(key, Reproject(row, record));
+                    _recordWrites++;
                     if (string.Equals(_lastRecordKey, key, StringComparison.Ordinal))
                     {
                         _lastRecordKey = null;
@@ -2113,6 +2136,7 @@ public sealed partial class DemoCacheStore
                     DemoCacheIndexEntry settled = WithKeys(merged is null ? row : Reproject(row, merged), []);
                     Link(rowKey, settled);
                     _settleAfterSave.Remove(rowKey);
+                    _recordWrites++;
                     if (string.Equals(_lastRecordKey, rowKey, StringComparison.Ordinal))
                     {
                         _lastRecordKey = null;
@@ -2210,6 +2234,7 @@ public sealed partial class DemoCacheStore
                 {
                     DemoCacheIndexEntry shaped = WithKeys(merged is null ? row : Reproject(row, merged), rest);
                     Link(rowKey, shaped);
+                    _recordWrites++;
                     if (merged is not null && string.Equals(_lastRecordKey, rowKey, StringComparison.Ordinal))
                     {
                         _lastRecordKey = null;
@@ -2881,6 +2906,7 @@ public sealed partial class DemoCacheStore
     private void Forget(string key)
     {
         _settleAfterSave.Remove(key);
+        _recordWrites++;
         if (string.Equals(_lastRecordKey, key, StringComparison.Ordinal))
         {
             _lastRecordKey = null;

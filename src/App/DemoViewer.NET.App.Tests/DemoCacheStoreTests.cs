@@ -613,4 +613,44 @@ public class DemoCacheStoreTests
             await Assert.That(keepsItsOwn.ConfigFingerprint).IsEqualTo("fp-own");
         }
     }
+
+    /// <summary>
+    ///     A read takes the cache's lock twice, once to look and once to remember, and reads the file in
+    ///     between with no lock held. A write that lands in that gap has already put the newer record in the
+    ///     cache; the read must not put its older one back, or the next read-modify-write starts from the
+    ///     record as it was before that write and saves it without it.
+    /// </summary>
+    [Test]
+    public async Task AReadOvertakenByAWrite_DoesNotCacheTheRecordFromBeforeIt()
+    {
+        const string Path = "/demos/raced.dem";
+        DemoCacheStore store = new(null);
+        store.Upsert(Record(Path));
+        DemoCacheRecord other = Record("/demos/other.dem");
+        other.Sha256 = "sha-other";
+        store.Upsert(other); // the capacity-1 cache now holds this one, so the read below goes to the file
+
+        bool written = false;
+        store.RecordReadForTest = () =>
+        {
+            if (!written)
+            {
+                written = true;
+                store.UpdateExisting(Path, r => r.Server = "Valve");
+            }
+        };
+        store.TryLoadRecord(Path);
+        store.RecordReadForTest = null;
+        await Assert.That(written).IsTrue();
+
+        await Assert.That(store.TryLoadRecord(Path)!.Server).IsEqualTo("Valve");
+
+        store.UpdateExisting(Path, r => r.Map = "de_nuke");
+        DemoCacheRecord after = store.TryLoadRecord(Path)!;
+        using (Assert.Multiple())
+        {
+            await Assert.That(after.Map).IsEqualTo("de_nuke");
+            await Assert.That(after.Server).IsEqualTo("Valve").Because("the second write builds on the first");
+        }
+    }
 }
