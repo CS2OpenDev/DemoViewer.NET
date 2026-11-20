@@ -132,7 +132,7 @@ if (suiteMode)
             continue;
         }
 
-        Console.WriteLine($"\n═══ {tc.Id} {"═".PadRight(70 - tc.Id.Length, '═')}");
+        Console.WriteLine($"\n═══ {tc.Id} {"═".PadRight(Math.Max(0, 70 - tc.Id.Length), '═')}");
         string reportFile = Path.Combine(suiteReportDir, $"{tc.Id}_{timestamp}.json");
         try
         {
