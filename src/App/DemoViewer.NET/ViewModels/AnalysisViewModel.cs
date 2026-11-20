@@ -326,6 +326,10 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // cancel this one without the evaluation itself noticing.
     internal Func<Task>? AfterEvaluationForTests { get; set; }
 
+    // Test seam: awaited after the prelude's awaits (visibility load, stale outputs) and before Build, the
+    // window in which a reset lands without either await noticing.
+    internal Func<Task>? BeforeBuildForTests { get; set; }
+
     // Suppresses re-compose/validate while BeginEdit is seeding the editor from a saved condition (the
     // text + each row would otherwise each fire a recompute); one runs at the end of seeding.
     private bool _seedingEditor;
@@ -781,6 +785,16 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             IReadOnlySet<string>? stale = path is not null && MergedRules() is { } planning
                 ? await Task.Run(() => planning.StaleOutputs(path), runToken)
                 : null;
+            if (BeforeBuildForTests is { } beforeBuild)
+            {
+                await beforeBuild();
+            }
+
+            // Neither await above rechecks the token when it resumes (the stale-outputs Task.Run checks it only
+            // before starting, and there is no Task.Run at all without a path or merged rules). A reset that
+            // landed meanwhile would otherwise build, retain the closed demo and paint its skeleton.
+            runToken.ThrowIfCancellationRequested();
+
             (BuildResult build, RuleConfigLoadResult loadedRules, OpenRunPlan? plan) =
                 BuildFromConfig(demo, visibility, path, clock, stale);
             if (MergedRules() is { } merged)

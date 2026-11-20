@@ -60,4 +60,46 @@ public class AnalysisRunSupersedeTests
                 vm.Dispose();
             }
         });
+
+    /// <summary>
+    ///     A reset while the run is still in its prelude (the visibility load and the stale-outputs pass, before
+    ///     Build) must stop it there. It used to go on to build, retain the closed demo and its scanner, and
+    ///     re-enable the re-run buttons for a demo that is gone.
+    /// </summary>
+    [Test]
+    public async Task ARunResetBeforeItsBuild_DoesNotRetainTheDemo() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            AnalysisViewModel vm = new();
+            try
+            {
+                ParsedDemo stale = SyntheticParsedDemo.Create(mapName: "de_prelude");
+                TaskCompletionSource parked = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                vm.BeforeBuildForTests = () =>
+                {
+                    parked.TrySetResult();
+                    return release.Task;
+                };
+
+                Task run = vm.RunAsync(stale);
+                await parked.Task;
+                vm.BeforeBuildForTests = null;
+
+                vm.Reset();
+                release.SetResult();
+                await run;
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(vm.LastEvaluatedDemo).IsNull();
+                    await Assert.That(vm.EntityScanner).IsNull();
+                    await Assert.That(vm.RerunAnalysisCommand.CanExecute(null)).IsFalse();
+                }
+            }
+            finally
+            {
+                vm.Dispose();
+            }
+        });
 }
