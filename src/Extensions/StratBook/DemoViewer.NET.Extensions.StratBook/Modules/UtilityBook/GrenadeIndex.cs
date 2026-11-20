@@ -1280,6 +1280,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
             }
         }
 
+        // Before the rows: read after them, the stamp could be a newer write's and date these rows as that write's.
+        long writtenAt = Store.Stamp(entry.FilePath)?.WrittenAtTicks ?? 0;
         if (Store.TryReadRows(entry.FilePath, entry.Sha256) is not { } document)
         {
             string fileName = Path.GetFileName(entry.FilePath);
@@ -1314,7 +1316,15 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
         lock (_gate)
         {
-            _loaded[entry.FilePath] = new LoadedDemo(demo, map, zones?.ZonesVersion, grenades);
+            // The read above ran outside the gate. Load walks the library while the evaluator's Walked is already
+            // subscribed, so the evaluator can rewrite these rows and merge them between that read and here: what
+            // is loaded is then the newer write, and these rows are the ones it replaced.
+            if (_loaded.TryGetValue(entry.FilePath, out LoadedDemo? resident) && resident.WrittenAtTicks > writtenAt)
+            {
+                return true;
+            }
+
+            _loaded[entry.FilePath] = new LoadedDemo(demo, map, zones?.ZonesVersion, grenades, writtenAt);
             InvalidateLocked(map);
         }
 
@@ -1431,5 +1441,6 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         }
     }
 
-    private sealed record LoadedDemo(DemoRef Demo, string Map, string? ZonesVersion, List<IndexedGrenade> Grenades);
+    private sealed record LoadedDemo(DemoRef Demo, string Map, string? ZonesVersion, List<IndexedGrenade> Grenades,
+        long WrittenAtTicks);
 }

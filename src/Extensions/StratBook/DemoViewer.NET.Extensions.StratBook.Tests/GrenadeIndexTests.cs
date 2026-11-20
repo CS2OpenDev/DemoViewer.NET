@@ -9,6 +9,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using CS2DemoKit.Analysis.Visibility;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
@@ -150,6 +151,36 @@ public class GrenadeIndexTests
 
     private static GrenadeQuery SmokesIntoCt(IReadOnlySet<string>? demos = null) => new(Mirage,
         new HashSet<GrenadeKind> { GrenadeKind.Smoke }, new HashSet<string> { "CTSpawn" }, DemoPaths: demos);
+
+    // The evaluator rewrites a demo's rows and merges them while Load is between reading the old rows and
+    // installing them: the rows the evaluator installed are the newer ones, and Load must not replace them.
+    [Test]
+    public async Task ALoadThatReadTheOldRows_DoesNotReplaceTheRowsOfANewerWrite()
+    {
+        DemoCacheStore cache = new(null);
+        MemoryDemoData memory = cache.Data();
+        RacingData racing = new(memory);
+        Indexed(cache, DemoPath(1), Mirage, "sha1",
+            [Row("a", GrenadeKind.Smoke, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170))]);
+        using GrenadeIndex index = new(cache.Library(),
+            new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)), store: new GrenadeStore(racing));
+        racing.AfterFirstRead = () =>
+        {
+            // The stamp is the wall clock's; the second write must not share the first one's tick.
+            Thread.Sleep(20);
+            Indexed(cache, DemoPath(1), Mirage, "sha1",
+            [
+                Row("a", GrenadeKind.Smoke, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170)),
+                Row("f", GrenadeKind.Flash, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170))
+            ]);
+            index.Load();
+        };
+
+        index.Load();
+
+        await Assert.That(index.Rows(new GrenadeQuery(Mirage)).Count).IsEqualTo(2)
+            .Because("the rows read first were superseded before they were installed");
+    }
 
     [Test]
     public async Task ALineupId_SurvivesARestart_AndALaterDemoJoinsItRatherThanMintingAnother()
@@ -1031,6 +1062,51 @@ public class GrenadeIndexTests
         }
 
         return count;
+    }
+
+    // Hands back the rows it read, then lets a test change the store before the reader goes on.
+    private sealed class RacingData(MemoryDemoData inner) : IExtensionDemoData
+    {
+        public Action? AfterFirstRead { get; set; }
+
+        public bool IsAvailable => inner.IsAvailable;
+
+        public event Action<string?>? Changed
+        {
+            add => inner.Changed += value;
+            remove => inner.Changed -= value;
+        }
+
+        public DemoDataStamp? Stamp(string demoPath, string facet) => inner.Stamp(demoPath, facet);
+
+        public IReadOnlyList<DemoDataStamp> Stamps(string facet) => inner.Stamps(facet);
+
+        public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null)
+        {
+            byte[]? read = inner.Read(demoPath, facet, schema, fingerprint, part);
+            if (AfterFirstRead is { } then)
+            {
+                AfterFirstRead = null;
+                then();
+            }
+
+            return read;
+        }
+
+        public DemoDataRecord? ReadAny(string demoPath, string facet, string? part = null) =>
+            inner.ReadAny(demoPath, facet, part);
+
+        public DemoDataStamp? Write(string demoPath, DemoDataWrite write) => inner.Write(demoPath, write);
+
+        public void MarkFailed(string demoPath, string facet) => inner.MarkFailed(demoPath, facet);
+
+        public void ClearFailed(string demoPath, string facet) => inner.ClearFailed(demoPath, facet);
+
+        public void Invalidate(string facet, string? demoPath = null) => inner.Invalidate(facet, demoPath);
+
+        public void SetCount(string demoPath, string facet, int count) => inner.SetCount(demoPath, facet, count);
+
+        public void Delete(string demoPath, string facet) => inner.Delete(demoPath, facet);
     }
 
     private sealed class SwitchableZones(IZonePlaceResolver current) : IZonePlaceResolverSource
