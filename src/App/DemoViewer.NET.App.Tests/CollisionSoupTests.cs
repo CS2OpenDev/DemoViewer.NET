@@ -104,5 +104,34 @@ public class CollisionSoupTests
         }
     }
 
+    /// <summary>
+    ///     A map name comes from the demo's header, and it is joined into every probe path. One that is a path
+    ///     itself (rooted, a share, or with a separator or <c>..</c> in it) would point the probe at a file of
+    ///     the demo author's choosing, so only a plain name is looked for.
+    /// </summary>
+    [Test]
+    public async Task AMapNameThatIsAPath_FindsNothing()
+    {
+        string root = Directory.CreateTempSubdirectory("dv-soup-").FullName;
+        try
+        {
+            string evil = Path.Combine(root, "evil");
+            Directory.CreateDirectory(evil);
+            await File.WriteAllBytesAsync(Path.Combine(evil, "collision.tris.gz"), [0x1f, 0x8b]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(CollisionSoup.Find(evil)).IsNull().Because("a rooted name replaces the probed folder");
+                await Assert.That(CollisionSoup.Find(Path.GetRelativePath(AppContext.BaseDirectory, evil))).IsNull()
+                    .Because("a name with .. in it walks out of the probed folder");
+                await Assert.That(CollisionSoup.Find(Map + "/../" + Map)).IsNull();
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     private static float Lerp(float a, float b, float t) => a + ((b - a) * t);
 }
