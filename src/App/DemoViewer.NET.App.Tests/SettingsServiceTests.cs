@@ -683,6 +683,35 @@ public class SettingsServiceTests
     }
 
     /// <summary>
+    ///     An explicit null where the model has a collection or a section is read as "not set", the way the
+    ///     loader reads it. A write must not hand its mutator a null to index.
+    /// </summary>
+    [Test]
+    [Arguments("""{ "Theme": "Light", "Features": { "Overrides": null } }""")]
+    [Arguments("""{ "Theme": "Light", "Features": null }""")]
+    public async Task ANullWhereASectionOrCollectionBelongs_DoesNotBreakTheNextWrite(string json)
+    {
+        string dir = NewTempDir();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), json);
+            SettingsService svc = new(dir);
+
+            svc.Write(s => s.Features.Overrides["fancyGraph"] = true);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(svc.Current.Features.Overrides["fancyGraph"]).IsTrue();
+                await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
     ///     The fileless (WASM) path persists neither session nor recents: the saves no-op and the loads
     ///     return empty, matching the pre-consolidation in-memory-only behavior. A <c>null</c> config dir
     ///     selects that branch off-browser.

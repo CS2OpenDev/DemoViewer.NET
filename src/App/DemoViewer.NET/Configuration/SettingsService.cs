@@ -611,12 +611,41 @@ public sealed class SettingsService
 
         try
         {
-            string json = File.ReadAllText(_settingsPath);
-            return JsonSerializer.Deserialize<AppSettings>(json, _serializerOptions) ?? new AppSettings();
+            // An explicit null where the model has a section or a collection is dropped before binding, so the
+            // member keeps its default, as it does when the loader reads the same file. Bound as written it
+            // would be a null in the basis for the caller's mutator to index.
+            JsonNode? file = JsonNode.Parse(File.ReadAllText(_settingsPath), documentOptions: _documentOptions);
+            DropNulls(file);
+            return file.Deserialize<AppSettings>(_serializerOptions) ?? new AppSettings();
         }
         catch
         {
             return new AppSettings();
+        }
+    }
+
+    private static void DropNulls(JsonNode? node)
+    {
+        if (node is JsonArray array)
+        {
+            foreach (JsonNode? item in array)
+            {
+                DropNulls(item);
+            }
+        }
+        else if (node is JsonObject section)
+        {
+            foreach ((string key, JsonNode? value) in section.ToList())
+            {
+                if (value is null)
+                {
+                    section.Remove(key);
+                }
+                else
+                {
+                    DropNulls(value);
+                }
+            }
         }
     }
 
