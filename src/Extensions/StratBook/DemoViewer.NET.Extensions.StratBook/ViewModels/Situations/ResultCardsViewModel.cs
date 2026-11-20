@@ -79,6 +79,10 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     // last batch is still rendering cannot land old pictures on new cards.
     private int _generation;
 
+    // Bumped per overlay build and per drop, apart from the set's generation: clearing the overlay must not
+    // stop the cards' fill, and an older build's answer must not land over a newer one or over a clear.
+    private int _overlayGeneration;
+
     /// <summary>True while the overlay worker is reading and stacking; the button is disabled meanwhile.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanOverlay))]
@@ -465,12 +469,13 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     private void OverlayAll()
     {
         int generation = Volatile.Read(ref _generation);
+        int overlay = Interlocked.Increment(ref _overlayGeneration);
         List<SituationHit> hits = [.. Cards.Select(c => c.Hit)];
         IsOverlayBuilding = true;
         OverlayLine = "stacking the rounds";
         using (JobScope.UserAction())
         {
-            OverlayTask = _run("overlay")(() => BuildOverlay(generation, hits));
+            OverlayTask = _run("overlay")(() => BuildOverlay(generation, overlay, hits));
         }
     }
 
@@ -481,9 +486,10 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     private void OnOverlayChanged() => OnPropertyChanged(nameof(IsOverlayShown));
 
     // A new set, an emptied set or the clear action: the overlay described the old hits and goes with
-    // them, and a build still in flight for them posts nothing because the generation moved.
+    // them, and a build still in flight for them posts nothing because the overlay generation moved.
     private void DropOverlay()
     {
+        Interlocked.Increment(ref _overlayGeneration);
         IsOverlayBuilding = false;
         OverlayLine = "";
         Overlay.Clear();
@@ -493,7 +499,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     // the last, alive tuples only, with the side from the round's CT slots. The record is read for its
     // hash, so a positions file another copy of the demo left behind is refused the way the cards
     // refuse it.
-    private void BuildOverlay(int generation, List<SituationHit> hits)
+    private void BuildOverlay(int generation, int overlay, List<SituationHit> hits)
     {
         List<OverlayPoint> points = [];
         int states = 0;
@@ -503,7 +509,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
 
         foreach (SituationHit hit in hits)
         {
-            if (generation != Volatile.Read(ref _generation))
+            if (generation != Volatile.Read(ref _generation) || overlay != Volatile.Read(ref _overlayGeneration))
             {
                 return;
             }
@@ -553,7 +559,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         string map = hits.Count > 0 ? hits[0].Map : "";
         _post(() =>
         {
-            if (generation != Volatile.Read(ref _generation))
+            if (generation != Volatile.Read(ref _generation) || overlay != Volatile.Read(ref _overlayGeneration))
             {
                 return;
             }

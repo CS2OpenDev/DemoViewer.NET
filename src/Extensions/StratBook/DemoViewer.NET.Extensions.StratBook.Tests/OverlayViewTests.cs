@@ -190,6 +190,34 @@ public class OverlayViewTests
     }
 
     [Test]
+    public async Task ClearingTheOverlay_MidBuild_DiscardsThatBuildsAnswer()
+    {
+        using Harness h = new();
+        h.Cache.Upsert(ParsedRecord(DemoA));
+        h.Sidecars.WritePositions(DemoA, Positions(h.Sources.FingerprintFor("de_nuke")));
+
+        h.Vm.Load([Hit(DemoA, 3, 1000, 1128, 1256)]);
+        h.Vm.OverlayAllCommand.Execute(null);
+        await h.Vm.OverlayTask;
+        await Assert.That(h.Vm.IsOverlayShown).IsTrue();
+
+        // Overlay all again, and Clear overlay before the worker's answer is posted back.
+        h.Post.Hold = true;
+        h.Vm.OverlayAllCommand.Execute(null);
+        await h.Vm.OverlayTask;
+        h.Vm.ClearOverlayCommand.Execute(null);
+        h.Post.Release();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(h.Vm.IsOverlayShown).IsFalse().Because("the user cleared it after asking");
+            await Assert.That(h.Vm.OverlayLine).IsEqualTo("");
+            await Assert.That(h.Vm.IsOverlayBuilding).IsFalse();
+            await Assert.That(h.Vm.Count).IsEqualTo(1).Because("the cards stay");
+        }
+    }
+
+    [Test]
     public async Task TheTab_PutsTheResultsOverlayOnTheCanvas_AndTheMapClearsIt()
     {
         DemoCacheStore cache = new(null);
