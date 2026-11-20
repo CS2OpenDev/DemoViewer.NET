@@ -160,6 +160,24 @@ public class ZoneOverlayTests
         await Assert.That(partialResolver.Resolve(new Vector3(150, 50, -400)).Name).IsEqualTo("Ramp");
     }
 
+    // A place name is written into the round index's place:count|place:count tokens, so neither separator can
+    // be part of one: the entry is refused here, where the user reads why, and not at the first indexed demo.
+    [Test]
+    public async Task ANameHoldingATokenSeparator_IsSkippedWithADiagnostic()
+    {
+        ZoneOverlayResult result = Apply(Overlay(
+            zones: [new ZoneOverlayZone("Short|Cat", ZoneFixtures.Upper, _hutPolygon, null, null, false)],
+            merges: [new ZoneOverlayMerge("A: Ramp", ["Ramp"])]));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(result.Diagnostics.Select(d => d.Code))
+                .IsEquivalentTo(["zones.overlay.bad-name", "zones.overlay.bad-name"]);
+            await Assert.That([.. result.Effective.Places.Select(p => p.Name)])
+                .IsEquivalentTo(Names("Ramp", "Outside", "Hut", "Tunnels"));
+        }
+    }
+
     [Test]
     public async Task MalformedEntry_IsSkippedWithADiagnostic_AndTheRestApplies()
     {

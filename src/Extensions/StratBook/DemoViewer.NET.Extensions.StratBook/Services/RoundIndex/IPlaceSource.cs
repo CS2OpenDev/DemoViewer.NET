@@ -66,7 +66,11 @@ public sealed class ZonePlaceSource : IPlaceSource
     public string ZonesVersion => _resolver.ZonesVersion;
 
     /// <inheritdoc />
-    public string? PlaceFor(in PositionSample sample) => _resolver.Resolve(sample.Position);
+    // The encoder throws on a name holding one of the token's separators, which fails the whole demo's index.
+    // The overlay loader refuses such a name; a set that carries one anyway reads as unknown here, and the
+    // token keeps the man-count.
+    public string? PlaceFor(in PositionSample sample) =>
+        _resolver.Resolve(sample.Position) is { } place && PlaceCountToken.CanHold(place) ? place : null;
 }
 
 /// <summary>

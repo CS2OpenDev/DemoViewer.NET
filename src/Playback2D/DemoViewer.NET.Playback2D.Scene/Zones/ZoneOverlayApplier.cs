@@ -86,12 +86,24 @@ internal static class ZoneOverlayApplier
         return new ZoneOverlayResult(state.Compact(effective, overlayPath), diagnostics);
     }
 
+    // The Strat Book's round index writes places into place:count|place:count tokens, and its encoder throws
+    // on a name holding either separator: one such zone failed the index of every demo on the map, with nothing
+    // pointing back at the overlay. The name is refused here instead, where the diagnostic says which entry.
+    private static bool HoldsTokenSeparator(string name) => name.Contains(':') || name.Contains('|');
+
     private static void ApplyMerge(State state, ZoneOverlayMerge merge, List<ZoneDiagnostic> diagnostics)
     {
         if (string.IsNullOrWhiteSpace(merge.Into))
         {
             diagnostics.Add(new ZoneDiagnostic("zones.overlay.empty-name",
                 "a merge has no 'into' name; expected the name of the place the sources become"));
+            return;
+        }
+
+        if (HoldsTokenSeparator(merge.Into))
+        {
+            diagnostics.Add(new ZoneDiagnostic("zones.overlay.bad-name",
+                $"merge '{merge.Into}' has ':' or '|' in its 'into' name; a place name can hold neither", merge.Into));
             return;
         }
 
@@ -142,6 +154,13 @@ internal static class ZoneOverlayApplier
         {
             diagnostics.Add(new ZoneDiagnostic("zones.overlay.empty-name",
                 "a zone has no 'name'; expected the callout it becomes"));
+            return;
+        }
+
+        if (HoldsTokenSeparator(zone.Name))
+        {
+            diagnostics.Add(new ZoneDiagnostic("zones.overlay.bad-name",
+                $"zone '{zone.Name}' has ':' or '|' in its name; a place name can hold neither", zone.Name));
             return;
         }
 
