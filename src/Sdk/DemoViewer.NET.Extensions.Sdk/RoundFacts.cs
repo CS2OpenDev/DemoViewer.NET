@@ -934,7 +934,9 @@ public static class RoundFactsRules
             ScoreSituation.CtLeading => ct > t,
             ScoreSituation.TLeading => t > ct,
             // The thresholds are per side but carry the same regulation length, so either side's copy answers.
-            ScoreSituation.MatchPoint => Math.Max(ct, t) == round.Ct.Thresholds.RegulationRounds / 2,
+            // One side on the half and the other short of it: both on it is the tie that goes to overtime.
+            ScoreSituation.MatchPoint => Math.Max(ct, t) == round.Ct.Thresholds.RegulationRounds / 2
+                && Math.Min(ct, t) < round.Ct.Thresholds.RegulationRounds / 2,
             _ => true
         };
     }

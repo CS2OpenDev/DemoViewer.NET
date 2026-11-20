@@ -282,6 +282,34 @@ public class RoundFactsSourceTests
         }
     }
 
+    /// <summary>
+    ///     Match point is a side one round from the regulation win. At 12-12 the next round is overtime's
+    ///     first and nobody is, though the higher score alone reads the same as at 12-11.
+    /// </summary>
+    [Test]
+    [Arguments(12, 11, true)]
+    [Arguments(11, 12, true)]
+    [Arguments(12, 0, true)]
+    [Arguments(11, 11, false)]
+    [Arguments(12, 12, false)]
+    public async Task MatchPoint_IsOneSideARoundFromTheRegulationWin_AndNeverTheTieBeforeOvertime(int ct, int t,
+        bool matches)
+    {
+        RoundFacts round = new()
+        {
+            Half = ct + t >= 24 ? RoundHalf.Overtime : RoundHalf.Second,
+            IsLive = true,
+            Ct = new SideFacts { Side = 3, ScoreBefore = ct },
+            T = new SideFacts { Side = 2, ScoreBefore = t }
+        };
+
+        RoundFactsFilter filter = new() { Score = ScoreSituation.MatchPoint };
+
+        bool matched = RoundFactsRules.Matches(DemoA, round, filter);
+
+        await Assert.That(matched).IsEqualTo(matches);
+    }
+
     private sealed class FixedIdentity(string value) : IRoundFactsRulesetIdentity
     {
         public string Fingerprint(int tickRate) => value;
