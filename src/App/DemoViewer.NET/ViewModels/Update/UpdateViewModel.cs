@@ -32,6 +32,9 @@ public sealed partial class UpdateViewModel : ViewModelBase
     private readonly Action? _requestShutdown;
     private readonly IUpdateService? _service;
 
+    // Bumped by ForgetAvailableUpdate: a check that started before it answers under the old setting.
+    private int _generation;
+
     /// <summary>The version offered by the last check; drives the banner text.</summary>
     [ObservableProperty]
     private string? _availableVersion;
@@ -114,7 +117,13 @@ public sealed partial class UpdateViewModel : ViewModelBase
             return;
         }
 
+        int generation = _generation;
         UpdateCheckResult result = await _service.CheckAsync(ct).ConfigureAwait(true);
+        if (generation != _generation)
+        {
+            return;
+        }
+
         if (result.HasUpdate)
         {
             AvailableVersion = result.Version;
@@ -138,7 +147,15 @@ public sealed partial class UpdateViewModel : ViewModelBase
         StatusMessage = "Checking…";
         try
         {
+            int generation = _generation;
             UpdateCheckResult result = await _service.CheckAsync().ConfigureAwait(true);
+            if (generation != _generation)
+            {
+                // Chosen under the setting the user just changed; the next check decides again.
+                StatusMessage = string.Empty;
+                return;
+            }
+
             switch (result.Status)
             {
                 case UpdateCheckStatus.UpdateAvailable:
@@ -206,11 +223,12 @@ public sealed partial class UpdateViewModel : ViewModelBase
     }
 
     /// <summary>
-    ///     Drops the last check's answer. Called when the beta subscription changes, because a found
-    ///     update was chosen under the old setting.
+    ///     Drops the last check's answer, and the answer of a check still in flight. Called when the beta
+    ///     subscription changes, because a found update was chosen under the old setting.
     /// </summary>
     public void ForgetAvailableUpdate()
     {
+        _generation++;
         if (IsDownloading)
         {
             return;

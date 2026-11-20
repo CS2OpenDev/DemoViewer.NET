@@ -265,6 +265,32 @@ public class UpdateViewModelTests
         }
     }
 
+    /// <summary>
+    ///     A check that was already in flight when the beta subscription changed lands with an answer chosen
+    ///     under the old setting: it is dropped, not shown as an offer.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task ACheckInFlightWhenTheSubscriptionChanges_IsDropped(bool startup)
+    {
+        TaskCompletionSource<UpdateCheckResult> answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FakeUpdateService svc = new() { NextCheck = answer.Task };
+        UpdateViewModel vm = new(svc);
+
+        Task check = startup ? vm.CheckOnStartupAsync() : vm.CheckNowCommand.ExecuteAsync(null);
+        vm.ForgetAvailableUpdate();
+        answer.SetResult(UpdateCheckResult.UpdateAvailable("0.9.0-beta0001"));
+        await check;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.IsUpdateAvailable).IsFalse();
+            await Assert.That(vm.AvailableVersion).IsNull();
+            await Assert.That(vm.StatusMessage).DoesNotContain("0.9.0-beta0001");
+        }
+    }
+
     private sealed class FakeNotes : IReleaseNotesService
     {
         public List<string> Asked { get; } = [];
@@ -285,7 +311,15 @@ public class UpdateViewModelTests
 
         public string CurrentVersion => "0.5.1";
 
-        public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) => Task.FromResult(CheckResult);
+        /// <summary>When set, the next check answers with this task instead of <see cref="CheckResult" />.</summary>
+        public Task<UpdateCheckResult>? NextCheck { get; set; }
+
+        public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default)
+        {
+            Task<UpdateCheckResult>? next = NextCheck;
+            NextCheck = null;
+            return next ?? Task.FromResult(CheckResult);
+        }
 
         public Task<bool> DownloadAndApplyAsync(IProgress<int>? progress = null, CancellationToken ct = default)
         {
