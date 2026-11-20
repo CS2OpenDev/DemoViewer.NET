@@ -109,9 +109,11 @@ public sealed class EconomyLayer() : ScoutingLayerBase("econ", "Economy", Scouti
                     .. Rows(context, b.ManAdvantage, b.ManAdvantageRounds.Count, "led"),
                     .. Rows(context, b.ManAdvantageOutcomes, b.ManAdvantageRounds.Count, "man advantage")
                 ]),
+                // Of the losses that have a next round, which is what the rows count: a loss the service leaves
+                // out (a map's last round, a next round the team cannot be placed in) is in none of them.
                 new ScoutingInspectorSection($"After a loss · {side}", [
                     .. Situation(context, b.RoundsLost, sideRounds, "losses"),
-                    .. Rows(context, b.SaveDiscipline, b.RoundsLost.Count, "after a loss,")
+                    .. Rows(context, b.SaveDiscipline, b.SaveDiscipline.Sum(next => next.Count), "after a loss,")
                 ])
             ]);
             if (rounds.Count == 0)

@@ -74,6 +74,42 @@ public class EconomyTimeoutsLayerTests
         }
     }
 
+    // A loss with no following round (a map's last round) is in no "next" row, so it is not in their total.
+    [Test]
+    public async Task Economy_AfterALoss_SharesAreOfTheLossesThatHaveANextRound()
+    {
+        using ScoutingReportShellRenderTests.SyntheticTeam team =
+            await ScoutingReportShellRenderTests.SyntheticTeam.Create();
+        QueuedPost posted = new();
+        using ScoutingReportTabViewModel vm = team.Tab(posted);
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == team.TeamA);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        vm.SelectMapCommand.Execute(vm.Maps.Single(m => m.Map == "de_nuke"));
+        await ScoutingReportTestKit.Settle(vm, posted);
+
+        int unpaired = 0;
+        List<double> totals = [];
+        foreach (ScoutingSide side in (ScoutingSide[])[ScoutingSide.T, ScoutingSide.Ct])
+        {
+            vm.Side = side;
+            await ScoutingReportTestKit.Settle(vm, posted);
+            ScoutingLayerResult result = await new EconomyLayer()
+                .BuildAsync(vm.Layers.Find("econ")!.Context!, CancellationToken.None);
+            ScoutingInspectorSection section =
+                result.Sections.Single(s => s.Title.StartsWith("After a loss", StringComparison.Ordinal));
+            unpaired += section.Rows[0].Rounds.Count - section.Rows.Skip(1).Sum(r => r.Rounds.Count);
+            totals.Add(section.Rows.Skip(1).Sum(r => r.BarPercent ?? 0));
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(unpaired).IsGreaterThan(0)
+                .Because("the synthetic maps end on a loss, which has no round after it");
+            await Assert.That(totals.All(total => Math.Abs(total - 100.0) < 0.001)).IsTrue()
+                .Because($"the shares after a loss add up to the whole, and they add up to {string.Join(" and ", totals)}");
+        }
+    }
+
     [Test]
     public async Task Timeouts_FromCaptures_AreTheTeamsTacticalOnes_OnTheMapInView()
     {
