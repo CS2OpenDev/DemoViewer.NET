@@ -756,6 +756,42 @@ public class GrenadeIndexTests
     }, map);
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task TheCard_DoesNotSayCopied_WhenNothingReachedTheClipboard(bool gated)
+    {
+        DemoCacheStore cache = new(null);
+        for (int n = 1; n <= 2; n++)
+        {
+            GrenadeRow row = Row("a", GrenadeKind.Smoke, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170));
+            row.ReleaseEyePitch = -18.12f;
+            row.ReleaseEyeYaw = -15.3f;
+            Indexed(cache, DemoPath(n), Mirage, $"sha{n}", [row]);
+        }
+
+        using GrenadeIndex index = Loaded(cache);
+        using UtilityBookTabViewModel vm = new(index, isBrowser: false, loadMapAsset: _ => null);
+        if (gated)
+        {
+            vm.Clipboard = _ => throw new InvalidOperationException("the host gates clipboard writes");
+        }
+
+        vm.SelectedMap = Mirage;
+        vm.ClickLanding(vm.Groups.Single().Id);
+        vm.ClickThrow(vm.Document.Throws.Single().Id);
+        LineupDetail detail = vm.Detail!;
+        await detail.CopyConsoleCommand.ExecuteAsync(null);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(detail.HasConsole).IsTrue();
+            await Assert.That(detail.CopyStatus).IsNotEqualTo("copied")
+                .Because(gated ? "the write threw" : "no view has given the tab a clipboard");
+            await Assert.That(detail.CopyStatus).IsNotEmpty().Because("the user is told to select the line instead");
+        }
+    }
+
+    [Test]
     public async Task TheCard_CopiesTheSetposSetangLine()
     {
         DemoCacheStore cache = new(null);

@@ -57,10 +57,13 @@ public partial class UtilityBookTabView : UserControl
             PlaceCard();
             _wired.Clipboard = async text =>
             {
-                if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+                if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
                 {
-                    await clipboard.SetTextAsync(text);
+                    // Thrown, not skipped: the card says "copied" for a write that returns.
+                    throw new InvalidOperationException("no clipboard");
                 }
+
+                await clipboard.SetTextAsync(text);
             };
         }
     }

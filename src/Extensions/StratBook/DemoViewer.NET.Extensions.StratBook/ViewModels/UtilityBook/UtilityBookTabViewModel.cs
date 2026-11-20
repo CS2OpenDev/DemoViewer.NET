@@ -686,19 +686,16 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
         await _playback.SeekAsync(grenade.Demo.Path, Math.Max(0, grenade.Row.ReleaseTick - WatchLeadTicks));
     }
 
+    // Throws when nothing reached the clipboard (no view has supplied one, or the write threw), so the card can say
+    // which happened.
     private async Task CopyAsync(string text)
     {
-        if (Clipboard is { } clipboard)
+        if (Clipboard is not { } clipboard)
         {
-            try
-            {
-                await clipboard(text);
-            }
-            catch (Exception)
-            {
-                // Clipboard writes are gated on some hosts; the line stays selectable in the card.
-            }
+            throw new InvalidOperationException("no clipboard");
         }
+
+        await clipboard(text);
     }
 
     // Replaces a collection's contents only when they differ, so a bound picker keeps its selection.
@@ -771,7 +768,7 @@ public sealed partial class LineupDetail : ObservableObject
     /// <param name="lineup">The throw position.</param>
     /// <param name="demoDate">A demo's date, or null.</param>
     /// <param name="watch">Opens one throw in 2D Playback.</param>
-    /// <param name="copy">Writes the console line to the clipboard.</param>
+    /// <param name="copy">Writes the console line to the clipboard; throws when it could not.</param>
     /// <param name="technique">The position clicked, or null for the lineup as a whole.</param>
     /// <param name="clipDirectory">Where the position's clip pair lives; no clip when null.</param>
     public LineupDetail(LandingGroup group, GrenadeLineup lineup, Func<string, DateTime?> demoDate,
@@ -860,8 +857,16 @@ public sealed partial class LineupDetail : ObservableObject
             return;
         }
 
-        await _copy(ConsoleText);
-        CopyStatus = "copied";
+        try
+        {
+            await _copy(ConsoleText);
+            CopyStatus = "copied";
+        }
+        catch (Exception)
+        {
+            // Clipboard writes are gated on some hosts; the line stays selectable in the card.
+            CopyStatus = "copy blocked: select the line";
+        }
     }
 }
 
