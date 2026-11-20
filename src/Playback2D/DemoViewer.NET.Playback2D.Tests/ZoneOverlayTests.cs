@@ -66,6 +66,32 @@ public class ZoneOverlayTests
     }
 
     [Test]
+    public async Task ConcavePolygon_CoversItsArms_AndNotItsNotch()
+    {
+        // An L over Hut's box: the notch [240, 300] x [40, 100] is outside it. Both windings, because
+        // the prism's edge normals depend on the winding.
+        double[] ccw = [200, 0, 300, 0, 300, 40, 240, 40, 240, 100, 200, 100];
+        double[] cw = [200, 100, 240, 100, 240, 40, 300, 40, 300, 0, 200, 0];
+
+        foreach (double[] polygon in new[] { ccw, cw })
+        {
+            ZoneOverlayResult result = Apply(Overlay(
+                zones: [new ZoneOverlayZone("L", ZoneFixtures.Upper, polygon, null, null, false)]));
+            PlaceResolver resolver = new(result.Effective);
+
+            await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
+
+            // Both arms reach past the reflex corner at (240, 40).
+            await Assert.That(resolver.Resolve(new Vector3(220, 80, -400)).Name).IsEqualTo("L");
+            await Assert.That(resolver.Resolve(new Vector3(280, 20, -400)).Name).IsEqualTo("L");
+            await Assert.That(resolver.Resolve(new Vector3(220, 20, -400)).Name).IsEqualTo("L");
+
+            // The notch is still the baked Hut volume.
+            await Assert.That(resolver.Resolve(new Vector3(280, 80, -400)).Name).IsEqualTo("Hut");
+        }
+    }
+
+    [Test]
     public async Task Hidden_RefloodsItsAreasFromNeighbours_AndDropsItsVolume()
     {
         ZoneOverlayResult result = Apply(Overlay(hidden: ["Hut"]));
