@@ -136,6 +136,31 @@ public sealed class GraphBreakpointStoreTests
             .Because("re-attempting a failing parse on every launch is worse than losing a broken file");
     }
 
+    /// <summary>
+    ///     The file holds every demo's breakpoints. One that does not read is not an empty one: a save for one
+    ///     demo keeps the bytes aside rather than replacing them with that demo alone.
+    /// </summary>
+    [Test]
+    public async Task ASaveOverAFileThatDoesNotRead_KeepsItAside()
+    {
+        using ConfigDir dir = new();
+        string path = AppPaths.GraphBreakpointsFile!;
+        const string Cut = """{"demo-other":[{"TargetKind":"Node","NodeKey":"g:Alive","Condition":"value > 2""";
+        await File.WriteAllTextAsync(path, Cut);
+        GraphBreakpointStore store = new(path);
+        await Assert.That(store.Load("demo-other").Count).IsEqualTo(0).Because("a load is still best-effort");
+
+        store.Save("demo-x", [Record("a").ToBreakpoint()]);
+
+        string[] aside = Directory.GetFiles(dir.Path, Path.GetFileName(path) + ".unreadable-*");
+        using (Assert.Multiple())
+        {
+            await Assert.That(aside.Length).IsEqualTo(1);
+            await Assert.That(aside.Length == 1 ? await File.ReadAllTextAsync(aside[0]) : null).IsEqualTo(Cut);
+            await Assert.That(store.Load("demo-x").Single().NodeKey).IsEqualTo("g:a");
+        }
+    }
+
     [Test]
     public async Task APerPlayerKeyWrittenBeforeTheOccurrenceCounter_LoadsAndStillResolves()
     {
