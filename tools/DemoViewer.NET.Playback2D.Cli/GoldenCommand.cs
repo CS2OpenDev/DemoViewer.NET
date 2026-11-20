@@ -65,13 +65,21 @@ internal static class GoldenCommand
                 continue;
             }
 
-            if (entry.Pending || !File.Exists(entry.ScenePath))
+            if (entry.Pending)
             {
                 skipped++;
                 results.Add(Result(entry, "skipped", null,
-                    entry.Pending
-                        ? "marked pending: its inputs have not all landed yet"
-                        : "no scene file"));
+                    "marked pending: its inputs have not all landed yet"));
+                continue;
+            }
+
+            // Pending is the only licence to have no scene. A live entry without one is a broken
+            // corpus (a deleted or renamed scene, a partial checkout), and counting it as skipped
+            // let the gate exit 0 having compared nothing. `fixture verify` fails the same case.
+            if (!File.Exists(entry.ScenePath))
+            {
+                missing++;
+                results.Add(Result(entry, "missing", null, $"no scene at {entry.ScenePath}"));
                 continue;
             }
 
