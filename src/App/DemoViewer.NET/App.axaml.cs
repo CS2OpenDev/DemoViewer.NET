@@ -388,8 +388,9 @@ public class App : Application
                 // A running 2D export owns an ffmpeg subprocess and a half-written video file. Exiting
                 // without cancelling orphaned the process and left the partial output on disk looking
                 // like a finished export. The reel path had this teardown from day one, and the export,
-                // whose Cancel had no production caller at all, had none.
-                bool exportRunning = viewModel.Playback2DExportStatus is { IsRunning: true };
+                // whose Cancel had no production caller at all, had none. An extension's mounted export
+                // and a Pack Export on the queue own the same ffmpeg child, so they count too.
+                bool exportRunning = viewModel.HasRunningExport();
 
                 if (csvgTornDown || liveSync is null && !reelRunning && !exportRunning)
                 {
@@ -423,15 +424,11 @@ public class App : Application
 
                     try
                     {
-                        // Then the 2D export: its CancelAsync awaits the job's own finally, which
-                        // disposes the sink. That is what kills ffmpeg and deletes the partial file.
-                        // Shorter budget than the reel's: nothing here touches a CS2 install, so the
-                        // worst case is a stuck pipe rather than a machine left patched.
-                        if (viewModel.Playback2DExportStatus is { IsRunning: true } runningExport)
-                        {
-                            await runningExport.CancelCommand.ExecuteAsync(null)
-                                .WaitAsync(TimeSpan.FromSeconds(15));
-                        }
+                        // Then the exports: each cancel awaits the job's own finally, which disposes
+                        // the sink. That is what kills ffmpeg and deletes the partial file. Shorter
+                        // budget than the reel's: nothing here touches a CS2 install, so the worst case
+                        // is a stuck pipe rather than a machine left patched.
+                        await viewModel.CancelRunningExportsAsync(TimeSpan.FromSeconds(15));
                     }
                     catch
                     {

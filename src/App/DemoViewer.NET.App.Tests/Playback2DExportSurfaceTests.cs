@@ -10,7 +10,10 @@ using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
+using DemoViewer.NET.Services;
+using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Export;
+using DemoViewer.NET.Services.Export.Pack;
 using DemoViewer.NET.ViewModels.Playback2D;
 using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views.Playback2D;
@@ -308,6 +311,58 @@ public class Playback2DExportStatusSurfaceTests
                     await Assert.That(tabRunning).IsTrue();
                     await Assert.That(tabDone).IsFalse().Because("a finished export no longer holds idle off");
                     await Assert.That(mountedRunning).IsTrue();
+                }
+            }
+            finally
+            {
+                shell.Dispose();
+            }
+        });
+
+    /// <summary>
+    ///     Exit cancels every export that owns an ffmpeg child and a half-written file, not only the 2D tab's: an
+    ///     extension's mounted export and a Pack Export running on the processing queue are cancelled and waited
+    ///     for too.
+    /// </summary>
+    [Test]
+    public async Task Exit_CancelsTheTabsTheMountedAndThePackExports() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            FakeExportJob tabJob = new();
+            FakeExportJob mountedJob = new();
+            using Playback2DExportStatusViewModel tabStatus = new(tabJob);
+            using Playback2DExportStatusViewModel mountedStatus = new(mountedJob);
+            using HeavyJobGate gate = new();
+            using DemoProcessingQueue queue = new(gate, a => a());
+            MainViewModel shell = new(processingQueue: queue);
+            try
+            {
+                shell.MountExportStatus("test.export", "test.feature", mountedStatus);
+                mountedJob.Push(new ExportJobStatus(ExportPhase.Rendering, 1, 100, 0, TimeSpan.Zero, "s.webm", null));
+                bool mountedOnly = shell.HasRunningExport();
+
+                shell.AttachPlayback2DExportStatus(tabStatus);
+                tabJob.Push(new ExportJobStatus(ExportPhase.Rendering, 1, 100, 0, TimeSpan.Zero, "clip.webm", null));
+                TaskCompletionSource running = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task<int> pack = PackExportQueue.RunAsync(queue, "Pack export", null, async (_, ct) =>
+                {
+                    running.SetResult();
+                    await Task.Delay(Timeout.Infinite, ct);
+                    return 0;
+                }, null, CancellationToken.None);
+                await running.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+                await shell.CancelRunningExportsAsync(TimeSpan.FromSeconds(10));
+                DemoQueueItemSnapshot item = queue.Snapshot().Single(s => s.Kind == QueueJobKind.PackExport);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(mountedOnly).IsTrue().Because("a mounted export is work exit must tear down");
+                    await Assert.That(tabJob.Cancels).IsEqualTo(1);
+                    await Assert.That(mountedJob.Cancels).IsEqualTo(1);
+                    await Assert.That(item.State).IsEqualTo(DemoQueueItemState.Cancelled)
+                        .Because("the pack export is cancelled and waited for before the app exits");
+                    await Assert.That(pack.IsCanceled).IsTrue();
                 }
             }
             finally

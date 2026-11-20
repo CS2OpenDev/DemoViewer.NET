@@ -4088,6 +4088,72 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         || _shellChips.OfType<ExportChipSlot>().Any(slot => slot.IsRunning);
 
     /// <summary>
+    ///     True while an export that owns an ffmpeg child and a half-written file runs: the 2D tab's, a mounted
+    ///     extension export, or a Pack Export on the processing queue. Exit tears these down first.
+    /// </summary>
+    internal bool HasRunningExport() =>
+        RunningExportStatuses().Count > 0 || ActivePackExports().Count > 0;
+
+    /// <summary>
+    ///     Cancels every export <see cref="HasRunningExport" /> counts, together, and waits for them up to
+    ///     <paramref name="budget" /> in all: each one's teardown kills ffmpeg and removes the partial file.
+    ///     Best effort; never throws.
+    /// </summary>
+    internal async Task CancelRunningExportsAsync(TimeSpan budget)
+    {
+        using CancellationTokenSource timeout = new(budget);
+        List<Task> pending = [.. RunningExportStatuses().Select(s => s.CancelCommand.ExecuteAsync(null))];
+        if (_processingQueue is { } queue && ActivePackExports() is { Count: > 0 } packs)
+        {
+            foreach (Guid id in packs)
+            {
+                queue.RemoveByUser(id);
+            }
+
+            pending.Add(WaitForQueueItemsAsync(queue, packs, timeout.Token));
+        }
+
+        try
+        {
+            await Task.WhenAll(pending).WaitAsync(timeout.Token);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // A partial file is better than a hung exit.
+        }
+    }
+
+    private List<Playback2DExportStatusViewModel> RunningExportStatuses() =>
+    [
+        .. new[] { Playback2DExportStatus }
+            .Concat(_shellChips.OfType<ExportChipSlot>().Select(slot => slot.Status))
+            .OfType<Playback2DExportStatusViewModel>()
+            .Where(status => status.IsRunning)
+            .Distinct()
+    ];
+
+    private List<Guid> ActivePackExports() =>
+        _processingQueue is null
+            ? []
+            :
+            [
+                .. _processingQueue.Snapshot()
+                    .Where(item => item.Kind == QueueJobKind.PackExport
+                        && item.State is DemoQueueItemState.Queued or DemoQueueItemState.Running)
+                    .Select(item => item.Id)
+            ];
+
+    private static async Task WaitForQueueItemsAsync(IDemoProcessingQueue queue, IReadOnlyList<Guid> ids,
+        CancellationToken ct)
+    {
+        while (queue.Snapshot().Any(item => ids.Contains(item.Id)
+                   && item.State is DemoQueueItemState.Queued or DemoQueueItemState.Running))
+        {
+            await Task.Delay(50, ct);
+        }
+    }
+
+    /// <summary>
     ///     Enters idle mode: captures where to resume, shows the idle overlay, optionally parks background
     ///     processing, and releases the open demo's memory via the same deterministic-close path the
     ///     "Close Demo" button uses. Fired once by the idle controller on the UI thread.
