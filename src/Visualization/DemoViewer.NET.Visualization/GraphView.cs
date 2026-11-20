@@ -463,7 +463,18 @@ public sealed class GraphView : Control
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        if (_panZoom.OnPointerWheelChanged(this, e))
+
+        // Where the layout's own origin sits at zero pan: the letterbox centring, which the zoom has to
+        // work around or the point under the cursor slides away by that much on every notch.
+        double originX = 0;
+        double originY = 0;
+        if (TryGetViewTransform(out _, out _, out double offX, out double offY))
+        {
+            originX = offX - _panZoom.PanX;
+            originY = offY - _panZoom.PanY;
+        }
+
+        if (_panZoom.OnPointerWheelChanged(this, e, originX, originY))
         {
             InvalidateVisual();
             e.Handled = true;
