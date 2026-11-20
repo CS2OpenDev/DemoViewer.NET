@@ -41,6 +41,12 @@ public static class FeaturePacks
     public static IReadOnlyList<PackStatus> Statuses => _list.Value;
 
     /// <summary>
+    ///     <see cref="Default" />, or nothing while no head has declared the list. For a reader that only asks
+    ///     which other packs there are: reading the unset list would freeze it empty for the head still to come.
+    /// </summary>
+    internal static IReadOnlyList<IExtension> DeclaredOrNone => _list.IsSet ? Default : [];
+
+    /// <summary>
     ///     Declares the compiled-in packs, once, and judges each against <see cref="ExtensionHost.Current" />.
     ///     Must run before anything reads <see cref="Default" />, <see cref="Compatible" /> or
     ///     <see cref="Statuses" />: the static registries build from them once, so a later change would leave

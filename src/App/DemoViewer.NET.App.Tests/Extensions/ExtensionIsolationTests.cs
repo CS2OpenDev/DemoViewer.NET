@@ -129,6 +129,28 @@ public class ExtensionIsolationTests
         await Assert.That(refusal is null).IsEqualTo(accepted);
     }
 
+    /// <summary>
+    ///     An id may hold '-', so "com.acme-pro" is both an extension and a name "com.acme" could claim under
+    ///     its own '-' rule. The longer id is the closer match and keeps the name: the shorter one's store is
+    ///     refused, or its "Delete extension data" would take the other extension's files.
+    /// </summary>
+    [Test]
+    [Arguments("com.acme", "com.acme-pro", false)]
+    [Arguments("com.acme", "com.acme-pro/notes.json", false)]
+    [Arguments("com.acme", "com.acme-pro.json", false)]
+    [Arguments("com.acme", "com.acme-pro-old/index.bin", false)]
+    [Arguments("com.acme", "com.acme-old/index.bin", true)]
+    [Arguments("com.acme", "com.acme.json", true)]
+    [Arguments("com.acme-pro", "com.acme-pro", true)]
+    [Arguments("com.acme-pro", "com.acme-pro-old/index.bin", true)]
+    public async Task ADeclaredStore_MayNotNameAnotherLoadedExtensionsFiles(string packId, string path,
+        bool accepted)
+    {
+        string? refusal = PackContributions.StoreRefusal(packId,
+            new StoreDescriptor("s", "S", StoreRoot.Config, [path], IsUserWork: false), ["com.acme", "com.acme-pro"]);
+        await Assert.That(refusal is null).IsEqualTo(accepted);
+    }
+
     [Test]
     public async Task TheHostsDelete_ListsTheExtensionsSettingsFile()
     {
