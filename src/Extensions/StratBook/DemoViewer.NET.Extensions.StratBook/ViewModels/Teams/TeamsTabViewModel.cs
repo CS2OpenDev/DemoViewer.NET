@@ -398,6 +398,14 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
         }
 
         Guid? keep = SelectedTeam?.Id;
+
+        // What the user was doing with the selected team. The rows below are new objects, so reselecting resets the
+        // rename box, the merge target and the ticked demos, and a change from elsewhere (a library sync, an account)
+        // must not take an edit in progress.
+        string? name = SelectedTeam?.Name;
+        string typed = RenameText;
+        Guid? merge = MergeTarget?.Id;
+        HashSet<(string Path, int Side)> ticked = [.. Demos.Where(d => d.IsChecked).Select(d => (d.Path, d.Side))];
         Teams.Clear();
         foreach (Team team in ShowHidden ? _teams.AllTeams : _teams.Teams)
         {
@@ -417,6 +425,21 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
         if (keep is not null && SelectedTeam is null)
         {
             ProjectSelection();
+        }
+        else if (SelectedTeam is { } again)
+        {
+            // Under the same stored name the text is still the user's; under a new one their rename has landed.
+            if (string.Equals(again.Name, name, StringComparison.Ordinal))
+            {
+                RenameText = typed;
+            }
+
+            // A merged-away target and a side that was split off are gone from the new rows, so neither comes back.
+            MergeTarget = merge is { } target ? MergeTargets.FirstOrDefault(t => t.Id == target) : null;
+            foreach (DemoRow demo in Demos.Where(d => ticked.Contains((d.Path, d.Side))))
+            {
+                demo.IsChecked = true;
+            }
         }
     }
 

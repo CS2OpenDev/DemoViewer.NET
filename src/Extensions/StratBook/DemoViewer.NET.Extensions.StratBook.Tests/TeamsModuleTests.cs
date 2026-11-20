@@ -184,6 +184,46 @@ public class TeamsModuleTests
     }
 
     [Test]
+    public async Task ARefreshFromElsewhere_KeepsTheRenameTheMergeTargetAndTheTickedDemos()
+    {
+        FakeExtensionIdentity identity = new();
+        (DemoCacheStore cache, TeamIdentityService teams) = await Library(identity);
+        using TeamsTabViewModel vm = new(teams, cache.Library(), isBrowser: false);
+        vm.SelectedTeam = vm.Teams[0];
+        TeamRow before = vm.SelectedTeam;
+        Guid target = vm.MergeTargets[0].Id;
+        vm.RenameText = "typing";
+        vm.MergeTarget = vm.MergeTargets[0];
+        vm.Demos[0].IsChecked = true;
+        string ticked = vm.Demos[0].Path;
+
+        // A change the user did not make: an account nobody here plays on, so the same teams are projected again.
+        identity.Set(Ids(99), Ids(99)[0]);
+        await teams.Idle;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedTeam).IsNotSameReferenceAs(before).Because("the rows were rebuilt");
+            await Assert.That(vm.SelectedTeam!.Id).IsEqualTo(before.Id);
+            await Assert.That(vm.RenameText).IsEqualTo("typing");
+            await Assert.That(vm.MergeTarget?.Id).IsEqualTo(target);
+            await Assert.That(vm.Demos.Where(d => d.IsChecked).Select(d => d.Path))
+                .IsEquivalentTo([ticked], CollectionOrdering.Matching);
+        }
+
+        // The user's own rename lands: the box shows the stored name, not the text of an edit already made.
+        vm.RenameCommand.Execute(null);
+        vm.RenameText = "typing";
+        vm.SplitCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedTeam!.Name).IsEqualTo("typing");
+            await Assert.That(vm.Demos.Any(d => d.IsChecked)).IsFalse()
+                .Because("the ticked side left for its own team");
+        }
+    }
+
+    [Test]
     public async Task OnTheBrowser_TheTabSaysItForgets()
     {
         (DemoCacheStore cache, TeamIdentityService teams) = await Library();
