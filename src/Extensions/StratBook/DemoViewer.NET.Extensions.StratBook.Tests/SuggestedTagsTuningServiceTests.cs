@@ -160,6 +160,51 @@ public class SuggestedTagsTuningServiceTests
     }
 
     [Test]
+    public async Task PreviewAsync_OverMoreDemosThanItCaches_ScoresEveryDemoOnEveryTweak()
+    {
+        using SuggestedTagsReviewHarness h = new();
+        h.Build();
+        TagProposal execute = h.Service.Load(DemoPath).Entries.Single(e => e.Proposal.Detector == "execute").Proposal;
+        h.Tags.Append(new DemoIdentity(Sha, "review.dem", 10), _clock, HumanTagFor(execute));
+
+        // Eleven more demos, each with a hand tag, so the library holds more than the preview's cache.
+        for (int i = 0; i < 11; i++)
+        {
+            string path = $"/d/more-{i}.dem";
+            string sha = $"{i:x2}".PadLeft(64, 'c');
+            h.Cache.Upsert(RoundIndexTestData.ParsedRecord(path, SuggestedTagsTestData.Map, sha, Rows()));
+            h.Service.Evaluate(path, Parse());
+            h.Tags.Append(new DemoIdentity(sha, $"more-{i}.dem", 10), _clock, HumanTagFor(execute));
+        }
+
+        // The real queue, so a tweak queues all its reads before the first one runs, as it does in the app.
+        using HeavyJobGate gate = new();
+        using DemoProcessingQueue queue = new(gate, a => a(), _ => throw new NotSupportedException(),
+            _ => throw new NotSupportedException(), () => Task.CompletedTask, parseFileWithPlan: (_, _) => Parse());
+        ExtensionJobs jobs = new(StratBookPack.PackId, () => queue, () => JobKindRegistry.Build([new StratBookPack()]));
+        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions, jobs);
+        TuningReport baseline = tuning.BuildStoredReport();
+        IReadOnlyList<string> paths = tuning.ScoredDemoPaths();
+        await Assert.That(paths.Count).IsEqualTo(12);
+
+        TuningReport first = await tuning.PreviewAsync(h.Profile, baseline, paths).WaitAsync(TimeSpan.FromSeconds(30));
+        Task<TuningReport> tweak;
+        using (await gate.AcquireBackgroundAsync())
+        {
+            tweak = tuning.PreviewAsync(h.Profile, baseline, paths);
+        }
+
+        TuningReport second = await tweak.WaitAsync(TimeSpan.FromSeconds(30));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(first.DemosWithHandTags).IsEqualTo(12);
+            await Assert.That(second.DemosWithHandTags).IsEqualTo(12)
+                .Because("a demo the cache held when the tweak began is still scored after the reads evict it");
+        }
+    }
+
+    [Test]
     public async Task PreviewAsync_ALooserProfile_CanChangeWhatFires_WithoutTouchingVerdictCounts()
     {
         using SuggestedTagsReviewHarness h = new();

@@ -134,8 +134,9 @@ public sealed class SuggestedTagsTuningService
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(demoPaths);
+        Dictionary<string, CachedDemo> held = new(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, IReadOnlyList<TagProposal>?> fired =
-            await ReadUncachedAsync(candidate, demoPaths, cancellationToken)
+            await ReadUncachedAsync(candidate, demoPaths, held, cancellationToken)
                 .ConfigureAwait(false);
         TuningReport? report = null;
         ExceptionDispatchInfo? failure = null;
@@ -145,7 +146,7 @@ public sealed class SuggestedTagsTuningService
                 CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, job.CancellationToken);
             try
             {
-                report = Preview(candidate, baseline, demoPaths, fired, job, linked.Token);
+                report = Preview(candidate, baseline, demoPaths, fired, held, job, linked.Token);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -163,20 +164,19 @@ public sealed class SuggestedTagsTuningService
 
     // Every demo the cache does not hold is read as a job on its own visit, all queued at once so the queue can
     // order them; each scores its demo on the parse and keeps the inputs for the next tweak. Null marks a
-    // demo that could not be scored.
+    // demo that could not be scored. A demo the cache holds goes into held: the reads' own inserts can evict it
+    // before the preview scores it.
     private async Task<Dictionary<string, IReadOnlyList<TagProposal>?>> ReadUncachedAsync(DetectorProfile candidate,
-        IReadOnlyList<string> demoPaths, CancellationToken cancellationToken)
+        IReadOnlyList<string> demoPaths, Dictionary<string, CachedDemo> held, CancellationToken cancellationToken)
     {
         Dictionary<string, IReadOnlyList<TagProposal>?> fired = new(StringComparer.OrdinalIgnoreCase);
         List<IJobHandle> reads = [];
         foreach (string path in demoPaths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            lock (_gate)
+            if (Cached(path) is { } cached)
             {
-                if (_cache.ContainsKey(path))
-                {
-                    continue;
-                }
+                held[path] = cached;
+                continue;
             }
 
             if (Inputs(path) is null)
@@ -215,7 +215,8 @@ public sealed class SuggestedTagsTuningService
     }
 
     private TuningReport Preview(DetectorProfile candidate, TuningReport baseline, IReadOnlyList<string> demoPaths,
-        Dictionary<string, IReadOnlyList<TagProposal>?> fired, IJobContext job, CancellationToken cancellationToken)
+        Dictionary<string, IReadOnlyList<TagProposal>?> fired, Dictionary<string, CachedDemo> held, IJobContext job,
+        CancellationToken cancellationToken)
     {
         Dictionary<string, List<FiredProposal>> firedByDetector = new(StringComparer.Ordinal);
         List<string> scoredPaths = [];
@@ -231,7 +232,9 @@ public sealed class SuggestedTagsTuningService
             }
             else
             {
-                proposals = Cached(path) is { } cached ? Detect(cached, candidate) : null;
+                proposals = (held.GetValueOrDefault(path) ?? Cached(path)) is { } cached
+                    ? Detect(cached, candidate)
+                    : null;
             }
 
             if (proposals is null)
