@@ -115,6 +115,12 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
     /// <summary>The drain wait. Settable so a test can reach the timeout without a 30 s encode.</summary>
     internal TimeSpan ShutdownTimeout { get; init; } = _shutdownTimeout;
 
+    /// <summary>
+    ///     Stands in for the ffmpeg process, given the token that stops it. Settable so a test can end the
+    ///     encoder the way a full disk does, at a moment of its choosing, without a child process.
+    /// </summary>
+    internal Func<CancellationToken, Task<bool>>? StartEncoder { get; init; }
+
     /// <inheritdoc />
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
     {
@@ -147,7 +153,8 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
         if (_encoder is null)
         {
             _kill = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            _encoder = BuildProcessor(_kill.Token).ProcessAsynchronously(true, BuildOptions(_options));
+            _encoder = StartEncoder?.Invoke(_kill.Token)
+                       ?? BuildProcessor(_kill.Token).ProcessAsynchronously(true, BuildOptions(_options));
 
             // The pump task is the channel's ONLY reader. If ffmpeg exits early (a bad output path, a
             // full disk, a codec the located build does not carry), nothing will ever drain the queue
@@ -196,7 +203,8 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
 
         _disposed = true;
 
-        bool cancelled = _aborted || (_kill?.IsCancellationRequested ?? false);
+        // Whether the output is to be removed: the run was aborted or cancelled, or the drain below fails.
+        bool discard = _aborted || (_kill?.IsCancellationRequested ?? false);
         _frames.Complete();
 
         if (_encoder is not null)
@@ -209,7 +217,7 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
             }
             catch (OperationCanceledException)
             {
-                cancelled = true;
+                discard = true;
             }
             catch (TimeoutException)
             {
@@ -219,21 +227,35 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
                 string message = string.Create(CultureInfo.InvariantCulture,
                     $"ffmpeg said nothing for {ShutdownTimeout.TotalSeconds:0.###} s while finishing the file and was stopped; the export is incomplete.");
                 _options.Log?.Invoke(message);
-                cancelled = true;
+                discard = true;
                 await StopEncoderAsync(_encoder).ConfigureAwait(false);
                 throw new FfmpegEncodeException(message);
             }
             catch (Exception ex)
             {
+                // Every frame was taken and ffmpeg then failed to finish the file: a full disk under a
+                // GIF's palette pass or MP4's faststart rewrite, which both run after the last frame.
+                // Nothing aborted this run, so this is the only place that learns the file is not one.
                 _options.Log?.Invoke($"ffmpeg failed: {ex.Message}");
-                throw;
+                discard = true;
+
+                if (ex is FfmpegEncodeException)
+                {
+                    throw;
+                }
+
+                // The same naming of the cause AwaitEncoderAsync does for a failure seen by a write.
+                string tail = StderrTail();
+                throw tail.Length == 0
+                    ? new FfmpegEncodeException($"ffmpeg failed: {ex.Message}", ex)
+                    : new FfmpegEncodeException($"ffmpeg failed: {tail}", ex);
             }
             finally
             {
                 _frames.Dispose();
                 _kill?.Dispose();
 
-                if (cancelled && _options.DeletePartialOnCancel)
+                if (discard && _options.DeletePartialOnCancel)
                 {
                     TryDeleteOutput();
                 }

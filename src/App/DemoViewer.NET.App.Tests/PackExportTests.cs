@@ -309,6 +309,31 @@ public class PackExportTests
         await Assert.That(File.Exists(path)).IsFalse();
     }
 
+    /// <summary>
+    ///     Closing the file is where it is muxed, so a pack whose every clip rendered can still fail there.
+    ///     It is reported as the failure it is, and what was written goes with it.
+    /// </summary>
+    [Test]
+    public async Task Export_Video_RemovesTheFile_WhenTheEncoderFailsClosingIt()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}.mp4");
+        await File.WriteAllTextAsync(path, "half a video");
+        FakeEncoder encoder = new() { FailOnDispose = true };
+        PackPlan plan = PackPlanner.Plan(Queue(), Settings(path), Exists);
+
+        try
+        {
+            await Assert.ThrowsAsync<IOException>(async () =>
+                await new PackExporter(new FakeClips(framesPerClip: 2), encoder).ExportAsync(plan, null,
+                    CancellationToken.None));
+            await Assert.That(File.Exists(path)).IsFalse();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Test]
     public async Task Export_Refuses_AQueueWithNothingToRender_BeforeOpeningAFile()
     {
@@ -520,6 +545,8 @@ public class PackExportTests
 
         public int? FailAfter { get; init; }
 
+        public bool FailOnDispose { get; init; }
+
         public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -536,7 +563,9 @@ public class PackExportTests
         public ValueTask DisposeAsync()
         {
             DisposeCount++;
-            return ValueTask.CompletedTask;
+            return FailOnDispose
+                ? ValueTask.FromException(new IOException("the disk is full"))
+                : ValueTask.CompletedTask;
         }
     }
 
@@ -550,12 +579,14 @@ public class PackExportTests
 
         public int? FailAfter { get; init; }
 
+        public bool FailOnDispose { get; init; }
+
         public void Prepare(PackSettings settings, CancellationToken ct) => Prepared = true;
 
         public IFrameSink Open(string outputPath, PackSettings settings)
         {
             Opened.Add(outputPath);
-            RecordingSink sink = new() { FailAfter = FailAfter };
+            RecordingSink sink = new() { FailAfter = FailAfter, FailOnDispose = FailOnDispose };
             Sinks.Add(sink);
             return sink;
         }

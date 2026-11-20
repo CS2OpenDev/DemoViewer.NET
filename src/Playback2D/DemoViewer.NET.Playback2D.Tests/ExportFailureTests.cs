@@ -160,6 +160,91 @@ public class ExportFailureTests
     }
 
     /// <summary>
+    ///     An encoder that takes every frame and then fails to finish the file must leave no file.
+    ///     <para>
+    ///         A GIF's palette pass and MP4's faststart rewrite both happen after the last frame, so a
+    ///         full disk shows up here and nowhere earlier: the render loop ended cleanly, nothing was
+    ///         aborted, and the failure is first seen by disposal. Before the fix that one path skipped
+    ///         the delete, and a truncated file stayed at the path of a job reported Failed.
+    ///     </para>
+    /// </summary>
+    [Test]
+    public async Task AnEncoderThatFailsWhileFinishingTheFile_LeavesNoFile_AndFailsAsAnEncodeFailure()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-drainfail-{Guid.NewGuid():N}.mp4");
+        TaskCompletionSource<bool> encoder = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        FfmpegFrameSink sink = new(new FfmpegSinkOptions(path, ExportFormats.Mp4, 8, 8, 30))
+        {
+            StartEncoder = _ =>
+            {
+                File.WriteAllBytes(path, [0, 0, 0, 24]); // what a muxer has written when it dies
+                return encoder.Task;
+            }
+        };
+
+        try
+        {
+            await sink.WriteAsync(new byte[8 * 8 * 4], 8, 8, CancellationToken.None);
+
+            // Disposal is now waiting on the drain; the encoder dies under it.
+            Task closing = sink.DisposeAsync().AsTask();
+            IOException pipe = new("Pipe is broken");
+            encoder.SetException(pipe);
+
+            Exception? failure = null;
+            try
+            {
+                await closing;
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+
+            await Assert.That(File.Exists(path)).IsFalse();
+            await Assert.That(failure).IsTypeOf<FfmpegEncodeException>();
+            await Assert.That(failure!.InnerException).IsSameReferenceAs(pipe);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>The other half of the same switch: a caller that asked to keep partial output keeps it.</summary>
+    [Test]
+    public async Task AnEncoderThatFailsWhileFinishingTheFile_KeepsTheFile_WhenPartialOutputWasAskedFor()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-drainkeep-{Guid.NewGuid():N}.mp4");
+        TaskCompletionSource<bool> encoder = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        FfmpegFrameSink sink = new(new FfmpegSinkOptions(path, ExportFormats.Mp4, 8, 8, 30,
+            DeletePartialOnCancel: false))
+        {
+            StartEncoder = _ =>
+            {
+                File.WriteAllBytes(path, [0, 0, 0, 24]);
+                return encoder.Task;
+            }
+        };
+
+        try
+        {
+            await sink.WriteAsync(new byte[8 * 8 * 4], 8, 8, CancellationToken.None);
+            Task closing = sink.DisposeAsync().AsTask();
+            encoder.SetException(new IOException("Pipe is broken"));
+
+            await Assert.ThrowsAsync<FfmpegEncodeException>(async () => await closing);
+            await Assert.That(File.Exists(path)).IsTrue();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
     ///     A run that fails half way must not leave a file that looks finished.
     ///     <para>
     ///         The session closes the sink on every path, and closing is where a GIF is written and

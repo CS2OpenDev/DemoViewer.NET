@@ -127,7 +127,6 @@ public sealed class PackExporter
         PackSettings settings = plan.Settings;
         List<PackSkip> failed = [];
         int rendered = 0;
-        bool complete = false;
         IFrameSink sink = _encoder.Open(settings.OutputPath, settings);
         try
         {
@@ -169,24 +168,31 @@ public sealed class PackExporter
                 throw new ExportValidationException(
                     $"no clip could be rendered: {string.Join("; ", failed.Select(f => f.Reason))}");
             }
-
-            complete = true;
         }
-        finally
+        catch
         {
             try
             {
                 await sink.DisposeAsync().ConfigureAwait(false);
             }
-            catch (Exception) when (!complete)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 // The pack is already failing for a reason of its own; that one is the one to report.
             }
 
-            if (!complete)
-            {
-                TryDelete(settings.OutputPath);
-            }
+            TryDelete(settings.OutputPath);
+            throw;
+        }
+
+        try
+        {
+            await sink.DisposeAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Closing the file is where it is muxed. Every clip rendered, and there is still no pack.
+            TryDelete(settings.OutputPath);
+            throw;
         }
 
         return new PackResult([settings.OutputPath], rendered, failed);
