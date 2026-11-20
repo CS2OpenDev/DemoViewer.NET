@@ -274,6 +274,35 @@ public class StratsImportTests
     }
 
     [Test]
+    public async Task AFastForward_ThatChangesTheMap_LeavesOneStratFile()
+    {
+        using Machines m = new();
+        StratDocument strat = Committed(m.There);
+        m.Import();
+        PatchOp op = PatchOp.ReplaceOp("/map", JsonValue.Create("de_mirage"), JsonValue.Create("de_inferno"));
+        StratSaveResult moved = m.There.Save(StratHistory.Apply(m.There.TryLoad(strat.Id)!, [op]), [op], null);
+
+        ImportLedger ledger = m.Import();
+
+        string[] files =
+        [
+            .. Directory.EnumerateFiles(m.HerePath, $"{strat.Id:D}{StratStore.StratExtension}",
+                SearchOption.AllDirectories)
+        ];
+        StratStore restarted = new(PackStores.At(m.HerePath));
+        using (Assert.Multiple())
+        {
+            await Assert.That(moved.Saved).IsTrue();
+            await Assert.That(ledger.Merged).IsEqualTo(1);
+            await Assert.That(files.Length).IsEqualTo(1)
+                .Because("the copy on the old map has no log beside it and would be listed at the next start");
+            await Assert.That(files[0]).Contains("de_inferno");
+            await Assert.That(restarted.Index.Single().Map).IsEqualTo("de_inferno");
+            await Assert.That(restarted.History(strat.Id).Select(e => e.Revision)).IsEquivalentTo([1, 2]);
+        }
+    }
+
+    [Test]
     public async Task BothChanged_KeepMine_KeepsThisMachines_AndSaysSo()
     {
         using Machines m = new();

@@ -1217,6 +1217,20 @@ public sealed class StratStore
             ledger.Report($"'{incoming.Name}' was not fully updated ({e.Message}); the next load re-applies its history");
         }
 
+        // The log has moved, so the strat lives at the target whether or not the lines above landed. A copy left
+        // on the old map has no log beside it, and the next start would list it next to the real one.
+        if (oldPath is not null && !string.Equals(oldPath, target, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                _folder!.Delete(oldPath);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // Stays behind, as in Save.
+            }
+        }
+
         lock (_gate)
         {
             _logHeads.Remove(incoming.Id);
@@ -2007,7 +2021,7 @@ public sealed class StratStore
                 }
             }
 
-            // The strat file is not touched here: Save deletes the old one once the log has the commit.
+            // The strat file is not touched here: Save and FastForward delete the old one once the log is settled.
             string oldLog = HistoryPathBeside(oldPath);
             if (_folder!.FileExists(oldLog))
             {
