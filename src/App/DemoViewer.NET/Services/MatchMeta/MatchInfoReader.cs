@@ -34,6 +34,9 @@ public static class MatchInfoReader
     private const int MatchResultField = 11;
     private const int TeamScoresField = 12;
 
+    // The last second a DateTime holds. A matchtime past it is a corrupt field and reads as no time.
+    private const ulong MaxMatchTimeSeconds = 253402300799;
+
     /// <summary>Decodes a <c>.dem.info</c> file's bytes.</summary>
     /// <exception cref="InvalidDataException">The bytes are not a well-formed protobuf message.</exception>
     public static MatchInfo Read(ReadOnlySpan<byte> bytes)
@@ -49,7 +52,7 @@ public static class MatchInfoReader
             if (field == MatchTimeField && wire == 0)
             {
                 ulong seconds = Varint(bytes, ref at);
-                time = seconds > 0 ? DateTime.UnixEpoch.AddSeconds(seconds) : null;
+                time = seconds is > 0 and <= MaxMatchTimeSeconds ? DateTime.UnixEpoch.AddSeconds(seconds) : null;
             }
             else if (field == RoundStatsAllField && wire == 2)
             {
