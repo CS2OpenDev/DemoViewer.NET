@@ -67,6 +67,9 @@ public sealed class TagSession : IDisposable
     private readonly List<TagDelta> _undo = [];
     private readonly Func<DateTime> _utcNow;
 
+    // Bumped by every attach, detach and disposal. An attach that waited reads it again: a different number
+    // means the session was given another demo, or let go of this one, while it waited.
+    private int _attachSequence;
     private IDisposable? _checkOut;
     private CancellationTokenSource? _debounce;
     private bool _disposed;
@@ -173,6 +176,7 @@ public sealed class TagSession : IDisposable
         }
 
         _disposed = true;
+        _attachSequence++;
         if (_roundFacts is not null)
         {
             _roundFacts.Updated -= OnRoundFactsUpdated;
@@ -228,19 +232,35 @@ public sealed class TagSession : IDisposable
         ArgumentNullException.ThrowIfNull(demo);
         ArgumentNullException.ThrowIfNull(clock);
         ObjectDisposedException.ThrowIf(_disposed, this);
+        int sequence = ++_attachSequence;
 
         // Before the flush: a subscriber's last write to the old document goes out with it.
         Detaching?.Invoke();
         await FlushAsync().ConfigureAwait(true);
+        if (_disposed || sequence != _attachSequence)
+        {
+            return;
+        }
+
         if (Document is not null)
         {
-            Detach();
+            ReleaseDocument();
         }
 
         DemoPath = demoPath;
-        Rounds = string.IsNullOrEmpty(demoPath) || _roundsFor is null
+        IReadOnlyList<LibraryRound>? rounds = string.IsNullOrEmpty(demoPath) || _roundsFor is null
             ? null
             : await _roundsFor(demoPath).ConfigureAwait(true);
+
+        // The rounds are a queued record read on the host. A session disposed or detached while it was pending
+        // has already released whatever it held, so a check-out taken now would never be let go; one given a
+        // later demo since must not put this one's document under it.
+        if (_disposed || sequence != _attachSequence)
+        {
+            return;
+        }
+
+        Rounds = rounds;
         _factRows = null;
         _factRowsRead = false;
         _saveFailed = false;
@@ -250,6 +270,7 @@ public sealed class TagSession : IDisposable
         DemoMismatch = result.DemoMismatch;
         Unreadable = result.Unreadable;
         Document = result.Document ?? TagDocument.Create(demo, clock);
+        ReleaseCheckOut();
         _checkOut = _store?.CheckOut(Document.Demo.Sha256, this);
 
         // Loading is not editing, so nothing here is undoable; but a derived round is a change to the
@@ -285,6 +306,13 @@ public sealed class TagSession : IDisposable
 
     /// <summary>Flushes, releases the document and writes the store's index. The session is then unattached.</summary>
     public void Detach()
+    {
+        _attachSequence++;
+        ReleaseDocument();
+    }
+
+    // Detach without the sequence: what an attach does to the demo it replaces.
+    private void ReleaseDocument()
     {
         if (Document is not null)
         {

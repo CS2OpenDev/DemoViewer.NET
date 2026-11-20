@@ -183,6 +183,61 @@ public class TagSessionTests
     }
 
     [Test]
+    public async Task ASessionDisposedWhileItsAttachWaits_TakesNoCheckOut()
+    {
+        List<Action> posted = [];
+        TagStore store = new(null, posted.Add);
+        TaskCompletionSource<IReadOnlyList<LibraryRound>?> rounds = new();
+        TagSession closed = new(store, _ => rounds.Task, () => false, () => Created)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        Task attach = closed.AttachAsync(Demo, Clock, DemoPath);
+
+        // The playback tab closes while the demo record read behind the rounds is still queued.
+        closed.Dispose();
+        rounds.SetResult(_rounds);
+        await attach;
+
+        using TagSession next = Session(store);
+        await next.AttachAsync(Demo, Clock, DemoPath);
+        await Assert.That(store.Append(Demo, Clock, Instance("A execute", 100, 200))).IsTrue();
+        Drain(posted);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(closed.Document).IsNull();
+            await Assert.That(next.Document!.Instances.Select(i => i.Code)).IsEquivalentTo(_oneCode)
+                .Because("the session that holds the demo gets the routed add, not one that was disposed");
+        }
+    }
+
+    [Test]
+    public async Task AnAttachOvertakenByALaterOne_LeavesNoCheckOutBehind()
+    {
+        TagStore store = new(null);
+        TaskCompletionSource<IReadOnlyList<LibraryRound>?> first = new();
+        TaskCompletionSource<IReadOnlyList<LibraryRound>?> second = new();
+        TagSession session = new(store, path => path == DemoPath ? first.Task : second.Task, () => false,
+            () => Created) { AutoSaveDelay = TimeSpan.FromHours(1) };
+
+        // Two demos opened back to back: both attaches wait on their rounds, and both reads then land.
+        Task overtaken = session.AttachAsync(Demo, Clock, DemoPath);
+        Task latest = session.AttachAsync(_otherDemo, Clock, "/d/other.dem");
+        first.SetResult(_rounds);
+        second.SetResult(_rounds);
+        await overtaken;
+        await latest;
+        await Assert.That(session.Document!.Demo.Sha256).IsEqualTo(_otherDemo.Sha256);
+        await Assert.That(session.DemoPath).IsEqualTo("/d/other.dem");
+        session.Dispose();
+
+        using TagSession next = Session(store);
+        await next.AttachAsync(Demo, Clock, DemoPath);
+        await Assert.That(next.Document!.Demo.Sha256).IsEqualTo(Sha);
+    }
+
+    [Test]
     public async Task History_IsCappedAt200Entries()
     {
         using TagSession session = await Attached(new TagStore(null));
