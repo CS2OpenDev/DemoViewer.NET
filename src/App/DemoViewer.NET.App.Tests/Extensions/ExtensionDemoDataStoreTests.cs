@@ -1,6 +1,8 @@
 #region
 
+using System.IO.Compression;
 using System.Text;
+using System.Text.RegularExpressions;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
@@ -42,6 +44,75 @@ public class ExtensionDemoDataStoreTests
             },
             Count = 3
         };
+
+    // A data file as another machine wrote it, its header's write stamp replaced.
+    private static byte[] Restamped(byte[] file, long writtenAtTicks)
+    {
+        using MemoryStream plain = new();
+        using (GZipStream gunzip = new(new MemoryStream(file), CompressionMode.Decompress))
+        {
+            gunzip.CopyTo(plain);
+        }
+
+        byte[] bytes = plain.ToArray();
+        int newline = Array.IndexOf(bytes, (byte)'\n');
+        string header = Regex.Replace(Encoding.UTF8.GetString(bytes, 0, newline), "\"WrittenAtTicks\":\\d+",
+            $"\"WrittenAtTicks\":{writtenAtTicks}");
+        using MemoryStream packed = new();
+        using (GZipStream gzip = new(packed, CompressionLevel.Fastest, true))
+        {
+            gzip.Write(Encoding.UTF8.GetBytes(header));
+            gzip.Write(bytes, newline, bytes.Length - newline);
+        }
+
+        return packed.ToArray();
+    }
+
+    /// <summary>
+    ///     The indexes order a demo's merges by the write stamp, so one taken from a bundle written on a machine
+    ///     whose clock runs ahead must not outrank every write this machine makes afterwards.
+    /// </summary>
+    [Test]
+    public async Task AnImportedFacet_StampedAheadOfThisClock_IsStampedWithTheImport()
+    {
+        string there = NewRoot();
+        string here = NewRoot();
+        try
+        {
+            string sha = new('a', 64);
+            DemoCacheStore library = new(null);
+            Seed(library, Demo, sha);
+            ExtensionDemoDataStore source = NewStore(there, library);
+            source.Write(Demo, Rounds("one"));
+            long ahead = DateTime.UtcNow.AddDays(1).Ticks;
+            List<KeyValuePair<string, byte[]>> files =
+            [
+                .. source.FilesFor(sha).Select(f => new KeyValuePair<string, byte[]>(sha + f.Rest,
+                    Restamped(File.ReadAllBytes(f.FullPath), ahead)))
+            ];
+
+            ExtensionDemoDataStore store = NewStore(here, library);
+            bool taken = store.Import(sha, "rounds", files, 3);
+            long imported = DateTime.UtcNow.Ticks;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(files.Count).IsEqualTo(2);
+                await Assert.That(taken).IsTrue();
+                await Assert.That(store.Stamp(Demo, "rounds")!.WrittenAtTicks).IsLessThanOrEqualTo(imported);
+                await Assert.That(store.ReadAny(Demo, "rounds")!.WrittenAtTicks).IsLessThanOrEqualTo(imported);
+                await Assert.That(store.ReadAny(Demo, "rounds", "positions")!.WrittenAtTicks)
+                    .IsLessThanOrEqualTo(imported);
+                await Assert.That(NewStore(here, library).Stamp(Demo, "rounds")!.WrittenAtTicks)
+                    .IsLessThanOrEqualTo(imported).Because("a later start reads the stamp the import left");
+            }
+        }
+        finally
+        {
+            Directory.Delete(there, true);
+            Directory.Delete(here, true);
+        }
+    }
 
     /// <summary>
     ///     A change is posted as the extension's, one handler at a time: a throw costs the handlers after it

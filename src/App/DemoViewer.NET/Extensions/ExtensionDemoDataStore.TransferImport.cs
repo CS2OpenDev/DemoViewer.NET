@@ -84,11 +84,19 @@ internal sealed partial class ExtensionDemoDataStore
 
         // The path is this machine's: the content's listed path when it has one, else none until a folder lists it.
         string demoPath = _library.TryGetByContentId(sha256)?.Path ?? _library.PathOfAnyLocation(sha256) ?? "";
+        // The stamp is the bundle's, off another machine's clock, and readers order a demo's writes by it. One
+        // ahead of this clock would outrank every write made here until the clock caught up, so it is taken no
+        // later than the import itself.
+        long now = DateTime.UtcNow.Ticks;
         HashSet<string> written = new(StringComparer.Ordinal);
         foreach ((string? part, Header header, byte[] content) in parsed)
         {
             string file = FileFor(facet, sha256, part);
-            WriteFile(file, header with { Sha256 = sha256, DemoPath = demoPath }, content);
+            WriteFile(file,
+                header with
+                {
+                    Sha256 = sha256, DemoPath = demoPath, WrittenAtTicks = Math.Min(header.WrittenAtTicks, now)
+                }, content);
             written.Add(file);
         }
 
@@ -109,7 +117,7 @@ internal sealed partial class ExtensionDemoDataStore
         lock (_gate)
         {
             Entries()[(sha256, facet)] = new Entry(sha256, facet, demoPath, sha256, main.Schema, main.Fingerprint,
-                DemoDataState.Written, main.WrittenAtTicks, Math.Max(0, count));
+                DemoDataState.Written, Math.Min(main.WrittenAtTicks, now), Math.Max(0, count));
             save = Snapshot();
         }
 
