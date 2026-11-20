@@ -97,6 +97,57 @@ public class MarkdownBlockTests
         });
     }
 
+    /// <summary>
+    ///     A details tag with no closing '>' is not a tag the strip removes, so the body it hands back for
+    ///     re-rendering used to be the text it was given, and the renderer called itself until the stack ran
+    ///     out, which nothing can catch. The second argument is text the body must still show.
+    /// </summary>
+    [Test]
+    [Arguments("<details", null)]
+    [Arguments("<details open", "open")]
+    [Arguments("<details open\nstill here", "still here")]
+    [Arguments("> <details\n> quoted", "quoted")]
+    [Arguments("<details><detai<details>ls", null)]
+    public async Task ADetailsTagThatNeverCloses_StillRenders(string markdown, string? shown)
+    {
+        await HeadlessSession.RunOnUi(() =>
+        {
+            Control rendered = MarkdownBlock.RenderBlocks(markdown);
+            if (shown is not null)
+            {
+                AssertContains(AllText(rendered), shown);
+            }
+
+            return Task.CompletedTask;
+        });
+    }
+
+    /// <summary>
+    ///     Quotes and details re-render their bodies, one call deeper for each level, and a release body is
+    ///     text from the network. Past a depth no real body reaches, the rest renders as plain paragraphs.
+    /// </summary>
+    [Test]
+    public async Task NestingDeeperThanAnyReleaseBody_RendersAsTextInsteadOfRecursing()
+    {
+        await HeadlessSession.RunOnUi(() =>
+        {
+            Control rendered =
+                MarkdownBlock.RenderBlocks(string.Concat(Enumerable.Repeat("> ", 20_000)) + "bottom");
+            AssertContains(AllText(rendered), "bottom");
+            return Task.CompletedTask;
+        });
+    }
+
+    // Every run of text under a rendered tree, whatever blocks it went through.
+    private static string AllText(Control control) => control switch
+    {
+        TextBlock tb => InlineText(tb),
+        Panel panel => string.Join('\n', panel.Children.Select(AllText)),
+        Decorator { Child: { } child } => AllText(child),
+        ContentControl { Content: Control content } => AllText(content),
+        _ => ""
+    };
+
     private static string InlineText(TextBlock tb) =>
         string.Concat(tb.Inlines!.OfType<Run>().Select(r => r.Text));
 
