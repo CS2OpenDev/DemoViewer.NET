@@ -832,6 +832,12 @@ public sealed partial class DemoCacheStore
     internal Action? RecordReadForTest { get; set; }
 
     /// <summary>
+    ///     Test hook: runs inside a record write, after the store has taken the new record and before the
+    ///     record reaches its file. A throw from it is the write failing.
+    /// </summary>
+    internal Action? RecordWriteForTest { get; set; }
+
+    /// <summary>
     ///     <see cref="TryLoadRecord(string)" />, leaving the capacity-1 cache alone when
     ///     <paramref name="remember" /> is false: a reader walking many demos does not evict the one the user
     ///     is looking at.
@@ -1433,12 +1439,17 @@ public sealed partial class DemoCacheStore
             }
 
             DemoCacheIndexEntry row;
-            DemoCacheIndexEntry? replaced;
+            DemoCacheIndexEntry? oldRow;
+            DemoCacheIndexEntry? target;
+            bool oldSettles;
+            bool targetSettles;
             lock (_gate)
             {
-                DemoCacheIndexEntry? oldRow = oldKey is null ? null : _rows.GetValueOrDefault(oldKey);
-                DemoCacheIndexEntry? target = _rows.GetValueOrDefault(newKey);
-                replaced = oldKey == newKey ? target : null;
+                // The rows as they are before this write, for a write that must land and does not.
+                oldRow = oldKey is null ? null : _rows.GetValueOrDefault(oldKey);
+                target = _rows.GetValueOrDefault(newKey);
+                oldSettles = oldKey is not null && _settleAfterSave.Contains(oldKey);
+                targetSettles = _settleAfterSave.Contains(newKey);
                 List<DemoLocation> locations = [.. (target?.Locations ?? []).Where(l => !SamePath(l.Path, path))];
                 // Only ConfirmLocation confirms a path a fingerprint attached: a write is no full read.
                 bool confirmed = target is null || LocationIn(target, path)?.Confirmed != false;
@@ -1490,17 +1501,38 @@ public sealed partial class DemoCacheStore
                 _recordWrites++;
             }
 
-            if (WriteSidecar(path, bytes) is { } failure && mustLand)
+            Exception? failure = WriteSidecar(path, bytes);
+            if (failure is not null && mustLand)
             {
-                // The file is still the last one that landed. The cached record and, for a row that only
-                // changed in place, the row go back to describing it before the failure is passed on.
+                // The file is still the last one that landed. The cached record and the rows go back to
+                // describing it before the failure is passed on: the row this write made or changed, and
+                // the row the path left when the write moved it to another key. A row made here would
+                // otherwise list the demo with a change that was reported as not saved and no record
+                // behind it, and the next index save would write it down.
                 lock (_gate)
                 {
                     (_lastRecordKey, _lastRecordBytes) = (cachedKey, cachedBytes);
                     _recordWrites++;
-                    if (replaced is not null)
+                    Unlink(newKey);
+                    if (!targetSettles)
                     {
-                        Link(newKey, replaced);
+                        _settleAfterSave.Remove(newKey);
+                    }
+
+                    if (target is not null)
+                    {
+                        Link(newKey, target);
+                    }
+
+                    if (oldRow is not null && oldKey != newKey)
+                    {
+                        // Last: the path is this row's again, whatever the row above lists.
+                        Unlink(oldKey!);
+                        Link(oldKey!, oldRow);
+                        if (oldSettles)
+                        {
+                            _settleAfterSave.Add(oldKey!);
+                        }
                     }
                 }
 
@@ -2623,6 +2655,7 @@ public sealed partial class DemoCacheStore
         {
             if (CacheRoot is null)
             {
+                RecordWriteForTest?.Invoke();
                 lock (_gate)
                 {
                     _memoryRecords[key] = bytes;
@@ -2634,6 +2667,7 @@ public sealed partial class DemoCacheStore
             bool landed = false;
             try
             {
+                RecordWriteForTest?.Invoke();
                 string file = RecordFile(key);
                 AtomicFile.WriteAllBytes(file, bytes);
                 landed = true;

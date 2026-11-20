@@ -653,4 +653,74 @@ public class DemoCacheStoreTests
             await Assert.That(after.Server).IsEqualTo("Valve").Because("the second write builds on the first");
         }
     }
+
+    /// <summary>
+    ///     A user's change whose record write fails throws, and the store is as it was before the call. For a
+    ///     demo with no row yet that means no row: one left behind lists the demo with the unsaved change and
+    ///     no record file behind it, and the next index save writes it down.
+    /// </summary>
+    [Test]
+    public async Task AFailedMustLandWriteForADemoWithNoRow_LeavesNoRowBehind()
+    {
+        string root = TempRoot();
+        try
+        {
+            const string Path = "/demos/never-indexed.dem";
+            DemoCacheStore store = new(root);
+            store.RecordWriteForTest = () => throw new IOException("There is not enough space on the disk.");
+
+            await Assert.That(() => store.UpdateExistingOrThrow(Path, r => r.Map = "de_inferno")).Throws<IOException>();
+            store.RecordWriteForTest = null;
+            store.SaveIndex();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.TryGetIndex(Path)).IsNull();
+                await Assert.That(new DemoCacheStore(root).TryGetIndex(Path)).IsNull();
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>...and for a path whose row the write would have moved to another key, the row it had.</summary>
+    [Test]
+    public async Task AFailedMustLandWriteThatWouldMoveARow_LeavesTheRowItHad()
+    {
+        string root = TempRoot();
+        try
+        {
+            const string Path = "/demos/provisional.dem";
+            DemoCacheStore store = new(root);
+            DemoCacheRecord provisional = Record(Path);
+            provisional.Sha256 = null;
+            store.Upsert(provisional);
+            store.RecordWriteForTest = () => throw new IOException("There is not enough space on the disk.");
+
+            await Assert.That(() => store.UpdateExistingOrThrow(Path, r =>
+            {
+                r.SetContentHash("sha-moved", null);
+                r.Map = "de_inferno";
+            })).Throws<IOException>();
+            store.RecordWriteForTest = null;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.TryGetIndex(Path)?.Sha256).IsNull();
+                await Assert.That(store.TryGetIndex(Path)?.Map).IsEqualTo("de_dust2");
+                await Assert.That(store.HoldsContent("sha-moved")).IsFalse();
+                await Assert.That(store.TryLoadRecord(Path)?.Map).IsEqualTo("de_dust2");
+            }
+
+            store.UpdateExisting(Path, r => r.Server = "Valve");
+            await Assert.That(new DemoCacheStore(root).TryLoadRecord(Path)?.Server).IsEqualTo("Valve")
+                .Because("the row still leads to its record file");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
 }
