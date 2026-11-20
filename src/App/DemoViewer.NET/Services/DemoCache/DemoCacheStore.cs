@@ -128,6 +128,9 @@ public sealed partial class DemoCacheStore
     // Keyed by row key: every location of one content reads the same bytes.
     private byte[]? _lastRecordBytes;
     private string? _lastRecordKey;
+    // True while index.json is on disk, did not read and could not be moved aside. The rows are then only what
+    // the records could rebuild, so no file is deleted on their word and nothing is written over the index.
+    private volatile bool _indexHeld;
     private int _legacyMigrationVersion; // under _gate
     private int _contentKeyMigrationVersion = ContentKeyMigration.CurrentVersion; // under _gate
     private long _indexVersion; // under _gate
@@ -1654,6 +1657,12 @@ public sealed partial class DemoCacheStore
             return;
         }
 
+        // "No row names it" proves nothing when the rows did not come from the index.
+        if (_indexHeld)
+        {
+            return;
+        }
+
         HashSet<string> named;
         lock (_gate)
         {
@@ -1796,7 +1805,34 @@ public sealed partial class DemoCacheStore
         // Snapshots land in the order they were taken: an older one written last would name keys already left.
         lock (_indexWriteGate)
         {
+            if (_indexHeld && !TrySetIndexAside(indexPath))
+            {
+                settle = [];
+                return false;
+            }
+
             return WriteIndexCore(indexPath, out settle);
+        }
+    }
+
+    // Moves an index that did not read out of the way, so that it is kept and never written over. False while
+    // it cannot be moved; a later save tries again.
+    private bool TrySetIndexAside(string indexPath)
+    {
+        try
+        {
+            if (File.Exists(indexPath))
+            {
+                File.Move(indexPath, $"{indexPath}.unreadable-{DateTime.UtcNow.Ticks}");
+            }
+
+            _indexHeld = false;
+            return true;
+        }
+        catch (Exception)
+        {
+            _indexHeld = true;
+            return false;
         }
     }
 
@@ -2762,17 +2798,12 @@ public sealed partial class DemoCacheStore
         }
 
         // An index that does not read is kept aside, never written over: the rebuild below may miss what only
-        // the index knew.
-        if (exists)
+        // the index knew. One that cannot be moved either still gets the rebuild, so that the demos have rows
+        // for this run, but those rows are not saved and the sweep deletes nothing by them.
+        if (exists && !TrySetIndexAside(indexPath))
         {
-            try
-            {
-                File.Move(indexPath, $"{indexPath}.unreadable-{DateTime.UtcNow.Ticks}");
-            }
-            catch (Exception)
-            {
-                return;
-            }
+            RebuildFromSidecars();
+            return;
         }
 
         if (RebuildFromSidecars())

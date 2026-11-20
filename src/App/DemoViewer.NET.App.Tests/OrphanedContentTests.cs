@@ -473,6 +473,50 @@ public class OrphanedContentTests
         }
     }
 
+    /// <summary>
+    ///     An index that neither reads nor moves aside is still the only word on what the cache holds. The
+    ///     sweep deletes every content file no row names, so it must not run on rows it cannot vouch for, and
+    ///     nothing is written over the file that did not read.
+    /// </summary>
+    [Test]
+    public async Task AnIndexThatNeitherReadsNorMovesAside_CostsNoFilesAtTheSweep()
+    {
+        string root = TempRoot();
+        string sha = new('b', 64);
+        const string Damaged = "{ \"Version\": 6, \"Entr";
+        try
+        {
+            DemoCacheStore store = new(root);
+            store.Upsert(Analysed("/m/a.dem", sha));
+            store.WriteSibling("/m/a.dem", Suffix, "facts");
+            store.SaveIndex();
+            string[] before = Files(root);
+            await Assert.That(before.Length > 0 && before.All(f => f.StartsWith(sha, StringComparison.Ordinal)))
+                .IsTrue().Because("the files sit under the content id, the names the sweep looks at");
+
+            string index = Path.Combine(root, "index.json");
+            await File.WriteAllTextAsync(index, Damaged);
+            using (new FileStream(index, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                DemoCacheStore opened = new(root);
+                opened.ExpireOrphans(DateTime.UtcNow, TimeSpan.FromDays(14));
+                opened.SaveIndex();
+
+                await Assert.That(string.Join("|", Files(root))).IsEqualTo(string.Join("|", before));
+                await Assert.That(opened.TryLoadRecord("/m/a.dem")!.Scoreboard).Count().IsEqualTo(1)
+                    .Because("the records still answer for this run");
+            }
+
+            // Where a held file cannot be renamed it stays as it was; elsewhere it went aside. Never rewritten.
+            string kept = Directory.EnumerateFiles(root, "index.json.unreadable-*").FirstOrDefault() ?? index;
+            await Assert.That(await File.ReadAllTextAsync(kept)).IsEqualTo(Damaged);
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     [Test]
     public async Task AnExplicitRemove_DeletesAtOnce_LiveOrOrphaned()
     {
