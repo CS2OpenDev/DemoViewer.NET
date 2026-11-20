@@ -558,8 +558,16 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         // maths (tickRate / tickCount / rounds) no longer exists, and the plan would silently be wrong.
         List<HighlightSelection> restored = [];
         int dropped = 0;
-        foreach (StagedClipState clip in s.StagedClips ?? [])
+        foreach (StagedClipState? clip in s.StagedClips ?? [])
         {
+            // A null element or a null path binds from a hand-edited or corrupt session file without a
+            // JsonException; it names no clip, so it is dropped like a vanished one.
+            if (clip?.FilePath is null)
+            {
+                dropped++;
+                continue;
+            }
+
             if (Resolve(new HighlightKey(clip.FilePath, clip.RulesetId, clip.HighlightId, clip.Tick,
                     clip.PlayerSlot)) is { } selection)
             {
