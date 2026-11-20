@@ -2104,9 +2104,8 @@ public static class StratStrokes
         uint color = Number(stroke["colorArgb"]) is { } argb and >= 0 and <= uint.MaxValue
             ? (uint)argb
             : ParseHex(String(stroke["color"])) ?? AnnotationStyle.Default.ColorArgb;
-        float width = (float)(Number(stroke["widthWorld"])
-            ?? Number(stroke["width"]) ?? AnnotationStyle.Default.WidthWorld);
-        float opacity = (float)(Number(stroke["opacity"]) ?? 1);
+        float width = Float(stroke["widthWorld"]) ?? Float(stroke["width"]) ?? AnnotationStyle.Default.WidthWorld;
+        float opacity = Float(stroke["opacity"]) ?? 1;
         bool reveal = stroke["revealOnFadeIn"] is JsonValue r && r.TryGetValue(out bool b) && b;
 
         return new AnnotationElement(id, kind, new AnnotationStyle(color, width, opacity, reveal),
@@ -2183,9 +2182,9 @@ public static class StratStrokes
             List<InkPoint> nested = new(array.Count);
             foreach (JsonNode? item in array)
             {
-                if (item is JsonArray { Count: >= 2 } xy && Number(xy[0]) is { } x && Number(xy[1]) is { } y)
+                if (item is JsonArray { Count: >= 2 } xy && Float(xy[0]) is { } x && Float(xy[1]) is { } y)
                 {
-                    nested.Add(new InkPoint((float)x, (float)y, (float)(xy.Count > 2 ? Number(xy[2]) ?? 0.5 : 0.5)));
+                    nested.Add(new InkPoint(x, y, xy.Count > 2 ? Float(xy[2]) ?? 0.5f : 0.5f));
                 }
             }
 
@@ -2196,8 +2195,8 @@ public static class StratStrokes
         InkPoint[] flat = new InkPoint[count];
         for (int i = 0; i < count; i++)
         {
-            flat[i] = new InkPoint((float)(Number(array[i * 3]) ?? 0), (float)(Number(array[i * 3 + 1]) ?? 0),
-                (float)(Number(array[i * 3 + 2]) ?? 0.5));
+            flat[i] = new InkPoint(Float(array[i * 3]) ?? 0, Float(array[i * 3 + 1]) ?? 0,
+                Float(array[i * 3 + 2]) ?? 0.5f);
         }
 
         return flat;
@@ -2264,4 +2263,9 @@ public static class StratStrokes
 
         return double.IsFinite(number) ? number : null;
     }
+
+    // A stored number past float's range casts to an infinity, which draws nowhere and cannot be written back as
+    // JSON when the stroke is edited; it reads as no number at all.
+    private static float? Float(JsonNode? node) =>
+        Number(node) is { } number && float.IsFinite((float)number) ? (float)number : null;
 }
