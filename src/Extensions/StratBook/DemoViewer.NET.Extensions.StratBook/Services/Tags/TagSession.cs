@@ -700,7 +700,10 @@ public sealed class TagSession : IDisposable
     {
         try
         {
-            await Task.Delay(AutoSaveDelay, ct).ConfigureAwait(false);
+            // No ConfigureAwait(false), the annotation controller's rule: SaveNowAsync clones the document before
+            // its first wait, and a clone taken on a pool thread races the edit being applied on the UI thread.
+            // The write itself still leaves the context inside SaveNowAsync.
+            await Task.Delay(AutoSaveDelay, ct);
         }
         catch (OperationCanceledException)
         {

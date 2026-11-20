@@ -237,6 +237,61 @@ public class TagSessionTests
         await Assert.That(next.Document!.Demo.Sha256).IsEqualTo(Sha);
     }
 
+    // Stands in for the UI thread's context: counts what is posted back to it and runs it under itself.
+    private sealed class CountingContext : SynchronizationContext
+    {
+        private int _posts;
+
+        public int Posts => Volatile.Read(ref _posts);
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            Interlocked.Increment(ref _posts);
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                SetSynchronizationContext(this);
+                d(state);
+            });
+        }
+    }
+
+    [Test]
+    public async Task TheDebouncedSave_TakesItsSnapshot_BackOnTheThreadTheEditWasMadeOn()
+    {
+        TagStore store = new(null);
+        using TagSession session = await Attached(store);
+        session.AutoSaveDelay = TimeSpan.FromMilliseconds(1);
+        using ManualResetEventSlim saved = new();
+        session.Changed += () =>
+        {
+            if (session.SaveCount > 0)
+            {
+                saved.Set();
+            }
+        };
+
+        // No await while the context is set: only the session's own debounce can capture it.
+        CountingContext ui = new();
+        SynchronizationContext? before = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(ui);
+        try
+        {
+            session.Apply(new TagDelta.Add(Instance("A execute", 100, 200)));
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(before);
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(saved.Wait(TimeSpan.FromSeconds(30))).IsTrue();
+            await Assert.That(ui.Posts).IsGreaterThanOrEqualTo(1)
+                .Because("the document is cloned where it is edited, not on the pool thread the delay ended on");
+            await Assert.That(store.TryLoad(Sha)!.Instances.Count).IsEqualTo(1);
+        }
+    }
+
     [Test]
     public async Task History_IsCappedAt200Entries()
     {
