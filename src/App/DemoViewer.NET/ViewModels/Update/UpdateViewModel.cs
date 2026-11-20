@@ -1,5 +1,8 @@
 #region
 
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Services;
@@ -26,6 +29,7 @@ namespace DemoViewer.NET.ViewModels.Update;
 /// </summary>
 public sealed partial class UpdateViewModel : ViewModelBase
 {
+    private readonly Action? _requestShutdown;
     private readonly IUpdateService? _service;
 
     /// <summary>The version offered by the last check; drives the banner text.</summary>
@@ -59,7 +63,16 @@ public sealed partial class UpdateViewModel : ViewModelBase
     private string _statusMessage = string.Empty;
 
     /// <summary>Constructs against the host-provided service; null disables every path.</summary>
-    public UpdateViewModel(IUpdateService? service) => _service = service;
+    /// <param name="service">The host updater, or null where updates do not apply.</param>
+    /// <param name="requestShutdown">
+    ///     Closes the app through its normal shutdown once an update is staged. Null closes nothing, which is
+    ///     what tests and the capture host want.
+    /// </param>
+    public UpdateViewModel(IUpdateService? service, Action? requestShutdown = null)
+    {
+        _service = service;
+        _requestShutdown = requestShutdown;
+    }
 
     /// <summary>
     ///     The one instance the shell banner and the Settings pane both bind to. They MUST share:
@@ -75,7 +88,7 @@ public sealed partial class UpdateViewModel : ViewModelBase
     /// </summary>
     public static UpdateViewModel Shared
     {
-        get => field ??= new UpdateViewModel(AppHostHooks.UpdateServiceFactory?.Invoke());
+        get => field ??= new UpdateViewModel(AppHostHooks.UpdateServiceFactory?.Invoke(), ShutDownDesktop);
         set;
     }
 
@@ -170,7 +183,15 @@ public sealed partial class UpdateViewModel : ViewModelBase
         {
             Progress<int> progress = new(p => DownloadProgress = p);
             bool ok = await _service.DownloadAndApplyAsync(progress).ConfigureAwait(true);
-            if (!ok)
+            if (ok)
+            {
+                // Staged, not applied: the host applies it once the process exits. Leaving through the
+                // lifetime's Shutdown is what runs ShutdownRequested, which saves the session, flushes the
+                // stores and tears down live sync, a reel or an export. Replacing the process from here
+                // skipped all of that.
+                _requestShutdown?.Invoke();
+            }
+            else
             {
                 // Still running, so the apply failed. Put the banner back, the user asked for this
                 // and should be able to retry, and say so in Settings.
@@ -199,6 +220,18 @@ public sealed partial class UpdateViewModel : ViewModelBase
         AvailableVersion = null;
         StatusMessage = string.Empty;
     }
+
+    // Posted so the command's finally runs first. TryShutdown, not Shutdown: a forced Shutdown does not
+    // raise ShutdownRequested, and that handler is the point. When it cancels to tear down live sync, a
+    // reel or an export, it calls Shutdown itself once that is done.
+    private static void ShutDownDesktop() =>
+        Dispatcher.UIThread.Post(static () =>
+        {
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.TryShutdown();
+            }
+        });
 
     /// <summary>Dismisses the banner for this run. The next launch checks again.</summary>
     [RelayCommand]

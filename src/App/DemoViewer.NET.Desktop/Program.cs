@@ -132,7 +132,9 @@ internal static class Program
         // Browser head). VelopackApp.Build().Run() above handles install/update HOOKS only; it never
         // contacts a server. Without this factory the published releases.{channel}.json feeds would
         // go on being written and never read, which is exactly the state v0.5.1 shipped in.
-        AppHostHooks.UpdateServiceFactory = static () => new VelopackUpdateService(static () =>
+        // Kept here so the update a user accepted is applied after the lifetime returns, below.
+        VelopackUpdateService? updater = null;
+        AppHostHooks.UpdateServiceFactory = () => updater ??= new VelopackUpdateService(static () =>
             (App.Services?.GetService(typeof(IOptionsMonitor<AppSettings>)) as IOptionsMonitor<AppSettings>)
             ?.CurrentValue.Updates.SubscribeToBeta ?? false);
 
@@ -144,6 +146,9 @@ internal static class Program
         using ProfilingSession? session = ProfilingSession.StartFromEnvironment();
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         launch.MarkExited();
+
+        // After ShutdownRequested has saved the session and torn down live sync, reels and exports.
+        updater?.ApplyStagedUpdate();
     }
 
     // The same executable with the same arguments minus --safe-mode. Under `dotnet run` the process is the

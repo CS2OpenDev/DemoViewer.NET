@@ -34,13 +34,15 @@ public interface IUpdateService
     Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default);
 
     /// <summary>
-    ///     Downloads the pending update and restarts into it. Only meaningful after
-    ///     <see cref="CheckAsync" /> returned <see cref="UpdateCheckResult.UpdateAvailable" />: the
-    ///     implementation holds the resolved update from that call.
+    ///     Downloads the pending update and stages it to be applied, with a restart, when the app
+    ///     exits. Only meaningful after <see cref="CheckAsync" /> returned
+    ///     <see cref="UpdateCheckResult.UpdateAvailable" />: the implementation holds the resolved
+    ///     update from that call.
     ///     <para>
-    ///         On success this does not return in any useful sense: the process is replaced. A
-    ///         <c>false</c> return means the download or apply failed and the app is still running,
-    ///         so the caller should surface the failure rather than assume a restart is coming.
+    ///         A <c>true</c> return means the update is staged and the caller should close the app
+    ///         through its normal shutdown, so the session is saved and running work is torn down
+    ///         before the update replaces the install. A <c>false</c> return means the download
+    ///         failed and nothing is staged, so the caller should surface the failure.
     ///     </para>
     /// </summary>
     Task<bool> DownloadAndApplyAsync(IProgress<int>? progress = null, CancellationToken ct = default);

@@ -104,6 +104,38 @@ public class UpdateViewModelTests
     }
 
     /// <summary>
+    ///     A staged update must leave through the normal shutdown, not by replacing the process: only the
+    ///     shutdown path saves the session, flushes the stores and tears down live sync, a reel or an
+    ///     export. A failed download must not close the app.
+    /// </summary>
+    [Test]
+    public async Task UpdateAndRestart_Success_RequestsNormalShutdown()
+    {
+        FakeUpdateService ok = new()
+        {
+            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2"), DownloadSucceeds = true
+        };
+        int shutdowns = 0;
+        UpdateViewModel vm = new(ok, () => shutdowns++);
+        await vm.CheckOnStartupAsync();
+
+        await vm.UpdateAndRestartCommand.ExecuteAsync(null);
+
+        await Assert.That(shutdowns).IsEqualTo(1);
+
+        FakeUpdateService failing = new()
+        {
+            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2"), DownloadSucceeds = false
+        };
+        UpdateViewModel retry = new(failing, () => shutdowns++);
+        await retry.CheckOnStartupAsync();
+
+        await retry.UpdateAndRestartCommand.ExecuteAsync(null);
+
+        await Assert.That(shutdowns).IsEqualTo(1);
+    }
+
+    /// <summary>
     ///     A failed download must restore the offer, not strand the user in a state with no update
     ///     and no way to retry. Velopack stages into a packages dir and only swaps on apply, so the
     ///     running install is untouched.

@@ -52,6 +52,12 @@ internal sealed class VelopackUpdateService : IUpdateService
     /// </summary>
     private (UpdateManager Manager, UpdateInfo Info, bool IsBeta)? _pending;
 
+    /// <summary>
+    ///     Downloaded and waiting for the process to exit. Set by <see cref="DownloadAndApplyAsync" />,
+    ///     applied by <see cref="ApplyStagedUpdate" /> once the Avalonia lifetime has returned.
+    /// </summary>
+    private (UpdateManager Manager, UpdateInfo Info)? _staged;
+
     /// <param name="subscribedToBeta">Read on every check, so the Settings toggle applies without a restart.</param>
     public VelopackUpdateService(Func<bool> subscribedToBeta) => _subscribedToBeta = subscribedToBeta;
 
@@ -128,9 +134,10 @@ internal sealed class VelopackUpdateService : IUpdateService
                         ct), ct)
                 .ConfigureAwait(false);
 
-            // Replaces the process. Nothing after this line runs on the success path, which is why
-            // the caller must have already persisted anything it cares about.
-            pending.Manager.ApplyUpdatesAndRestart(pending.Info);
+            // Staged only. ApplyUpdatesAndRestart replaced the process from here, so the shutdown
+            // handler never ran: no session save, no store flush, and live sync, a reel or an export
+            // left running. The caller now closes the app normally and Main applies this on the way out.
+            _staged = (pending.Manager, pending.Info);
             return true;
         }
         catch (OperationCanceledException)
@@ -142,6 +149,19 @@ internal sealed class VelopackUpdateService : IUpdateService
             // A failed download leaves the install untouched. Velopack stages into a packages dir
             // and only swaps on apply. Reporting false keeps the user on a working version.
             return false;
+        }
+    }
+
+    /// <summary>
+    ///     Hands a staged update to Velopack's updater, which waits for this process to exit, applies it
+    ///     and restarts the app. Called from <c>Main</c> after the lifetime returns, so the shutdown
+    ///     handler has already saved and torn everything down. A no-op when nothing is staged.
+    /// </summary>
+    public void ApplyStagedUpdate()
+    {
+        if (_staged is { } staged)
+        {
+            staged.Manager.WaitExitThenApplyUpdates(staged.Info, silent: false, restart: true);
         }
     }
 
