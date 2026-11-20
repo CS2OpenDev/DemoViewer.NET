@@ -108,9 +108,17 @@ public sealed class BookmarkStore
 
         try
         {
-            if (JsonSerializer.Deserialize<Dictionary<string, List<Bookmark>>>(File.ReadAllText(_path)) is { } read)
+            if (JsonSerializer.Deserialize<Dictionary<string, List<Bookmark?>?>>(File.ReadAllText(_path)) is { } read)
             {
-                all = new Dictionary<string, List<Bookmark>>(read, StringComparer.Ordinal);
+                // The serializer lets a JSON null through as a demo's list and as an item of one. Neither is a
+                // bookmark, and a save writes the map back without them.
+                foreach ((string demoKey, List<Bookmark?>? list) in read)
+                {
+                    if (list is not null)
+                    {
+                        all[demoKey] = [.. list.OfType<Bookmark>()];
+                    }
+                }
             }
 
             return true;

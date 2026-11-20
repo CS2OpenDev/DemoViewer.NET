@@ -165,4 +165,37 @@ public class BookmarkStoreTests
             Cleanup(file);
         }
     }
+
+    /// <summary>
+    ///     The serializer reads a JSON null as a demo's list and as an item of one, whatever the types say. Neither
+    ///     is a bookmark: the demo has none, or one fewer, and the panel never sees a null.
+    /// </summary>
+    [Test]
+    public async Task ANullListOrANullBookmarkInTheFile_IsNotABookmark()
+    {
+        string file = TempFile();
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+            await File.WriteAllTextAsync(file,
+                """{"demo-a":null,"demo-b":[null,{"FrameIndex":5,"Tick":10,"Label":"x"}]}""");
+            BookmarkStore store = new(file);
+            BookmarksViewModel panel = new(new FrameNavigationViewModel(), store);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.Load(DemoA) is { Count: 0 }).IsTrue();
+                await Assert.That(store.Load(DemoB).Select(b => b?.Label ?? "(null)")).IsEquivalentTo(["x"]);
+                await Assert.That(() => panel.SetDemo(DemoA)).ThrowsNothing();
+            }
+
+            panel.SetDemo(DemoB);
+            panel.Add(9, 20, "y");
+            await Assert.That(new BookmarkStore(file).Load(DemoB).Select(b => b.Label)).IsEquivalentTo(["x", "y"]);
+        }
+        finally
+        {
+            Cleanup(file);
+        }
+    }
 }
