@@ -3,6 +3,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
+using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 
 #endregion
@@ -29,44 +30,48 @@ public partial class UtilityBookTabView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        Wire();
+        if (this.IsAttachedToVisualTree())
+        {
+            Wire();
+        }
     }
 
     /// <inheritdoc />
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        if (DataContext is UtilityBookTabViewModel vm)
-        {
-            vm.Clipboard = null;
-        }
+        Unwire();
     }
 
     private UtilityBookTabViewModel? _wired;
 
+    // Only while attached: the host keeps the view model when it drops the view, and a handler or a clipboard
+    // writer left on it would keep this view alive.
     private void Wire()
     {
-        if (_wired is not null)
-        {
-            _wired.PropertyChanged -= OnVmPropertyChanged;
-        }
-
+        Unwire();
         _wired = DataContext as UtilityBookTabViewModel;
         if (_wired is not null)
         {
             _wired.PropertyChanged += OnVmPropertyChanged;
             PlaceCard();
-        }
-
-        if (DataContext is UtilityBookTabViewModel vm)
-        {
-            vm.Clipboard = async text =>
+            _wired.Clipboard = async text =>
             {
                 if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
                 {
                     await clipboard.SetTextAsync(text);
                 }
             };
+        }
+    }
+
+    private void Unwire()
+    {
+        if (_wired is not null)
+        {
+            _wired.PropertyChanged -= OnVmPropertyChanged;
+            _wired.Clipboard = null;
+            _wired = null;
         }
     }
 

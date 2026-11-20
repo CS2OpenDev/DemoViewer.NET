@@ -1,6 +1,7 @@
 #region
 
 using System.Numerics;
+using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -830,6 +831,67 @@ public class GrenadeIndexTests
                     .Because("a strat step that stored either id still resolves");
             }
         }
+    }
+
+    // The host drops the view on every deactivation and keeps the view model: a handler left on it keeps each
+    // dropped view alive, and the clipboard writer of a view model the view has moved off points at that view.
+    [Test]
+    [Category("Integration")]
+    public async Task ADetachedUtilityView_LeavesNoHandlerOnItsViewModel_NorAClipboardOnOneItMovedOff()
+    {
+        bool shown = false, dropped = true, back = false, neverShown = true, stale = true, current = false;
+        await HeadlessSession.RunOnUi(() =>
+        {
+            using GrenadeIndex index = Loaded(Library());
+            using UtilityBookTabViewModel vm = new(index, new RecordingPlayback(), isBrowser: false);
+            using UtilityBookTabViewModel other = new(index, new RecordingPlayback(), isBrowser: false);
+            UtilityBookTabView view = new() { DataContext = vm };
+            neverShown = Listens(vm, view);
+            Window window = new() { Width = 1280, Height = 860, Content = view };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            shown = Listens(vm, view) && vm.Clipboard is not null;
+
+            window.Content = null;
+            Dispatcher.UIThread.RunJobs();
+            dropped = Listens(vm, view) || vm.Clipboard is not null;
+
+            window.Content = view;
+            Dispatcher.UIThread.RunJobs();
+            back = Listens(vm, view) && vm.Clipboard is not null;
+
+            view.DataContext = other;
+            Dispatcher.UIThread.RunJobs();
+            stale = Listens(vm, view) || vm.Clipboard is not null;
+            current = Listens(other, view) && other.Clipboard is not null;
+            window.Close();
+            return Task.CompletedTask;
+        });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(neverShown).IsFalse().Because("a view not on screen listens to nothing");
+            await Assert.That(shown).IsTrue();
+            await Assert.That(dropped).IsFalse().Because("the view model outlives the view");
+            await Assert.That(back).IsTrue().Because("a view shown again listens again");
+            await Assert.That(stale).IsFalse().Because("the view moved to another view model");
+            await Assert.That(current).IsTrue();
+        }
+    }
+
+    // Whether the view is among the view model's PropertyChanged handlers (the bindings hold theirs weakly).
+    private static bool Listens(UtilityBookTabViewModel vm, UtilityBookTabView view)
+    {
+        for (Type? type = vm.GetType(); type is not null; type = type.BaseType)
+        {
+            if (type.GetField(nameof(vm.PropertyChanged), BindingFlags.Instance | BindingFlags.NonPublic
+                                                           | BindingFlags.DeclaredOnly)?.GetValue(vm) is Delegate handlers)
+            {
+                return handlers.GetInvocationList().Any(h => ReferenceEquals(h.Target, view));
+            }
+        }
+
+        return false;
     }
 
     [Test]
