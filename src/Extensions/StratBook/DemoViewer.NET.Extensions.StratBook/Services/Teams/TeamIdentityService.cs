@@ -255,6 +255,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
 
         lock (_gate)
         {
+            EditCopy();
             Team? us = _teams.Teams.FirstOrDefault(t => t.IsUs);
             if (us is null)
             {
@@ -1097,6 +1098,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         lock (_gate)
         {
+            EditCopy();
             if (_teams.Find(teamId) is not { } team)
             {
                 return;
@@ -1127,6 +1129,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _load.Ensure();
         lock (_gate)
         {
+            EditCopy();
             foreach (Team team in _teams.Teams)
             {
                 team.IsUs = teamId is not null && team.Id == teamId;
@@ -1157,6 +1160,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _load.Ensure();
         lock (_gate)
         {
+            EditCopy();
             Team? target = _teams.Find(into);
             Team? source = _teams.Find(from);
             if (target is null || source is null || into == from)
@@ -1266,6 +1270,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _load.Ensure();
         lock (_gate)
         {
+            EditCopy();
             if (_teams.Find(teamId) is not { } team)
             {
                 return;
@@ -1390,6 +1395,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _load.Ensure();
         lock (_gate)
         {
+            EditCopy();
             if (_teams.Find(teamId) is not { } team)
             {
                 return;
@@ -1465,6 +1471,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             keep.UnionWith(imported.Overrides.Where(o => o.DemoSha256 is not null).Select(o => o.TeamId)
                 .OfType<Guid>());
 
+            EditCopy();
             bool changed = false;
             foreach (Team incoming in imported.Teams.Where(t => t.Id != Guid.Empty))
             {
@@ -2007,6 +2014,12 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             // Rebuildable cache: persistence noise is never surfaced.
         }
     }
+
+    // Under _gate. Teams, AllTeams, Us and TeamOnSide hand out the file's own Team objects, and their readers walk
+    // a team's rosters on other threads without the gate, the Teams tab on the UI thread among them. So a team
+    // that has been handed out is never changed again: a command edits a copy of the file, which the replay or
+    // the save then leaves in place of the one the readers hold.
+    private void EditCopy() => _teams = Clone(_teams);
 
     private static TeamsFile Clone(TeamsFile teams) =>
         JsonSerializer.Deserialize<TeamsFile>(JsonSerializer.Serialize(teams, TeamsFile.JsonOptions),

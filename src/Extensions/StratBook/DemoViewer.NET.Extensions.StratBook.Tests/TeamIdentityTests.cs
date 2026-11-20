@@ -470,6 +470,51 @@ public class TeamIdentityTests
         }
     }
 
+    // The Teams tab holds the teams it was handed and walks their rosters on the UI thread while the commands
+    // run on the teams queue. Inline here, the same edit lands in the middle of the walk.
+    [Test]
+    public async Task ATeamThatWasHandedOut_IsNeverChangedByALaterCommand()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams) = Fresh();
+        await Seed(cache, teams,
+            Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+            Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()),
+            Record("/d/b1.dem", 3, Ids(4, 5, 6, 7, 8), Strangers()),
+            Record("/d/b2.dem", 4, Ids(4, 5, 6, 7, 8), Strangers()));
+        Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+        Guid b = teams.TeamOnSide("/d/b1.dem", 2)!.Id;
+
+        Team held = teams.AllTeams.Single(t => t.Id == a);
+        Team other = teams.AllTeams.Single(t => t.Id == b);
+        string name = held.Name;
+        string[] otherRosters = [.. other.Rosters.Select(r => r.Id)];
+        int walked = 0;
+        foreach (Roster _ in held.Rosters)
+        {
+            teams.StartRoster(a, DateOnly.FromDateTime(new DateTime(Day(2), DateTimeKind.Utc)), "new five");
+            walked++;
+        }
+
+        teams.Rename(a, "Old Guard");
+        teams.SetHidden(a, true);
+        teams.SetUs(a);
+        teams.Merge(a, b);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(walked).IsEqualTo(1);
+            await Assert.That(held.Rosters.Count).IsEqualTo(1);
+            await Assert.That(held.Name).IsEqualTo(name);
+            await Assert.That(held.Hidden).IsFalse();
+            await Assert.That(held.IsUs).IsFalse();
+            await Assert.That(held.MergedFrom).IsEmpty();
+            await Assert.That(other.Rosters.Select(r => r.Id)).IsEquivalentTo(otherRosters)
+                .Because("a merge renames the rosters it moves, in the copy");
+            await Assert.That(teams.AllTeams.Single().Rosters.Count).IsEqualTo(3);
+            await Assert.That(teams.AllTeams.Single().Name).IsEqualTo("Old Guard");
+        }
+    }
+
     [Test]
     public async Task Merge_ReassignsSides_KeepsBothAnchors_AndARebuildNeverRecreatesTheTombstone()
     {
