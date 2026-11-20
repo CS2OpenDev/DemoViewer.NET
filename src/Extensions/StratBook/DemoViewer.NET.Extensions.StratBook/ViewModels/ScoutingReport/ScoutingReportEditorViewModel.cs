@@ -600,14 +600,27 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         List<ScoutingReportStageRow>? stages = null;
         if (html && ExportForm == ScoutingReportForm.OnePager && BuyStages is { } buyStages)
         {
+            // The pictures are drawn for the team in view now. Another team picked meanwhile gets no file: the
+            // header and the lines are read live, and would be its own beside these pictures.
+            Guid? team = _teamId;
             ExportLine = "drawing the buy pictures…";
             try
             {
-                stages = RenderStages(await buyStages(StarredMaps()));
+                IReadOnlyList<ScoutingReportBuyStage> drawn = await buyStages(StarredMaps());
+                if (_teamId != team)
+                {
+                    return;
+                }
+
+                stages = RenderStages(drawn);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                ExportLine = $"could not draw the buy pictures: {ex.Message}";
+                if (_teamId == team)
+                {
+                    ExportLine = $"could not draw the buy pictures: {ex.Message}";
+                }
+
                 return;
             }
         }

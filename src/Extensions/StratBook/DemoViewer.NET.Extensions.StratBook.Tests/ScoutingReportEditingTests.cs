@@ -487,6 +487,36 @@ public class ScoutingReportEditingTests
     }
 
     [Test]
+    public async Task AnExport_WhoseTeamChangedWhileThePicturesWereDrawn_WritesNothing()
+    {
+        List<string> written = [];
+        ScoutingReportEditorViewModel editor = new(new ScoutingReportNotesStore(null), export: (_, stem, ext) =>
+        {
+            written.Add(stem);
+            return stem + ext;
+        });
+        TaskCompletionSource<IReadOnlyList<ScoutingReportBuyStage>> drawing = new();
+        editor.BuyStages = _ => drawing.Task;
+        editor.Load(Guid.NewGuid(), "Falcons", "3 demos", Sources());
+        editor.ToggleStarCommand.Execute(editor.Findings[0]);
+
+        Task export = editor.ExportCommand.ExecuteAsync(null);
+        string whileDrawing = editor.ExportLine;
+        editor.Load(Guid.NewGuid(), "Vitality", "2 demos", Sources());
+        editor.ToggleStarCommand.Execute(editor.Findings[0]);
+        drawing.SetResult([]);
+        await export;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(whileDrawing).StartsWith("drawing the buy pictures");
+            await Assert.That(written).IsEmpty()
+                .Because("the pictures are the first team's and the lines would be the second's");
+            await Assert.That(editor.ExportLine).IsEqualTo("").Because("the new team has exported nothing");
+        }
+    }
+
+    [Test]
     public async Task AnUnstarredOnePager_ExportsOnlyInHtmlWithAMapInView_AndNeverAsAnEmptyFile()
     {
         List<string> written = [];
