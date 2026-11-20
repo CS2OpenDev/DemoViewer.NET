@@ -240,16 +240,35 @@ internal sealed partial class ExtensionDemoDataStore : IExtensionDemoData
         string? sha = WrittenSha256Of(demoPath);
         string key = KeyFor(demoPath, sha);
         long now = DateTime.UtcNow.Ticks;
+        HashSet<string> written = new(StringComparer.Ordinal);
         foreach ((string part, ReadOnlyMemory<byte> content) in write.Parts)
         {
-            WriteFile(FileFor(write.Facet, key, part), new Header(CurrentFormat, write.Facet, part, write.Schema,
+            string partFile = FileFor(write.Facet, key, part);
+            WriteFile(partFile, new Header(CurrentFormat, write.Facet, part, write.Schema,
                 write.Fingerprint, sha,
                 demoPath, _extensionVersion, now), content.Span);
+            written.Add(partFile);
         }
 
-        WriteFile(FileFor(write.Facet, key, null), new Header(CurrentFormat, write.Facet, null, write.Schema,
+        string mainFile = FileFor(write.Facet, key, null);
+        WriteFile(mainFile, new Header(CurrentFormat, write.Facet, null, write.Schema,
             write.Fingerprint, sha,
             demoPath, _extensionVersion, now), write.Payload.Span);
+        written.Add(mainFile);
+
+        // The write replaces the facet whole: a part the earlier write had and this one does not would read
+        // back as this write's under its own header.
+        foreach (string stale in FilesOf(write.Facet, key).Where(f => !written.Contains(f)))
+        {
+            try
+            {
+                File.Delete(stale);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                AppLog.ExtensionStoreWriteFailed(Log, _extensionId, stale, ex.Message);
+            }
+        }
 
         Entry entry = new(key, write.Facet, demoPath, sha, write.Schema, write.Fingerprint, DemoDataState.Written, now,
             write.Count);

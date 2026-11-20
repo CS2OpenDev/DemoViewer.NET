@@ -77,6 +77,39 @@ public class ExtensionDemoDataStoreTests
         }
     }
 
+    // A write replaces the facet whole: a part the earlier write had and this one does not is gone, not read
+    // back as part of the new write under the same schema and fingerprint.
+    [Test]
+    [Arguments("fp-1")]
+    [Arguments(null)]
+    public async Task ARewriteWithoutAPart_TakesTheEarlierWritesPartWithIt(string? fingerprint)
+    {
+        string root = NewRoot();
+        try
+        {
+            DemoCacheStore library = new(null);
+            Seed(library, Demo, "AAAA");
+            ExtensionDemoDataStore store = NewStore(root, library);
+            DemoDataWrite first = Rounds("one");
+            store.Write(Demo, first with { Fingerprint = fingerprint });
+
+            store.Write(Demo, new DemoDataWrite("rounds", 1, fingerprint, Encoding.UTF8.GetBytes("two")));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.Read(Demo, "rounds", 1, fingerprint, "positions")).IsNull();
+                await Assert.That(Encoding.UTF8.GetString(store.Read(Demo, "rounds", 1, fingerprint)!)).IsEqualTo("two");
+                await Assert.That(Directory.GetFiles(Path.Combine(store.Root, "rounds"))
+                        .Select(f => Path.GetFileName(f)))
+                    .IsEquivalentTo(["aaaa.json.gz"]);
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     [Test]
     public async Task AFacet_RoundTripsWithItsParts_AndItsStampNeedsNoFile()
     {
