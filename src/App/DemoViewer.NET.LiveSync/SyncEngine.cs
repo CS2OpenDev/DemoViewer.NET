@@ -610,7 +610,10 @@ public sealed class SyncEngine : IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
-                    OnCommandFailed(command, ex);
+                    if (OnCommandFailed(command, ex))
+                    {
+                        Kick();
+                    }
                 }
 
                 PublishStatus();
@@ -755,14 +758,22 @@ public sealed class SyncEngine : IAsyncDisposable
         }
     }
 
-    private void OnCommandFailed(SyncCommand command, Exception ex)
+    /// <returns>True when a newer intent arrived during the failed command and needs a reconcile.</returns>
+    private bool OnCommandFailed(SyncCommand command, Exception ex)
     {
         lock (_gate)
         {
             switch (command)
             {
-                case SyncCommand.Load:
+                case SyncCommand.Load load:
                     _loadInFlight = false;
+                    if (!string.Equals(_desiredDemo, load.Path, StringComparison.Ordinal))
+                    {
+                        // The user opened another demo while this load ran, and Reconcile deferred it
+                        // behind the load. That newer intent is not this failure's to erase.
+                        return true;
+                    }
+
                     // Disengage rather than retry-loop: the user re-arms by re-loading the demo
                     // (or, later, Re-sync). CS2 keeps whatever it had.
                     _desiredDemo = null;
@@ -798,6 +809,8 @@ public sealed class SyncEngine : IAsyncDisposable
                     break;
             }
         }
+
+        return false;
     }
 
     // ── Ledger timers ─────────────────────────────────────────────────────────
