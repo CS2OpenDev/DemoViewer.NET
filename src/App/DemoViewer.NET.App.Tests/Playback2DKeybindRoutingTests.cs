@@ -1,5 +1,6 @@
 #region
 
+using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -227,5 +228,115 @@ public class Playback2DKeybindRoutingTests
         {
             vm.Dispose();
         }
+    }
+
+    /// <summary>
+    ///     The release that never arrives. The pan flag is cleared by the key-up, and a key-up goes to
+    ///     whoever has the keyboard at that moment: leave the window or the tab with the key down and the
+    ///     surface used to pan on every left press until the key was pressed and released again.
+    /// </summary>
+    [Test]
+    public async Task HoldPan_IsDropped_WhenTheViewLeavesTheTreeBeforeTheKeyComesUp()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab();
+            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+            Scene2DHost host = Playback2DTimelineHarness.SceneHost(view);
+
+            vm.Annotations.SelectTool(ToolKind.Draw);
+            view.Focus();
+            Playback2DTimelineHarness.Pump();
+
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.Router.IsSpaceHeld).IsTrue();
+
+            window.Content = null;
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.Router.IsSpaceHeld).IsFalse()
+                .Because("a detached view will never see the release");
+
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task HoldPan_IsDropped_WhenTheWindowIsDeactivated()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab();
+            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+            Scene2DHost host = Playback2DTimelineHarness.SceneHost(view);
+
+            vm.Annotations.SelectTool(ToolKind.Draw);
+            view.Focus();
+            Playback2DTimelineHarness.Pump();
+
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.Router.IsSpaceHeld).IsTrue();
+
+            // What Alt+Tab is to the window: the key comes up in another application.
+            Deactivate(window);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.Router.IsSpaceHeld).IsFalse();
+
+            // And the stale release, should it arrive after all, is a no-op rather than a second clear.
+            window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.Router.IsSpaceHeld).IsFalse();
+
+            window.Close();
+        });
+    }
+
+    // The headless platform never deactivates a window by itself, and the callback the real ones raise
+    // is not public, so this reaches the same entry point they do.
+    private static void Deactivate(Window window)
+    {
+        object impl = window.PlatformImpl!;
+        PropertyInfo callback = impl.GetType().GetProperty("Deactivated",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
+        ((Action)callback.GetValue(impl)!).Invoke();
+    }
+
+    [Test]
+    public async Task HostedMapView_DropsHoldPan_WhenItLosesFocusOrLeavesTheTree()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            HostedMapView map = new();
+            Button elsewhere = new() { Content = "elsewhere" };
+            Window window = new()
+            {
+                Width = 800, Height = 600, Content = new DockPanel { Children = { elsewhere, map } }
+            };
+            DockPanel.SetDock(elsewhere, Dock.Top);
+            window.Show();
+            Playback2DTimelineHarness.Pump();
+
+            map.Focus();
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(map.Router.IsSpaceHeld).IsTrue();
+
+            // The key-up now goes to the button, not to the map.
+            elsewhere.Focus();
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(map.Router.IsSpaceHeld).IsFalse();
+
+            map.Focus();
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(map.Router.IsSpaceHeld).IsTrue();
+
+            window.Content = null;
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(map.Router.IsSpaceHeld).IsFalse();
+
+            window.Close();
+        });
     }
 }

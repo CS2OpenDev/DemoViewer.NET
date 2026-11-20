@@ -65,6 +65,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     private RadarLayer _radarLayer;
     private bool _released;
     private long _submissionId;
+    private WindowBase? _window;
     private TextBlobCache _text;
 
     /// <summary>Creates the host and its base layer stack.</summary>
@@ -84,7 +85,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     }
 
     /// <summary>The pointer router: pan and zoom, plus whatever tool a derived host registers.</summary>
-    private InputToolRouter Router { get; }
+    internal InputToolRouter Router { get; }
 
     /// <summary>True once the platform refused a Skia lease; every later frame takes the CPU path.</summary>
     private bool LeaseUnavailable { get; set; }
@@ -262,6 +263,12 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
 
         RefreshPalette();
         ActualThemeVariantChanged += OnThemeVariantChanged;
+        _window = TopLevel.GetTopLevel(this) as WindowBase;
+        if (_window is not null)
+        {
+            _window.Deactivated += OnWindowDeactivated;
+        }
+
         _attached = true;
         Rebind();
     }
@@ -271,7 +278,14 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     {
         base.OnDetachedFromVisualTree(e);
         ActualThemeVariantChanged -= OnThemeVariantChanged;
+        if (_window is not null)
+        {
+            _window.Deactivated -= OnWindowDeactivated;
+            _window = null;
+        }
+
         _attached = false;
+        Router.IsSpaceHeld = false;
         Router.CancelActive();
         RestoreToolAfterPan();
         ReleaseResources();
@@ -402,6 +416,18 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
             e.Handled = true;
         }
     }
+
+    // The Space release goes to whoever has the keyboard when the key comes up. Once that is no longer
+    // this view (focus moved on, the window was left, the view came out of the tree) nothing here would
+    // ever clear the hold, and every left press panned until Space was pressed and released again.
+    /// <inheritdoc />
+    protected override void OnLostFocus(FocusChangedEventArgs e)
+    {
+        base.OnLostFocus(e);
+        Router.IsSpaceHeld = false;
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e) => Router.IsSpaceHeld = false;
 
     /// <inheritdoc />
     public override void Render(DrawingContext context)
