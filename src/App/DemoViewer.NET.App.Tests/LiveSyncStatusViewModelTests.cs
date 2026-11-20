@@ -369,6 +369,10 @@ public class LiveSyncStatusViewModelTests
     [Arguments(@"\\?\UNC\attacker\share\x.dem")]
     [Arguments(@"\\.\pipe\x.dem")]
     [Arguments("//attacker/share/x.dem")]
+    [Arguments(@"/\attacker\share\x.dem")]
+    [Arguments(@"\/attacker/share/x.dem")]
+    [Arguments(@"/\?\UNC\attacker\share\x.dem")]
+    [Arguments(@"\??\UNC\attacker\share\x.dem")]
     public async Task OpenRemoteDemo_RefusesNetworkAndDevicePaths(string path)
     {
         FakeLiveSync svc = new();

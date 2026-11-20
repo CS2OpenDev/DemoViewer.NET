@@ -425,7 +425,10 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
 
         // The path comes off the unauthenticated localhost stream, so any local process can name it. A
         // share or device path would make DemoViewer authenticate to a host of the sender's choosing.
-        if (path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal))
+        // Windows reads '/' and '\' as the same separator, so two of either in front is one of those however
+        // they are mixed, and \??\ is the device namespace as the NT layer spells it.
+        if ((path.Length >= 2 && path[0] is '\\' or '/' && path[1] is '\\' or '/')
+            || path.StartsWith(@"\??\", StringComparison.Ordinal))
         {
             ReasonText = $"DemoViewer only opens a CS2 demo from a local drive, not {path}.";
             return;
