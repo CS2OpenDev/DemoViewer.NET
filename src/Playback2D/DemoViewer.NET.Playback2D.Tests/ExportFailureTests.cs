@@ -99,6 +99,65 @@ public class ExportFailureTests
     }
 
     /// <summary>
+    ///     An ffmpeg that does not drain in time must be stopped and must fail the export.
+    ///     <para>
+    ///         Before the fix the timeout was swallowed: disposal returned normally, so the session
+    ///         reported <see cref="ExportPhase.Completed" /> for a file it had just tried to delete, and
+    ///         nothing ever told the child to stop, so it went on encoding with nobody waiting for it.
+    ///     </para>
+    /// </summary>
+    [Test]
+    [Category("Integration")]
+    public async Task AnFfmpegThatDoesNotDrainInTime_IsStopped_AndFailsTheExport()
+    {
+        FfmpegLocation located = FfmpegLocator.Locate(null);
+        if (!located.Found)
+        {
+            throw new SkipTestException("no ffmpeg on PATH; the subprocess sink cannot be exercised");
+        }
+
+        string path = Path.Combine(Path.GetTempPath(), $"dv-drain-{Guid.NewGuid():N}.gif");
+
+        // GIF, because its palette pass does all of its work after the last frame: the drain is the
+        // encode. No patience at all, so the timeout is reached however quickly this ffmpeg finishes.
+        FfmpegFrameSink sink = new(new FfmpegSinkOptions(path, ExportFormats.Gif, 320, 240, 20,
+            located.Directory))
+        {
+            ShutdownTimeout = TimeSpan.Zero
+        };
+
+        try
+        {
+            byte[] frame = new byte[320 * 240 * 4];
+            for (int i = 0; i < 40; i++)
+            {
+                Array.Fill(frame, (byte)(i * 6));
+                await sink.WriteAsync(frame, 320, 240, CancellationToken.None);
+            }
+
+            Exception? failure = null;
+            try
+            {
+                await sink.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+
+            await Assert.That(failure).IsTypeOf<FfmpegEncodeException>();
+
+            // Windows will not delete a file another process holds open, so its absence is also the
+            // evidence that the child is gone.
+            await Assert.That(File.Exists(path)).IsFalse();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
     ///     A sink that only fails when it is closed must fail the run.
     ///     <para>
     ///         This is the partial-file lie: every frame rendered, so the loop succeeded, but the

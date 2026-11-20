@@ -68,7 +68,8 @@ public sealed record FfmpegSinkOptions(
 ///         and <see cref="DisposeAsync" /> then removes the partial output.
 ///     </para>
 ///     <para>
-///         <b>Disposal waits up to 30 seconds</b> for ffmpeg to drain before giving up on it.
+///         <b>Disposal gives up on an ffmpeg that has said nothing for 30 seconds</b> while draining:
+///         it stops the process, removes the output, and throws <see cref="FfmpegEncodeException" />.
 ///     </para>
 /// </summary>
 public sealed class FfmpegFrameSink : IFrameSink
@@ -76,15 +77,22 @@ public sealed class FfmpegFrameSink : IFrameSink
     /// <summary>How many trailing stderr lines are kept to explain a failure.</summary>
     private const int StderrTailLines = 6;
 
-    /// <summary>How long <see cref="DisposeAsync" /> waits for ffmpeg to drain before giving up.</summary>
+    /// <summary>How long ffmpeg may stay silent while <see cref="DisposeAsync" /> drains it before it is stopped.</summary>
     private static readonly TimeSpan _shutdownTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>How long a stopped ffmpeg is given to actually go away.</summary>
+    private static readonly TimeSpan _killGrace = TimeSpan.FromSeconds(5);
+
+    // Wall time, for the drain's silence limit only. ExportClock rather than a tick count of our own:
+    // it is the one type in the export path BannedApiTests lets read a clock.
+    private readonly ExportClock _clock = ExportClock.Start();
     private readonly ChannelVideoFrameSource _frames = new();
     private readonly FfmpegSinkOptions _options;
     private readonly Queue<string> _stderrTail = new(StderrTailLines);
     private bool _disposed;
     private Task<bool>? _encoder;
     private CancellationTokenSource? _kill;
+    private long _lastStderrMs;
 
     /// <summary>Creates the sink. No process is started until the first frame arrives.</summary>
     /// <param name="options">Output path, format and encoder settings.</param>
@@ -101,6 +109,9 @@ public sealed class FfmpegFrameSink : IFrameSink
 
     /// <summary>Frames handed to the encoder so far.</summary>
     private int FramesWritten { get; set; }
+
+    /// <summary>The drain wait. Settable so a test can reach the timeout without a 30 s encode.</summary>
+    internal TimeSpan ShutdownTimeout { get; init; } = _shutdownTimeout;
 
     /// <inheritdoc />
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
@@ -173,7 +184,7 @@ public sealed class FfmpegFrameSink : IFrameSink
             {
                 // A timeout rather than an unbounded await: R2's failure mode is a deadlock between the
                 // pump and the writer, and a diagnosable "ffmpeg did not exit in 30 s" beats a hang.
-                await _encoder.WaitAsync(_shutdownTimeout).ConfigureAwait(false);
+                await WaitForDrainAsync(_encoder).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -181,8 +192,15 @@ public sealed class FfmpegFrameSink : IFrameSink
             }
             catch (TimeoutException)
             {
-                _options.Log?.Invoke("ffmpeg did not exit within 30 s; the output may be truncated.");
+                // Abandoning the wait stops nothing: the child would go on encoding with nobody waiting
+                // for it, and holding the output open against the delete below. Stop it, and say so:
+                // returning normally here is what the session reports as Completed.
+                string message = string.Create(CultureInfo.InvariantCulture,
+                    $"ffmpeg said nothing for {ShutdownTimeout.TotalSeconds:0.###} s while finishing the file and was stopped; the export is incomplete.");
+                _options.Log?.Invoke(message);
                 cancelled = true;
+                await StopEncoderAsync(_encoder).ConfigureAwait(false);
+                throw new FfmpegEncodeException(message);
             }
             catch (Exception ex)
             {
@@ -205,6 +223,59 @@ public sealed class FfmpegFrameSink : IFrameSink
 
         _frames.Dispose();
         _kill?.Dispose();
+    }
+
+    /// <summary>
+    ///     Waits for the encoder to finish, for as long as ffmpeg keeps talking.
+    ///     <para>
+    ///         The limit is on <b>silence</b>, not on the drain as a whole. A GIF's palette pass does all
+    ///         of its work after the last frame, so on a long clip the drain legitimately outlasts any
+    ///         flat limit; ffmpeg reports progress on stderr the whole time, and a process that is still
+    ///         reporting is not the deadlock this wait exists to end.
+    ///     </para>
+    /// </summary>
+    /// <exception cref="TimeoutException">ffmpeg wrote nothing for <see cref="ShutdownTimeout" />.</exception>
+    private async Task WaitForDrainAsync(Task encoder)
+    {
+        Volatile.Write(ref _lastStderrMs, NowMs());
+
+        while (!encoder.IsCompleted)
+        {
+            TimeSpan remaining = ShutdownTimeout -
+                                 TimeSpan.FromMilliseconds(NowMs() - Volatile.Read(ref _lastStderrMs));
+            if (remaining <= TimeSpan.Zero)
+            {
+                throw new TimeoutException();
+            }
+
+            try
+            {
+                await encoder.WaitAsync(remaining).ConfigureAwait(false);
+            }
+            catch (TimeoutException) when (!encoder.IsCompleted)
+            {
+                // Go round: stderr may have moved since the wait began.
+            }
+        }
+
+        await encoder.ConfigureAwait(false);
+    }
+
+    private long NowMs() => (long)_clock.Elapsed.TotalMilliseconds;
+
+    /// <summary>Stops ffmpeg through the token <c>CancellableThrough</c> watches and waits briefly for it to go.</summary>
+    private async Task StopEncoderAsync(Task encoder)
+    {
+        try
+        {
+            await _kill!.CancelAsync().ConfigureAwait(false);
+            await encoder.WaitAsync(_killGrace).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Whatever a stopped encoder ends with (cancellation, a broken pipe, a non-zero exit, or
+            // still nothing at all) is not the news. The stall is, and the caller is about to report it.
+        }
     }
 
     /// <summary>
@@ -243,6 +314,7 @@ public sealed class FfmpegFrameSink : IFrameSink
 
     private void OnStderr(string line)
     {
+        Volatile.Write(ref _lastStderrMs, NowMs());
         _options.Log?.Invoke(line);
 
         if (string.IsNullOrWhiteSpace(line))
