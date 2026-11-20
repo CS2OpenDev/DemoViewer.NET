@@ -297,6 +297,44 @@ public class TransferImporterTests
         }
     }
 
+    /// <summary>
+    ///     A record with a JSON null where a member belongs fails its own demo and nothing else: the run goes
+    ///     on to the demos after it and to the steps after the demos.
+    /// </summary>
+    [Test]
+    public async Task ADemoWhoseRecordHasANullMember_FailsAlone_AndTheRunGoesOn()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        const string Bad = "4444444444444444444444444444444444444444444444444444444444444444";
+        BundleBuilder bundle = new(root);
+        System.Text.Json.Nodes.JsonObject node =
+            System.Text.Json.JsonSerializer.SerializeToNode(BundleBuilder.ParsedRecord(Bad, 4096))!.AsObject();
+        node["Header"] = null;
+        bundle.Demo(Bad, "bad.dem", 4096,
+        [
+            bundle.File(TransferLayout.CacheFile(Bad, TransferLayout.DemoFileName(DemoCacheStore.RecordSuffix)),
+                SidecarJson.Gzip(Encoding.UTF8.GetBytes(node.ToJsonString())))
+        ]);
+        bundle.Demo(Sha, "match.dem", 4096, [bundle.Record(BundleBuilder.ParsedRecord(Sha, 4096))]);
+        bundle.Write();
+        DemoCacheStore cache = new(null);
+        TransferImporter importer = new(cache);
+
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        TransferSummary summary = await importer.RunAsync(ImportRequest.DataOnly(root), preview, null,
+            CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Items.Single(i => i.Sha256 == Bad).Outcome).IsEqualTo(TransferOutcome.Failed);
+            await Assert.That(summary.Items.Single(i => i.Sha256 == Sha).Outcome)
+                .IsEqualTo(TransferOutcome.Transferred);
+            await Assert.That(cache.HoldsContent(Bad)).IsFalse();
+            await Assert.That(cache.HoldsContent(Sha)).IsTrue();
+        }
+    }
+
     [Test]
     public async Task AnExtensionFacet_IsImportedWithoutItsSourcePath_AndSurvivesTheLibraryDrop()
     {

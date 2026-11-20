@@ -79,6 +79,11 @@ public sealed partial class DemoCacheStore
             throw new InvalidDataException("The demo's cache record describes other content.");
         }
 
+        if (!IsWhole(imported))
+        {
+            throw new InvalidDataException("The demo's cache record does not read.");
+        }
+
         long now = (nowUtc ?? DateTime.UtcNow).Ticks;
         DemoImportOutcome outcome;
         List<string> taken;
@@ -301,6 +306,29 @@ public sealed partial class DemoCacheStore
 
         return changed;
     }
+
+    // The serializer writes a JSON null into a member or a list whatever the annotation says, and a bundle's
+    // record is whatever its author put there. The merge, the index projection and every later reader of the
+    // stored record take these members as present, so a record lacking one is refused before anything is
+    // written. Only an import is held to this: a local record that fails it is still the user's cache.
+    private static bool IsWhole(DemoCacheRecord record) =>
+        record.Header is not null && record.Parse is not null && record.Analysis is not null
+        && record.Players is not null
+        && record.Players.TrueForAll(p => p is { Name: not null, SteamId64: not null })
+        && record.Rounds is not null && record.Rounds.TrueForAll(r => r is not null)
+        && record.Scoreboard is not null && record.Scoreboard.TrueForAll(r => r is not null)
+        && record.Highlights is not null
+        && record.Highlights.TrueForAll(h => h is { RulesetId: not null, HighlightId: not null, RenderedTitle: not null })
+        && record.HighlightHashes is not null && record.HighlightHashes.Values.All(v => v is not null)
+        && record.ExcludedRulesets?.TrueForAll(r => r is not null) != false
+        && record.Packs is not null
+        && record.PackStamps is not null && record.PackStamps.TrueForAll(s => s is { Id: not null })
+        && record.FacetPlayers?.TrueForAll(p => p is { SteamId64: not null, Names: not null, Slots: not null }
+                                                && p.Names.TrueForAll(n => n is not null)) != false
+        && record.RoundFacts is not { Rounds: null }
+        && record.RoundFacts?.Rounds.TrueForAll(r => r is not null) != false
+        && record.MatchMeta?.Players?.TrueForAll(p => p is { SteamId64: not null }) != false
+        && record.ErrorReport is not { Snapshot: null };
 
     private static bool TakesAnalysis(DemoCacheRecord local, DemoCacheRecord imported, string? currentFingerprint)
     {

@@ -269,6 +269,57 @@ public class DemoCacheImportTests
         await Assert.That(store.HoldsContent(Sha)).IsFalse();
     }
 
+    /// <summary>
+    ///     The serializer puts a JSON null into a member or a list whatever its annotation says. A bundle's
+    ///     record carrying one is refused whole, before any file or row exists: stored, it would throw in the
+    ///     merge, in the index projection, or later in whatever reads the member.
+    /// </summary>
+    [Test]
+    [Arguments("Header", "null")]
+    [Arguments("Parse", "null")]
+    [Arguments("Analysis", "null")]
+    [Arguments("PackStamps", "null")]
+    [Arguments("PackStamps", "[null]")]
+    [Arguments("Packs", "null")]
+    [Arguments("Players", "null")]
+    [Arguments("Players", "[null]")]
+    [Arguments("Rounds", "[null]")]
+    [Arguments("Scoreboard", "null")]
+    [Arguments("Scoreboard", "[null]")]
+    [Arguments("Highlights", "null")]
+    [Arguments("Highlights", "[null]")]
+    public async Task ARecordWithANullWhereAMemberBelongs_IsRefusedBeforeAnythingIsWritten(string member, string json)
+    {
+        using TempFolders temp = new();
+        string cache = temp.New();
+        byte[] bytes = WithMember(BundleBuilder.ParsedRecord(Sha, 4096), member, json);
+
+        // Once with no row for the content, once merging into a row this machine has.
+        DemoCacheStore fresh = new(cache);
+        DemoCacheStore holding = new(null);
+        DemoCacheRecord local = BundleBuilder.ParsedRecord(Sha, 4096);
+        local.Path = "/library/local.dem";
+        local.Locations = [];
+        holding.Upsert(local);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(() => fresh.ImportContent(Sha, null, bytes, [])).Throws<InvalidDataException>();
+            await Assert.That(fresh.HoldsContent(Sha)).IsFalse();
+            await Assert.That(File.Exists(Path.Combine(cache, "demos", Sha + DemoCacheStore.RecordSuffix))).IsFalse()
+                .Because("a record file with no row behind it is left for the sweep otherwise");
+            await Assert.That(() => holding.ImportContent(Sha, null, bytes, [])).Throws<InvalidDataException>();
+        }
+    }
+
+    private static byte[] WithMember(DemoCacheRecord record, string member, string json)
+    {
+        System.Text.Json.Nodes.JsonObject node =
+            System.Text.Json.JsonSerializer.SerializeToNode(record)!.AsObject();
+        node[member] = System.Text.Json.Nodes.JsonNode.Parse(json);
+        return SidecarJson.Gzip(Encoding.UTF8.GetBytes(node.ToJsonString()));
+    }
+
     [Test]
     [Arguments(".facts.player_event.json.gz", "facts:player_event")]
     [Arguments(".out.facts.player_event.json.gz", "facts:player_event")]
