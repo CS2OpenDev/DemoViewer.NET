@@ -197,19 +197,34 @@ public static class GrenadeThrowLog
 
             GrenadeDocument? document =
                 JsonSerializer.Deserialize<GrenadeDocument>(r.ReadString(), GrenadeSidecar.JsonOptions);
-            if (document is null)
+            // The header is read without strict nulls, and the readers dereference all four blocks.
+            if (document is null || document.Walker is null || document.Demo is null || document.Clock is null
+                || document.Source is null)
             {
                 return null;
             }
 
-            string[] strings = new string[r.Read7BitEncodedInt()];
-            for (int i = 0; i < strings.Length; i++)
+            // Neither count sizes anything: a stored log can come from a transfer bundle, and a count it made up
+            // would otherwise allocate before the stream runs out. The lists grow as the entries are read.
+            int stringCount = r.Read7BitEncodedInt();
+            if (stringCount < 0)
             {
-                strings[i] = r.ReadString();
+                return null;
+            }
+
+            List<string> strings = [];
+            for (int i = 0; i < stringCount; i++)
+            {
+                strings.Add(r.ReadString());
             }
 
             int count = r.Read7BitEncodedInt();
-            List<GrenadeRow> rows = new(count);
+            if (count < 0)
+            {
+                return null;
+            }
+
+            List<GrenadeRow> rows = [];
             for (int i = 0; i < count; i++)
             {
                 Has has = (Has)r.ReadUInt32();
@@ -263,7 +278,8 @@ public static class GrenadeThrowLog
             return document;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or EndOfStreamException
-                                       or IndexOutOfRangeException or ArgumentException)
+                                       or IndexOutOfRangeException or ArgumentException or FormatException
+                                       or OverflowException)
         {
             return null;
         }

@@ -89,6 +89,44 @@ public class GrenadeStoreTests
         }
     }
 
+    /// <summary>A log with a real magic, version and header, then <paramref name="tail" /> where the tables go.</summary>
+    private static byte[] LogWith(string headerJson, params byte[] tail)
+    {
+        using MemoryStream output = new();
+        using (System.IO.Compression.GZipStream gzip = new(output, System.IO.Compression.CompressionLevel.Fastest,
+                   true))
+        using (BinaryWriter w = new(gzip, System.Text.Encoding.UTF8, true))
+        {
+            w.Write("DVGL"u8);
+            w.Write((byte)1);
+            w.Write(headerJson);
+            w.Write(tail);
+        }
+
+        return output.ToArray();
+    }
+
+    [Test]
+    public async Task ALogWithMadeUpCountsOrANullHeaderBlock_IsNotALog_AndDoesNotThrow()
+    {
+        string header = GrenadeSidecar.Serialize(new GrenadeDocument());
+        using (Assert.Multiple())
+        {
+            await Assert.That(GrenadeThrowLog.TryDecode(LogWith(header, 0, 0))).IsNotNull()
+                .Because("the helper writes a log the decoder reads when its tables are honest");
+            await Assert.That(GrenadeThrowLog.TryDecode(LogWith(header, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F))).IsNull()
+                .Because("a string count of -1 is not a log");
+            await Assert.That(GrenadeThrowLog.TryDecode(LogWith(header, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F))).IsNull()
+                .Because("an over-long 7-bit integer is not a log");
+            await Assert.That(GrenadeThrowLog.TryDecode(LogWith(header, 0xFF, 0xFF, 0xFF, 0xFF, 0x07))).IsNull()
+                .Because("a string count of two thousand million with no strings behind it is not a log");
+            await Assert.That(GrenadeThrowLog.TryDecode(LogWith(header, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F))).IsNull()
+                .Because("a row count of -1 is not a log");
+            await Assert.That(GrenadeThrowLog.TryDecode(LogWith("{\"schemaVersion\":1,\"demo\":null}", 0, 0)))
+                .IsNull().Because("the store reads the demo block's hash");
+        }
+    }
+
     private static GrenadeRow Smoke(string id, float x, int slot, string steam) => new()
     {
         Id = id,
