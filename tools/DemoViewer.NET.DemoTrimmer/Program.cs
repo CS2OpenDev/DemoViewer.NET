@@ -107,20 +107,16 @@ internal static class Program
             $"source: {Path.GetFileName(path)}  {DemoInspector.Mib(raw.LongLength)}  " +
             $"map={demo.MapName} frames={demo.Frames.Count} ticks={demo.TickCount}"));
 
-        // player_team synthesis inputs: sampled ONCE per source (every window shares round 1's
-        // seating). A missing descriptor or an empty sample set skips synthesis with a warning
-        // rather than emitting a file that will render every player on one team.
-        IReadOnlyList<TeamSample> teamSamples = TeamEventSynthesizer.Sample(demo);
+        // player_team synthesis inputs. The seating is sampled per WINDOW, at the first freeze-end
+        // the window contains: a window entered at a checkpoint after halftime has the sides
+        // swapped relative to round 1, and one seating for the whole source handed it the wrong
+        // one. Windows that enter at the same frame share a sample (every contiguous variant enters
+        // at 0), so the entity replay behind it runs once per distinct entry. A missing descriptor
+        // or an empty sample set skips synthesis with a warning rather than emitting a file that
+        // will render every player on one team.
         CMsgSource1LegacyGameEventList.Types.descriptor_t? teamDescriptor =
             TeamEventSynthesizer.FindDescriptor(demo, out int teamListFrame);
-        byte[]? teamPacket = teamDescriptor is not null && teamSamples.Count > 0
-            ? TeamEventSynthesizer.BuildPacketPayload(teamDescriptor, teamSamples)
-            : null;
-        Console.WriteLine(teamPacket is null
-            ? "WARNING: no player_team synthesis (descriptor or seated controllers missing) — " +
-            "trims ending before halftime will show every player on one team"
-            : string.Create(CultureInfo.InvariantCulture,
-                $"synthesizing {teamSamples.Count} player_team seatings: {string.Join(", ", teamSamples.Select(s => $"{s.Name}→{(s.Team == 3 ? "CT" : "T")}"))}"));
+        Dictionary<int, (IReadOnlyList<TeamSample> Samples, byte[]? Packet)> teamsByEntry = [];
         Console.WriteLine();
 
         int failures = 0;
@@ -132,6 +128,23 @@ internal static class Program
                     demo, rounds, variant.EnterAtCheckpoint, boundaryEvent, skipBoundaries);
                 string outPath = Path.Combine(outDir, $"{prefix}-{variant.Id}-{rounds}r.dem");
 
+                if (!teamsByEntry.TryGetValue(window.EntryIndex,
+                        out (IReadOnlyList<TeamSample> Samples, byte[]? Packet) teams))
+                {
+                    IReadOnlyList<TeamSample> sampled = TeamEventSynthesizer.Sample(demo, window.EntryIndex);
+                    teams = (sampled, teamDescriptor is not null && sampled.Count > 0
+                        ? TeamEventSynthesizer.BuildPacketPayload(teamDescriptor, sampled)
+                        : null);
+                    teamsByEntry[window.EntryIndex] = teams;
+                    Console.WriteLine(teams.Packet is null
+                        ? "WARNING: no player_team synthesis (descriptor or seated controllers missing) — " +
+                        "trims ending before halftime will show every player on one team"
+                        : string.Create(CultureInfo.InvariantCulture,
+                            $"synthesizing {sampled.Count} player_team seatings (entry frame {window.EntryIndex}): {string.Join(", ", sampled.Select(s => $"{s.Name}→{(s.Team == 3 ? "CT" : "T")}"))}"));
+                    Console.WriteLine();
+                }
+
+                (IReadOnlyList<TeamSample> teamSamples, byte[]? teamPacket) = teams;
                 TrimResult result = DemoTrimWriter.Write(demo, raw, window, variant, outPath, identityCheck,
                     teamPacket, teamSamples, teamListFrame);
                 PrintResult(result, raw.LongLength);
