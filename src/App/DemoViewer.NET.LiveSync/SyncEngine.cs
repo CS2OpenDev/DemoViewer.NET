@@ -147,6 +147,22 @@ public sealed class SyncEngine : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    ///     The user's speed as last pushed through <see cref="SetDesiredTimescale" />: the rate CS2
+    ///     runs at under "timescale-set". Stays 1× without that capability, because the setter
+    ///     no-ops there. The drift servo bends around this, never around a hardcoded 1×.
+    /// </summary>
+    internal double DesiredTimescale
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _desiredTimescale;
+            }
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _cts.CancelAsync();

@@ -138,11 +138,12 @@ internal sealed class InboundSync : IDisposable
         }
 
         long error = mapper.DvTick(cs2Tick) - _shell.Playback.CurrentTick;
-        (ServoLogic.Correction kind, double speed) = ServoLogic.Decide(error, _servoEngaged);
+        (ServoLogic.Correction kind, double speed) =
+            ServoLogic.Decide(error, _servoEngaged, _engine.DesiredTimescale);
         switch (kind)
         {
             case ServoLogic.Correction.RestoreSpeed:
-                ApplyRemote(() => _shell.Playback.Speed = 1.0);
+                ApplyRemote(() => _shell.Playback.Speed = speed);
                 _servoEngaged = false;
                 break;
 
@@ -157,7 +158,7 @@ internal sealed class InboundSync : IDisposable
                 ApplyRemote(() =>
                 {
                     _shell.Playback.SeekToFrame(mapper.FrameIndexOf(checked((int)cs2Tick)));
-                    _shell.Playback.Speed = 1.0;
+                    _shell.Playback.Speed = speed;
                     _shell.Playback.PlayCommand.Execute(null);
                     _engine.SetDesiredTick(cs2Tick);
                     _engine.SetDesiredPlaying(true);
@@ -171,7 +172,7 @@ internal sealed class InboundSync : IDisposable
     {
         if (_servoEngaged)
         {
-            ApplyRemote(() => _shell.Playback.Speed = 1.0);
+            ApplyRemote(() => _shell.Playback.Speed = _engine.DesiredTimescale);
             _servoEngaged = false;
         }
     }
