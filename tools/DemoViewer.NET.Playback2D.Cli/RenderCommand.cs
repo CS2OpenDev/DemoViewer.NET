@@ -63,6 +63,8 @@ internal static class RenderCommand
         string? cameraSpec = args.String("camera");
         bool diagAssemblies = args.Flag("diag-assemblies");
         args.ThrowIfUnconsumed();
+        RefuseOutputOverInput(outPath, args.String("fixture"), args.String("demo"), args.String("ink"),
+            zonesOverlay, args.String("query"), args.String("overlay"));
 
         if (plan.Assets is { Source: AssetsRootSource.Flag or AssetsRootSource.Env, Path: null })
         {
@@ -170,6 +172,48 @@ internal static class RenderCommand
         }
 
         return array;
+    }
+
+    /// <summary>
+    ///     Refuses an <c>--out</c> that would replace something the command reads. The write is a
+    ///     plain overwrite and the input has already been read by then, so <c>--demo m.dem --out
+    ///     m.dem</c> ran to completion and left a PNG where the demo was.
+    ///     <para>
+    ///         A <c>.dem</c> destination is refused whatever the inputs are. No command here writes a
+    ///         demo, and one is the file a slip costs most: it cannot be re-rendered from anything.
+    ///     </para>
+    ///     <para>
+    ///         Called by the commands that take <c>--out</c> from the user, not from
+    ///         <see cref="WriteFile" />, which also writes goldens and bench reports to paths the tool
+    ///         chose itself.
+    ///     </para>
+    /// </summary>
+    /// <param name="outPath">The destination the caller named.</param>
+    /// <param name="inputs">Every input path the command was given; nulls are skipped.</param>
+    /// <exception cref="CliUsageException">The destination is an input, or a <c>.dem</c>.</exception>
+    public static void RefuseOutputOverInput(string outPath, params string?[] inputs)
+    {
+        ArgumentNullException.ThrowIfNull(inputs);
+
+        if (string.Equals(Path.GetExtension(outPath), ".dem", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new CliUsageException($"--out {outPath} names a demo; dv2d does not write .dem files.");
+        }
+
+        // Case decides identity on Linux only; treating two spellings as one file anywhere else
+        // would be the unsafe direction to be wrong in.
+        StringComparison comparison = OperatingSystem.IsLinux()
+            ? StringComparison.Ordinal
+            : StringComparison.OrdinalIgnoreCase;
+        string destination = Path.GetFullPath(outPath);
+
+        foreach (string? input in inputs)
+        {
+            if (input is { Length: > 0 } && string.Equals(Path.GetFullPath(input), destination, comparison))
+            {
+                throw new CliUsageException($"--out {outPath} is one of this command's inputs.");
+            }
+        }
     }
 
     /// <summary>Writes bytes to a path, creating the directory.</summary>

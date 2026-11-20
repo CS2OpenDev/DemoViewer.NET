@@ -63,6 +63,7 @@ internal static class ExportCommand
         double speed = args.Double("speed", 1.0);
         SKSizeI size = args.Size("size", new SKSizeI(1920, 1080));
         string outPath = args.String("out") ?? $"dv2d-export.{format}";
+        RenderCommand.RefuseOutputOverInput(outPath, demoPath);
         bool hud = args.Flag("hud");
         bool ffmpegLog = args.Flag("ffmpeg-log");
 
