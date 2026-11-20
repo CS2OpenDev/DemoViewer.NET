@@ -14,6 +14,7 @@ using DemoViewer.NET.Controls.Stats;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Diagnostics;
+using DemoViewer.NET.Services.Transfer;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.PlayerOverview;
 using Microsoft.Extensions.Logging;
@@ -1210,6 +1211,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     Writes every backing table to <paramref name="directoryPath" /> in the given format
     ///     (file per table, named by table id: the same output <c>AnalysisBench --export</c>
     ///     produces). Returns a user-facing result message.
+    ///     <para>
+    ///         A configured output's id is the raw YAML key of whoever wrote the rule file, so each name is
+    ///         made a portable leaf (separators, <c>:</c> and the rest become <c>_</c>) and unique within the
+    ///         export. A sane id is unchanged; one that is not no longer matches the bench's file name.
+    ///     </para>
     /// </summary>
     public string ExportTo(string directoryPath, string formatId)
     {
@@ -1227,14 +1233,19 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
         try
         {
+            // Unique within this export only: a file left by an earlier export is still overwritten.
+            PortableNameSet names = new([]);
             foreach (MetricTable table in tables)
             {
-                formatter.WriteToFile(table, Path.Combine(directoryPath, $"{table.Name}.{formatter.FileExtension}"));
+                string fileName = names.Claim($"{table.Name}.{formatter.FileExtension}",
+                    $"table.{formatter.FileExtension}");
+                formatter.WriteToFile(table, Path.Combine(directoryPath, fileName));
             }
 
             return $"Exported {tables.Count} table(s) to {directoryPath}";
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                                       or NotSupportedException)
         {
             AppLog.OperationFailed(DiagLog, "export the stats tables", ex);
             return UserFacingError.Describe("export the stats tables", ex);
