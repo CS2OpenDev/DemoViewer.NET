@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using static DemoViewer.NET.AppTests.SuggestedTagsReviewHarness;
@@ -40,6 +41,46 @@ public class SuggestedTagsReviewTests
                 .Because("nothing has a verdict yet, and the index mirrors the pending count");
             await Assert.That(h.Service.Wants(DemoPath)).IsFalse().Because("the stamp is current");
         }
+    }
+
+    [Test]
+    [Arguments("{\"schemaVersion\":1,\"proposals\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"demo\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"clock\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"proposals\":[null]}")]
+    [Arguments("{\"schemaVersion\":1,\"proposals\":[{\"factors\":null}]}")]
+    [Arguments("{\"schemaVersion\":1,\"proposals\":[{\"evidence\":[null]}]}")]
+    public async Task AStoredDocumentWithANullWhereTheReadersLook_ReadsAsAbsent(string json)
+    {
+        using SuggestedTagsReviewHarness h = new();
+        h.Seed();
+        h.Proposals.Data.Write(DemoPath,
+            new DemoDataWrite(ProposalStore.Facet, ProposalStore.Schema, "bundle",
+                System.Text.Encoding.UTF8.GetBytes(json)));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ProposalDocument.TryDeserialize(json)).IsNull();
+            await Assert.That(h.Service.Load(DemoPath).Entries).IsEmpty()
+                .Because("a file that does not read is absent, and the queue opens empty");
+        }
+    }
+
+    [Test]
+    [Arguments("{\"schemaVersion\":1,\"clock\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"events\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"events\":[null]}")]
+    public async Task AStoredDetonationDocumentWithANull_ReadsAsAbsent(string json)
+    {
+        using SuggestedTagsReviewHarness h = new();
+        h.Seed();
+        DetonationStore store = new(h.Proposals.Data);
+        store.Write(DemoPath, new DetonationDocument());
+        h.Proposals.Data.Write(DemoPath,
+            new DemoDataWrite(DetonationStore.Facet, DetonationDocument.CurrentSchemaVersion,
+                store.Stamp(DemoPath)!.Fingerprint, System.Text.Encoding.UTF8.GetBytes(json)));
+
+        await Assert.That(store.TryRead(DemoPath)).IsNull();
     }
 
     [Test]

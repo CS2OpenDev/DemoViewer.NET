@@ -49,13 +49,25 @@ public sealed class ProposalDocument
     {
         try
         {
-            return JsonSerializer.Deserialize(json, SuggestedTagsJsonContext.Default.ProposalDocument);
+            return JsonSerializer.Deserialize(json, SuggestedTagsJsonContext.Default.ProposalDocument) is { } document
+                   && IsWellFormed(document)
+                ? document
+                : null;
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    // The serializer writes a JSON null over an initialised property, and a facet can come from a transfer
+    // bundle. The readers dereference all of these, so a document missing one is not a document.
+    private static bool IsWellFormed(ProposalDocument document) =>
+        document.Demo is not null && document.Clock is not null && document.DetectorSet is not null
+        && document.Proposals is not null
+        && document.Proposals.TrueForAll(p =>
+            p is { Id: not null, Detector: not null, Code: not null, Factors: not null, Labels: not null }
+            && p.Evidence is not null && p.Evidence.TrueForAll(e => e is not null));
 
     /// <summary>The proposals as the detectors made them.</summary>
     public IReadOnlyList<TagProposal> ToProposals() => [.. Proposals.Select(p => p.ToProposal())];
