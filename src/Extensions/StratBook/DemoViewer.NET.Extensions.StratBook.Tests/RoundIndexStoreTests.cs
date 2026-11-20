@@ -25,6 +25,38 @@ public class RoundIndexStoreTests
     private static string TempRoot() =>
         Path.Combine(Path.GetTempPath(), $"dv-roundindex-{Guid.NewGuid():N}");
 
+    private static string SidecarWithRuns(string runs) =>
+        """{"schemaVersion":1,"fingerprint":"x","cadenceTicks":64,"rounds":[{"number":1,"freezeEndTick":0,"endTick":6400,"runs":["""
+        + runs + "]}]}";
+
+    [Test]
+    [Arguments("""[0,2147483647,"",""]""")]
+    [Arguments("""[0,999999999,"",""]""")]
+    [Arguments("""[5,2,"",""]""")]
+    [Arguments("""[-3,2,"",""]""")]
+    [Arguments("""[0,4,"",""],[3,6,"",""]""")]
+    public async Task ASidecarWhoseRunsCannotBeARound_ReadsAsUnparseable(string runs)
+    {
+        using (Assert.Multiple())
+        {
+            await Assert.That(RoundIndexDocument.TryDeserialize(SidecarWithRuns(runs))).IsNull()
+                .Because("every consumer expands the runs, so a run without an end pins a worker");
+            await Assert.That(RoundIndexDocument.TryDeserialize(SidecarWithRuns("""[0,4,"a",""],[6,99,"b",""]""")))
+                .IsNotNull().Because("a step the walk did not sample leaves a gap between runs");
+        }
+    }
+
+    [Test]
+    public async Task ExpandRows_EndsOnARunThatReachesTheLastInt()
+    {
+        RoundIndexDocument document = Document("de_nuke", "x",
+            (1, 0, 6400, [new RoundIndexRun(int.MaxValue - 1, int.MaxValue, "", "")]));
+
+        // Take bounds the enumeration: unbounded, the wrapped counter never ends.
+        await Assert.That(document.ExpandRows(document.Rounds[0]).Take(10).Count()).IsEqualTo(2);
+        await Assert.That(document.RowCount).IsEqualTo(2);
+    }
+
     private static RoundIndexDocument Sample() => Document("de_nuke", "ri1;cadence=1;token=1;rf=1;src=pawn",
         (3, 10746, 17138,
         [
