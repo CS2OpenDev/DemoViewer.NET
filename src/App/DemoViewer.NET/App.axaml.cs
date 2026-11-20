@@ -452,7 +452,17 @@ public class App : Application
                     finally
                     {
                         csvgTornDown = true;
-                        desktop.Shutdown();
+
+                        // The forced Shutdown raises no second ShutdownRequested, so the flush the handler
+                        // does on the request that really exits has to happen here.
+                        try
+                        {
+                            FlushStores(services);
+                        }
+                        finally
+                        {
+                            desktop.Shutdown();
+                        }
                     }
                 });
             };
