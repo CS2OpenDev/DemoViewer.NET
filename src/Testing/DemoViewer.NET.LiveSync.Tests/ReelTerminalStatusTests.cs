@@ -83,6 +83,20 @@ public class ReelTerminalStatusTests
     }
 
     [Test]
+    public async Task ACancelThatArrivesAfterTheRunSucceeded_IsStillCompleted_WithItsOutput()
+    {
+        // The token is read after the runner returns: a Cancel (or app exit) in that gap finds every clip
+        // captured and the reel already on disk.
+        Cs2CompilationResult result = Cs2CompilationResult.Succeeded([Clip(0, true), Clip(1, true)]);
+
+        ReelJobStatus status = ReelJobService.CompilationTerminalStatus(Request(2), result, true, "out");
+
+        await Assert.That(status.Phase).IsEqualTo(ReelJobPhase.Completed);
+        await Assert.That(status.OutputPath).IsEqualTo("out");
+        await Assert.That(status.FailedClipIndices).IsEmpty();
+    }
+
+    [Test]
     public async Task SuccessfulRun_IsCompleted_WithNothingToRetry()
     {
         Cs2CompilationResult result = Cs2CompilationResult.Succeeded([Clip(0, true), Clip(1, true)]);

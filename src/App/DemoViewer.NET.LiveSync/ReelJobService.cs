@@ -482,14 +482,16 @@ public sealed class ReelJobService(
     ///     holding only the clips it started. So the retryable set is every requested clip without a
     ///     successful result (matched by <see cref="Cs2ClipResult.ClipIndex" />, because the runner
     ///     records grouped by demo and start tick, not in request order), and the token decides
-    ///     Cancelled. <see cref="UnfinishedIndices" />' contiguous-tail assumption does not hold here.
+    ///     Cancelled, for a run that did not succeed: the token is read after the runner returns, so a
+    ///     cancel can arrive once every clip is captured and the reel is on disk, and that run completed.
+    ///     <see cref="UnfinishedIndices" />' contiguous-tail assumption does not hold here.
     /// </summary>
     internal static ReelJobStatus CompilationTerminalStatus(
         ReelRequest request, Cs2CompilationResult result, bool cancelled, string? outputPath)
     {
         HashSet<int> captured = [.. result.ClipResults.Where(r => r.Success).Select(r => r.ClipIndex)];
         List<int> unfinished = [.. Enumerable.Range(0, request.Clips.Count).Where(i => !captured.Contains(i))];
-        if (cancelled)
+        if (cancelled && !result.Success)
         {
             return new ReelJobStatus(ReelJobPhase.Cancelled, captured.Count, request.Clips.Count, null,
                 "Cancelled.", null, unfinished);
