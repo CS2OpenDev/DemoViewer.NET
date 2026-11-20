@@ -1,6 +1,7 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Playback2D.Annotations;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 
@@ -113,6 +114,71 @@ public class TagSessionTests
             await Assert.That(restored.FactsStamp!.Schema).IsEqualTo(1);
             await Assert.That(restored.Positions.Single().Place).IsEqualTo("BombsiteA");
             await Assert.That(restored.Positions.Single().PlaceSource).IsEqualTo("zones:abc");
+        }
+    }
+
+    private static readonly DemoIdentity _otherDemo = new(new string('a', 64), "other.dem", 1);
+
+    // Runs what the store posted, and what that posts in turn.
+    private static void Drain(List<Action> posted)
+    {
+        while (posted.Count > 0)
+        {
+            Action next = posted[0];
+            posted.RemoveAt(0);
+            next();
+        }
+    }
+
+    [Test]
+    public async Task ARoutedChange_PostedBeforeADemoSwap_LandsOnItsOwnDemo_NotTheOneNowAttached()
+    {
+        List<Action> posted = [];
+        TagStore store = new(null, posted.Add);
+        using TagSession session = Session(store);
+        await session.AttachAsync(Demo, Clock, DemoPath);
+        session.Apply(new TagDelta.Add(Instance("Default", 5, 6)));
+
+        // Both see the session holding the first demo and post to it; the swap runs before either post does.
+        await Assert.That(store.Append(Demo, Clock, Instance("A execute", 100, 200))).IsTrue();
+        await Assert.That(store.Update(Sha, d => d.Instances[0].Note = "refreshed")).IsTrue();
+        await session.AttachAsync(_otherDemo, Clock, "/d/other.dem");
+        Drain(posted);
+
+        TagDocument first = store.TryLoad(Sha)!;
+        using (Assert.Multiple())
+        {
+            await Assert.That(session.Document!.Demo.Sha256).IsEqualTo(_otherDemo.Sha256);
+            await Assert.That(session.Document.Instances).IsEmpty()
+                .Because("a change routed for one demo is never applied to another demo's document");
+            await Assert.That(first.Instances.Select(i => i.Code)).IsEquivalentTo(["Default", "A execute"])
+                .Because("the add reported true, so it is written through the store instead");
+            await Assert.That(first.Instances[0].Note).IsEqualTo("refreshed");
+        }
+    }
+
+    [Test]
+    public async Task ARoutedAdd_ThatLandsWhileTheSessionIsBetweenDemos_IsNotLost()
+    {
+        List<Action> posted = [];
+        TagStore store = new(null, posted.Add);
+        TaskCompletionSource<IReadOnlyList<LibraryRound>?> rounds = new();
+        using TagSession session = new(store,
+            path => path == DemoPath ? Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds) : rounds.Task,
+            () => false, () => Created) { AutoSaveDelay = TimeSpan.FromHours(1) };
+        await session.AttachAsync(Demo, Clock, DemoPath);
+
+        await Assert.That(store.Append(Demo, Clock, Instance("A execute", 100, 200))).IsTrue();
+        Task swap = session.AttachAsync(_otherDemo, Clock, "/d/other.dem");
+        await Assert.That(session.Document).IsNull().Because("the swap is waiting for the next demo's rounds");
+        Drain(posted);
+        rounds.SetResult(_rounds);
+        await swap;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(store.TryLoad(Sha)?.Instances.Select(i => i.Code)).IsEquivalentTo(["A execute"]);
+            await Assert.That(session.Document!.Instances).IsEmpty();
         }
     }
 

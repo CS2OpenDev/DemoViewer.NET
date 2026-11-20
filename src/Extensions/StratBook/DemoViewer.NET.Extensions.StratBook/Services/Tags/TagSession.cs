@@ -351,6 +351,28 @@ public sealed class TagSession : IDisposable
         Touch();
     }
 
+    /// <summary>
+    ///     <see cref="ApplyExternal" /> for a change the store routed here for one demo, applied only while the
+    ///     session still holds that demo's document: between the store reading its holder and the post running,
+    ///     the session may have let the demo go or attached another.
+    /// </summary>
+    /// <param name="sha256">The hash of the demo the change was made for.</param>
+    /// <param name="mutate">The change.</param>
+    /// <returns>False when the session does not hold that demo's document; nothing was applied.</returns>
+    internal bool TryApplyExternal(string sha256, Action<TagDocument> mutate)
+    {
+        ArgumentNullException.ThrowIfNull(mutate);
+        if (_disposed || Document is not { } document
+            || !string.Equals(document.Demo.Sha256, sha256, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        mutate(document);
+        Touch();
+        return true;
+    }
+
     /// <summary>Writes any pending change now: on demo swap, tab deactivate and shutdown. Never throws.</summary>
     public async Task FlushAsync()
     {

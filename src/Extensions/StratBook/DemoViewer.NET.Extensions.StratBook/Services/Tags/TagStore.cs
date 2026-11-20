@@ -315,7 +315,10 @@ public sealed class TagStore
     /// </summary>
     /// <param name="sha256">Lowercase-hex SHA-256 of the demo.</param>
     /// <param name="mutate">The change.</param>
-    /// <returns>False when the write failed or there was no document; a posted change reports true.</returns>
+    /// <returns>
+    ///     False when the write failed or there was no document; a posted change reports true. A post that finds
+    ///     the session no longer holding that demo is written through the store instead.
+    /// </returns>
     public bool Update(string sha256, Action<TagDocument> mutate)
     {
         ArgumentException.ThrowIfNullOrEmpty(sha256);
@@ -330,7 +333,7 @@ public sealed class TagStore
 
         if (holder is not null)
         {
-            _post(() => holder.ApplyExternal(mutate));
+            _post(() => ApplyRouted(key, holder, mutate, null));
             return true;
         }
 
@@ -351,7 +354,8 @@ public sealed class TagStore
     ///     Suggested Tags accept path, which writes from outside any session. When a session holds the
     ///     document the instance is posted to it (outside its undo history, then autosaved), the
     ///     <see cref="Update" /> rule; otherwise it is a read-modify-write here. False when the write
-    ///     failed or the hash is refused; a posted add reports true, the session owning the save.
+    ///     failed or the hash is refused; a posted add reports true, the session owning the save. A post that
+    ///     finds the session no longer holding that demo is written through the store instead.
     /// </summary>
     /// <param name="demo">The demo's identity; names the document.</param>
     /// <param name="clock">The clock the instance's ticks are on; stamped on a fresh document.</param>
@@ -372,7 +376,8 @@ public sealed class TagStore
 
         if (holder is not null)
         {
-            _post(() => holder.ApplyExternal(document => document.Instances.Add(copy.Clone())));
+            _post(() => ApplyRouted(key, holder, document => document.Instances.Add(copy.Clone()),
+                () => LoadOrCreate(demo, clock)));
             return true;
         }
 
@@ -381,6 +386,39 @@ public sealed class TagStore
             TagDocument document = LoadOrCreate(demo, clock);
             document.Instances.Add(copy);
             return Save(document);
+        }
+    }
+
+    // On the thread the sessions live on. The holder was read when the change was routed; by the time the post
+    // runs it may have let that demo go, or attached another, and the document it holds is then not the one the
+    // change was made for. A session that took the demo since gets the change; with none, the demo's document
+    // was flushed and released, so this is the read-modify-write the caller would have run itself. Without
+    // create a hash with no document is left alone, the Update rule.
+    private void ApplyRouted(string key, TagSession holder, Action<TagDocument> mutate, Func<TagDocument>? create)
+    {
+        if (holder.TryApplyExternal(key, mutate))
+        {
+            return;
+        }
+
+        TagSession? current;
+        lock (_gate)
+        {
+            current = _checkedOut.GetValueOrDefault(key);
+        }
+
+        if (current is not null && current.TryApplyExternal(key, mutate))
+        {
+            return;
+        }
+
+        lock (_rmwGate)
+        {
+            if ((create is null ? TryLoad(key) : create()) is { } document)
+            {
+                mutate(document);
+                Save(document);
+            }
         }
     }
 
