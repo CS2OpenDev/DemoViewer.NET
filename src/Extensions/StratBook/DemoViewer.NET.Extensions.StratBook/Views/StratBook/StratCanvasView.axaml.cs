@@ -39,6 +39,7 @@ public partial class StratCanvasView : UserControl
     private StratCanvasViewModel? _bound;
     private bool _editingText;
     private IExtensionKeymap? _watched;
+    private StratCanvasTools? _tools;
 
     // The key that started a hold-pan, latched so a rebind while it is down cannot strand the surface panning.
     private Key? _holdPanKey;
@@ -80,22 +81,24 @@ public partial class StratCanvasView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         WatchKeymap(true);
+        WatchTools(true);
+        if (_bound is not null)
+        {
+            OnToolSelected(_bound.Tools.ActiveTool);
+        }
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         WatchKeymap(false);
+        WatchTools(false);
         base.OnDetachedFromVisualTree(e);
     }
 
     private void Bind()
     {
         WatchKeymap(false);
-        if (_bound is not null)
-        {
-            _bound.Tools.ToolSelected -= OnToolSelected;
-        }
-
+        WatchTools(false);
         _bound = DataContext as StratCanvasViewModel;
         if (_scene is not null)
         {
@@ -104,11 +107,28 @@ public partial class StratCanvasView : UserControl
 
         if (_bound is not null)
         {
-            _bound.Tools.ToolSelected += OnToolSelected;
             OnToolSelected(_bound.Tools.ActiveTool);
         }
 
         WatchKeymap(this.IsAttachedToVisualTree());
+        WatchTools(this.IsAttachedToVisualTree());
+    }
+
+    // Only while on screen, like the keymap: the canvas view model outlives a view the host has dropped, and a
+    // handler left on its tools would keep that view alive. A tool picked meanwhile is taken up on the way back.
+    private void WatchTools(bool on)
+    {
+        if (_tools is not null)
+        {
+            _tools.ToolSelected -= OnToolSelected;
+            _tools = null;
+        }
+
+        if (on && _bound is not null)
+        {
+            _tools = _bound.Tools;
+            _tools.ToolSelected += OnToolSelected;
+        }
     }
 
     // Only while on screen: the keymap lives as long as the extension, so a handler left on it would keep this
