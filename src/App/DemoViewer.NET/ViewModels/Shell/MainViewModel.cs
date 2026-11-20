@@ -4767,8 +4767,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     ///     Commits the nav-strip frame box (Enter / LostFocus from the control). Parses
-    ///     <see cref="NavFrameText" />, clamps into [0, TotalFrames-1], and seeks via the controller;
-    ///     reverts to the last valid frame on bad input. Frame-index movement, per the locked decision.
+    ///     <see cref="NavFrameText" />, clamps into [0, TotalFrames-1], and seeks via the controller unless
+    ///     that is the frame already current; reverts to the last valid frame on bad input. Frame-index movement, per the locked decision.
     /// </summary>
     public void CommitNavFrameText()
     {
@@ -4778,7 +4778,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             int clamped = Math.Clamp(parsed, 0, max);
             _navLastValidFrame = clamped;
             NavFrameText = clamped.ToString(CultureInfo.InvariantCulture);
-            Playback.SeekToFrame(clamped);
+            // The box mirrors the live frame, so a blur with nothing typed commits the frame already shown.
+            // Seeking to it anyway re-ran the whole fan-out and, during play, stopped the loop.
+            if (clamped != Playback.CurrentFrameIndex)
+            {
+                Playback.SeekToFrame(clamped);
+            }
         }
         else
         {
