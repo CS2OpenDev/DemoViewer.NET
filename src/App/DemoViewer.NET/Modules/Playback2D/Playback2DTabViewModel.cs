@@ -2088,7 +2088,10 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         }
 
         LevelDisplayMode mode = LevelStrip.DisplayMode;
-        bool auto = LevelStrip.IsAutoEnabled;
+
+        // The preference, not IsAutoEnabled: that one reads false whenever the feature gate is off, and
+        // a display-mode toggle made meanwhile would save the gate's state as the user's choice.
+        bool auto = LevelStrip.AutoFollowPreference;
 
         try
         {

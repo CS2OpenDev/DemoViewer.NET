@@ -47,6 +47,11 @@ public sealed partial class LevelStripViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSingleMode;
 
+    // What the user asked for, as opposed to IsAutoEnabled, which the gate forces off. Follows the flag
+    // while the gate is on and stands still while it is off, so it is what gets saved and what comes
+    // back with the gate.
+    private bool _preferredAuto = true;
+
     private ILevelSurface? _surface;
 
     /// <summary>The chips, highest level first.</summary>
@@ -63,6 +68,12 @@ public sealed partial class LevelStripViewModel : ObservableObject
     /// <summary>The display mode to persist.</summary>
     public LevelDisplayMode DisplayMode =>
         IsSingleMode ? LevelDisplayMode.Single : LevelDisplayMode.Stacked;
+
+    /// <summary>
+    ///     The AutoFollow flag to persist: the user's choice, not <see cref="IsAutoEnabled" />, which reads
+    ///     false for as long as the feature gate is off whatever they chose.
+    /// </summary>
+    internal bool AutoFollowPreference => _preferredAuto;
 
     /// <summary>Raised when the user changed a setting worth persisting.</summary>
     public event Action? SettingsChanged;
@@ -171,6 +182,7 @@ public sealed partial class LevelStripViewModel : ObservableObject
         try
         {
             IsSingleMode = mode == LevelDisplayMode.Single;
+            _preferredAuto = autoFollow;
             IsAutoEnabled = autoFollow;
         }
         finally
@@ -222,6 +234,13 @@ public sealed partial class LevelStripViewModel : ObservableObject
         {
             IsSingleMode = _surface.DisplayMode == LevelDisplayMode.Single;
             IsAutoEnabled = IsAutoAvailable && _surface.AutoLevelFollow;
+
+            // The surface turns AutoFollow off by itself on a manual pick, and that is the user's doing.
+            // With the gate off its flag is only the gate's, and says nothing about what they want.
+            if (IsAutoAvailable)
+            {
+                _preferredAuto = IsAutoEnabled;
+            }
         }
         finally
         {
@@ -246,6 +265,19 @@ public sealed partial class LevelStripViewModel : ObservableObject
                 _applying = false;
             }
         }
+        else
+        {
+            // And the gate coming back gives the preference back, for the same reason and as quietly.
+            _applying = true;
+            try
+            {
+                IsAutoEnabled = _preferredAuto;
+            }
+            finally
+            {
+                _applying = false;
+            }
+        }
 
         ApplyToSurface();
     }
@@ -262,6 +294,7 @@ public sealed partial class LevelStripViewModel : ObservableObject
             return;
         }
 
+        _preferredAuto = value;
         ApplyToSurface();
         Refresh();
 

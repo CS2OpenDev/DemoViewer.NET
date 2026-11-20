@@ -215,6 +215,58 @@ public class Playback2DLevelStripTests
     }
 
     /// <summary>
+    ///     The other half of "a gate going off is not the user changing their mind". The gate forces the
+    ///     flag off without persisting it, but the NEXT thing that persisted (the STACK/SINGLE toggle)
+    ///     used to write the forced value as the preference, and the gate coming back restored nothing.
+    /// </summary>
+    [Test]
+    public async Task AutoPreference_SurvivesASaveMadeWhileTheGateIsOff_AndComesBackWithTheGate()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
+            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+
+            Scene2DHost host = TwoFloors(ctx, view);
+            vm.LevelStrip.ApplySettings(LevelDisplayMode.Stacked, true);
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsTrue();
+
+            ctx.Gate!.SetEnabled("playback2d.levels.auto", false);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsFalse();
+
+            int saves = 0;
+            vm.LevelStrip.SettingsChanged += () => saves++;
+            vm.LevelStrip.ToggleDisplayModeCommand.Execute(null);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(saves).IsEqualTo(1);
+            await Assert.That(vm.LevelStrip.AutoFollowPreference).IsTrue()
+                .Because("this is what that save wrote as Playback2D:AutoLevelFollow");
+
+            // A floor picked with the gate off is not a verdict on a chip the user cannot see either.
+            vm.LevelStrip.SelectCommand.Execute(vm.LevelStrip.Chips[^1]);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(vm.LevelStrip.AutoFollowPreference).IsTrue();
+
+            ctx.Gate!.SetEnabled("playback2d.levels.auto", true);
+            Playback2DTimelineHarness.Pump();
+
+            await Assert.That(vm.LevelStrip.IsAutoAvailable).IsTrue();
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsTrue()
+                .Because("the user never turned AutoFollow off; a feature flag did, for a while");
+            await Assert.That(host.AutoLevelFollow).IsTrue();
+
+            // With the gate on, a manual pick IS the user turning it off, as it always was.
+            vm.LevelStrip.SelectCommand.Execute(vm.LevelStrip.Chips[^1]);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsFalse();
+            await Assert.That(vm.LevelStrip.AutoFollowPreference).IsFalse();
+
+            window.Close();
+        });
+    }
+
+    /// <summary>
     ///     The visible no-radar state. A histogram-derived split on a map with no baked bundle binds no
     ///     radar at all, which is exactly the case a user would otherwise read as a broken map.
     /// </summary>
