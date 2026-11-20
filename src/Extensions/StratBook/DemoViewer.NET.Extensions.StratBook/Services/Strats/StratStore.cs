@@ -294,9 +294,30 @@ public sealed class StratStore
                 return StratSaveResult.Failed(moveFailure, issues);
             }
 
+            bool relocated = oldPath is not null && newPath is not null
+                && !string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase);
             if (!AppendHistory(committed, entry))
             {
+                if (relocated)
+                {
+                    MoveLogBack(oldPath!, newPath!);
+                }
+
                 return StratSaveResult.Failed("the history line could not be written", issues);
+            }
+
+            // Only now: until the log has the commit the strat still lives at its old path, where a failed
+            // commit leaves it whole. Best-effort, as the new file is the one the store reads from here on.
+            if (relocated)
+            {
+                try
+                {
+                    _folder!.Delete(oldPath!);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    // Stays behind; the listing takes the path with the log.
+                }
             }
 
             lock (_gate)
@@ -1933,18 +1954,37 @@ public sealed class StratStore
                 }
             }
 
+            // The strat file is not touched here: Save deletes the old one once the log has the commit.
             string oldLog = HistoryPathBeside(oldPath);
             if (_folder!.FileExists(oldLog))
             {
                 _folder.Move(oldLog, HistoryPathBeside(newPath), false);
             }
 
-            _folder.Delete(oldPath);
             return null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             return "the strat could not be moved to its new book or map";
+        }
+    }
+
+    // A relocating commit whose history line did not land: the log returns beside the strat file, which never
+    // left, so the strat is where the store still says it is. Best-effort; a log that will not move back is
+    // found at the next start, which rebuilds the strat from it.
+    private void MoveLogBack(string oldPath, string newPath)
+    {
+        try
+        {
+            string newLog = HistoryPathBeside(newPath);
+            if (_folder!.FileExists(newLog) && !_folder.FileExists(HistoryPathBeside(oldPath)))
+            {
+                _folder.Move(newLog, HistoryPathBeside(oldPath), false);
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Stays in the new folder.
         }
     }
 

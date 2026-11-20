@@ -540,4 +540,49 @@ public class StratStoreTests
             DeleteQuietly(root);
         }
     }
+
+    [Test]
+    public async Task AMapChange_WhoseHistoryLineFails_LeavesTheStratWhereItWas()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            StratStore store = new(folder);
+            StratDocument document = Minimal();
+            store.Save(document, [], "created");
+            string oldFile = StratFile(root, document);
+            string oldLog = LogFile(root, document);
+
+            PatchOp op = PatchOp.ReplaceOp("/map", JsonValue.Create("de_mirage"), JsonValue.Create("de_inferno"));
+            StratDocument moved = StratHistory.Apply(document, [op]);
+            folder.FailAppend = path => path.Contains("de_inferno", StringComparison.Ordinal);
+            StratSaveResult failed = store.Save(moved, [op], null);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(failed.Saved).IsFalse();
+                await Assert.That(File.Exists(oldFile)).IsTrue()
+                    .Because("a commit that did not land must not take the strat file with it");
+                await Assert.That(File.Exists(oldLog)).IsTrue().Because("the log goes back beside its strat");
+                await Assert.That(File.Exists(LogFile(root, moved))).IsFalse();
+                await Assert.That(store.TryLoad(document.Id)?.Map).IsEqualTo("de_mirage");
+                await Assert.That(new StratStore(PackStores.At(root)).Index.Single().Map).IsEqualTo("de_mirage")
+                    .Because("the next start finds one strat, with its log");
+            }
+
+            folder.FailAppend = null;
+            await Assert.That(store.Save(moved, [op], null).Saved).IsTrue();
+            using (Assert.Multiple())
+            {
+                await Assert.That(File.Exists(oldFile)).IsFalse();
+                await Assert.That(File.Exists(StratFile(root, moved))).IsTrue();
+                await Assert.That((await File.ReadAllLinesAsync(LogFile(root, moved))).Length).IsEqualTo(2);
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
 }
