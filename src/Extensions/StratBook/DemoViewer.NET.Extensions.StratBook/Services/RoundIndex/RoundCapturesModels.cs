@@ -359,11 +359,39 @@ public sealed class RoundCapturesDocument
     {
         try
         {
-            return JsonSerializer.Deserialize<RoundCapturesDocument>(utf8, JsonOptions);
+            return JsonSerializer.Deserialize<RoundCapturesDocument>(utf8, JsonOptions) is { } document
+                && IsWellFormed(document)
+                    ? document
+                    : null;
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    // A part can come from someone else's bundle. JSON null lands in a list property and in a list as it is, and
+    // the readers index rounds by number and walk every list, so a part with either reads as one that does not parse.
+    private static bool IsWellFormed(RoundCapturesDocument document)
+    {
+        if (document.Demo is null || HasNull(document.Rounds) || HasNull(document.Timeouts))
+        {
+            return false;
+        }
+
+        HashSet<int> numbers = [];
+        foreach (CapturedRound round in document.Rounds)
+        {
+            if (!numbers.Add(round.Number) || HasNull(round.Kills) || HasNull(round.Purchases) || HasNull(round.Awp)
+                || HasNull(round.Loadouts) || HasNull(round.FirstShots)
+                || round.FirstShots.Any(shot => shot.Points is null || shot.Points.Any(point => point is null)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasNull<T>(List<T>? list) where T : class => list is null || list.Any(item => item is null);
 }
