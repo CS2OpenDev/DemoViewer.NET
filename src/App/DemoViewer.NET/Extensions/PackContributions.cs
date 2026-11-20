@@ -305,9 +305,10 @@ internal sealed class PackContributions(
     }
 
     // The extension declared before this one whose manifest lists the same ruleset under the same qualified id.
+    // Only one the app composes: a pack that failed the compatibility check files nothing, so it holds no id.
     private string? EarlierOwnerOf(string qualifiedId, string rulesetId)
     {
-        foreach (IExtension other in LoadedPacks ?? FeaturePacks.DeclaredOrNone)
+        foreach (IExtension other in LoadedPacks ?? FeaturePacks.CompatibleOrNone)
         {
             if (string.Equals(other.Id, Pack.Id, StringComparison.Ordinal))
             {

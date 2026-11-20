@@ -47,6 +47,12 @@ public static class FeaturePacks
     internal static IReadOnlyList<IExtension> DeclaredOrNone => _list.IsSet ? Default : [];
 
     /// <summary>
+    ///     <see cref="Compatible" />, or nothing while no head has declared the list. For a reader that asks
+    ///     which other packs the app composes.
+    /// </summary>
+    internal static IReadOnlyList<IExtension> CompatibleOrNone => _list.IsSet ? Compatible : [];
+
+    /// <summary>
     ///     Declares the compiled-in packs, once, and judges each against <see cref="ExtensionHost.Current" />.
     ///     Must run before anything reads <see cref="Default" />, <see cref="Compatible" /> or
     ///     <see cref="Statuses" />: the static registries build from them once, so a later change would leave
