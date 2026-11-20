@@ -136,6 +136,47 @@ public class Cs2InstallRecoveryViewModelTests
         await Assert.That(vm.NeedsRestore).IsFalse();
     }
 
+    // Enable Live Sync clicked while the banner's probe is out: the session's launch owns the install from
+    // HostStarting on, so the restore must stand down rather than un-patch under it.
+    [Test]
+    public async Task RestoreCommand_SessionStartedDuringTheProbe_StandsDown()
+    {
+        bool busy = false;
+        FakeLiveSync svc = new(_leftovers);
+        Cs2InstallRecoveryViewModel vm = new(svc, () => busy);
+        await vm.CheckAsync();
+        await Assert.That(vm.NeedsRestore).IsTrue();
+
+        svc.DuringProbe = () => busy = true;
+        await vm.RestoreCommand.ExecuteAsync(null);
+
+        await Assert.That(svc.RestoreCalls).IsEqualTo(0);
+        await Assert.That(vm.NeedsRestore).IsFalse();
+        await Assert.That(vm.Notice).IsNull();
+        await Assert.That(vm.FailureText).IsNull();
+    }
+
+    // The same for the unattended restore: if it fails after a session has started, the banner stays down
+    // until the session lets go of CS2.
+    [Test]
+    public async Task FailedAutoRestore_AfterASessionStarted_DoesNotRaiseTheBanner()
+    {
+        bool busy = false;
+        FakeLiveSync svc = new(_safeLeftovers) { RestoreFailure = new IOException("in use") };
+        Cs2InstallRecoveryViewModel vm = new(svc, () => busy);
+        svc.DuringRestore = () => busy = true;
+
+        await vm.CheckAsync();
+
+        await Assert.That(vm.NeedsRestore).IsFalse();
+        await Assert.That(vm.IsVisible).IsFalse();
+
+        busy = false;
+        svc.DuringRestore = null;
+        vm.Reevaluate();
+        await Assert.That(vm.NeedsRestore).IsTrue().Because("the banner probes again once CS2 is released");
+    }
+
     // A Live Sync session owns the install while it runs, and its own stop restores it: the banner stands
     // down for the session and probes again once sync is back to Off, which is when a failed teardown shows.
     [Test]
@@ -211,6 +252,8 @@ public class Cs2InstallRecoveryViewModelTests
         public Exception? RestoreFailure { get; init; }
         public int ProbeCalls { get; private set; }
         public int RestoreCalls { get; private set; }
+        public Action? DuringProbe { get; set; }
+        public Action? DuringRestore { get; set; }
 
         public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
         public long? LastCs2DemoTick => null;
@@ -232,12 +275,14 @@ public class Cs2InstallRecoveryViewModelTests
         public Task<Cs2InstallProbe> ProbeInstallAsync(CancellationToken cancellationToken = default)
         {
             ProbeCalls++;
+            DuringProbe?.Invoke();
             return Task.FromResult(Probe);
         }
 
         public Task RestoreInstallAsync(CancellationToken cancellationToken = default)
         {
             RestoreCalls++;
+            DuringRestore?.Invoke();
             if (RestoreFailure is { } failure)
             {
                 return Task.FromException(failure);

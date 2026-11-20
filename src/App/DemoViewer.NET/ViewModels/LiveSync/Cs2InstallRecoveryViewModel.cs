@@ -157,6 +157,13 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
             {
                 IsRestoring = false;
             }
+
+            // A session that started while the restore ran owns the install now: stand down until it ends.
+            if (_disposed || _isCs2Busy())
+            {
+                StandDown();
+                return;
+            }
         }
 
         Notice = null;
@@ -171,8 +178,7 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
     {
         if (_isCs2Busy())
         {
-            _wasBusy = true;
-            NeedsRestore = false;
+            StandDown();
             return;
         }
 
@@ -181,6 +187,12 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
             _wasBusy = false;
             _ = CheckAsync();
         }
+    }
+
+    private void StandDown()
+    {
+        _wasBusy = true;
+        NeedsRestore = false;
     }
 
     private void OnLiveSyncStateChanged(object? sender, LiveSyncStateChangedEventArgs e) => Reevaluate();
@@ -194,6 +206,14 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
         try
         {
             Cs2InstallProbe probe = await _liveSync.ProbeInstallAsync().ConfigureAwait(true);
+            // As in CheckAsync: a session that started while the probe was out is patching the install
+            // now, and a restore would un-patch it under the launch.
+            if (_disposed || _isCs2Busy())
+            {
+                StandDown();
+                return;
+            }
+
             IsCs2Running = probe.Cs2Running;
             if (probe.HasLeftovers)
             {
