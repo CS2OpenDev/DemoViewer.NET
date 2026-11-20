@@ -331,6 +331,23 @@ public class ZoneOverlayTests
         await Assert.That([.. doc.Hidden]).IsEquivalentTo(Names("Scaffolding"), CollectionOrdering.Matching);
     }
 
+    /// <summary>
+    ///     A <c>null</c> where an entry belongs is a malformed overlay, and has to fail as one: the loader
+    ///     turns a <see cref="System.Text.Json.JsonException" /> into the malformed-overlay diagnostic and
+    ///     keeps the baked set, and anything else escapes on every read of the map's zones.
+    /// </summary>
+    [Test]
+    [Arguments("""{ "schemaVersion": 1, "zones": [null] }""")]
+    [Arguments("""{ "schemaVersion": 1, "zones": [ { "name": "A", "floor": 0, "polygon": [0, 0, 1, 0, 1, 1] }, null, ] }""")]
+    [Arguments("""{ "schemaVersion": 1, "merges": [null] }""")]
+    [Arguments("""{ "schemaVersion": 1, "merges": [ { "into": "Site", "from": ["A", null] } ] }""")]
+    [Arguments("""{ "schemaVersion": 1, "hidden": [null] }""")]
+    public async Task Reader_RefusesANullEntry_AsAMalformedOverlay(string json)
+    {
+        await Assert.That(() => ZoneOverlayReader.Read(Encoding.UTF8.GetBytes(json)))
+            .Throws<System.Text.Json.JsonException>();
+    }
+
     // Through a call rather than an inline array so the analyzer's constant-array rule stays quiet.
     private static string[] Names(params string[] names) => names;
 }
