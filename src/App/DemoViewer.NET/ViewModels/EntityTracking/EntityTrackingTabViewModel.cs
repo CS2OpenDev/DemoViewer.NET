@@ -616,6 +616,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
     private void RebuildEntities(EntityTracker tracker)
     {
+        // No snapshot, so nothing changed: the entity a previous delta rebuild picked must not be re-selected.
+        FirstChangedEntity = null;
         HasEntities = LiveEntities(tracker).Any();
         RebuildEntityListItems(tracker, null);
     }
