@@ -959,10 +959,14 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         }
 
         // Save As makes a NEW ruleset. The open file's own name is a plain save; any other existing one
-        // is somebody else's work, and replacing it unasked loses it.
+        // is somebody else's work, and replacing it unasked loses it. Where file names are case-sensitive
+        // a name that differs only in case is another file, not the open one.
         string path = Path.Combine(_userDir, name);
         bool isOpenFile = SelectedFile is { } open
-            && string.Equals(open.FullPath, path, StringComparison.OrdinalIgnoreCase);
+            && string.Equals(open.FullPath, path,
+                OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                    ? StringComparison.OrdinalIgnoreCase
+                    : StringComparison.Ordinal);
         if (!isOpenFile && (File.Exists(path) || Directory.Exists(path)))
         {
             Summary = $"Not saved: {name} already exists. "
