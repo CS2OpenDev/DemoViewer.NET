@@ -122,6 +122,15 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
         CoreTrack core = new(track, _guard);
         IHostLaneHandle handle = _surface.AddLane(core, TimelineBandRow.Lane,
             behaviour is null ? null : new LaneBehaviour(behaviour, _guard));
+
+        // The timeline answers an id it already has with the lane that has it. Wrapped around this track,
+        // that handle would steer the other lane and unregister it on dispose, while this track never drew.
+        if (!ReferenceEquals(handle.Track, core))
+        {
+            core.Detach();
+            throw new ArgumentException($"A lane with the id '{core.Id}' is already on the timeline.", nameof(track));
+        }
+
         LaneHandle lane = new(track, core, handle);
         _owned.Add(lane);
         return lane;
