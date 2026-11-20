@@ -224,7 +224,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
         if (reload)
         {
-            Load();
+            Reload();
         }
 
         _strats.Deleted += OnStratDeleted;
@@ -1119,22 +1119,52 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         }
     }
 
+    // The constructor's read: nothing is subscribed yet, so the patterns are published where it runs.
     private void Load()
     {
         LoadState();
-        try
+        if (ReadDetected() is { } file)
         {
-            if (_detected?.Read() is { } bytes
-                && JsonSerializer.Deserialize<DetectedFile>(bytes, _jsonOptions) is
-                    { SchemaVersion: CurrentSchemaVersion } file)
+            MinedUtc = file.MinedUtc;
+            Publish(file.Patterns);
+        }
+    }
+
+    // The read after a release. The pack re-attaches its residents inside a queue job, so the files are read
+    // there and the patterns handed to the UI thread like every other raise of Changed: the inbox rebuilds its
+    // bound rows in the handler. Posted behind the release's own clear, so a quick off and on ends with the
+    // patterns and not without them.
+    private void Reload()
+    {
+        lock (_gate)
+        {
+            LoadState();
+        }
+
+        if (ReadDetected() is { } file)
+        {
+            _post(() =>
             {
                 MinedUtc = file.MinedUtc;
                 Publish(file.Patterns);
-            }
+            });
+        }
+    }
+
+    private DetectedFile? ReadDetected()
+    {
+        try
+        {
+            return _detected?.Read() is { } bytes
+                && JsonSerializer.Deserialize<DetectedFile>(bytes, _jsonOptions) is
+                    { SchemaVersion: CurrentSchemaVersion } file
+                    ? file
+                    : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             // An unreadable detected file is rebuilt by the next mine.
+            return null;
         }
     }
 
