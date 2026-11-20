@@ -201,8 +201,12 @@ public static class RoundCaptureWalker
                 [new CaptureMoment(freezeEndTick, CaptureTrigger.FreezeEnd, [])]);
         }
 
+        // The seek takes no token, so a walk cancelled while it waited for a queue slot stops before it and
+        // one cancelled during it stops after.
+        ct.ThrowIfCancellationRequested();
         EntityTracker tracker = new EntitySeekService(static () => new EntityTracker())
             .SeekToFrameNoSnapshot(firstFrame, frames).Tracker;
+        ct.ThrowIfCancellationRequested();
         Dictionary<int, ulong> steamIds = [];
         int cursor = firstFrame;
         int lastStopFrame = FrameAtOrAfter(frames, stops[^1].Tick);
@@ -211,9 +215,21 @@ public static class RoundCaptureWalker
         // A second tracker pass over the same window (#56, #59): only when a utility stop needs a thrower or
         // a release point, and bounded to this round rather than the whole demo (ProjectileSampler has no late
         // start, so frames before firstFrame are unavoidable, but the tail past the round is skipped).
-        List<ProjectileSample> projectiles = stops.Any(s => s.Trigger == CaptureTrigger.Utility)
-            ? [.. ProjectileSampler.Walk(demo, frameStride: 8, maxFrames: lastFrame + 1).Where(s => s.Removed)]
-            : [];
+        // The sampler takes no token either. It is lazy and yields while any grenade is in the air, which is
+        // every few seconds of a demo, so the token is read at each sample.
+        List<ProjectileSample> projectiles = [];
+        if (stops.Any(s => s.Trigger == CaptureTrigger.Utility))
+        {
+            foreach (ProjectileSample sample in ProjectileSampler.Walk(demo, frameStride: 8,
+                         maxFrames: lastFrame + 1))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (sample.Removed)
+                {
+                    projectiles.Add(sample);
+                }
+            }
+        }
 
         foreach (Stop stop in stops)
         {
