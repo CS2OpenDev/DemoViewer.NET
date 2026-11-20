@@ -144,14 +144,26 @@ internal static class Program
                     Console.WriteLine();
                 }
 
+                // A candidate that is going to be verified takes its name only once it has passed: one that
+                // fails must not replace the good candidate an earlier run left under the same name.
+                string writePath = verify ? outPath + UnverifiedSuffix : outPath;
                 (IReadOnlyList<TeamSample> teamSamples, byte[]? teamPacket) = teams;
-                TrimResult result = DemoTrimWriter.Write(demo, raw, window, variant, outPath, identityCheck,
+                TrimResult result = DemoTrimWriter.Write(demo, raw, window, variant, writePath, identityCheck,
                     teamPacket, teamSamples, teamListFrame);
                 PrintResult(result, raw.LongLength);
 
                 if (verify)
                 {
-                    failures += VerifyEmitted(demo, raw, result, baseline) ? 0 : 1;
+                    if (VerifyEmitted(demo, raw, result, baseline))
+                    {
+                        File.Move(writePath, outPath, true);
+                    }
+                    else
+                    {
+                        failures++;
+                        Console.WriteLine(
+                            $"  kept for inspection as {Path.GetFileName(writePath)}; {Path.GetFileName(outPath)} was not written");
+                    }
                 }
 
                 Console.WriteLine();
@@ -163,6 +175,9 @@ internal static class Program
             : $"{failures} candidate(s) FAILED verification.");
         return failures == 0 ? 0 : 2;
     }
+
+    // What a candidate is called until it has passed verification.
+    private const string UnverifiedSuffix = ".unverified";
 
     private static bool VerifyEmitted(ParsedDemo source, byte[] sourceRaw, TrimResult result, bool baseline)
     {
