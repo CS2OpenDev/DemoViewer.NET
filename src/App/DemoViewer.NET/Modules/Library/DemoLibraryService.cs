@@ -2086,26 +2086,34 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             ? _demoCache?.LocationOf(e.FilePath)?.ContentId == id
             : e.State == DemoIndexState.Indexed || StoredParse(e.FilePath, e.FileSizeBytes, e.Modified) is null;
 
-        List<DemoEntry> staying = [.. Entries.Where(Unchanged)];
+        // Asked ONCE per entry. The answer reads the store, which a tier-2 worker stamps while this runs, so a
+        // second ask can differ from the first: the card taken out below has to be the one counted out here.
+        List<DemoEntry> staying = [];
+        List<DemoEntry> leaving = [];
+        foreach (DemoEntry entry in Entries)
+        {
+            (Unchanged(entry) ? staying : leaving).Add(entry);
+        }
+
         lock (_tier2Lock)
         {
-            foreach (DemoEntry gone in Entries.Where(e => !Unchanged(e)))
+            foreach (DemoEntry gone in leaving)
             {
                 _pendingFull.Remove(gone.FilePath);
                 _awaitingIndex.Remove(gone.FilePath);
             }
         }
 
-        foreach (DemoEntry changed in Entries.Where(e => wanted.ContainsKey(e.FilePath) && !Unchanged(e)))
+        foreach (DemoEntry changed in leaving.Where(e => wanted.ContainsKey(e.FilePath)))
         {
             Scheduler?.ForgetFaults(changed.FilePath);
         }
 
-        if (staying.Count == Entries.Count - 1)
+        if (leaving.Count == 1)
         {
-            Entries.Remove(Entries.First(e => !Unchanged(e)));
+            Entries.Remove(leaving[0]);
         }
-        else if (staying.Count < Entries.Count)
+        else if (leaving.Count > 1)
         {
             Entries.ReplaceAll(staying);
         }
