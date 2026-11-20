@@ -203,7 +203,16 @@ public sealed partial class StratRecordPanelViewModel : ObservableObject, IDispo
         }
         catch (OperationCanceledException)
         {
-            // A newer request replaced this one; it clears IsComputing when it lands.
+            // A newer request replaced this one; it clears IsComputing when it lands. The same exception is how
+            // a job removed from the queue ends, with no newer request behind it: that one is still the latest.
+            _post(() =>
+            {
+                if (sequence == _sequence && !_disposed)
+                {
+                    IsComputing = false;
+                    StatusLine = "the record was stopped before it was computed";
+                }
+            });
         }
         catch (Exception ex)
         {

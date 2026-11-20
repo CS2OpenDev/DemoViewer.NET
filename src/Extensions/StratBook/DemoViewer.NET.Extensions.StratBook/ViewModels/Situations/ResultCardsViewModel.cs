@@ -483,6 +483,25 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         {
             OverlayTask = _run("overlay")(() => BuildOverlay(generation, overlay, hits));
         }
+
+        // An item removed from the queue while it waits completes without the build ever running, so neither
+        // its answer nor its catch takes the build off. A build that did run posted first, and this finds
+        // nothing left to do.
+        _ = OverlayTask.ContinueWith(task =>
+        {
+            _ = task.Exception;
+            _post(() =>
+            {
+                if (generation != Volatile.Read(ref _generation) || overlay != Volatile.Read(ref _overlayGeneration)
+                    || !IsOverlayBuilding)
+                {
+                    return;
+                }
+
+                IsOverlayBuilding = false;
+                OverlayLine = OverlayStoppedNote;
+            });
+        }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
     }
 
     /// <summary>Takes the heatmap off the canvas. The cards stay.</summary>

@@ -71,6 +71,36 @@ public class OverlayViewTests
     };
 
     [Test]
+    public async Task AnOverlayRemovedFromTheQueueBeforeItRan_TakesTheBuildOff()
+    {
+        using Harness h = new();
+        h.Cache.Upsert(ParsedRecord(DemoA));
+        h.Sidecars.WritePositions(DemoA, Positions(h.Sources.FingerprintFor("de_nuke")));
+
+        // The queue completes a removed item's task without running its work.
+        ResultCardsViewModel vm = new(h.Cache.Library(), h.Sidecars, h.Sources, () => null,
+            new SituationThumbnailCache(), () => new SituationThumbnailRenderer(_ => null), a => a(), _ => null,
+            new OverlayDocument(), run: part => part == "overlay" ? _ => Task.CompletedTask : Task.Run);
+        vm.Load([Hit(DemoA, 3, 1000, 1128, 1256)]);
+        await vm.BatchTask;
+
+        vm.OverlayAllCommand.Execute(null);
+        await vm.OverlayTask;
+        for (int i = 0; i < 200 && vm.IsOverlayBuilding; i++)
+        {
+            await Task.Delay(25);
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.IsOverlayBuilding).IsFalse();
+            await Assert.That(vm.OverlayLine).IsEqualTo(ResultCardsViewModel.OverlayStoppedNote);
+            await Assert.That(vm.OverlayAllCommand.CanExecute(null)).IsTrue()
+                .Because("nothing else takes the build off, and the button would stay disabled");
+        }
+    }
+
+    [Test]
     public async Task OverlayAll_StacksEveryStepBetweenTheFirstAndLastMatch_WithSidesFromTheCtSlots()
     {
         using Harness h = new();

@@ -83,6 +83,20 @@ public class StratRecordPanelTests
     }
 
     [Test]
+    public async Task ARecordRemovedFromTheQueueBeforeItRan_IsNotLeftComputing()
+    {
+        TagStore tags = new(null);
+        using StratRecordPanelViewModel panel = new(new StratEvidenceService(tags, jobs: new RemovedJobs()), tags,
+            debounce: TimeSpan.Zero);
+
+        panel.Configure(Strat());
+        await panel.Pending;
+
+        await Assert.That(panel.IsComputing).IsFalse()
+            .Because("no newer request is coming to clear it");
+    }
+
+    [Test]
     public async Task TaggingARound_UpdatesThePanel_WithoutReconfiguring()
     {
         using Fixture fixture =

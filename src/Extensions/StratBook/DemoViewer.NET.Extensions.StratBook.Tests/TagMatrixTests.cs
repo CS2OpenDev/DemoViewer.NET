@@ -348,6 +348,20 @@ public class TagMatrixTests
     ///     CT in 13 to 24. The mock's 79 instances sit in the T rounds of f2 to f7; every other instance is
     ///     noise the scope must drop: CT rounds, the oldest demo, the mirage demo, the other teams.
     /// </summary>
+    [Test]
+    public async Task ABuildRemovedFromTheQueueBeforeItRan_IsNotLeftBuilding()
+    {
+        // The queue completes a removed item's task without running its work.
+        using TagMatrixTabViewModel matrix = new(new TagStore(null), debounce: TimeSpan.Zero, isBrowser: false,
+            run: _ => Task.CompletedTask);
+
+        matrix.Refresh();
+        await matrix.Pending;
+
+        await Assert.That(matrix.IsBuilding).IsFalse()
+            .Because("no newer request is coming to clear it");
+    }
+
     private sealed class Corpus : IDisposable
     {
         public const string OrphanFileName = "x10.dem";

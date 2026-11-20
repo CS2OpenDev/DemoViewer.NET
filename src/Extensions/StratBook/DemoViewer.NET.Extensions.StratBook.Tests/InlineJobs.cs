@@ -136,3 +136,16 @@ internal sealed class InlineJobs : IExtensionJobs
         }
     }
 }
+
+/// <summary>A queue whose every item was removed while it waited: each completes without its work running.</summary>
+internal sealed class RemovedJobs : IExtensionJobs
+{
+    public IJobHandle Enqueue(JobRequest request) => throw new NotSupportedException();
+
+    public Task RunAsync(string title, Func<IJobContext, Task> work, JobOptions? options = null) =>
+        Task.CompletedTask;
+
+    public void CancelAll()
+    {
+    }
+}
