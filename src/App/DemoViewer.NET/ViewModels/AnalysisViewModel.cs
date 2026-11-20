@@ -322,6 +322,10 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // Owns the in-flight evaluation's lifetime; a new RunAsync cancels and replaces it.
     private CancellationTokenSource? _runCts;
 
+    // Test seam: awaited right after the evaluation returns, the window in which a newer run or a reset can
+    // cancel this one without the evaluation itself noticing.
+    internal Func<Task>? AfterEvaluationForTests { get; set; }
+
     // Suppresses re-compose/validate while BeginEdit is seeding the editor from a saved condition (the
     // text + each row would otherwise each fire a recompute); one runs at the end of seeding.
     private bool _seedingEditor;
@@ -811,6 +815,14 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 DecodeSites.Enter(8);
                 return DemoAnalysis.Evaluate(demo, build, evalOptions);
             }, runToken);
+            if (AfterEvaluationForTests is { } afterEvaluation)
+            {
+                await afterEvaluation();
+            }
+
+            // Task.Run checks the token only before the evaluation starts, so a newer run or a reset that lands
+            // after it returned is seen here or not at all. Each await below is the same gap again.
+            runToken.ThrowIfCancellationRequested();
             EvaluationResult result = run.Snapshots!;
             EvaluationProgress = 1;
 
@@ -959,6 +971,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             await _graphViewModel.SetGraphAsync(vizNodes, vizEdges,
                 null,
                 PlayerTables.Count > 0 ? PlayerTables.Cast<INodeTable>().ToList() : null);
+            runToken.ThrowIfCancellationRequested();
 
             // ── Chain summaries ───────────────────────────────────────────────
             List<AnalysisChainSummaryViewModel> summaries =
@@ -993,6 +1006,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             }
 
             // Stats and the open's highlight harvest read the core rulesets only.
+            runToken.ThrowIfCancellationRequested();
             EvaluationCompleted?.Invoke(plan?.Shown(run) ?? run, demo);
 
             if (result.Messages.Count > 0)

@@ -978,8 +978,15 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 library.Changed += scanner.RefreshStaleness;
             }
 
+            // Filed under the path of the parse the run evaluated, not whatever LoadedDemoPath says by the time
+            // the run finishes: a later open sets that before the earlier run is done.
             Analysis.EvaluationCompleted += (run, demo) =>
-                scanner.OnOpenDemoEvaluated(LoadedDemoPath, run, demo);
+            {
+                if (_heldDemo is { } held && ReferenceEquals(held.Parsed, demo))
+                {
+                    scanner.OnOpenDemoEvaluated(held.Path, run, demo);
+                }
+            };
             scanner.RefreshStaleness();
 
             // Enabling the background-scan opt-in in Settings must actually start the scan:
