@@ -655,6 +655,47 @@ public class DemoCacheStoreTests
     }
 
     /// <summary>
+    ///     A write caches its record before its file lands. A read that starts in between, with the cache's one
+    ///     slot taken by another demo meanwhile, fetches the file from before the write; once the write lands
+    ///     that read's record must not be the cached one, or the next read-modify-write starts from it.
+    /// </summary>
+    [Test]
+    public async Task AReadWhileAWriteHasNotLanded_DoesNotLeaveTheRecordFromBeforeItCached()
+    {
+        const string Path = "/demos/inflight.dem";
+        const string Other = "/demos/other.dem";
+        DemoCacheStore store = new(null);
+        store.Upsert(Record(Path));
+        DemoCacheRecord other = Record(Other);
+        other.Sha256 = "sha-other";
+        store.Upsert(other);
+
+        bool read = false;
+        store.RecordWriteForTest = () =>
+        {
+            if (!read)
+            {
+                read = true;
+                store.TryLoadRecord(Other); // takes the cache's one slot from the record being written
+                store.TryLoadRecord(Path); // and this one fetches the file the write has not replaced yet
+            }
+        };
+        store.UpdateExisting(Path, r => r.Server = "Valve");
+        store.RecordWriteForTest = null;
+        await Assert.That(read).IsTrue();
+
+        await Assert.That(store.TryLoadRecord(Path)!.Server).IsEqualTo("Valve");
+
+        store.UpdateExisting(Path, r => r.Map = "de_nuke");
+        DemoCacheRecord after = store.TryLoadRecord(Path)!;
+        using (Assert.Multiple())
+        {
+            await Assert.That(after.Map).IsEqualTo("de_nuke");
+            await Assert.That(after.Server).IsEqualTo("Valve").Because("the second write builds on the first");
+        }
+    }
+
+    /// <summary>
     ///     A user's change whose record write fails throws, and the store is as it was before the call. For a
     ///     demo with no row yet that means no row: one left behind lists the demo with the unsaved change and
     ///     no record file behind it, and the next index save writes it down.

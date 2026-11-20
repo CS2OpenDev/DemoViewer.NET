@@ -1539,6 +1539,24 @@ public sealed partial class DemoCacheStore
                 ExceptionDispatchInfo.Throw(failure);
             }
 
+            if (failure is null)
+            {
+                lock (_gate)
+                {
+                    // The count moved before the file was written, so a read that began in between saw it
+                    // unchanged, fetched the file from before this write, and was free to remember it. The
+                    // count moves again now that the file has landed, which stops a read still in flight,
+                    // and a record already remembered for this row that is not the one just written goes.
+                    _recordWrites++;
+                    if (string.Equals(_lastRecordKey, newKey, StringComparison.Ordinal)
+                        && !ReferenceEquals(_lastRecordBytes, bytes))
+                    {
+                        _lastRecordKey = null;
+                        _lastRecordBytes = null;
+                    }
+                }
+            }
+
             if (CacheRoot is null)
             {
                 // Nothing persists, so nothing has to land before the old names go.
