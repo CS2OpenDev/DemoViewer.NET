@@ -1,5 +1,6 @@
 #region
 
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Services.Update;
@@ -15,8 +16,8 @@ namespace DemoViewer.NET.ViewModels.Update;
 ///     opens so the pop-up never waits on the network to appear.
 ///     <para>
 ///         One instance lives per shell (created on first show, reused after), so the notes fetch
-///         happens at most once per run and re-opening the window via the banner's "Details…" is
-///         instant.
+///         happens once per offered version and re-opening the window via the banner's "Details…" is
+///         instant. A later check that offers another version reloads them.
 ///     </para>
 /// </summary>
 public sealed partial class UpdateNoticeViewModel : ViewModelBase
@@ -28,6 +29,9 @@ public sealed partial class UpdateNoticeViewModel : ViewModelBase
     private bool _isLoadingNotes;
 
     private Task? _loadTask;
+
+    // The version _loadTask loaded the notes for; null for a load made while none was offered.
+    private string? _loadedFor;
 
     /// <summary>Shown instead of notes when the fetch failed (offline, no release body).</summary>
     [ObservableProperty]
@@ -50,6 +54,7 @@ public sealed partial class UpdateNoticeViewModel : ViewModelBase
     {
         Update = update;
         _notesService = notesService;
+        Update.PropertyChanged += OnUpdatePropertyChanged;
     }
 
     /// <summary>
@@ -69,15 +74,44 @@ public sealed partial class UpdateNoticeViewModel : ViewModelBase
     public event EventHandler? CloseRequested;
 
     /// <summary>
-    ///     Fetches the notes once; safe to call on every window open. Called by the window's
-    ///     <c>OnOpened</c> rather than the constructor, so tests and the designer never touch the
+    ///     Fetches the notes once per offered version; safe to call on every window open. Called by the
+    ///     window's <c>OnOpened</c> rather than the constructor, so tests and the designer never touch the
     ///     network.
     /// </summary>
-    public Task EnsureNotesLoadedAsync() => _loadTask ??= LoadNotesAsync();
-
-    private async Task LoadNotesAsync()
+    public Task EnsureNotesLoadedAsync()
     {
         string? version = Update.AvailableVersion;
+        if (_loadTask is not null && string.Equals(_loadedFor, version, StringComparison.Ordinal))
+        {
+            return _loadTask;
+        }
+
+        _loadedFor = version;
+        NotesMarkdown = null;
+        NotesFallback = null;
+        PublishedDisplay = null;
+        ReleaseUrl = null;
+        return _loadTask = LoadNotesAsync(version);
+    }
+
+    // A new offered version renames the headline, and reloads notes already shown for the old one, so an
+    // open window does not describe a version Update & Restart no longer installs.
+    private void OnUpdatePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(UpdateViewModel.AvailableVersion))
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(HeadlineText));
+        if (_loadTask is not null && Update.AvailableVersion is not null)
+        {
+            _ = EnsureNotesLoadedAsync();
+        }
+    }
+
+    private async Task LoadNotesAsync(string? version)
+    {
         if (version is null)
         {
             NotesFallback = "Release notes unavailable.";
@@ -88,6 +122,11 @@ public sealed partial class UpdateNoticeViewModel : ViewModelBase
         try
         {
             ReleaseNotes? notes = await _notesService.GetForVersionAsync(version).ConfigureAwait(true);
+            if (!string.Equals(_loadedFor, version, StringComparison.Ordinal))
+            {
+                return; // another version was offered while this one loaded; its load owns the fields
+            }
+
             if (notes is null)
             {
                 NotesFallback = "Couldn't fetch the release notes — you can read them on the GitHub releases page.";
@@ -104,7 +143,10 @@ public sealed partial class UpdateNoticeViewModel : ViewModelBase
         }
         finally
         {
-            IsLoadingNotes = false;
+            if (string.Equals(_loadedFor, version, StringComparison.Ordinal))
+            {
+                IsLoadingNotes = false;
+            }
         }
     }
 

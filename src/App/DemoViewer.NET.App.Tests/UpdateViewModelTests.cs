@@ -212,9 +212,74 @@ public class UpdateViewModelTests
         await Assert.That(vm.StatusMessage).IsEmpty();
     }
 
+    /// <summary>
+    ///     The notice is one per run, and a later check can offer another version: the notes, the release link
+    ///     and the headline follow the version now offered, not the first one the window loaded.
+    /// </summary>
+    [Test]
+    public async Task UpdateNotice_ALaterCheckOfferingAnotherVersion_ReloadsTheNotesAndTheHeadline()
+    {
+        FakeUpdateService svc = new() { CheckResult = UpdateCheckResult.UpdateAvailable("0.12.0") };
+        UpdateViewModel vm = new(svc);
+        FakeNotes notes = new();
+        UpdateNoticeViewModel notice = new(vm, notes);
+        List<string?> changed = [];
+        notice.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        await vm.CheckNowCommand.ExecuteAsync(null);
+        await notice.EnsureNotesLoadedAsync();
+        string? first = notice.NotesMarkdown;
+
+        svc.CheckResult = UpdateCheckResult.UpdateAvailable("0.12.1");
+        await vm.CheckNowCommand.ExecuteAsync(null);
+        await notice.EnsureNotesLoadedAsync();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(first).IsEqualTo("notes for 0.12.0");
+            await Assert.That(notes.Asked).IsEquivalentTo(["0.12.0", "0.12.1"]);
+            await Assert.That(notice.NotesMarkdown).IsEqualTo("notes for 0.12.1");
+            await Assert.That(notice.ReleaseUrl).IsEqualTo("https://example.invalid/0.12.1");
+            await Assert.That(notice.HeadlineText).Contains("0.12.1");
+            await Assert.That(changed).Contains(nameof(UpdateNoticeViewModel.HeadlineText));
+        }
+    }
+
+    /// <summary>A load made while no version was offered is not kept once a check offers one.</summary>
+    [Test]
+    public async Task UpdateNotice_ALoadWithNoVersion_IsNotKeptOnceOneIsOffered()
+    {
+        FakeUpdateService svc = new() { CheckResult = UpdateCheckResult.UpdateAvailable("0.12.0") };
+        UpdateViewModel vm = new(svc);
+        FakeNotes notes = new();
+        UpdateNoticeViewModel notice = new(vm, notes);
+
+        await notice.EnsureNotesLoadedAsync();
+        await vm.CheckOnStartupAsync();
+        await notice.EnsureNotesLoadedAsync();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(notice.NotesMarkdown).IsEqualTo("notes for 0.12.0");
+            await Assert.That(notice.NotesFallback).IsNull();
+        }
+    }
+
+    private sealed class FakeNotes : IReleaseNotesService
+    {
+        public List<string> Asked { get; } = [];
+
+        public Task<ReleaseNotes?> GetForVersionAsync(string version, CancellationToken ct = default)
+        {
+            Asked.Add(version);
+            return Task.FromResult<ReleaseNotes?>(new ReleaseNotes(version, version, "notes for " + version, null,
+                "https://example.invalid/" + version));
+        }
+    }
+
     private sealed class FakeUpdateService : IUpdateService
     {
-        public UpdateCheckResult CheckResult { get; init; } = UpdateCheckResult.UpToDate();
+        public UpdateCheckResult CheckResult { get; set; } = UpdateCheckResult.UpToDate();
         public bool DownloadSucceeds { get; init; }
         public int DownloadCalls { get; private set; }
 
