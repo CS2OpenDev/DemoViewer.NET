@@ -621,6 +621,53 @@ public class StratStoreTests
         }
     }
 
+    // A sync client holds the file for the load and has let go of it by the save: what was loaded is still
+    // the fresh stand-in, and saving it would replace a file that now reads perfectly well.
+    [Test]
+    public async Task ABookOrCalloutsFileThatCouldNotBeReadAtTheLoad_IsNotSavedOverOnceItCanBe()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            StratStore store = new(folder);
+            StratBook book = store.LoadBook(Team);
+            book.Notes = "defaults first";
+            CalloutTable table = store.LoadCallouts(Team, "de_mirage");
+            table.Aliases.Add(new CalloutAlias { Alias = "palace", Place = "PalaceInterior", Primary = true });
+            await Assert.That(store.SaveBook(book) && store.SaveCallouts(Team, table)).IsTrue();
+            string bookFile = Path.Combine(root, "team-" + TeamId, "book.json");
+            string calloutsFile = Path.Combine(root, "team-" + TeamId, "de_mirage", "callouts.json");
+            string storedBook = await File.ReadAllTextAsync(bookFile);
+            string storedCallouts = await File.ReadAllTextAsync(calloutsFile);
+
+            folder.AfterRead = _ => throw new IOException("the file is held by another process");
+            StratBook fresh = store.LoadBook(Team);
+            fresh.SlotDefaults["e2"] = new Dictionary<string, string> { ["B"] = "76561198000000002" };
+            CalloutTable empty = store.LoadCallouts(Team, "de_mirage");
+            empty.Aliases.Add(new CalloutAlias { Alias = "con", Place = "Connector" });
+            folder.AfterRead = null;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.SaveBook(fresh)).IsFalse();
+                await Assert.That(store.SaveCallouts(Team, empty)).IsFalse();
+                await Assert.That(await File.ReadAllTextAsync(bookFile)).IsEqualTo(storedBook);
+                await Assert.That(await File.ReadAllTextAsync(calloutsFile)).IsEqualTo(storedCallouts);
+            }
+
+            // Loaded again now that it reads, the same edit lands on what was stored.
+            CalloutTable loaded = store.LoadCallouts(Team, "de_mirage");
+            loaded.Aliases.Add(new CalloutAlias { Alias = "con", Place = "Connector" });
+            await Assert.That(store.SaveCallouts(Team, loaded)).IsTrue();
+            await Assert.That(store.LoadCallouts(Team, "de_mirage").Aliases.Count).IsEqualTo(2);
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
     [Test]
     public async Task AMapChange_WhoseHistoryLineFails_LeavesTheStratWhereItWas()
     {

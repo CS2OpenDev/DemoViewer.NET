@@ -671,6 +671,10 @@ public sealed class StratBook
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Extra { get; set; }
+
+    // Set by the store on the fresh book it answers in place of a file that is there and could not be read.
+    [JsonIgnore]
+    internal bool StandsInForUnreadable { get; set; }
 }
 
 /// <summary><c>&lt;owner&gt;/&lt;map&gt;/callouts.json</c>: the owner's words for the map's places.</summary>
@@ -687,6 +691,10 @@ public sealed class CalloutTable
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Extra { get; set; }
+
+    // Set by the store on the empty table it answers in place of a file that is there and could not be read.
+    [JsonIgnore]
+    internal bool StandsInForUnreadable { get; set; }
 }
 
 public sealed class CalloutCanonicalSnapshot
