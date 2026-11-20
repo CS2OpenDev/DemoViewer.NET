@@ -808,6 +808,25 @@ public class Playback2DExportFfmpegDownloadTests
         });
 
     /// <summary>
+    ///     An injected acquisition that fails with a disk-side exception rather than the acquisition's own
+    ///     type must still land as a message: the command runs on the UI thread, and anything it rethrows
+    ///     there takes the app down.
+    /// </summary>
+    [Test]
+    public async Task AnIoFailure_DegradesToTheMessage_NeverToACrash() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            Playback2DExportDialogViewModel vm = Dialog(() => false,
+                (_, _, _) => throw new IOException("The process cannot access the file 'ffmpeg.exe'."));
+
+            await vm.DownloadFfmpegCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(10));
+
+            await Assert.That(vm.FfmpegDownloadStatus).IsNotNull();
+            await Assert.That(vm.FfmpegDownloadStatus!).DoesNotContain("Downloading");
+            await Assert.That(vm.IsDownloadingFfmpeg).IsFalse();
+        });
+
+    /// <summary>
     ///     Closing the pane mid-download must not leave the acquisition awaiting a licence answer that
     ///     can no longer be given: the pane it would have been given in is gone.
     /// </summary>

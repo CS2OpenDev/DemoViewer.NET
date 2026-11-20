@@ -520,6 +520,12 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
             // A 404 on the pin, a checksum mismatch, a broken network: the message is user-facing copy.
             FfmpegDownloadStatus = ex.Message;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            // FfmpegAcquisition wraps these itself; this is for an acquisition that does not. The command runs
+            // on the UI thread, and an exception rethrown there takes the whole app down.
+            FfmpegDownloadStatus = $"Could not install ffmpeg: {ex.Message} Install ffmpeg yourself, or export GIF.";
+        }
         finally
         {
             AnswerLicense(false); // a fault mid-consent must never leave the acquisition awaiting forever

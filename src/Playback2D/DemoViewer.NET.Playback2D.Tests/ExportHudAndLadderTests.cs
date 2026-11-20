@@ -476,6 +476,42 @@ public class FfmpegAcquisitionTests
         await Assert.That(failure!.Message).Contains("GIF");
     }
 
+    /// <summary>
+    ///     A disk-side failure (a target the user cannot write, a full disk, a locked binary, an archive that
+    ///     hashes right but is no zip) is the same "install ffmpeg yourself" outcome as a network one. It used
+    ///     to escape as IOException or InvalidDataException, past the dialog's catch, and crash the app.
+    /// </summary>
+    [Test]
+    public async Task AnUnwritableTarget_DegradesWithAMessage_RatherThanCrashing()
+    {
+        using TempDirectory directory = new();
+        string blocker = Path.Combine(directory.Path, "blocker");
+        await File.WriteAllTextAsync(blocker, "a file where the target's parent directory should be");
+        byte[] archive = BuildArchive();
+        FfmpegDownloadOffer offer = Offer(Path.Combine(blocker, "ffmpeg"), Sha256(archive), archive.Length);
+
+        using HttpClient client = new(new StubHandler(archive));
+
+        await Assert.That(async () => await FfmpegAcquisition.AcquireAsync(offer,
+                (_, _, _) => Task.FromResult(true), null, client, CancellationToken.None))
+            .Throws<FfmpegAcquisitionException>();
+    }
+
+    [Test]
+    public async Task AnArchiveThatIsNoZip_DegradesWithAMessage_RatherThanCrashing()
+    {
+        using TempDirectory directory = new();
+        byte[] notAZip = "this is not a zip archive"u8.ToArray();
+        FfmpegDownloadOffer offer = Offer(directory.Path, Sha256(notAZip), notAZip.Length);
+
+        using HttpClient client = new(new StubHandler(notAZip));
+
+        await Assert.That(async () => await FfmpegAcquisition.AcquireAsync(offer,
+                (_, _, _) => Task.FromResult(true), null, client, CancellationToken.None))
+            .Throws<FfmpegAcquisitionException>();
+        await Assert.That(Directory.GetFiles(directory.Path)).IsEmpty();
+    }
+
     private static FfmpegDownloadOffer Offer(string directory, string sha, long bytes) =>
         new("https://example.invalid/ffmpeg.zip", sha, "autobuild-test", "https://example.invalid",
             "LGPL-2.1", bytes, directory);
