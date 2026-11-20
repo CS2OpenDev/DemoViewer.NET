@@ -1082,7 +1082,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         if (teamSort is not (0 or 1)
             || scoreBySort.GetValueOrDefault(0) is not { } ct
             || scoreBySort.GetValueOrDefault(1) is not { } t
-            || !IsFinalScore(Math.Max(ct, t)))
+            || !IsFinalScore(ct, t))
         {
             return TeamOutcome.None;
         }
@@ -1100,21 +1100,26 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     private const int OvertimeHalf = 3;
 
     /// <summary>
-    ///     Whether the leading half of a scoreline is a total a match can actually END on. Regulation is
-    ///     first to 13; every overtime after a 12-12 tie is MR3, six rounds with four of them taking it,
-    ///     so each overtime moves the winning total up by three (16, 19, 22) and leaves a drawn one
-    ///     sitting on 15, 18 or 21 while the next is played.
+    ///     Whether a scoreline is one a match can actually END on. Regulation is first to 13; every
+    ///     overtime after a 12-12 tie is MR3, six rounds with four of them taking it, so each overtime
+    ///     moves the winning total up by three (16, 19, 22) and leaves a drawn one sitting on 15, 18 or
+    ///     21 while the next is played.
     ///     <para>
     ///         Derived rather than listed. The list this replaces was 13, 15 or 16, which is regulation
     ///         and exactly ONE overtime: a match that went to a second finished 19-17 and fell outside
     ///         it, losing the win/loss pill on the matches most worth having one.
     ///     </para>
+    ///     <para>
+    ///         The loser counts as much as the winner. Checking the leader alone let 15-14 through, which
+    ///         is the buzzer-cut 15-15 draw the gate exists for, and 13-12 or 16-15 from a demo that
+    ///         stopped mid-overtime; a win needs <see cref="LibraryFinalScore.IsResult" />, a draw an
+    ///         overtime's drawn total on both sides.
+    ///     </para>
     /// </summary>
-    private static bool IsFinalScore(int best) =>
-        best == RegulationWin
-        || (best > RegulationWin
-            && ((best - RegulationWin) % OvertimeHalf == 0
-                || (best - RegulationWin + 1) % OvertimeHalf == 0));
+    private static bool IsFinalScore(int ct, int t) =>
+        ct == t
+            ? ct > RegulationWin && (ct - RegulationWin + 1) % OvertimeHalf == 0
+            : LibraryFinalScore.IsResult(Math.Max(ct, t), Math.Min(ct, t));
 
     /// <summary>Per-team round-win score from the full game table's CTW+TW values (unanimous or null).</summary>
     private static Dictionary<int, int?> ComputeTeamScores(MetricTable gameTable)

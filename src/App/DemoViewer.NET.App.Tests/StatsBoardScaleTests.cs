@@ -1028,6 +1028,14 @@ public class StatsBoardScaleTests
     [Arguments(14, 12)]
     [Arguments(17, 15)]
     [Arguments(20, 18)]
+    // A winning total with a loser no finished match leaves behind: a 15-15 draw that lost its last round
+    // to the buzzer reads 15-14, and a demo cut mid-overtime can stop on 13-12 or 16-15.
+    [Arguments(15, 14)]
+    [Arguments(13, 12)]
+    [Arguments(16, 15)]
+    [Arguments(15, 13)]
+    [Arguments(18, 17)]
+    [Arguments(13, 13)]
     public async Task Outcome_IsStillWithheldOnAnImpossibleTotal(int ctWins, int tWins)
     {
         StatsTabViewModel vm = BuildVm(ctWins, tWins);
