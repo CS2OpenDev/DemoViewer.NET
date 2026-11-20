@@ -62,6 +62,9 @@ public sealed class AnnotationSessionController : IDisposable
     private int _attachGeneration;
     private bool _attached;
     private bool _awaitingSidecar;
+
+    // The document's version when it last matched its file: at the load, and at each save that landed.
+    private int _cleanVersion = -1;
     private CancellationTokenSource? _debounce;
     private DemoIdentity? _demo;
     private string? _demoPath;
@@ -284,6 +287,7 @@ public sealed class AnnotationSessionController : IDisposable
         try
         {
             Session.Document.Reset([]);
+            _cleanVersion = Session.Document.Version;
             ApplySettings();
 
             if (_demoPath is null || _store is null || !IsEnabled)
@@ -303,6 +307,7 @@ public sealed class AnnotationSessionController : IDisposable
             ClockMismatch = result.ClockMismatch;
             DemoMismatch = result.DemoMismatch;
             Session.Document.Reset(result.Elements);
+            _cleanVersion = Session.Document.Version;
             _awaitingSidecar = false;
             StatusText = DescribeLocation();
             StateChanged?.Invoke();
@@ -730,6 +735,15 @@ public sealed class AnnotationSessionController : IDisposable
                 return; // a newer snapshot already reached the disk; this one would undo it
             }
 
+            // Nothing was drawn or erased since the load or the last save, so the document is a copy of the
+            // file as it was then. Writing it says nothing new, and it replaces whatever was written there
+            // since: a transfer import merges into this file while the demo is open, and a tab switch
+            // would put the copy from before it back, or an empty one over a file the import created.
+            if (version == Volatile.Read(ref _cleanVersion))
+            {
+                return;
+            }
+
             // Nothing to say, and nothing already on disk to correct: opening a demo must not litter a
             // .dvann.json beside it. An EXISTING sidecar is still rewritten when the last stroke is
             // erased: that is the user clearing their annotations, and it has to stick.
@@ -756,6 +770,7 @@ public sealed class AnnotationSessionController : IDisposable
             if (saved)
             {
                 _lastSavedVersion = version;
+                Volatile.Write(ref _cleanVersion, version);
             }
 
             SaveCount++;

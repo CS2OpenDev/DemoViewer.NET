@@ -154,6 +154,45 @@ public class Playback2DAnnotationPersistenceTests
                 "surviving a tab switch and vanishing");
     }
 
+    /// <summary>
+    ///     A flush writes what was drawn, and with nothing drawn since the load it writes nothing. The document
+    ///     is then only a copy of the file as it was read: a transfer import that wrote the demo's annotations
+    ///     meanwhile would be replaced by that copy on the next tab switch, or erased when the copy is empty.
+    /// </summary>
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Controller_AFlushWithNothingDrawn_LeavesWhatWasWrittenSinceTheLoad(bool hadAnnotations)
+    {
+        using TempDemo demo = new();
+        AnnotationElement mine = Stroke();
+        AnnotationElement imported = Stroke();
+        AnnotationStore other = new(demo.AppData);
+        if (hadAnnotations)
+        {
+            await other.SaveAsync(demo.DemoPath, AnnotationStore.IdentityFor(demo.DemoPath), demo.Clock, [mine]);
+        }
+
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+        AnnotationElement[] merged = hadAnnotations ? [mine, imported] : [imported];
+        await other.SaveAsync(demo.DemoPath, AnnotationStore.IdentityFor(demo.DemoPath), demo.Clock, merged);
+        await controller.FlushAsync();
+
+        AnnotationLoadResult loaded = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+        using (Assert.Multiple())
+        {
+            await Assert.That(loaded.Elements.Select(e => e.Id)).IsEquivalentTo(merged.Select(e => e.Id));
+            await Assert.That(controller.SaveCount).IsEqualTo(0);
+        }
+
+        // What is drawn afterwards is still saved.
+        controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
+        await controller.FlushAsync();
+        await Assert.That(controller.SaveCount).IsEqualTo(1);
+    }
+
     [Test]
     public async Task Controller_GateOff_NeverTouchesDisk()
     {
