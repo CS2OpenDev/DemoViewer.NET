@@ -3068,12 +3068,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             open.Dispose();
             if (!superseded)
             {
+                // No census will be built to end the collecting. A superseding open has set the flag for
+                // its own parse, so only an open that still owns the shell clears it.
+                _collectingUnknowns = false;
                 StatusText = $"Auto-load of {Path.GetFileName(path)} was cancelled";
                 MatchOverviewTab.Fail(path, StatusText);
             }
         }
         catch (Exception ex)
         {
+            _collectingUnknowns = false;
             open.Fail(ex);
             StatusText = $"Auto-load failed: {ex.Message}";
             MatchOverviewTab.Fail(path, ex.Message);
@@ -4495,12 +4499,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             open.Dispose();
             if (!superseded)
             {
+                // No census will be built to end the collecting. A superseding open has set the flag for
+                // its own parse, so only an open that still owns the shell clears it.
+                _collectingUnknowns = false;
                 StatusText = $"Opening {fileName} was cancelled";
                 MatchOverviewTab.Fail(subjectKey, StatusText);
             }
         }
         catch (Exception ex)
         {
+            _collectingUnknowns = false;
             open.Fail(ex);
             // Clean text on the user surfaces (v0.6.0, a corrupt .dem used to surface as raw CLR
             // text like "Index was outside the bounds of the array"); the full exception goes to

@@ -36,4 +36,39 @@ public class UnknownMessageAccumulatorTests
             await Assert.That(bag.IsEmpty).IsTrue()
                 .Because("only the open's own parse feeds the open's census");
         });
+
+    /// <summary>
+    ///     An open whose parse fails builds no census, which is what ends the collecting. Left on, every
+    ///     background parse from then until the next open fed the bag again.
+    /// </summary>
+    [Test]
+    public async Task AnOpenWhoseParseFails_StopsAccumulating() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            string file = Path.Combine(Path.GetTempPath(), $"dv-unknown-{Guid.NewGuid():N}.bin");
+            await File.WriteAllBytesAsync(file, new byte[64]);
+            try
+            {
+                using MainViewModel vm = new(library: TestLibraries.Empty());
+                Action<UnknownMessageInfo> handler = (Action<UnknownMessageInfo>)typeof(MainViewModel)
+                    .GetField("_onUnknownMessageType", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(vm)!;
+                ConcurrentBag<UnknownMessageInfo> bag = (ConcurrentBag<UnknownMessageInfo>)typeof(MainViewModel)
+                    .GetField("_unknownAccumulator", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(vm)!;
+
+                await vm.LoadDemoFromPathAsync(file);
+                await Assert.That(vm.HasFile).IsFalse().Because("sixty-four zero bytes are not a demo");
+                bag.Clear();
+
+                handler(new UnknownMessageInfo(12, 999, "Unknown(999)", 0, 4));
+
+                await Assert.That(bag.IsEmpty).IsTrue()
+                    .Because("the open that asked for the census is over");
+            }
+            finally
+            {
+                File.Delete(file);
+            }
+        });
 }
