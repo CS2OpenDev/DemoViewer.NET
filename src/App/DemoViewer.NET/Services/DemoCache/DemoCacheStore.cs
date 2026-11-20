@@ -1325,6 +1325,31 @@ public sealed partial class DemoCacheStore
     }
 
     /// <summary>
+    ///     Rewrites a demo's row from its record when <paramref name="stale" /> says the row no longer matches
+    ///     it. Both are read under the write lock, so the record written is never older than a write that
+    ///     finished first: a caller that read the record itself and upserted it could erase one.
+    /// </summary>
+    /// <param name="path">The demo's path.</param>
+    /// <param name="stale">Asked with the record and the row as they are now.</param>
+    /// <returns>True when the row was rewritten.</returns>
+    internal bool RewriteRowIf(string path, Func<DemoCacheRecord, DemoCacheIndexEntry, bool> stale)
+    {
+        ArgumentNullException.ThrowIfNull(stale);
+        SettleBeforeWrite(path);
+
+        lock (_rmwGate)
+        {
+            if (TryLoadRecord(path) is not { } record || TryGetIndex(path) is not { } row || !stale(record, row))
+            {
+                return false;
+            }
+
+            Upsert(record);
+            return true;
+        }
+    }
+
+    /// <summary>
     ///     Sets a demo's index row to the projection of <paramref name="record" /> without writing its sidecar:
     ///     for a row written by an older index that lacks what the projection now carries. Nothing happens when
     ///     the demo has no row, or the row describes another file.

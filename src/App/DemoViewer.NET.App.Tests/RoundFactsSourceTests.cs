@@ -319,4 +319,43 @@ public class RoundFactsSourceTests
     {
         public RoundFactsTable Rows(CS2DemoKit.Parser.ParsedDemo parsed) => table;
     }
+
+    [Test]
+    public async Task TryGet_RepairingAStaleRow_KeepsAWriteThatLandedMeanwhile()
+    {
+        const string demo = "/d/repair.dem";
+        DemoCacheStore store = new(null);
+        store.Upsert(new DemoCacheRecord { Path = demo, Size = 1, ModifiedTicks = 2 });
+        // The row claims rows the record does not hold: the state TryGet repairs.
+        DemoCacheRecord claimed = new() { Path = demo, Size = 1, ModifiedTicks = 2 };
+        claimed.SetRoundFacts(new RoundFactsRows { Schema = RoundFactsRecords.Schema }, "rf");
+        await Assert.That(store.RefreshIndexRow(claimed)).IsTrue();
+        RoundFactsSource source = new(store);
+
+        // A writer holds the store's write lock inside its mutate, so the reader's repair queues behind it
+        // with whatever it read before the write.
+        using ManualResetEventSlim writing = new();
+        using ManualResetEventSlim commit = new();
+        Thread writer = new(() => store.UpdateExisting(demo, r =>
+        {
+            writing.Set();
+            commit.Wait();
+            r.Map = "de_written";
+        }));
+        writer.Start();
+        writing.Wait();
+        Thread reader = new(() => source.TryGet(demo));
+        reader.Start();
+        for (int i = 0; i < 500 && (reader.ThreadState & ThreadState.WaitSleepJoin) == 0 && reader.IsAlive; i++)
+        {
+            Thread.Sleep(10);
+        }
+
+        commit.Set();
+        writer.Join();
+        reader.Join();
+
+        await Assert.That(store.TryLoadRecord(demo, false)?.Map).IsEqualTo("de_written")
+            .Because("the repair re-reads the record under the write lock, never upserts the one it read before");
+    }
 }
