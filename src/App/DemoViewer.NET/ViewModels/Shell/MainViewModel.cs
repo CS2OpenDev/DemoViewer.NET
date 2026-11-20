@@ -322,6 +322,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // The demo close idle entry started. ResumeFromIdleAsync awaits it before reopening anything.
     private Task _idleClose = Task.CompletedTask;
 
+    // Bumped by every UnloadDemoState: a close that resumes to a different value lost the shell to an open.
+    private int _unloadGeneration;
+
     /// <summary>Toolbar toggle: show/hide the right-side debugger panel.</summary>
     [ObservableProperty]
     private bool _isDebuggerPanelVisible;
@@ -3864,6 +3867,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void UnloadDemoState()
     {
+        _unloadGeneration++;
         _demoBytes = null;
         // Drop our handle to the previous open's visit (it may still be running on a reload: that is
         // fine and pre-existing; it holds only the OLD demo, which is being replaced anyway). CloseDemoAsync
@@ -3955,6 +3959,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         UnloadDemoState();
         _moduleContext?.RaiseDemoReset();
+        int generation = _unloadGeneration;
 
         if (passes is { IsCompleted: false })
         {
@@ -3987,6 +3992,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             {
                 // ResolveTeamNamesAsync already swallows its own failures; belt and braces.
             }
+        }
+
+        // Nothing stops an open while the close drains (only the idle resume waits for it), and the holds
+        // counter is shared, so the drain can even outlast a newer demo's whole load. That demo owns the
+        // status line now, and a compacting collection in the middle of its load is a stall, not a reclaim.
+        if (generation != _unloadGeneration || HasFile || IsLoading)
+        {
+            return;
         }
 
         StatusText = "No demo loaded.";
