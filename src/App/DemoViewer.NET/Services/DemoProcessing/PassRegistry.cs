@@ -35,6 +35,16 @@ public sealed class PassRegistry
     public void AddCoreEvaluator(string id, Func<IDemoEvaluator> factory, params string[] after) =>
         Add(id, EvaluatorPassAdapter.Cached(factory, after), after, null);
 
+    /// <summary>True when a pass is registered under <paramref name="id" />, core or a pack's.</summary>
+    /// <param name="id">The pass id.</param>
+    public bool Has(string id)
+    {
+        lock (_gate)
+        {
+            return _entries.ContainsKey(id);
+        }
+    }
+
     /// <summary>
     ///     Defers reading pack contributions until the first <see cref="Resolve" />. <paramref name="populate" />
     ///     is expected to call <see cref="AddPackPass" /> for each contributed pass; it runs exactly once, the

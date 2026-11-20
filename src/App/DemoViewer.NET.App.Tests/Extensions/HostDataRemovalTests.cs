@@ -223,6 +223,49 @@ public class HostDataRemovalTests
         }
     }
 
+    /// <summary>
+    ///     A pass id is global and the registry gives it to one extension. The extension it refused never ran a
+    ///     pass under that id, so the stamps carrying it are another's, and its delete leaves them.
+    /// </summary>
+    [Test]
+    public async Task TheHostsDelete_LeavesTheStampsOfAPassIdAnotherExtensionHolds()
+    {
+        string id = "dev.example.refused." + Guid.NewGuid().ToString("N")[..8];
+        Pack pack = new(id);
+        ServiceCollection services = new();
+        services.AddSingleton<ExtensionShellHub>();
+        services.AddSingleton(new DemoCacheStore(null));
+        await using ServiceProvider sp = services.BuildServiceProvider();
+        DemoCacheStore cache = sp.GetRequiredService<DemoCacheStore>();
+        cache.Update("/demos/a.dem", 1, 1, r =>
+        {
+            r.Sha256 = "aaaa";
+            r.SetStamp(new PackStamp("lineups", 1, "fp"));
+        });
+        PackContributions contributions = new(pack, () => new ExtensionContext(pack, sp));
+        contributions.Pass("lineups", () => new ExtensionPassHostTests.FakePass { PassName = "lineups" });
+        HostDataRemoval removal = new(contributions, sp);
+
+        PassRegistry registry = new();
+        registry.AddCore("lineups", () => null!);
+        contributions.PassIdsOfOthers = [.. contributions.Passes.Select(p => p.Id).Where(registry.Has)];
+        ExtensionDataRemovalResult refused = await removal.DeleteAsync();
+        string[] afterRefused = [.. cache.Contents.Single().PackStamps.Select(s => s.Id)];
+
+        contributions.PassIdsOfOthers = [];
+        ExtensionDataRemovalResult accepted = await removal.DeleteAsync();
+        string[] afterAccepted = [.. cache.Contents.Single().PackStamps.Select(s => s.Id)];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(refused.Ran).IsTrue();
+            await Assert.That(afterRefused).IsEquivalentTo(["lineups"], CollectionOrdering.Matching)
+                .Because("the stamp is the extension's whose pass the registry took");
+            await Assert.That(accepted.Ran).IsTrue();
+            await Assert.That(afterAccepted).IsEmpty().Because("an extension's own passes' stamps still go");
+        }
+    }
+
     private sealed class Pack(string id, IEnumerable<StoreDescriptor>? stores = null) : IExtension, IManifestSource
     {
         public ExtensionManifest Manifest { get; } = ExtensionManifest.Parse($$"""

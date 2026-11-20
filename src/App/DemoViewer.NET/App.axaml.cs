@@ -1457,6 +1457,8 @@ public class App : Application
 
                 foreach (PackContributions contributions in pending)
                 {
+                    // Whatever of its ids the registry holds is the core's or another extension's pass.
+                    contributions.PassIdsOfOthers = [.. contributions.Passes.Select(c => c.Id).Where(registry.Has)];
                     contributions.Guard.Faults.FailStartup(contributions.Guard.Scope, "passes",
                         new InvalidOperationException(refused[contributions]));
                 }

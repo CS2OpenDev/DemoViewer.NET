@@ -98,7 +98,9 @@ internal sealed class HostDataRemoval : IExtensionDataRemoval
             ? await custom.DeleteAsync().ConfigureAwait(true)
             : await Remover().DeleteAsync(_pack.Pack.Id, Stores,
                 [
-                    .. _pack.Passes.Select(p => p.Id),
+                    // A pass id is global. One the registry refused because it was taken never ran for this
+                    // extension, so a stamp carrying it was written by whoever does hold the id.
+                    .. _pack.Passes.Select(p => p.Id).Where(id => !_pack.PassIdsOfOthers.Contains(id)),
                     .. _pack.Rulesets.Where(r => r.ReadBy is null).Select(r => StampedFacts.StampId(r.RulesetId))
                 ], featureId,
                 Label + ": delete extension data", () => gate?.IsEnabled(featureId) != true).ConfigureAwait(true);

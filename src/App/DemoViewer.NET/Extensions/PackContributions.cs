@@ -66,6 +66,12 @@ internal sealed class PackContributions(
     /// <summary>Every pack this launch declared, in composition order; a test names its own.</summary>
     internal IReadOnlyList<IExtension>? LoadedPacks { get; init; }
 
+    /// <summary>
+    ///     The pass ids of this pack that the pass registry already held when it refused the pack's passes.
+    ///     They are the core's or another extension's, so the stamps under them are not this pack's to strip.
+    /// </summary>
+    internal IReadOnlyCollection<string> PassIdsOfOthers { get; set; } = [];
+
     public IExtensionContext Context => field ??= context();
     public IReadOnlyList<GatedDemoAction> DemoActions => _demoActions;
 
