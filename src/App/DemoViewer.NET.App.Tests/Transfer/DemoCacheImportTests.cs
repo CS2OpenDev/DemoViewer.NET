@@ -276,4 +276,51 @@ public class DemoCacheImportTests
     [Arguments(".grenades.json", null)]
     public async Task ASibling_BelongsToTheFactsStampItsSuffixNames(string suffix, string? stamp) =>
         await Assert.That(DemoCacheStore.StampOfSibling(suffix)).IsEqualTo(stamp);
+
+    /// <summary>
+    ///     A read fetches the record file with no lock held and remembers it only when no write landed
+    ///     meanwhile. An import is such a write: a read it overtook must not put the record from before it
+    ///     back in the cache, or the next read-modify-write saves the record without what was imported.
+    /// </summary>
+    [Test]
+    public async Task AReadOvertakenByAnImport_DoesNotCacheTheRecordFromBeforeIt()
+    {
+        DemoCacheStore store = new(null);
+        const string Path = "/library/raced.dem";
+        DemoCacheRecord local = BundleBuilder.ParsedRecord(Sha, 4096);
+        local.Path = Path;
+        local.Locations = [];
+        store.Upsert(local);
+        DemoCacheRecord other = BundleBuilder.ParsedRecord(OtherSha, 4096);
+        other.Path = "/library/other.dem";
+        other.Locations = [];
+        store.Upsert(other); // the capacity-1 cache now holds this one, so the read below goes to the file
+
+        DemoCacheRecord imported = BundleBuilder.ParsedRecord(Sha, 4096);
+        imported.SetStamp(new PackStamp(MatchMetaEvaluator.StampId, 99, "v"));
+        imported.MatchMeta = new DemoMatchMeta { GameMode = "competitive" };
+        bool landed = false;
+        store.RecordReadForTest = () =>
+        {
+            if (!landed)
+            {
+                landed = true;
+                store.ImportContent(Sha, null, RecordBytes(imported), []);
+            }
+        };
+        store.TryLoadRecord(Path);
+        store.RecordReadForTest = null;
+        await Assert.That(landed).IsTrue();
+
+        await Assert.That(store.TryLoadRecord(Path)!.MatchMeta?.GameMode).IsEqualTo("competitive");
+
+        store.UpdateExisting(Path, r => r.Server = "Valve");
+        DemoCacheRecord after = store.TryLoadRecord(Path)!;
+        using (Assert.Multiple())
+        {
+            await Assert.That(after.Server).IsEqualTo("Valve");
+            await Assert.That(after.MatchMeta?.GameMode).IsEqualTo("competitive")
+                .Because("the write builds on the import");
+        }
+    }
 }

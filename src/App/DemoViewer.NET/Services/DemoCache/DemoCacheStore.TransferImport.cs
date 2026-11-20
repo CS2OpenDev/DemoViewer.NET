@@ -174,6 +174,9 @@ public sealed partial class DemoCacheStore
                 }
 
                 Link(sha256, entry);
+
+                // A read that fetched this record's file before the write above must not remember it.
+                _recordWrites++;
                 if (string.Equals(_lastRecordKey, sha256, StringComparison.Ordinal))
                 {
                     _lastRecordKey = null;
