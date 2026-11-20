@@ -205,6 +205,53 @@ public class SettingsServiceTests
         }
     }
 
+    /// <summary>
+    ///     A file the writers cannot parse is replaced by the next save, so its text is set aside first, once:
+    ///     a hand edit with a typo loses nothing the user cannot copy back.
+    /// </summary>
+    [Test]
+    [Arguments("recents")]
+    [Arguments("session")]
+    [Arguments("preference")]
+    public async Task AnUnparseableFile_IsSetAsideOnce_BeforeASaveReplacesIt(string writer)
+    {
+        const string Broken = """{ "Theme": "Light", "Library": { "Folders": ["/demos/major"] """;
+        string dir = NewTempDir();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), Broken);
+            SettingsService svc = new(dir);
+
+            for (int i = 0; i < 2; i++)
+            {
+                switch (writer)
+                {
+                    case "recents":
+                        svc.SaveRecents([new RecentFile("/demos/a.dem", null, DateTime.UtcNow)]);
+                        break;
+                    case "session":
+                        svc.SaveSession(new SessionPayload(null, null, null, false, false, "library"));
+                        break;
+                    default:
+                        svc.Write(s => s.UserCategory = UserCategory.Developer);
+                        break;
+                }
+            }
+
+            string[] setAside = Directory.GetFiles(dir, "settings.json.unreadable-*");
+            using (Assert.Multiple())
+            {
+                await Assert.That(setAside.Length).IsEqualTo(1);
+                await Assert.That(setAside.Length == 1 ? await File.ReadAllTextAsync(setAside[0]) : null)
+                    .IsEqualTo(Broken);
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     [Test]
     public async Task EnvironmentVariable_OverridesFileValue()
     {

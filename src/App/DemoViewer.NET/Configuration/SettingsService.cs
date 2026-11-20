@@ -69,6 +69,9 @@ public sealed class SettingsService
     // Set by the file-load exception handler when settings.json is present but unparseable.
     private bool _loadFailed;
 
+    // The write time and length of the unparseable file last set aside, so repeated saves copy it once.
+    private (DateTime, long)? _setAside;
+
     /// <summary>Constructs over the real app-data config root (<see cref="AppPaths.ConfigRoot" />).</summary>
     public SettingsService() : this(AppPaths.ConfigRoot)
     {
@@ -173,7 +176,7 @@ public sealed class SettingsService
             // Merge the mutated PREFERENCE keys into the existing file object, leaving the consolidated
             // Session / Recents sections (which AppSettings does not model) untouched: a preference write
             // must never clobber them.
-            JsonObject file = ReadFileObject();
+            JsonObject file = ReadFileObject(forWrite: true);
             JsonObject prefs = JsonSerializer.SerializeToNode(settings, _serializerOptions)!.AsObject();
             foreach (string key in prefs.Select(kv => kv.Key).ToList())
             {
@@ -274,7 +277,7 @@ public sealed class SettingsService
         {
             // One write carries the rows and their marker, so a crash leaves either the old section unmarked or
             // the new one marked. A marker a newer build wrote is never lowered.
-            JsonObject file = ReadFileObject();
+            JsonObject file = ReadFileObject(forWrite: true);
             file["Recents"] = JsonSerializer.SerializeToNode(recents.ToList(), _serializerOptions);
             file[RecentsVersionKey] = Math.Max(ReadVersion(file), RecentsFormatVersion);
             WriteObject(file);
@@ -388,7 +391,7 @@ public sealed class SettingsService
     // (preferences + the sibling Session/Recents). Deliberately does NOT Reload(): see SaveSession/SaveRecents.
     private void WriteSection<T>(string sectionName, T value)
     {
-        JsonObject file = ReadFileObject();
+        JsonObject file = ReadFileObject(forWrite: true);
         file[sectionName] = JsonSerializer.SerializeToNode(value, _serializerOptions);
         WriteObject(file);
     }
@@ -417,22 +420,60 @@ public sealed class SettingsService
     // The whole config file as a mutable JSON object (or an empty one when absent / unparseable). This is the
     // basis every write merges into so no section clobbers another: AppSettings does not model Session /
     // Recents, so a whole-AppSettings serialize would drop them; a node merge keeps them.
-    private JsonObject ReadFileObject()
+    // forWrite: the caller replaces the file with what it builds on this. A file that cannot be read then
+    // throws, so it is not replaced; one that cannot be parsed is set aside first, so its text survives.
+    private JsonObject ReadFileObject(bool forWrite = false)
     {
         if (_settingsPath is null || !File.Exists(_settingsPath))
         {
             return new JsonObject();
         }
 
+        string text;
         try
         {
-            return JsonNode.Parse(File.ReadAllText(_settingsPath), documentOptions: _documentOptions) as JsonObject
-                ?? new JsonObject();
+            text = File.ReadAllText(_settingsPath);
+        }
+        catch (Exception ex) when (!forWrite && ex is IOException or UnauthorizedAccessException)
+        {
+            return new JsonObject();
+        }
+
+        try
+        {
+            if (JsonNode.Parse(text, documentOptions: _documentOptions) is JsonObject file)
+            {
+                return file;
+            }
         }
         catch
         {
-            return new JsonObject(); // a corrupt file is repaired by the next write
+            // Unparseable: handled below with a parse that is not an object.
         }
+
+        if (forWrite)
+        {
+            SetAsideUnreadable(); // the corrupt file is repaired by the next write, its text kept beside it
+        }
+
+        return new JsonObject();
+    }
+
+    // The file as it stands, the one time per version of it: settings.json.unreadable-<stamp> beside it. Throws
+    // when the copy fails, so the write that would replace the file does not.
+    private void SetAsideUnreadable()
+    {
+        FileInfo info = new(_settingsPath!);
+        (DateTime, long) version = (info.LastWriteTimeUtc, info.Length);
+        if (_setAside == version)
+        {
+            return;
+        }
+
+        string copy = string.Create(CultureInfo.InvariantCulture,
+            $"{_settingsPath}.unreadable-{DateTime.UtcNow:yyyyMMdd-HHmmss}");
+        File.Copy(_settingsPath!, copy, overwrite: true);
+        _setAside = version;
     }
 
     // Atomically swaps the given object into place, so a watcher never observes a
@@ -609,17 +650,21 @@ public sealed class SettingsService
             return new AppSettings();
         }
 
+        // A file that cannot be read throws rather than reading as defaults the write would then save.
+        string text = File.ReadAllText(_settingsPath);
         try
         {
             // An explicit null where the model has a section or a collection is dropped before binding, so the
             // member keeps its default, as it does when the loader reads the same file. Bound as written it
             // would be a null in the basis for the caller's mutator to index.
-            JsonNode? file = JsonNode.Parse(File.ReadAllText(_settingsPath), documentOptions: _documentOptions);
+            JsonNode? file = JsonNode.Parse(text, documentOptions: _documentOptions);
             DropNulls(file);
             return file.Deserialize<AppSettings>(_serializerOptions) ?? new AppSettings();
         }
         catch
         {
+            // The write replaces every preference with a default, so the file is kept beside it first.
+            SetAsideUnreadable();
             return new AppSettings();
         }
     }
