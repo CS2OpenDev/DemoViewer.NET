@@ -32,6 +32,13 @@ public static class ExtensionStaging
     /// <summary>A zip with more entries than this is refused.</summary>
     private const int MaxEntries = 4096;
 
+    /// <summary>
+    ///     How much of the zip may be read before its entries are listed: the end record and the whole central
+    ///     directory. ZipArchive reads every directory record it finds before it can count them, so this is what
+    ///     keeps <see cref="MaxEntries" /> a bound on memory; 256 bytes a record is far past any real name.
+    /// </summary>
+    private const long MaxDirectoryBytes = MaxEntries * 256L;
+
     /// <summary>A zip whose entries would unpack to more than this, or whose download is larger, is refused.</summary>
     public const long MaxBytes = 512L * 1024 * 1024;
 
@@ -195,11 +202,14 @@ public static class ExtensionStaging
         string target = Path.GetFullPath(targetDirectory);
         try
         {
-            using ZipArchive archive = ZipFile.OpenRead(zipPath);
+            using ReadBudgetStream budgeted = new(File.OpenRead(zipPath), MaxDirectoryBytes);
+            using ZipArchive archive = new(budgeted, ZipArchiveMode.Read);
             if (archive.Entries.Count > MaxEntries)
             {
                 return $"the archive has {archive.Entries.Count} entries; the most allowed is {MaxEntries}";
             }
+
+            budgeted.Lift();
 
             long total = 0;
             List<(ZipArchiveEntry Entry, string Path, bool IsDirectory)> plan = [];
@@ -256,6 +266,10 @@ public static class ExtensionStaging
             }
 
             return null;
+        }
+        catch (DirectoryTooLargeException)
+        {
+            return "the archive's list of entries is larger than allowed";
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException
                                        or NotSupportedException)
@@ -424,6 +438,64 @@ public static class ExtensionStaging
         catch (UnauthorizedAccessException)
         {
             return true;
+        }
+    }
+
+    private sealed class DirectoryTooLargeException : Exception
+    {
+    }
+
+    // A read-only view of the zip that throws once more than the budget has been read, until Lift. Opening the
+    // archive and listing its entries happen under the budget; unpacking the entries after Lift does not.
+    private sealed class ReadBudgetStream(Stream inner, long budget) : Stream
+    {
+        private long _read;
+        private bool _lifted;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => inner.CanSeek;
+        public override bool CanWrite => false;
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        public void Lift() => _lifted = true;
+
+        public override int Read(byte[] buffer, int offset, int count) => Count(inner.Read(buffer, offset, count));
+
+        public override int Read(Span<byte> buffer) => Count(inner.Read(buffer));
+
+        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+
+        public override void Flush()
+        {
+        }
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                inner.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
+        private int Count(int read)
+        {
+            if (!_lifted && (_read += read) > budget)
+            {
+                throw new DirectoryTooLargeException();
+            }
+
+            return read;
         }
     }
 }
