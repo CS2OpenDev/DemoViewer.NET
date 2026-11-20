@@ -15,6 +15,7 @@ using DemoViewer.NET.ViewModels.Playback2D;
 using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views.Playback2D;
 using SkiaSharp;
+using TUnit.Core.Exceptions;
 
 #endregion
 
@@ -449,4 +450,62 @@ public class Playback2DExportSetupTests
         Guid.NewGuid(), AnnotationKind.Freehand, AnnotationStyle.Default,
         new SpaceRef.World(0), TimeEnvelope.Static,
         [new InkPoint(0, 0, 0.5f), new InkPoint(50, 50, 0.5f)], null);
+}
+
+/// <summary>
+///     The export's hold on the map art. Serial with the other suites that count holds on the process-wide
+///     bundle registry, and on de_overpass, which none of them use.
+/// </summary>
+[NotInParallel]
+public class Playback2DExportMapHoldTests
+{
+    private const string Map = "de_overpass";
+
+    // The setup used to carry the tab's own bundle, unowned. Opening a demo on another map mid-export
+    // gave the tab's hold back, and as the last one that disposed the radar images the render thread
+    // was still drawing.
+    [Test]
+    public async Task TheSetupHoldsItsOwnMapArt_SoATabThatMovesToAnotherMapDoesNotReleaseIt() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            if (MapBundleLeases.Acquire(Map) is not { } probe)
+            {
+                throw new SkipTestException($"no {Map} bundle in this checkout");
+            }
+
+            probe.Dispose();
+
+            // Deltas, not absolutes: the registry is process-wide.
+            int before = MapBundleLeases.HoldersOf(Map);
+            Playback2DFakeContext ctx = new() { MapName = Map, Gate = new FakeModuleFeatureGate() };
+            ctx.AddPlayer(0, "Alpha", 2);
+            Playback2DTabViewModel vm = new();
+            vm.OnActivated(ctx);
+            await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before + 1);
+
+            Playback2DExportHost host = new(() => null, null, null, null);
+            ExportSceneSetup setup = vm.BuildExportSetup(host);
+            try
+            {
+                await Assert.That(setup.MapAssets).IsNotNull();
+
+                // The user opens a demo with no bundle while the export renders.
+                ctx.MapName = null;
+                ctx.RaiseDemoReset();
+
+                await Assert.That(vm.MapAsset).IsNull();
+                await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before + 1)
+                    .Because("the run still draws this map, whatever the tab now shows");
+                await Assert.That(setup.Owned).IsNotNull()
+                    .Because("the runner releases the hold through Owned when the run ends");
+            }
+            finally
+            {
+                setup.Owned?.Dispose();
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+
+            await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before);
+        });
 }

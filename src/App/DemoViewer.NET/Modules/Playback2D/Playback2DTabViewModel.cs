@@ -1023,28 +1023,39 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     ///     <c>Ink</c> is the frozen document for <b>this</b> run.
     /// </param>
     internal ExportSceneSetup BuildExportSetup(Playback2DExportHost host,
-        Scene2DExportRequest? request = null) => new(
-        host.Frames() ?? [],
-        _tickRate,
-        _context?.MapName,
-        request?.Palette ?? LivePalette(),
-        LevelStrip.DisplayMode,
-
-        // The export builds its own solver over the same engine: VisionLayer is stateless per frame, and
-        // the engine itself is a read-only mesh.
-        VisionEngine is null ? null : new VisibilityEngineSolver(() => VisionEngine),
-        BuildExportHud(),
-        MapAsset,
-
-        // Off the REQUEST, not off a field. This method runs on the export's pool thread, and it runs
-        // AFTER the job has waited on the heavy-job gate; a tab-level field written at Start would by
-        // then be whatever the most recent Start put there, which is not necessarily this run's.
-        request?.Ink)
+        Scene2DExportRequest? request = null)
     {
-        // The live HUD reads _context.CurtimeSeconds(tick) = tick/rate − base; the export's source reads
-        // tick/rate and subtracts this, so both clocks agree. CurtimeSeconds(0) is exactly −base.
-        ClockBaseSeconds = _context is { } context ? -context.CurtimeSeconds(0) : 0
-    };
+        // The run's OWN hold on the map art, not the tab's. The render draws the radar images for
+        // minutes on a pool thread, and the tab gives its hold back the moment the user opens a demo on
+        // another map; as the last one, that disposed the bundle under the export. The runner releases
+        // this one when the run ends, however it ends.
+        string? map = _context?.MapName;
+        MapBundleLease? lease = string.IsNullOrEmpty(map) ? null : MapBundleLeases.Acquire(map);
+
+        return new ExportSceneSetup(
+            host.Frames() ?? [],
+            _tickRate,
+            map,
+            request?.Palette ?? LivePalette(),
+            LevelStrip.DisplayMode,
+
+            // The export builds its own solver over the same engine: VisionLayer is stateless per frame, and
+            // the engine itself is a read-only mesh.
+            VisionEngine is null ? null : new VisibilityEngineSolver(() => VisionEngine),
+            BuildExportHud(),
+            lease,
+
+            // Off the REQUEST, not off a field. This method runs on the export's pool thread, and it runs
+            // AFTER the job has waited on the heavy-job gate; a tab-level field written at Start would by
+            // then be whatever the most recent Start put there, which is not necessarily this run's.
+            request?.Ink)
+        {
+            // The live HUD reads _context.CurtimeSeconds(tick) = tick/rate − base; the export's source reads
+            // tick/rate and subtracts this, so both clocks agree. CurtimeSeconds(0) is exactly −base.
+            ClockBaseSeconds = _context is { } context ? -context.CurtimeSeconds(0) : 0,
+            Owned = lease
+        };
+    }
 
     // The exported HUD reads the SAME pre-built kill timeline the XAML feed windows, and the same
     // SceneGameInfo projection the panel binds, so the two HUDs cannot drift apart.
