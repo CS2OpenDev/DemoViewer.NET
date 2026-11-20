@@ -68,8 +68,9 @@ public interface ILiveSyncService : IAsyncDisposable
     ///     arrival), then remote-applies DV's playhead to the trigger frame and resumes the
     ///     follower. <paramref name="frameClockTick" /> is FRAME-CLOCK (<c>RuleChainEvent.Tick</c>
     ///     / <c>GameEvent.GameTick</c> as-is, never <c>−ServerStartTick</c>). Returns false,
-    ///     never throws for playback failures, when not currently synced or when CS2 could not
-    ///     complete the range; the UI surfaces the enable prompt / failure state.
+    ///     never throws for playback failures, when not currently synced, when another
+    ///     verification is still playing, or when CS2 could not complete the range; the UI
+    ///     surfaces the enable prompt / failure state.
     /// </summary>
     Task<bool> VerifyMomentAsync(int frameClockTick, int preRollTicks = 192, int postRollTicks = 64,
         string? spectateName = null, CancellationToken cancellationToken = default);

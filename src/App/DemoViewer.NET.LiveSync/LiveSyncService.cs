@@ -81,6 +81,10 @@ public sealed class LiveSyncService : ILiveSyncService
     private CsvgVideoSession? _subscribedSession;
     private bool _tearingDown;
 
+    // 1 while a VerifyMomentAsync owns CS2. The engine's verification flag is a single bool and one
+    // CSVG session plays one range at a time, so a second verification is refused, not overlapped.
+    private int _verifying;
+
     /// <summary>
     ///     Creates the engine against the shell. Settings resolve from the app's composition root
     ///     when not passed explicitly (tests pass their own monitor).
@@ -332,6 +336,13 @@ public sealed class LiveSyncService : ILiveSyncService
             return false;
         }
 
+        if (Interlocked.CompareExchange(ref _verifying, 1, 0) != 0)
+        {
+            // Another surface's verification is still playing its range: the first one to finish
+            // would end verification mode and seek DV under this one.
+            return false;
+        }
+
         engine.BeginVerification();
         try
         {
@@ -361,7 +372,14 @@ public sealed class LiveSyncService : ILiveSyncService
         }
         finally
         {
-            engine.EndVerification();
+            try
+            {
+                engine.EndVerification();
+            }
+            finally
+            {
+                Volatile.Write(ref _verifying, 0);
+            }
         }
     }
 
