@@ -53,7 +53,7 @@ public sealed class CalloutResolver
         // what a hand-edited file shows until it is fixed.
         foreach (CalloutAlias alias in table?.Aliases ?? [])
         {
-            if (alias.Alias is not { } text)
+            if (alias?.Alias is not { } text)
             {
                 continue;
             }

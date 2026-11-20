@@ -795,6 +795,16 @@ public sealed class StratStore
             table = null;
         }
 
+        // A hand-edited file can say "aliases": null or list a null entry; no reader of the table expects either.
+        if (table is not null)
+        {
+            table.Aliases = [.. (table.Aliases ?? []).Where(a => a is not null)];
+            if (table.Canonical is { } canonical)
+            {
+                canonical.Names = [.. (canonical.Names ?? []).Where(n => n is not null)];
+            }
+        }
+
         return table ?? new CalloutTable { Map = map.ToLowerInvariant() };
     }
 

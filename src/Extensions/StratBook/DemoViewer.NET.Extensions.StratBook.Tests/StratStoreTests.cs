@@ -645,4 +645,35 @@ public class StratStoreTests
             DeleteQuietly(root);
         }
     }
+
+    [Test]
+    [Arguments("""{"map":"de_mirage","aliases":[null,{"alias":"popdog","place":"TRamp"}]}""", "TRamp")]
+    [Arguments("""{"map":"de_mirage","aliases":null}""", null)]
+    [Arguments("""{"map":"de_mirage","canonical":{"names":null},"aliases":[]}""", null)]
+    public async Task CalloutsWithANullEntry_LoadWithoutIt_AndResolve(string json, string? popdog)
+    {
+        string root = TempRoot();
+        try
+        {
+            string folder = StratStore.FolderFor(root, Team, "de_mirage");
+            Directory.CreateDirectory(folder);
+            await File.WriteAllTextAsync(Path.Combine(folder, "callouts.json"), json);
+            StratStore store = new(PackStores.At(root));
+
+            CalloutTable table = store.LoadCallouts(Team, "de_mirage");
+            CalloutResolver resolver = CalloutResolver.For("de_mirage", null, table);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(table.Aliases.Count).IsEqualTo(popdog is null ? 0 : 1);
+                await Assert.That(resolver.Resolve("popdog")).IsEqualTo(popdog);
+                await Assert.That(StratValidator.ValidateCallouts(table)).IsEmpty();
+                await Assert.That(table.Canonical is { Names: null }).IsFalse();
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
 }
