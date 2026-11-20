@@ -94,8 +94,10 @@ internal sealed class InboundSync : IDisposable
             // A big unexplained move is a CS2-side user seek; a v1.0 backward jump to near 0 is
             // restart-like Degraded. The disambiguation itself is InboundLogic.ClassifyTickAdvance
             // (pure, tested) — this applies it.
-            switch (InboundLogic.ClassifyTickAdvance(
-                        cs2Tick, _lastSeenTick, _engine.HasPendingSeek, _capabilities.DemoStateEvents))
+            switch (MirroredTickSignal(
+                        InboundLogic.ClassifyTickAdvance(
+                            cs2Tick, _lastSeenTick, _engine.HasPendingSeek, _capabilities.DemoStateEvents),
+                        _engine.HasRemoteDemoChange))
             {
                 case InboundLogic.TickSignal.DemoStateUnknown:
                     _engine.NoteRemoteDemoStateUnknown();
@@ -123,6 +125,15 @@ internal sealed class InboundSync : IDisposable
 
         RunServo(state, cs2Tick);
     }
+
+    /// <summary>
+    ///     Drops the tick-jump signal while CS2 plays a different demo (the Degraded "open it in DV"
+    ///     offer): those ticks belong to the other demo, and mirroring them would move DV's playhead
+    ///     on its own demo, which Re-sync would then push back to CS2. Jump tracking still advances.
+    /// </summary>
+    internal static InboundLogic.TickSignal MirroredTickSignal(InboundLogic.TickSignal signal,
+        bool remoteDemoChanged) =>
+        remoteDemoChanged ? InboundLogic.TickSignal.None : signal;
 
     private void RunServo(LiveSyncState state, long cs2Tick)
     {

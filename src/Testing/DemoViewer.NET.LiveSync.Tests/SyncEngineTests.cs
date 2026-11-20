@@ -441,6 +441,8 @@ public class SyncEngineTests
         {
             int loadsBefore = client.Count("load:");
             engine.NoteRemoteDemoChanged("/cs2/replays/user_pick.dem");
+            await Assert.That(engine.HasRemoteDemoChange).IsTrue()
+                .Because("the inbound pump stops mirroring the other demo's ticks");
 
             await WaitForAsync(
                 () => probe.Current is
@@ -457,6 +459,7 @@ public class SyncEngineTests
             // only the position fixup flows.
             engine.SetDesiredDemo("/cs2/replays/user_pick.dem", 0, false);
             await WaitForAsync(() => probe.Current.RemoteDemoPath is null, "offer cleared");
+            await Assert.That(engine.HasRemoteDemoChange).IsFalse();
             await WaitForAsync(() => client.Snapshot().Contains("seek:0"), "position fixup seek");
             await Assert.That(client.Count("load:")).IsEqualTo(loadsBefore);
 

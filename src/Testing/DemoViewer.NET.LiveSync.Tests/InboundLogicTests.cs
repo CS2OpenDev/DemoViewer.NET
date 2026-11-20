@@ -168,6 +168,21 @@ public class InboundLogicTests
     }
 
     [Test]
+    public async Task TickAdvance_WhileCs2PlaysADifferentDemo_IsNeverMirrored()
+    {
+        // CS2 switched to demo B while DV holds demo A at tick 50,000: B's tick 1 classifies as a
+        // user seek, but it is B's position, not A's, so the pump must not apply it to DV.
+        InboundLogic.TickSignal signal = InboundLogic.ClassifyTickAdvance(1, 50_000, false, true);
+        await Assert.That(signal).IsEqualTo(InboundLogic.TickSignal.UserSeek);
+        await Assert.That(InboundSync.MirroredTickSignal(signal, true)).IsEqualTo(InboundLogic.TickSignal.None);
+        await Assert.That(InboundSync.MirroredTickSignal(InboundLogic.TickSignal.DemoStateUnknown, true))
+            .IsEqualTo(InboundLogic.TickSignal.None);
+
+        // Same demo on both sides: the signal passes through untouched.
+        await Assert.That(InboundSync.MirroredTickSignal(signal, false)).IsEqualTo(signal);
+    }
+
+    [Test]
     public async Task TickAdvance_BackwardJumpToNearZero_RestartOnV10_UserSeekOnV11()
     {
         // v1.0: pause/end/reload all restart the stream near 0 — indistinguishable from a

@@ -148,6 +148,22 @@ public sealed class SyncEngine : IAsyncDisposable
     }
 
     /// <summary>
+    ///     True while CS2 plays a different demo than DV's (v1.1 demo-identity, set by
+    ///     <see cref="NoteRemoteDemoChanged" />, cleared by the next <see cref="SetDesiredDemo" />).
+    ///     CS2's ticks then belong to that other demo, so the inbound pump must not mirror them.
+    /// </summary>
+    internal bool HasRemoteDemoChange
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _remoteDemoPath is not null;
+            }
+        }
+    }
+
+    /// <summary>
     ///     The user's speed as last pushed through <see cref="SetDesiredTimescale" />: the rate CS2
     ///     runs at under "timescale-set". Stays 1× without that capability, because the setter
     ///     no-ops there. The drift servo bends around this, never around a hardcoded 1×.
