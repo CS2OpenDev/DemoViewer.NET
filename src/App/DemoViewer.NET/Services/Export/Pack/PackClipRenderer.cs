@@ -104,7 +104,10 @@ public sealed class PackClipRenderer : IPackClipRenderer, IDisposable
 
     private async Task<Loaded> LoadAsync(string path, CancellationToken ct)
     {
-        if (_current is { } held && string.Equals(held.Path, path, StringComparison.OrdinalIgnoreCase))
+        // A lease whose visit was stopped no longer holds the slot: another demo may be read beside its parse.
+        // It is let go and the demo's visit joined again.
+        if (_current is { } held && string.Equals(held.Path, path, StringComparison.OrdinalIgnoreCase)
+            && held.Lease?.Stopped.IsCancellationRequested != true)
         {
             return held;
         }

@@ -8,7 +8,9 @@ using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Export.Pack;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Export;
+using DemoViewer.NET.Services.Export.Pack;
 using DemoViewer.NET.Services.Review;
 
 #endregion
@@ -462,6 +464,44 @@ public class PackExportTests
     }
 
     // ── Fakes ─────────────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task ALeaseWhoseVisitWasStopped_IsNotReusedForTheNextClipOfItsDemo()
+    {
+        List<CancellationTokenSource> visits = [];
+        int released = 0;
+        using PackClipRenderer renderer = new((_, _) =>
+        {
+            CancellationTokenSource visit = new();
+            visits.Add(visit);
+            return Task.FromResult(new DemoLease(SyntheticParsedDemo.Create(),
+                () => Interlocked.Increment(ref released), visit.Token));
+        }, null, loadMap: _ => null);
+        // The demo has no frames, so a clip stops at its range: after its demo's lease is taken and kept.
+        PackClip clip = new(Clip("/d/a.dem", 0, 64), 1, null, 0, null, null);
+
+        await Assert.ThrowsAsync<ExportValidationException>(async () =>
+            await renderer.RenderAsync(clip, Settings(), new RecordingSink(), CancellationToken.None));
+        await Assert.ThrowsAsync<ExportValidationException>(async () =>
+            await renderer.RenderAsync(clip, Settings(), new RecordingSink(), CancellationToken.None));
+        int whileHeld = visits.Count;
+        await visits[0].CancelAsync();
+        await Assert.ThrowsAsync<ExportValidationException>(async () =>
+            await renderer.RenderAsync(clip, Settings(), new RecordingSink(), CancellationToken.None));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(whileHeld).IsEqualTo(1).Because("consecutive clips of one demo share its lease");
+            await Assert.That(visits.Count).IsEqualTo(2)
+                .Because("a stopped visit gave its slot away, so the next clip joins a visit again");
+            await Assert.That(released).IsEqualTo(1).Because("the stopped lease is disposed, the new one held");
+        }
+
+        foreach (CancellationTokenSource visit in visits)
+        {
+            visit.Dispose();
+        }
+    }
 
     /// <summary>Progress reported on the calling thread, so a test sees every report in order.</summary>
     private sealed class InlineProgress(Action<PackProgress> report) : IProgress<PackProgress>
