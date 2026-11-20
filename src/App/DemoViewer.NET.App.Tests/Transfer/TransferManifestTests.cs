@@ -215,6 +215,61 @@ public class TransferManifestTests
         await Assert.That(RefusalOf(json)).Contains("not portable");
     }
 
+    /// <summary>
+    ///     The checks read the manifest's text before any file is looked for, so their cost is the bundle
+    ///     author's to set. Each facet count and each per-demo store entry is looked up among its demo's files:
+    ///     scanning the list for each made that quadratic, minutes for a manifest of a few megabytes.
+    /// </summary>
+    [Test]
+    public async Task AManifestOfManyFiles_IsCheckedInTimeLinearInItsSize()
+    {
+        const int Files = 60_000;
+        List<TransferFile> files = [];
+        Dictionary<string, int> counts = [];
+        List<TransferExtensionFile> described = [];
+        for (int i = 0; i < Files; i++)
+        {
+            string relative = "tags/" + i.ToString(CultureInfo.InvariantCulture) + ".json";
+            TransferFile file = new(TransferLayout.ExtensionStoreFile(ShaA, "net.ext", "tags", relative), 1, ShaC);
+            files.Add(file);
+            counts[file.Path] = 1;
+            described.Add(new TransferExtensionFile(file.Path, 1, ShaC, "net.ext", "tags", StoreRoot.Config,
+                StorePortability.PerDemo, relative, ShaA));
+        }
+
+        JsonObject json = SampleJson();
+        TransferManifest sample = Sample();
+        JsonObject many = JsonNode.Parse(new TransferManifest
+        {
+            FormatId = sample.FormatId,
+            AppVersion = sample.AppVersion,
+            CreatedUtc = sample.CreatedUtc,
+            SourceOs = sample.SourceOs,
+            Options = sample.Options,
+            RulesetIdentities = sample.RulesetIdentities,
+            Extensions = sample.Extensions,
+            Demos = [new TransferDemo(ShaA, "many.dem", 1000, files) { FacetCounts = counts }],
+            Shared = [],
+            ExtensionData = described
+        }.ToJsonBytes())!.AsObject();
+        json["demos"] = many["demos"]!.DeepClone();
+        json["extensionData"] = many["extensionData"]!.DeepClone();
+        json["shared"] = new JsonArray();
+        byte[] bytes = Encoding.UTF8.GetBytes(json.ToJsonString());
+
+        System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+        TransferManifest read = TransferManifest.Parse(bytes);
+        watch.Stop();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(read.Demos[0].Files.Count).IsEqualTo(Files);
+            // Scanning takes the better part of a minute for this many; hashed lookups take well under a
+            // second. The bound is loose because the suite runs beside other work.
+            await Assert.That(watch.Elapsed).IsLessThan(TimeSpan.FromSeconds(10));
+        }
+    }
+
     [Test]
     public async Task TwoPathsDifferingOnlyByCase_AreRefused()
     {
