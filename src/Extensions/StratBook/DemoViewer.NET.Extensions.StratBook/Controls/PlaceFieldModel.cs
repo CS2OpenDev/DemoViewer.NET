@@ -272,7 +272,9 @@ public sealed class PlaceFieldModel
             return _value;
         }
 
-        _value = Parse(option.Display);
+        // The row's own place, never its display text read back: an owner's primary alias can spell another place's
+        // name, digits or a comma, and each of those parses as something else.
+        _value = StratLocations.Typed(_value.Count > 0 ? _value[0] : null, option.Place) is { } chosen ? [chosen] : [];
         Text = DisplayOf(_value, Options?.Resolver);
         Raise();
         return _value;
