@@ -776,4 +776,35 @@ public class LaunchTrustPolicyTests
             Directory.Delete(dir, recursive: true);
         }
     }
+
+    /// <summary>
+    ///     The updater's policy lives as long as the app does, and the setting can change under it. A copy staged
+    ///     after the user turned the setting off is judged as the next launch will judge it.
+    /// </summary>
+    [Test]
+    public async Task APolicyOverALiveSetting_FollowsTheSettingAsItChanges()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "dv-trust-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            ExtensionManifest manifest = FakeManifests.For("net.demoviewer.pack.fake");
+            bool allow = true;
+            ITrustPolicy policy = TrustPolicy.ForLaunch(() => allow, static _ => "1");
+            bool whileOn = policy.Judge(dir, manifest).Trusted;
+            allow = false;
+            bool afterOff = policy.Judge(dir, manifest).Trusted;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(whileOn).IsTrue();
+                await Assert.That(afterOff).IsFalse();
+                await Assert.That(policy.IsTrusted(dir, manifest)).IsFalse();
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
 }
