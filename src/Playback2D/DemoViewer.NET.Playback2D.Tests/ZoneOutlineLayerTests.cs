@@ -158,6 +158,37 @@ public class ZoneOutlineLayerTests
         await Assert.That(layer.ContentVersion).IsEqualTo(before + 1);
     }
 
+    /// <summary>
+    ///     The outline pictures bake their paint colour at record time, so a theme switch has to re-record
+    ///     them: otherwise the labels follow the new palette and the outlines keep the old one.
+    /// </summary>
+    [Test]
+    public async Task PaletteSwitch_RerecordsTheOutlines_InTheNewColours()
+    {
+        ZoneSet baked = ZoneFixtures.Build();
+        ZoneOverlayDocument overlay = new(1, null, null,
+            [new ZoneOverlayZone("E-box", ZoneFixtures.Upper, [200, 0, 300, 0, 300, 100, 200, 100], null, null, false)],
+            [], []);
+        PlaceResolver resolver = new(ZoneOverlayApplier.Apply(baked, overlay, "{}"u8, "o").Effective);
+
+        using ZoneOutlineLayer layer = new(resolver) { DrawLabels = false };
+        SceneRenderContext dark = TestContexts.For(Scene2DFrame.Empty, _camera, Width, Height);
+        SceneRenderContext light = dark with { Palette = ScenePalette.Light };
+
+        Render(layer, dark);
+        Render(layer, dark);
+        await Assert.That(layer.PictureRecordCount).IsEqualTo(2)
+            .Because("an unchanged palette must not re-record");
+
+        byte[] switched = Render(layer, light);
+
+        using ZoneOutlineLayer fresh = new(resolver) { DrawLabels = false };
+        byte[] expected = Render(fresh, light);
+
+        await Assert.That(Hash(switched)).IsEqualTo(Hash(expected))
+            .Because("the outlines after a theme switch must be the ones a fresh layer draws in that theme");
+    }
+
     private static SceneRenderContext PaneFor(in SceneRenderContext all, MapSpace space, int index)
     {
         MapLevel level = space.Levels[index];
