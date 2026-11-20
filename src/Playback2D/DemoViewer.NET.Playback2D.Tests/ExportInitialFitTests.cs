@@ -2,6 +2,7 @@
 
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
+using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
@@ -201,6 +202,82 @@ public class ExportInitialFitTests
             .IsEqualTo(ViewportTransform.Fit(born.ViewWidth, born.ViewHeight,
                 map.MinX, map.MinY, map.MaxX, map.MaxY).BaseScale)
             .Within(1e-9);
+    }
+
+    /// <summary>
+    ///     The floor that was already there when a second one appears. Its band halves, and a camera
+    ///     carried across at the old pixel scale shows half the map, cropped, beside a new floor fitted
+    ///     at half that scale. The one-shot fit is spent by then and no rig runs in an export, so the
+    ///     renderer has to re-frame the fit it gave.
+    /// </summary>
+    [Test]
+    public async Task ALevelBornMidExport_RefitsTheFloorThatWasAlreadyThere_ToItsNewBand()
+    {
+        SceneFixture real = SyntheticScenes.FullSceneBudget();
+        WorldBounds map = real.Frame.Map.NetworkedBounds!.Value;
+
+        using SceneCompositor compositor = new();
+        compositor.Add(new CameraProbeLayer());
+        using CpuSurfaceProvider surfaces = new();
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor);
+        renderer.Size = new SKSizeI(320, 180);
+        renderer.AutoFitOnFirstMapBounds = true;
+
+        // One floor over the whole height, then the same floor's lower half and a new upper one: the
+        // lower band keeps its id, which is what makes its pane a survivor rather than a birth.
+        renderer.Levels.SetAuthoritativeFloors([new FloorSlice(-700, 500)]);
+        Advance(renderer, real);
+
+        await Assert.That(renderer.Panes.Panes.Count).IsEqualTo(1);
+        MapLevelId survivor = renderer.Panes.Panes[0].LevelId;
+
+        renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
+        Advance(renderer, real);
+
+        await Assert.That(renderer.Panes.Panes.Count).IsEqualTo(2);
+        await Assert.That(renderer.Panes.Panes.Any(p => p.LevelId == survivor)).IsTrue()
+            .Because("the case is a pane that lived through the split");
+
+        foreach (LevelPane pane in renderer.Panes.Panes)
+        {
+            ViewportTransform expected = ViewportTransform.Fit(pane.ViewportRect.Width, pane.ViewportRect.Height,
+                map.MinX, map.MinY, map.MaxX, map.MaxY);
+            await Assert.That(pane.Camera.Current.BaseScale).IsEqualTo(expected.BaseScale).Within(1e-9);
+            await Assert.That(pane.Camera.Current.CenterX).IsEqualTo(expected.CenterX).Within(1e-6);
+            await Assert.That(pane.Camera.Current.CenterY).IsEqualTo(expected.CenterY).Within(1e-6);
+        }
+    }
+
+    /// <summary>
+    ///     Only the fit it gave. A camera something else has moved since (a follow script mid-step) is
+    ///     carried across the split as it is, not thrown back to the whole map.
+    /// </summary>
+    [Test]
+    public async Task ALevelBornMidExport_LeavesACameraThatIsNoLongerTheFit_Alone()
+    {
+        SceneFixture real = SyntheticScenes.FullSceneBudget();
+
+        using SceneCompositor compositor = new();
+        compositor.Add(new CameraProbeLayer());
+        using CpuSurfaceProvider surfaces = new();
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor);
+        renderer.Size = new SKSizeI(320, 180);
+        renderer.AutoFitOnFirstMapBounds = true;
+
+        renderer.Levels.SetAuthoritativeFloors([new FloorSlice(-700, 500)]);
+        Advance(renderer, real);
+
+        LevelPane first = renderer.Panes.Panes[0];
+        MapLevelId survivor = first.LevelId;
+        ViewportTransform moved = ViewportTransform.Fit(320, 180, 100, 100, 700, 500);
+        first.Camera.Current = moved;
+
+        renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
+        Advance(renderer, real);
+
+        LevelPane after = renderer.Panes.Panes.First(p => p.LevelId == survivor);
+        await Assert.That(after.Camera.Current.CenterX).IsEqualTo(moved.CenterX).Within(1e-9);
+        await Assert.That(after.Camera.Current.BaseScale).IsEqualTo(moved.BaseScale).Within(1e-9);
     }
 
     /// <summary>
