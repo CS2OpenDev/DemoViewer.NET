@@ -28,6 +28,8 @@ public partial class BinaryPane : UserControl
 {
     private bool _adjustingWindow;
     private ScrollViewer? _scrollViewer;
+    private bool _subscribed;
+    private int? _targetRowAtDetach;
     private HarvestHexViewModel? _vm;
 
     /// <summary>Initializes a new <see cref="BinaryPane" /> instance.</summary>
@@ -63,20 +65,60 @@ public partial class BinaryPane : UserControl
 
     // ── DataContext wiring ────────────────────────────────────────────────────
 
+    // Subscribed only while on the visual tree. The Parser tab's hex view models live as long as the shell,
+    // and a tab switch drops the view without clearing its DataContext, so a subscription held past detach
+    // kept every dead Parser view reachable and scrolling.
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        if (_vm is not null)
+        Unsubscribe();
+        _vm = DataContext as HarvestHexViewModel;
+        _scrollViewer = null; // force re-discovery after context swap
+
+        if (this.IsAttachedToVisualTree())
+        {
+            Subscribe();
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        Subscribe();
+
+        // A target set while detached went unseen; catch up on it.
+        if (_vm is not null && _targetRowAtDetach is { } before && _vm.TargetRowIndex != before)
+        {
+            ScrollToRow(_vm.TargetRowIndex);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        Unsubscribe();
+        _targetRowAtDetach = _vm?.TargetRowIndex;
+        _scrollViewer = null;
+    }
+
+    private void Subscribe()
+    {
+        if (_vm is not null && !_subscribed)
+        {
+            _vm.PropertyChanged += OnVmPropertyChanged;
+            _subscribed = true;
+        }
+    }
+
+    private void Unsubscribe()
+    {
+        if (_vm is not null && _subscribed)
         {
             _vm.PropertyChanged -= OnVmPropertyChanged;
         }
 
-        _vm = DataContext as HarvestHexViewModel;
-        _scrollViewer = null; // force re-discovery after context swap
-
-        if (_vm is not null)
-        {
-            _vm.PropertyChanged += OnVmPropertyChanged;
-        }
+        _subscribed = false;
     }
 
     // ── Byte-cell click → reverse byte → node mapping ──────────────────
