@@ -479,10 +479,17 @@ internal sealed partial class TransferImporter : ITransferImporter
     {
         if (_extensionData?.Invoke(extensionId) is { } live)
         {
-            return live;
+            // The loaded extension is looked up whatever the case, and only its own id is its own: data under
+            // the id in another case is some other extension's, and is not merged into this one's store.
+            return string.Equals(live.ExtensionId, extensionId, StringComparison.Ordinal) ? live : null;
         }
 
-        if (_extensionDataRoot is null || !ExtensionFolders.IsSafeName(extensionId))
+        // The folder is named by the id. Windows drops a trailing dot and, like macOS, ignores case: an id that
+        // is another extension's but for that would open a second store over that extension's folder, with its
+        // own index beside the one the extension holds.
+        if (_extensionDataRoot is null || !ExtensionFolders.IsSafeName(extensionId)
+                                       || !TransferLayout.IsPortableSegment(extensionId)
+                                       || ExtensionFolders.CaseVariantIn(_extensionDataRoot, extensionId) is not null)
         {
             return null;
         }

@@ -91,6 +91,9 @@ internal sealed partial class ExtensionDemoDataStore : IExtensionDemoData
     /// <summary>The folder the store writes into.</summary>
     public string Root { get; }
 
+    /// <summary>The id of the extension the store belongs to, as it was loaded.</summary>
+    public string ExtensionId => _extensionId;
+
     private static ILogger Log => DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory);
 
     public bool IsAvailable => true;

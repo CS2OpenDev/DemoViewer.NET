@@ -1359,8 +1359,10 @@ public class App : Application
             sp.GetRequiredService<ReviewQueue>(),
             sp.GetRequiredService<DemoLibraryService>(),
             sp.GetRequiredService<IDemoProcessingQueue>(),
+            // Whatever the case: the importer refuses an id that is a loaded one's but for its case, and has
+            // to be handed that extension's store to see it.
             id => sp.GetService<PackContributionSet>()?.Packs
-                .FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.Ordinal))?.Context.Data
+                .FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.OrdinalIgnoreCase))?.Context.Data
                 as ExtensionDemoDataStore,
             AppPaths.DemoCacheDir is { } cacheDir ? Path.Combine(cacheDir, ExtensionFolders.DataDirectoryName) : null,
             () => TransferEnvironment.Local(sp.GetRequiredService<MergedRulesBuild>(), packs),

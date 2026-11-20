@@ -683,6 +683,96 @@ public class TransferImporterTests
         store.StopFollowingLibrary();
     }
 
+    /// <summary>
+    ///     Windows drops a trailing dot and ignores case, so <c>rounds.</c> and <c>Rounds</c> are the folder
+    ///     <c>rounds</c> there. Imported under such a name the files would replace the local facet's without the
+    ///     merge rule ever comparing the two, so the name is refused and the local facet is left as it was.
+    /// </summary>
+    [Test]
+    [Arguments("rounds.")]
+    [Arguments("Rounds")]
+    public async Task AFacetNameThatAliasesALocalFacetsFolder_IsRefused(string alias)
+    {
+        using TempFolders temp = new();
+        DemoCacheStore cache = new(null);
+        ExtensionDemoDataStore store = new("dev.example.data", temp.New(), cache, a => a(), "1.0.0");
+        store.Import(Sha, "rounds",
+        [
+            new KeyValuePair<string, byte[]>(Sha + ".json.gz",
+                BundleBuilder.FacetFile("rounds", null, 5, "fp", Sha, "", "mine")),
+            new KeyValuePair<string, byte[]>(Sha + ".positions.json.gz",
+                BundleBuilder.FacetFile("rounds", "positions", 5, "fp", Sha, "", "my part"))
+        ]);
+        string main = Path.Combine(store.Root, "rounds", Sha + ".json.gz");
+        string part = Path.Combine(store.Root, "rounds", Sha + ".positions.json.gz");
+        byte[] before = await File.ReadAllBytesAsync(main);
+
+        bool refused = false;
+        try
+        {
+            store.Import(Sha, alias,
+            [
+                new KeyValuePair<string, byte[]>(Sha + ".json.gz",
+                    BundleBuilder.FacetFile(alias, null, 1, null, Sha, "", "theirs"))
+            ]);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            refused = true;
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(refused).IsTrue();
+            await Assert.That(await File.ReadAllBytesAsync(main)).IsEquivalentTo(before);
+            await Assert.That(File.Exists(part)).IsTrue().Because("the local write's parts are not the import's to sweep");
+            await Assert.That(Directory.GetDirectories(store.Root).Select(d => Path.GetFileName(d) ?? ""))
+                .IsEquivalentTo(["rounds"]);
+        }
+
+        store.StopFollowingLibrary();
+    }
+
+    /// <summary>
+    ///     An extension id that differs only by case from one with data here names the same folder on Windows
+    ///     and macOS. Its facets are left out: a second store over that folder would save a competing index.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task AnExtensionIdThatDiffersOnlyByCaseFromOneHere_IsLeftOut(bool loaded)
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string extData = temp.New();
+        const string Extension = "dev.example.data";
+        const string Alias = "Dev.Example.Data";
+        OneDemo(root, (b, files) =>
+            files.Add(b.File(TransferLayout.ExtensionFacetFile(Sha, Alias, "rounds", TransferLayout.DemoFileName(".json.gz")),
+                BundleBuilder.FacetFile("rounds", null, 2, "fp", Sha, @"D:\source\match.dem", "payload")))).Write();
+        DemoCacheStore cache = new(null);
+        ExtensionDemoDataStore live = new(Extension, Path.Combine(extData, Extension), cache, a => a(), "1.0.0");
+        Directory.CreateDirectory(Path.Combine(extData, Extension));
+        TransferImporter importer = new(cache,
+            extensionData: id => loaded && string.Equals(id, Extension, StringComparison.OrdinalIgnoreCase) ? live : null,
+            extensionDataRoot: extData);
+
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        TransferSummary summary = await importer.RunAsync(ImportRequest.DataOnly(root), preview, null,
+            CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Items.Single().Reason).Contains(Alias + " data was left out");
+            await Assert.That(cache.HoldsContent(Sha)).IsTrue();
+            await Assert.That(Directory.Exists(Path.Combine(extData, Extension, ExtensionDemoDataStore.DirectoryName)))
+                .IsFalse().Because("nothing was written into the folder the alias resolves to");
+            await Assert.That(Directory.GetDirectories(extData).Select(d => Path.GetFileName(d) ?? "")).IsEquivalentTo([Extension]);
+        }
+
+        live.StopFollowingLibrary();
+    }
+
     [Test]
     public async Task AFacetFile_ThatInflatesPastTheCeiling_IsRefused()
     {

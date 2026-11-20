@@ -189,6 +189,32 @@ public class TransferManifestTests
         await Assert.That(RefusalOf(json)).IsNotEmpty();
     }
 
+    /// <summary>
+    ///     Windows drops a trailing dot and maps a device name to the device, so <c>facet.</c> is the folder
+    ///     <c>facet</c> there. The importer keys its merge decision on the name as written: a segment that is not
+    ///     portable would write into another facet's or extension's files under a name the merge rule never saw.
+    /// </summary>
+    [Test]
+    [Arguments(1, "data/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ext/net.ext/facet./demo.json.gz")]
+    [Arguments(1, "data/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ext/net.ext./facet/demo.json.gz")]
+    [Arguments(1, "data/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ext/net.ext/CON/demo.json.gz")]
+    [Arguments(1, "data/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ext/net.ext/a facet/demo.json.gz")]
+    [Arguments(0, "data/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/cache/demo.json.gz.")]
+    public async Task ADemoFilePathWithASegmentThatIsNotPortable_IsRefused(int file, string path)
+    {
+        JsonObject json = SampleJson();
+        json["demos"]![0]!["files"]![file]!["path"] = path;
+        await Assert.That(RefusalOf(json)).Contains("not portable");
+    }
+
+    [Test]
+    public async Task ASharedFilePathWithASegmentThatIsNotPortable_IsRefused()
+    {
+        JsonObject json = SampleJson();
+        json["shared"]![0]!["path"] = "shared/graph-breakpoints.json.";
+        await Assert.That(RefusalOf(json)).Contains("not portable");
+    }
+
     [Test]
     public async Task TwoPathsDifferingOnlyByCase_AreRefused()
     {

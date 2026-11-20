@@ -208,6 +208,11 @@ public sealed record TransferManifest
                     return $"'{file.Path}' is outside demo {demo.Sha256}'s folder";
                 }
 
+                if (!IsPortablePath(file.Path))
+                {
+                    return $"'{file.Path}' has a segment that is not portable";
+                }
+
                 paths.Add(file.Path);
             }
 
@@ -238,6 +243,11 @@ public sealed record TransferManifest
             if (!file.Path.StartsWith(TransferLayout.SharedDirectory + "/", StringComparison.Ordinal))
             {
                 return $"'{file.Path}' is outside the shared folder";
+            }
+
+            if (!IsPortablePath(file.Path))
+            {
+                return $"'{file.Path}' has a segment that is not portable";
             }
 
             paths.Add(file.Path);
@@ -347,6 +357,12 @@ public sealed record TransferManifest
         string? duplicate = PathSafety.FindCaseDuplicate(keys);
         return duplicate is null ? null : $"'{duplicate}' is listed twice, or twice differing only by case";
     }
+
+    // Every path the exporter writes for a demo or into the shared folder is built from portable segments
+    // (TransferLayout). The importer takes an extension id and a facet from these paths and keys its merge on
+    // them as written, while Windows drops a trailing dot and maps a device name to the device: "facet." would
+    // be written into the folder of "facet" under a name the merge rule never compared.
+    private static bool IsPortablePath(string path) => path.Split('/').All(TransferLayout.IsPortableSegment);
 
     private static string? CheckFile(TransferFile file)
     {

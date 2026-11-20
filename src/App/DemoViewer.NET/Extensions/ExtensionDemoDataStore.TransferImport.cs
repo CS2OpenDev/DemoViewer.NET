@@ -2,6 +2,7 @@
 
 using System.IO.Compression;
 using System.Text.Json;
+using DemoViewer.NET.Services.Transfer;
 using DemoViewer.NET.ViewModels.Diagnostics;
 
 #endregion
@@ -36,6 +37,20 @@ internal sealed partial class ExtensionDemoDataStore
         }
 
         ExtensionFolders.SafeName(facet);
+
+        // The merge rule below compares the import with the local facet of this exact name. Windows drops a
+        // trailing dot and, like macOS, ignores case, so "facet." or "Facet" would be written into the folder
+        // of "facet" without ever being compared with it, and the sweep would delete that facet's parts.
+        if (!TransferLayout.IsPortableSegment(facet))
+        {
+            throw new ArgumentException($"'{facet}' is not a portable facet name.", nameof(facet));
+        }
+
+        if (ExtensionFolders.CaseVariantIn(Root, facet) is { } local)
+        {
+            throw new InvalidDataException($"'{facet}' differs only by case from the {local} data here.");
+        }
+
         List<(string? Part, Header Header, byte[] Content)> parsed = [];
         foreach ((string name, byte[] bytes) in files)
         {

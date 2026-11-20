@@ -32,6 +32,36 @@ internal static class ExtensionFolders
         return name;
     }
 
+    /// <summary>
+    ///     The name of a folder in <paramref name="parent" /> that differs from <paramref name="name" /> only by
+    ///     case, or null when there is none or a folder with exactly that name exists. On Windows and macOS the
+    ///     two names are one folder, so data written under <paramref name="name" /> would land in the other's.
+    /// </summary>
+    public static string? CaseVariantIn(string parent, string name)
+    {
+        if (!Directory.Exists(parent))
+        {
+            return null;
+        }
+
+        string? variant = null;
+        foreach (string folder in Directory.EnumerateDirectories(parent))
+        {
+            string existing = Path.GetFileName(folder);
+            if (string.Equals(existing, name, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            if (string.Equals(existing, name, StringComparison.OrdinalIgnoreCase))
+            {
+                variant = existing;
+            }
+        }
+
+        return variant;
+    }
+
     /// <summary>True when <paramref name="name" /> passes <see cref="SafeName" />.</summary>
     public static bool IsSafeName(string name) =>
         name.Length is > 0 and <= 128
