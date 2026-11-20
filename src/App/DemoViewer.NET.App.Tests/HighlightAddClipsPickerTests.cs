@@ -95,6 +95,36 @@ public class HighlightAddClipsPickerTests
         await Assert.That(picker.Rows[0].DurationText).IsEqualTo("~20s");
     }
 
+    /// <summary>
+    ///     A 4K whose first kill came 30 s before the fourth: the reel reaches back to that first kill, so
+    ///     the estimate has to as well, or the row says ~20s for a clip that renders at ~35s.
+    /// </summary>
+    [Test]
+    public async Task DurationEstimate_ReachesBackToTheFirstEventOfAMultiEventHighlight()
+    {
+        DemoCacheRecord record = Row("/d/a.dem", "de_mirage", 1, [Ev("s1mple", "1", 1, 54_000, "multi.quad_kill")]);
+        CachedHighlightEvent quad = record.Highlights[0];
+        CachedHighlightEvent withStart = new()
+        {
+            RulesetId = quad.RulesetId,
+            HighlightId = quad.HighlightId,
+            PlayerSlot = quad.PlayerSlot,
+            RoundNumber = quad.RoundNumber,
+            Tick = quad.Tick,
+            RenderedTitle = quad.RenderedTitle,
+            ClipStartTick = quad.Tick - (30 * 64)
+        };
+
+        AddClipsRowViewModel row = new(record, withStart, 15, 5, false, _ => { });
+        AddClipsRowViewModel plain = new(record, quad, 15, 5, false, _ => { });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(row.DurationText).IsEqualTo("~35s");
+            await Assert.That(plain.DurationText).IsEqualTo("~20s");
+        }
+    }
+
     [Test]
     public async Task Coverage_Counts_DemosWithEVENTS_NotIndexedRows()
     {

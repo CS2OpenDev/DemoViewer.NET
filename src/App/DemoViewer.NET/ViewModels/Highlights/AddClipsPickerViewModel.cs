@@ -615,7 +615,7 @@ public sealed partial class AddClipsRowViewModel : ObservableObject
             ? ClipWindows.RoundStartFor(record.Rounds.ToClipRounds(), highlight.Tick)
             : null;
         (long start, long end) = ClipWindows.Compute(highlight.Tick, roundStart, rate,
-            leadInSeconds, leadOutSeconds, record.TickCount);
+            leadInSeconds, leadOutSeconds, record.TickCount, 0, highlight.ClipStartTick);
         DurationText = $"~{Math.Max(0, end - start) / (double)rate:0.#}s";
     }
 
