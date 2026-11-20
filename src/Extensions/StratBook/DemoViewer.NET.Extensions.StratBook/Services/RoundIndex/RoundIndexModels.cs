@@ -114,6 +114,7 @@ public sealed class RoundIndexDocument
         try
         {
             return JsonSerializer.Deserialize<RoundIndexDocument>(json, JsonOptions) is { } document
+                && IsWellFormed(document)
                 && HasSaneRuns(document)
                     ? document
                     : null;
@@ -123,6 +124,14 @@ public sealed class RoundIndexDocument
             return null;
         }
     }
+
+    // JSON null lands in a property, in a list and as a dictionary value as it is, and the situations index reads
+    // the clock, the demo, the map, the place sums and the transitions of every sidecar it loads without a null
+    // check: one such sidecar would end the load for every demo after it.
+    private static bool IsWellFormed(RoundIndexDocument document) =>
+        document is { Demo: not null, Clock.Kind: not null, Map: not null, Places: not null, Transitions: not null }
+        && !document.Transitions.Contains(null!)
+        && document.Places.Values.All(static summary => summary?.Buckets is { } buckets && !buckets.Contains(null!));
 
     // A sidecar can come from someone else's bundle, and every consumer expands the runs without a bound of its
     // own: runs in step order, none past the tick clock, and no more rows than a demo can hold.

@@ -46,6 +46,29 @@ public class RoundIndexStoreTests
         }
     }
 
+    // What a bundle from elsewhere can carry where the sidecar's shape has an object or a list.
+    [Test]
+    [Arguments("""{"schemaVersion":1,"clock":null,"rounds":[]}""")]
+    [Arguments("""{"schemaVersion":1,"demo":null,"rounds":[]}""")]
+    [Arguments("""{"schemaVersion":1,"map":null,"rounds":[]}""")]
+    [Arguments("""{"schemaVersion":1,"places":null,"rounds":[]}""")]
+    [Arguments("""{"schemaVersion":1,"places":{"Ramp":null},"rounds":[]}""")]
+    [Arguments("""{"schemaVersion":1,"places":{"Ramp":{"n":1,"z":null}},"rounds":[]}""")]
+    [Arguments("""{"schemaVersion":1,"places":{"Ramp":{"n":1,"z":[null]}},"rounds":[]}""")]
+    [Arguments("""{"schemaVersion":1,"transitions":null,"rounds":[]}""")]
+    [Arguments("""{"schemaVersion":1,"transitions":[null],"rounds":[]}""")]
+    public async Task ASidecarCarryingANull_WhereItsShapeHasNone_ReadsAsUnparseable(string json)
+    {
+        using (Assert.Multiple())
+        {
+            await Assert.That(RoundIndexDocument.TryDeserialize(json)).IsNull()
+                .Because("the situations index reads these of every sidecar without a null check");
+            await Assert.That(RoundIndexDocument.TryDeserialize(
+                    """{"schemaVersion":1,"places":{"Ramp":{"n":1,"z":[[0,1,2.0,3.0]]}},"transitions":[["a","b",1]],"rounds":[]}"""))
+                .IsNotNull();
+        }
+    }
+
     [Test]
     public async Task ExpandRows_EndsOnARunThatReachesTheLastInt()
     {
