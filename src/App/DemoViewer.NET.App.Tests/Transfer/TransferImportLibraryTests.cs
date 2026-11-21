@@ -1,6 +1,10 @@
 #region
 
+using System.Text;
+using System.Text.Json;
 using DemoViewer.NET.Modules.Library;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Transfer;
 using static DemoViewer.NET.AppTests.LibraryFingerprintTests;
@@ -139,6 +143,45 @@ public class TransferImportLibraryTests
             await Assert.That(Directory.EnumerateFiles(destination).Select(f => Path.GetFileName(f)!))
                 .IsEquivalentTo(["match one.dem"]);
         }
+    }
+
+    // The clip was imported before the copy was listed: once the rescan has attached the copy, the clip takes
+    // its path through the same lookup the importer and the library's change notice use.
+    [Test]
+    public async Task AnImportedReviewClip_TakesTheCopiedDemosPath_AfterTheRescan()
+    {
+        using TempFolders temp = new();
+        string bundleRoot = temp.New();
+        string destination = Path.Combine(temp.New(), "Imported demos");
+        byte[] bytes = new byte[(1 << 20) + 4096];
+        new Random(75).NextBytes(bytes);
+        DemoCacheStore store = new(temp.New());
+        using Library library = new(temp.New(), store);
+        (string sha, DemoContentFingerprint fingerprint) =
+            DemoContentFingerprint.ComputeWithContentHash(new MemoryStream(bytes), library.Reader.WindowBytes);
+        BundleBuilder bundle = new(bundleRoot);
+        bundle.Demo(sha, "match one.dem", bytes.Length,
+            [bundle.Record(BundleBuilder.ParsedRecord(sha, bytes.Length, "de_imported"))], fingerprint,
+            bundle.Dem(sha, bytes));
+        bundle.Shared(TransferLayout.ReviewQueueFileName, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(
+            new ReviewQueueFile
+            {
+                Entries = [ReviewEntry.Clip("/source/match.dem", 10, 20, "a retake", ReviewSources.Manual, 64, sha)]
+            }, ReviewQueueFile.JsonOptions)));
+        bundle.Write();
+        ReviewQueue review = new(null, pathOfContent: s => store.TryGetByContentId(s)?.Path);
+        TransferImporter importer = new(store, library: library.Service, review: review);
+
+        ImportPreview preview = await importer.PreviewAsync(bundleRoot, CancellationToken.None);
+        await importer.RunAsync(
+            new ImportRequest(bundleRoot, ConflictPolicy.KeepMine, new HashSet<string> { sha }, destination, true),
+            preview, null, CancellationToken.None);
+        string copied = Path.Combine(destination, "match one.dem");
+        await library.Service.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
+        await WaitForAsync(() => store.LocationOf(copied) is not null, "the copied demo attached");
+        review.ResolvePaths();
+
+        await Assert.That(review.Clips.Single().DemoPath).IsEqualTo(copied);
     }
 
     // Cancels once the second demo's copy is under way, after the first finished.
