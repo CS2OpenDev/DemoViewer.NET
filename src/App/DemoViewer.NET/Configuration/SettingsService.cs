@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Services;
 using Microsoft.Extensions.Configuration;
@@ -191,6 +192,10 @@ public sealed class SettingsService
     // sections the preferences do not model (Session, Recents) stay.
     private void ResetUnbindablePreferences()
     {
+        // The reset rewrites whole sections, and the Strat Book's old keys sit inside one of them. Their copy
+        // into the extension's own file must happen before any write here, and this is the first one; the
+        // app's own import afterwards finds that file and does nothing.
+        LegacyExtensionSettings.Import(this, Path.GetDirectoryName(_settingsPath));
         SetAsideUnreadable();
         JsonObject file = ReadFileObject(forWrite: true);
         MergePreferences(file, new AppSettings());

@@ -251,6 +251,36 @@ public class ExtensionSettingsStoreTests
         }
     }
 
+    // A value the binder cannot convert makes the settings service reset the preferences in its constructor,
+    // which rewrites the Playback2D section before the app's import can copy the Strat Book's keys out of it.
+    [Test]
+    public async Task TheStratBooksOldSettings_SurviveTheResetOfAnUnbindableSettingsJson()
+    {
+        string root = NewRoot();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "settings.json"), """
+                                                                              {
+                                                                                "UserCategory": "Coach",
+                                                                                "Playback2D": { "TagPaletteId": "team-palette", "ReviewMode": true }
+                                                                              }
+                                                                              """);
+            SettingsService settings = new(root);
+            LegacyExtensionSettings.Import(settings, root);
+
+            ExtensionSettingsStore store = new(LegacyExtensionSettings.StratBookId, root, a => a());
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.Get("tagPalette.id", "cs2-default")).IsEqualTo("team-palette");
+                await Assert.That(store.Get("review.mode", false)).IsTrue();
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     [Test]
     public async Task AnImportThatCannotBeWritten_IsKeptForTheStore_ThroughTheNextWriteOfSettingsJson()
     {
