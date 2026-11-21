@@ -264,7 +264,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             RebuildEntities(tracker);
         }
 
-        AutoSelectFirstChangedEntity();
+        AutoSelectFirstChangedEntity(tracker);
 
         OnSeekCompleted?.Invoke();
 
@@ -358,7 +358,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 RebuildEntities(tracker);
             }
 
-            AutoSelectFirstChangedEntity();
+            AutoSelectFirstChangedEntity(tracker);
 
             OnSeekCompleted?.Invoke();
 
@@ -463,7 +463,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 RebuildEntities(tracker);
             }
 
-            AutoSelectFirstChangedEntity();
+            AutoSelectFirstChangedEntity(tracker);
 
             OnSeekCompleted?.Invoke();
 
@@ -574,7 +574,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 RebuildEntities(tracker);
             }
 
-            AutoSelectFirstChangedEntity();
+            AutoSelectFirstChangedEntity(tracker);
 
             EntityStatusText = tracker.LastEntityError is { } err
                 ? $"⚠ {err}"
@@ -619,18 +619,19 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         ClassBrowser.Filter is { Length: > 0 } f ? f : null,
         false);
 
-    private void AutoSelectFirstChangedEntity()
+    private void AutoSelectFirstChangedEntity(EntityTracker tracker)
     {
-        if (FirstChangedEntity is null)
+        object? selectedBefore = SelectedEntityItem;
+        if (FirstChangedEntity is not null)
         {
-            return;
+            EntityListItem? item = EntityListItems.FirstOrDefault(i => i.Entity == FirstChangedEntity);
+            if (item is not null)
+            {
+                SelectedEntityListItem = item;
+            }
         }
 
-        EntityListItem? item = EntityListItems.FirstOrDefault(i => i.Entity == FirstChangedEntity);
-        if (item is not null)
-        {
-            SelectedEntityListItem = item;
-        }
+        RefreshRetainedSelection(tracker, selectedBefore);
     }
 
     /// <summary>
@@ -840,6 +841,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         {
             RebuildEntities(tracker);
         }
+
+        RefreshRetainedSelection(tracker, SelectedEntityItem);
     }
 
     private void ApplyClassFilterToNodes()
@@ -930,10 +933,41 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         }
     }
 
-    partial void OnSelectedEntityItemChanged(object? value)
+    partial void OnSelectedEntityItemChanged(object? value) => ShowSelectedEntity(value, false);
+
+    /// <summary>
+    ///     Re-projects the selected entity after a rebuild that kept the selection. The tracker mutates an
+    ///     <see cref="EntityState" /> in place, so a step or the pause snap leaves the same reference selected and
+    ///     the changed handler never runs; without this the panel keeps the values from the tick it was picked at.
+    ///     An entity the rebuilt tracker no longer holds is deselected instead.
+    /// </summary>
+    private void RefreshRetainedSelection(EntityTracker tracker, object? selectedBefore)
+    {
+        if (SelectedEntityItem is not EntityState entity || !ReferenceEquals(entity, selectedBefore))
+        {
+            return; // Nothing selected, or the rebuild's auto-select already showed a new entity.
+        }
+
+        foreach ((int _, EntityState e) in tracker.CurrentEntities.AllIndexed())
+        {
+            if (ReferenceEquals(e, entity))
+            {
+                ShowSelectedEntity(entity, true);
+                return;
+            }
+        }
+
+        SelectedEntityItem = null;
+    }
+
+    private void ShowSelectedEntity(object? value, bool keepDeltaFilter)
     {
         AllEntityFieldNodes = null;
-        ShowDeltaFieldsOnly = false;
+        if (!keepDeltaFilter)
+        {
+            ShowDeltaFieldsOnly = false;
+        }
+
         EntityFieldNodes.Clear();
         EntityFieldRows = [];
         EntityHeaderText = "";
