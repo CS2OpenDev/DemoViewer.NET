@@ -366,12 +366,19 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
         }
 
         viewModel.Completed += OnCompleted;
+
+        // Closed with the app (a shutdown, the OS ending the session, the main window going) is not the user
+        // leaving the wizard: there is no session left to stop waiting in, and a dismissal turns every pack on
+        // and queues a re-index on the way out. Unanswered, the wizard simply comes back next launch.
+        bool closedWithApp = false;
+        window.Closing += (_, e) => closedWithApp = e.CloseReason is WindowCloseReason.ApplicationShutdown
+            or WindowCloseReason.OSShutdown or WindowCloseReason.OwnerWindowClosing;
         window.Closed += (_, _) =>
         {
             viewModel.Completed -= OnCompleted;
             // The close box or Alt+F4: no Finish or Skip, so nothing was written. The host must not go on
             // waiting for an answer that is not coming this session.
-            if (!completed)
+            if (!completed && !closedWithApp)
             {
                 viewModel.Dismiss();
             }
