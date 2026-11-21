@@ -66,6 +66,23 @@ public class ZoneOverlayTests
     }
 
     [Test]
+    public async Task LowerFloorZone_WithTheDefaultBand_StaysOffTheFloorAbove()
+    {
+        // No minZ/maxZ, so the prism takes the lower band and its top is exactly the upper band's
+        // bottom (-528). Touching that boundary is not being on the upper floor.
+        double[] tunnels = [0, 0, 100, 0, 100, 100, 0, 100];
+        ZoneOverlayResult result = Apply(Overlay(
+            zones: [new ZoneOverlayZone("Vents", ZoneFixtures.Lower, tunnels, null, null, false)]));
+        PlaceResolver resolver = new(result.Effective);
+
+        await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
+        await Assert.That(resolver.ResolveOnFloor(50, 50, ZoneFixtures.Lower).Name).IsEqualTo("Vents");
+        await Assert.That(resolver.ResolveOnFloor(50, 50, ZoneFixtures.Upper).Name).IsEqualTo("Ramp");
+        await Assert.That(resolver.OutlinesFor(ZoneFixtures.Lower).Any(o => o.Name == "Vents")).IsTrue();
+        await Assert.That(resolver.OutlinesFor(ZoneFixtures.Upper).Any(o => o.Name == "Vents")).IsFalse();
+    }
+
+    [Test]
     public async Task ConcavePolygon_CoversItsArms_AndNotItsNotch()
     {
         // An L over Hut's box: the notch [240, 300] x [40, 100] is outside it. Both windings, because
