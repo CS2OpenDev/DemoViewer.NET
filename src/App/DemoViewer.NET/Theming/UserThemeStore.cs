@@ -144,7 +144,7 @@ public sealed class UserThemeStore(ThemeRegistry registry)
         AtomicFile.WriteAllText(theme.FilePath!,
             ThemeExport.ToJson(palette, theme.Id, displayName, includeInherited: false));
         Registry.Reload();
-        return Registry.Find(id)!;
+        return Registry.Find(id) ?? throw new IOException($"The saved theme {theme.FilePath} did not load.");
     }
 
     /// <summary>Renames the user theme <paramref name="id" />. Its id stays, so settings that select it keep working.</summary>
