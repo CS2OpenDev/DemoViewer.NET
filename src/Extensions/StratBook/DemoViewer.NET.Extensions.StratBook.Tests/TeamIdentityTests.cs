@@ -3,6 +3,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -660,7 +661,7 @@ public class TeamIdentityTests
         ranks.Set(b, RankSystem.Vrs, 40, day);
 
         teams.Merge(a, b);
-        MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks);
+        MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks, new StratStore(null));
 
         using (Assert.Multiple())
         {
@@ -683,8 +684,78 @@ public class TeamIdentityTests
         notes.Changed += () => raised++;
         vetoes.Changed += () => raised++;
         ranks.Changed += () => raised++;
-        MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks);
+        MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks, new StratStore(null));
         await Assert.That(raised).IsEqualTo(0).Because("nothing is left under the merged id to move");
+    }
+
+    [Test]
+    public async Task AMerge_CarriesTheMergedTeamsStratBook_OntoTheTeamThatTookItOver()
+    {
+        string root = TempRoot();
+        try
+        {
+            (DemoCacheStore cache, TeamIdentityService teams) = Fresh();
+            await Seed(cache, teams,
+                Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/b1.dem", 3, Ids(4, 5, 6, 7, 8), Strangers()),
+                Record("/d/b2.dem", 4, Ids(4, 5, 6, 7, 8), Strangers()));
+            Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+            Guid b = teams.TeamOnSide("/d/b1.dem", 2)!.Id;
+            StratStore strats = new(PackStores.At(Path.Combine(root, "strats")));
+            StratDocument mine = strats.Create(StratOwner.Team(a), "de_mirage", "T", "execute", "A's exec");
+            StratDocument theirs = strats.Create(StratOwner.Team(b), "de_mirage", "T", "execute", "B's exec");
+            StratDocument open = strats.Create(StratOwner.Team(b), "de_nuke", "CT", "setup", "B's setup");
+            using StratSession session = new(strats);
+            session.Open(open.Id);
+            StratBook bookA = strats.LoadBook(StratOwner.Team(a));
+            bookA.SlotDefaults["e1"] = new Dictionary<string, string> { ["A"] = "76560001" };
+            await Assert.That(strats.SaveBook(bookA)).IsTrue();
+            StratBook bookB = strats.LoadBook(StratOwner.Team(b));
+            bookB.SlotDefaults["e1"] = new Dictionary<string, string> { ["A"] = "76560004" };
+            bookB.SlotDefaults["e2"] = new Dictionary<string, string> { ["B"] = "76560006" };
+            await Assert.That(strats.SaveBook(bookB)).IsTrue();
+            CalloutTable calloutsB = strats.LoadCallouts(StratOwner.Team(b), "de_mirage");
+            calloutsB.Aliases.Add(new CalloutAlias { Alias = "palace", Place = "PalaceInterior", Primary = true });
+            await Assert.That(strats.SaveCallouts(StratOwner.Team(b), calloutsB)).IsTrue();
+
+            teams.Merge(a, b);
+            MergedTeamStores.Follow(teams.MergeLineage, new ScoutingReportNotesStore(null), new VetoHistoryStore(null),
+                new TeamRanksStore(null), strats);
+
+            StratBook merged = strats.LoadBook(StratOwner.Team(a));
+            using (Assert.Multiple())
+            {
+                await Assert.That(strats.Query(StratOwner.Team(a), null, null, null).Select(e => e.Id))
+                    .IsEquivalentTo([mine.Id, theirs.Id, open.Id])
+                    .Because("the merged team's strats are listed in the book of the team that took its id over");
+                await Assert.That(session.Document!.Owner).IsEqualTo(StratOwner.Team(a))
+                    .Because("an open strat moves through its session, which would otherwise write it back");
+                await Assert.That(session.HasPending).IsFalse();
+                await Assert.That(strats.Query(StratOwner.Team(b), null, null, null)).IsEmpty();
+                await Assert.That(strats.TryLoad(theirs.Id)!.Owner).IsEqualTo(StratOwner.Team(a));
+                await Assert.That(merged.SlotDefaults["e1"]["A"]).IsEqualTo("76560001")
+                    .Because("the team merged into keeps its own slot defaults, as it keeps its own name");
+                await Assert.That(merged.SlotDefaults["e2"]["B"]).IsEqualTo("76560006");
+                await Assert.That(strats.LoadCallouts(StratOwner.Team(a), "de_mirage").Aliases.Select(x => x.Alias ?? ""))
+                    .IsEquivalentTo(["palace"]);
+            }
+
+            StratStore reopened = new(PackStores.At(Path.Combine(root, "strats")));
+            int raised = 0;
+            strats.Changed += _ => raised++;
+            MergedTeamStores.Follow(teams.MergeLineage, new ScoutingReportNotesStore(null), new VetoHistoryStore(null),
+                new TeamRanksStore(null), strats);
+            using (Assert.Multiple())
+            {
+                await Assert.That(reopened.Query(StratOwner.Team(a), null, null, null).Count).IsEqualTo(3);
+                await Assert.That(raised).IsEqualTo(0).Because("nothing is left under the merged id to move");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 
     [Test]

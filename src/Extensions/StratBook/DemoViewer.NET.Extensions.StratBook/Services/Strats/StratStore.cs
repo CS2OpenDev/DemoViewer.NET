@@ -862,6 +862,90 @@ public sealed class StratStore
         return true;
     }
 
+    /// <summary>
+    ///     Moves a merged team's book onto the team that took its id over, since every read here is by the exact
+    ///     owner and nothing lists a tombstoned team again. Each strat moves by an ordinary commit of its owner, so
+    ///     the file and its log relocate together; one open in the Strat Book moves through its session, the single
+    ///     writer. Slot defaults and callouts fold in by the import's rule, the team merged into keeping its own
+    ///     where both have one, as it keeps its own Scouting Report summary; the merged team's file goes once it is
+    ///     folded in cleanly. Cheap when nothing is filed under <paramref name="from" />. UI thread.
+    /// </summary>
+    /// <param name="from">The merged team's id.</param>
+    /// <param name="into">The team that took it over.</param>
+    internal void Rekey(Guid from, Guid into)
+    {
+        StratOwner source = StratOwner.Team(from);
+        StratOwner target = StratOwner.Team(into);
+        foreach (StratIndexEntry entry in Query(source, null, null, null))
+        {
+            PatchOp op = PatchOp.ReplaceOp("/owner/teamId", JsonValue.Create(from.ToString("D")),
+                JsonValue.Create(into.ToString("D")));
+            if (SessionFor(entry.Id) is { } holder)
+            {
+                holder.Apply(op);
+                holder.Commit("moved with its team's merge");
+                continue;
+            }
+
+            lock (_rmwGate)
+            {
+                if (TryLoad(entry.Id) is not { } loaded)
+                {
+                    continue;
+                }
+
+                // A working copy nobody has open: its edits go into this commit with the move, as SetStatus does.
+                List<PatchOp> ops = [.. PendingOps(loaded)];
+                StratDocument document = WithPending(loaded, false);
+                document.Owner = target.Clone();
+                ops.Add(op);
+                Save(document, ops, "moved with its team's merge");
+            }
+        }
+
+        // In memory the books and callouts are the session's alone, and the import's readers are folder readers.
+        if (_folder is null)
+        {
+            return;
+        }
+
+        string book = Path.Combine(source.FolderName, BookFileName);
+        if (_folder.FileExists(book))
+        {
+            FoldIn(book, ledger => ImportBook(_folder, book, target, ledger));
+        }
+
+        foreach (string mapDir in SafeDirectories(_folder, source.FolderName))
+        {
+            string callouts = Path.Combine(mapDir, CalloutsFileName);
+            if (!Path.GetFileName(mapDir).StartsWith('.') && _folder.FileExists(callouts))
+            {
+                FoldIn(callouts, ledger => ImportCallouts(_folder, callouts, target, ledger));
+            }
+        }
+    }
+
+    // Folds one of a merged team's files in, then deletes it unless the fold reported anything (an unreadable
+    // file on either side, a failed write), which leaves it where it was for the next try.
+    private void FoldIn(string path, Action<ImportLedger> fold)
+    {
+        bool clean = true;
+        fold(new ImportLedger(ImportConflictPolicy.KeepMine, _ => clean = false));
+        if (!clean)
+        {
+            return;
+        }
+
+        try
+        {
+            _folder!.Delete(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Folded in already, and a second fold adds nothing.
+        }
+    }
+
     /// <summary>Index rows matching every non-null filter, by name.</summary>
     public IReadOnlyList<StratIndexEntry> Query(StratOwner? owner, string? map, string? side, StratStatus? status) =>
     [
