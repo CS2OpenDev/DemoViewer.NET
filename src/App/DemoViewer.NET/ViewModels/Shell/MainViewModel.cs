@@ -636,7 +636,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         // Stats tab: the user-facing scoreboard. Subscribes to the engine's
         // EvaluationCompleted and projects the MetricTables itself; reads (never owns) analysis state.
-        StatsTab = new StatsTabViewModel(Analysis, () => LoadedDemoPath);
+        StatsTab = new StatsTabViewModel(Analysis, () => LoadedDemoPath) { CoachSlotsSource = CoachSlotsOf };
 
         // Match Overview: the demo landing page shown the instant a demo is opened (before the parse), so a
         // double-click has an immediate visible effect. The shell drives it through the load pipeline; its CTAs
@@ -1989,6 +1989,40 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             MatchOverviewTab.RefreshHighlightsFromCache(path, record);
         }
+    }
+
+    /// <summary>
+    ///     The coaches of <paramref name="demo" /> for the Stats tab, which is handed a run with library_coaches
+    ///     cut: the uncut run's table when it built one, else the coaches the library's record of the open demo
+    ///     names (the ruleset is not rebuilt on an open while its stamp is current), checked against the file as
+    ///     the seed below checks it. Null when neither says.
+    /// </summary>
+    private IReadOnlySet<int>? CoachSlotsOf(ParsedDemo demo)
+    {
+        if (Analysis.LastRunCoachSlots is { } fromRun)
+        {
+            return fromRun;
+        }
+
+        if (_demoCache is null || _heldDemo is not { } held || !ReferenceEquals(held.Parsed, demo))
+        {
+            return null;
+        }
+
+        DemoCacheRecord? record = _demoCache.TryLoadRecord(held.Path);
+        if (record is null)
+        {
+            return null;
+        }
+
+        DemoEntry? entry = _library.Entries
+            .FirstOrDefault(e => string.Equals(e.FilePath, held.Path, StringComparison.OrdinalIgnoreCase));
+        if (entry is not null && !record.MatchesFile(entry.FileSizeBytes, entry.Modified.Ticks))
+        {
+            return null;
+        }
+
+        return record.Players.Where(p => p.IsCoach).Select(p => p.Slot).ToHashSet();
     }
 
     /// <summary>

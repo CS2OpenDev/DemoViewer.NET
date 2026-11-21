@@ -19,6 +19,7 @@ using CS2DemoKit.Parser.GameEvents;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Highlights;
+using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
@@ -637,6 +638,13 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     /// </summary>
     internal bool LastRunHighlightsInForce { get; private set; } = true;
 
+    /// <summary>
+    ///     Read inside <see cref="EvaluationCompleted" />: the coach slots the run's <c>library_coaches</c> table
+    ///     names, or null when the run did not build it. The run the event carries has that table cut with every
+    ///     stamped one, so this is read off the uncut run first.
+    /// </summary>
+    internal IReadOnlySet<int>? LastRunCoachSlots { get; private set; }
+
     // ── Reset ─────────────────────────────────────────────────────────────────
 
     /// <summary>Reset.</summary>
@@ -1029,6 +1037,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             // Stats and the open's highlight harvest read the core rulesets only.
             runToken.ThrowIfCancellationRequested();
             LastRunHighlightsInForce = plan?.HighlightsInForce ?? true;
+            LastRunCoachSlots = LibraryTeamTables.CoachSlotsOf(run, demo.Players.Values);
             EvaluationCompleted?.Invoke(plan?.Shown(run) ?? run, demo);
 
             if (result.Messages.Count > 0)

@@ -262,6 +262,25 @@ public static class LibraryTeamTables
             LibraryOvertime.Of(parsed.Frames));
     }
 
+    /// <summary>
+    ///     The slots <paramref name="run" />'s <c>library_coaches</c> table names as coaches, or null when the run
+    ///     did not record that table.
+    /// </summary>
+    internal static HashSet<int>? CoachSlotsOf(AnalysisRun run, IEnumerable<PlayerInfo> players)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        List<OutputDef> mine =
+            [.. (run.Build.Outputs ?? []).Where(o => string.Equals(o.Id, CoachesTable, StringComparison.Ordinal))];
+        if (mine.Count == 0)
+        {
+            return null;
+        }
+
+        MetricTable? coaches = (run with { Build = run.Build with { Outputs = mine } }).ProjectConfiguredOutputs()
+            .FirstOrDefault(t => string.Equals(t.Name, CoachesTable, StringComparison.Ordinal));
+        return CoachSlots(coaches, players);
+    }
+
     // A coach row joins its player by SteamID64 and name; a row with no SteamID64 joins by slot.
     internal static HashSet<int> CoachSlots(MetricTable? coaches, IEnumerable<PlayerInfo> players)
     {

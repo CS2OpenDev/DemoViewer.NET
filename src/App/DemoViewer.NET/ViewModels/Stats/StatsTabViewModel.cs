@@ -143,6 +143,13 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     /// <summary>The account each slot of the shown demo opens in the Player Overview; a slot with none is absent.</summary>
     internal IReadOnlyDictionary<int, ulong> AccountsBySlot => _steamIdBySlot;
 
+    /// <summary>
+    ///     The coach slots of a demo, for an update whose tables do not carry <c>library_coaches</c>: the shell
+    ///     sets it, since the run it hands this tab has every stamped table cut. Null, or a null answer, marks no
+    ///     coach.
+    /// </summary>
+    internal Func<ParsedDemo, IReadOnlySet<int>?>? CoachSlotsSource { get; set; }
+
     // A FocusPlayer that arrived before the tables did; the next evaluation takes it, a demo unload drops it.
     private ulong? _pendingFocus;
 
@@ -753,7 +760,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
         ResetVisibilityForNewEvaluation(demo);
         SetExtraTables(extraTables ?? []);
-        _steamIdBySlot = SteamIdsBySlot(demo, extraTables);
+        _steamIdBySlot = SteamIdsBySlot(demo, extraTables, CoachSlotsSource);
 
         GameTable = new PlayerGameStatsProjector { MatchId = matchId }.Project(result, demo).Single();
         RoundTable = new PlayerRoundStatsProjector { MatchId = matchId }.Project(result, demo).Single();
@@ -1739,13 +1746,17 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         OffersPlayerOverview = PlayerOverviewOpener is not null
     };
 
-    // Every slot's account from the final userinfo table, less the GOTV proxy, bots and the coaches the run's
-    // library_coaches table names. A run without that table marks no coach, the matchmaking truth.
-    private static Dictionary<int, ulong> SteamIdsBySlot(ParsedDemo demo, IReadOnlyList<MetricTable>? extraTables)
+    // Every slot's account from the final userinfo table, less the GOTV proxy, bots and the coaches: those the
+    // tables' library_coaches names, or without it those the shell's source names. Neither marks no coach, the
+    // matchmaking truth.
+    private static Dictionary<int, ulong> SteamIdsBySlot(ParsedDemo demo, IReadOnlyList<MetricTable>? extraTables,
+        Func<ParsedDemo, IReadOnlySet<int>?>? coachSlotsSource)
     {
         MetricTable? coaches = extraTables?.FirstOrDefault(t =>
             string.Equals(t.Name, LibraryTeamTables.CoachesTable, StringComparison.Ordinal));
-        HashSet<int> coachSlots = LibraryTeamTables.CoachSlots(coaches, demo.Players.Values);
+        IReadOnlySet<int> coachSlots = coaches is not null
+            ? LibraryTeamTables.CoachSlots(coaches, demo.Players.Values)
+            : coachSlotsSource?.Invoke(demo) ?? new HashSet<int>();
         Dictionary<int, ulong> bySlot = [];
         foreach (PlayerInfo p in demo.Players.Values)
         {
