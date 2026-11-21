@@ -529,12 +529,33 @@ public sealed class ExtensionUpdateService
     ///     one the loader refused today may load after an app update. Touches nothing outside
     ///     <c>extensions/</c> and never follows a link.
     /// </summary>
+    // The sweep joins the stage chain: it is a background item and a user's Update a user item, which the queue
+    // runs side by side, and deleting .staging under a stage in flight breaks that stage.
     public Task CleanupOnStartAsync() =>
-        QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, "Tidy staged extension updates", Owner, _ =>
+        QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, "Tidy staged extension updates", Owner,
+            _ => AfterStages(Cleanup));
+
+    // Runs `sweep` once every stage queued before it has finished; a stage queued after waits for the sweep.
+    private async Task AfterStages(Action sweep)
+    {
+        TaskCompletionSource done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task previous;
+        lock (_stageSync)
         {
-            Cleanup();
-            return Task.CompletedTask;
-        });
+            previous = _stageTail;
+            _stageTail = Task.WhenAll(previous, done.Task);
+        }
+
+        try
+        {
+            await previous.ConfigureAwait(false); // never faults: every link ends with SetResult
+            sweep();
+        }
+        finally
+        {
+            done.SetResult();
+        }
+    }
 
     /// <summary>The sweep behind <see cref="CleanupOnStartAsync" />, inline. Never throws.</summary>
     public void Cleanup()

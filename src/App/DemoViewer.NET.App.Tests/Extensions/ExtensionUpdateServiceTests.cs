@@ -844,6 +844,45 @@ public class ExtensionUpdateServiceTests
 
     // ── Cleanup at start ─────────────────────────────────────────────────────────────────────────
 
+    // The start-up sweep is a background item and a user's Update is a user item, and the queue runs the two
+    // side by side. The sweep deletes .staging whole, so it waits for a stage in flight instead of deleting
+    // the download and the extracted files under it.
+    [Test]
+    public async Task TheStartupSweep_WaitsForAStageInFlight()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.1");
+            FakeFeeds.Entry entry = new("1.0.1", zip);
+            FakeFeedClient client = new() { HalfwayGate = new TaskCompletionSource(), Zips = { [entry.Url] = zip } };
+            ExtensionUpdateService service = NewService(root, client);
+
+            Task<StageResult> stage = service.DownloadAndStageAsync(Entry(entry));
+            await client.Halfway.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+            string part = Path.Combine(root, "extensions", ".staging", Id, "1.0.1.zip.part");
+            Task sweep = service.CleanupOnStartAsync();
+            await Task.Delay(200);
+            bool sweptMidway = sweep.IsCompleted;
+            bool partSurvived = File.Exists(part);
+            client.HalfwayGate.SetResult();
+            StageResult result = await stage.WaitAsync(TimeSpan.FromSeconds(10));
+            await sweep.WaitAsync(TimeSpan.FromSeconds(10));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(sweptMidway).IsFalse().Because("the sweep runs after the stage, not during it");
+                await Assert.That(partSurvived).IsTrue();
+                await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Installed);
+                await Assert.That(File.Exists(Path.Combine(root, "extensions", Id, "1.0.1", "Fake.dll"))).IsTrue();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     [Test]
     public async Task Cleanup_RemovesStagingAndSupersededVersions_KeepsTheRunningAndNewerOnes()
     {
