@@ -304,14 +304,17 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         RebuildFps(seed.ExportFps);
         RebuildEncoders(_selectedEncoder);
         RefreshFfmpegStatus();
-        UpdateValidation();
 
         // Validate refuses while a job runs, so the pane has to hear the job end; it can be open the whole time.
+        // Subscribed, then read, then validated: a job that ends between a validation and a later read of its
+        // status would leave the refusal standing with no StatusChanged still to come.
         if (_job is not null)
         {
-            _jobWasRunning = _job.Status.IsRunning;
             _job.StatusChanged += OnJobStatusChanged;
+            _jobWasRunning = _job.Status.IsRunning;
         }
+
+        UpdateValidation();
     }
 
     // Revalidates only when the job starts or stops running, not on every progress tick.
