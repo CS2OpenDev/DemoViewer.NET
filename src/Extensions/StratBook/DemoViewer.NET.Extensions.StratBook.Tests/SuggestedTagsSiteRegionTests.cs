@@ -154,6 +154,18 @@ public class SuggestedTagsSiteRegionTests
             .IsEquivalentTo([SiteRegions.SiteA, "TopofMid", "Balcony"], CollectionOrdering.Matching);
     }
 
+    // Both texts are hashed into the proposals fingerprint, which travels with a library between machines: a line
+    // ending that followed the OS would mark every transferred proposals file stale on the other one.
+    [Test]
+    public async Task TheFingerprintedTexts_EndTheirLinesTheSameOnEveryOs()
+    {
+        using (Assert.Multiple())
+        {
+            await Assert.That(Table.ToJson()).DoesNotContain('\r');
+            await Assert.That(DetectorProfile.Default.ToJson()).DoesNotContain('\r');
+        }
+    }
+
     [Test]
     public async Task TheTable_RoundTripsByteForByte()
     {

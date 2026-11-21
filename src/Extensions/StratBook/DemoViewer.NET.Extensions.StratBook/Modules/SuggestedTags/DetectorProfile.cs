@@ -214,7 +214,8 @@ public sealed class DetectorProfile
     public string ToJson()
     {
         using MemoryStream stream = new();
-        using (Utf8JsonWriter writer = new(stream, new JsonWriterOptions { Indented = true }))
+        // LF on every OS: the text is hashed into the proposals fingerprint, which a library carries between machines.
+        using (Utf8JsonWriter writer = new(stream, new JsonWriterOptions { Indented = true, NewLine = "\n" }))
         {
             writer.WriteStartObject();
             writer.WriteNumber("schemaVersion", CurrentSchemaVersion);
