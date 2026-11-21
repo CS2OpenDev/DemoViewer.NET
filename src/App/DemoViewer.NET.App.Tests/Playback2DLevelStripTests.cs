@@ -182,6 +182,43 @@ public class Playback2DLevelStripTests
     }
 
     /// <summary>
+    ///     The view and its host are rebuilt on every tab activation while the strip's view-model is
+    ///     cached, and a fresh host starts on its own default floor. With AUTO off nothing corrects it, so
+    ///     the floor the user picked has to come back from the view-model.
+    /// </summary>
+    [Test]
+    public async Task ManualPick_SurvivesATabSwitch()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
+            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+
+            Scene2DHost host = TwoFloors(ctx, view);
+            MapLevelId lowest = host.Levels.Levels[0].Id;
+            vm.LevelStrip.SelectCommand.Execute(vm.LevelStrip.Chips[^1]);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.ActiveLevelId).IsEqualTo(lowest);
+
+            // What a tab switch does to the view: dropped, then built again around a new host.
+            view.DataContext = null;
+            window.Close();
+            (Window again, Playback2DView rebuilt) = Playback2DTimelineHarness.Show(vm);
+            Scene2DHost fresh = TwoFloors(ctx, rebuilt);
+
+            await Assert.That(fresh).IsNotSameReferenceAs(host);
+            await Assert.That(fresh.Levels.Levels.Count).IsEqualTo(2);
+            await Assert.That(fresh.DisplayMode).IsEqualTo(LevelDisplayMode.Single);
+            await Assert.That(fresh.AutoLevelFollow).IsFalse();
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsFalse();
+            await Assert.That(fresh.ActiveLevelId).IsEqualTo(lowest)
+                .Because("the user picked the lower floor and AUTO is off, so nothing else may move it");
+
+            again.Close();
+        });
+    }
+
+    /// <summary>
     ///     The gate covers AutoFollow only. The strip still picks floors with it off. A manual picker
     ///     does not need a permanent persisted key of its own.
     /// </summary>

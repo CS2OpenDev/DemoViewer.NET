@@ -1,6 +1,7 @@
 #region
 
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Playback2D.Levels;
@@ -54,6 +55,13 @@ public sealed partial class LevelStripViewModel : ObservableObject
 
     private ILevelSurface? _surface;
 
+    // The floor the user last picked, and the map it is a floor of. The surface is rebuilt with the view
+    // on every tab activation and starts on its own default floor; with AUTO off nothing moves it back,
+    // so the pick survives a tab switch only here. Restored once the new surface has resolved that floor.
+    private MapLevelId _pickedLevel = MapLevelId.None;
+    private string? _pickedMap;
+    private bool _restorePick;
+
     /// <summary>The chips, highest level first.</summary>
     public ObservableCollection<LevelChipViewModel> Chips { get; } = [];
 
@@ -93,6 +101,9 @@ public sealed partial class LevelStripViewModel : ObservableObject
         try
         {
             _surface.PickLevel(chip.Id);
+            _pickedLevel = chip.Id;
+            _pickedMap = _surface.Levels.MapName;
+            _restorePick = false;
             IsAutoEnabled = false;
             Refresh();
         }
@@ -167,6 +178,7 @@ public sealed partial class LevelStripViewModel : ObservableObject
         }
 
         _surface.LevelStateChanged += Refresh;
+        _restorePick = !_pickedLevel.IsNone;
         ApplyToSurface();
         Refresh();
     }
@@ -201,6 +213,8 @@ public sealed partial class LevelStripViewModel : ObservableObject
         {
             return;
         }
+
+        RestorePick();
 
         IReadOnlyList<MapLevel> levels = _surface.Levels.Levels;
         MapLevelId active = _surface.ActiveLevelId;
@@ -295,6 +309,12 @@ public sealed partial class LevelStripViewModel : ObservableObject
         }
 
         _preferredAuto = value;
+        if (value)
+        {
+            _pickedLevel = MapLevelId.None;
+            _restorePick = false;
+        }
+
         ApplyToSurface();
         Refresh();
 
@@ -321,8 +341,45 @@ public sealed partial class LevelStripViewModel : ObservableObject
             return;
         }
 
-        _surface.DisplayMode = IsSingleMode ? LevelDisplayMode.Single : LevelDisplayMode.Stacked;
-        _surface.AutoLevelFollow = IsAutoAvailable && IsAutoEnabled;
+        // Both read BEFORE either write. Each write raises LevelStateChanged, and Refresh reads the
+        // surface back into these properties: on a freshly built surface the first write would otherwise
+        // copy its default AutoFollow over the user's, and the second would push that default back.
+        LevelDisplayMode mode = IsSingleMode ? LevelDisplayMode.Single : LevelDisplayMode.Stacked;
+        bool autoFollow = IsAutoAvailable && IsAutoEnabled;
+        _surface.DisplayMode = mode;
+        _surface.AutoLevelFollow = autoFollow;
+    }
+
+    // Puts a rebuilt surface back on the floor the user picked. Waits, rather than gives up, while the
+    // surface has not resolved that floor yet: a new host builds its level set from the frames it sees.
+    // Only while the surface is in Single with AutoFollow off, which is the state the pick left it in.
+    private void RestorePick()
+    {
+        if (!_restorePick || _surface is null || _surface.AutoLevelFollow
+            || _surface.DisplayMode != LevelDisplayMode.Single || _surface.Levels.ById(_pickedLevel) is null)
+        {
+            return;
+        }
+
+        _restorePick = false;
+        if (!string.Equals(_surface.Levels.MapName, _pickedMap, StringComparison.OrdinalIgnoreCase)
+            || _surface.ActiveLevelId == _pickedLevel)
+        {
+            return;
+        }
+
+        // Posted: the level set resolves inside the host's render pass, which is where this is raised
+        // from, and a pick invalidates the visual.
+        ILevelSurface surface = _surface;
+        MapLevelId picked = _pickedLevel;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(_surface, surface) && _pickedLevel == picked && !surface.AutoLevelFollow
+                && surface.Levels.ById(picked) is not null)
+            {
+                surface.PickLevel(picked);
+            }
+        });
     }
 
     // Rebuilding the collection resets the ListBox/ItemsControl containers, which loses focus and blinks
