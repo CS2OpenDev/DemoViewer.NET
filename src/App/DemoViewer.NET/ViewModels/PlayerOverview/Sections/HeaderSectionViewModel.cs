@@ -152,7 +152,7 @@ public sealed partial class HeaderSectionViewModel : PlayerOverviewSection
 
     private static string DateOf(long ticks) =>
         ticks > 0 && ticks <= DateTime.MaxValue.Ticks
-            ? new DateTime(ticks, DateTimeKind.Utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            ? new DateTime(ticks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : "unknown";
 
     /// <summary>Adds the subject to the user's accounts. It becomes active only when the user had none.</summary>

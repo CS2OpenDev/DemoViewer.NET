@@ -318,9 +318,27 @@ public class PlayerOverviewHistoryTests
             await Assert.That(header.SteamId64).IsEqualTo(Id(Grim));
             await Assert.That(header.ProfileUrl).IsEqualTo("https://steamcommunity.com/profiles/" + Id(Grim));
             await Assert.That(header.DemoCountText).IsEqualTo("3 demos");
-            await Assert.That(header.SeenText).IsEqualTo("first seen 0001-01-02 · last seen 0001-01-04");
+            // Local days, as on every other date on the page: the seen ticks are the matches' UTC times.
+            await Assert.That(header.SeenText)
+                .IsEqualTo($"first seen {LocalDay(TimeSpan.TicksPerDay)} · last seen {LocalDay(3 * TimeSpan.TicksPerDay)}");
             await Assert.That((header.IsMine, header.CanSetAsMe, header.CanSetActive)).IsEqualTo((true, false, false));
         }
+    }
+
+    private static string LocalDay(long utcTicks) =>
+        new DateTime(utcTicks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    // A match late in the local evening or just after local midnight is on another UTC day in any zone but
+    // UTC itself; the search candidate's "last seen" must name the local day the History row shows.
+    [Test]
+    [Arguments(23, 30)]
+    [Arguments(0, 30)]
+    public async Task ACandidatesLastSeen_IsTheLocalDay(int hour, int minute)
+    {
+        DateTime local = new(2026, 3, 3, hour, minute, 0, DateTimeKind.Local);
+        PlayerEntry entry = new(Grim, [], 1, local.ToUniversalTime().Ticks, local.ToUniversalTime().Ticks);
+
+        await Assert.That(PlayerCandidateItem.From(entry).LastSeen).IsEqualTo("last seen 2026-03-03");
     }
 
     [Test]
