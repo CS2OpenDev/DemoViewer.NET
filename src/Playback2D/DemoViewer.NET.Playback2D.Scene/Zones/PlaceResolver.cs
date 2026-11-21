@@ -20,7 +20,8 @@ namespace DemoViewer.NET.Playback2D.Zones;
 ///     <para>
 ///         Cascade order is the volume order of the set: user volumes first, then baked volumes in
 ///         entity-lump order, so a custom zone always wins inside its own polygon and never affects
-///         anything outside it, and two overlapping baked volumes resolve to the first.
+///         anything outside it, and two overlapping baked volumes resolve to the first, except where the
+///         map's tie rule (<see cref="TieRuleFor" />) says otherwise.
 ///     </para>
 /// </summary>
 [PublicAPI]
@@ -160,6 +161,8 @@ public sealed class PlaceResolver
             List<int>? candidates = CellList(_volumeCells, x, y);
             if (candidates is not null)
             {
+                int best = -1;
+                double bestSize = double.PositiveInfinity;
                 for (int i = 0; i < candidates.Count; i++)
                 {
                     ZoneVolume volume = Zones.Volumes[candidates[i]];
@@ -172,10 +175,30 @@ public sealed class PlaceResolver
                     // in this band; place volumes are vertical prisms, so any Z in the overlap answers.
                     double lo = Math.Max(volume.Min.Z, band.MinZ);
                     double hi = Math.Min(volume.Max.Z, band.MaxZ);
-                    if (volume.Contains(x, y, (lo + hi) / 2))
+                    if (!volume.Contains(x, y, (lo + hi) / 2))
+                    {
+                        continue;
+                    }
+
+                    // The same tie rule VolumeAt applies, so a click and the 3D path agree on a map
+                    // whose overlapping baked volumes resolve to the smaller one.
+                    if (volume.Origin == PlaceOrigin.Custom || _tieRule == VolumeTieRule.FirstInLump)
                     {
                         return Hit(volume.PlaceId, PlaceHitKind.Volume, 0);
                     }
+
+                    double size = (volume.Max.X - volume.Min.X) * (volume.Max.Y - volume.Min.Y) *
+                                  (volume.Max.Z - volume.Min.Z);
+                    if (size < bestSize)
+                    {
+                        bestSize = size;
+                        best = candidates[i];
+                    }
+                }
+
+                if (best >= 0)
+                {
+                    return Hit(Zones.Volumes[best].PlaceId, PlaceHitKind.Volume, 0);
                 }
             }
         }
