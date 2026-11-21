@@ -7,7 +7,7 @@ namespace DemoViewer.NET.Services.DemoProcessing.Collectors;
 /// </summary>
 internal sealed class ActiveCollectors
 {
-    private readonly Dictionary<string, List<Registration>> _byPath = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<Registration>> _byPath = new(PathComparer.Paths);
     private readonly Lock _gate = new();
 
     /// <summary>Adds <paramref name="collectors" /> to <paramref name="path" /> until the result is disposed.</summary>

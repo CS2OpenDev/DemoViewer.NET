@@ -31,7 +31,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     private readonly Lock _lock = new();
 
     // Keyed by demo key, holding the path to plan and its level.
-    private readonly Dictionary<string, (string Path, PassLevel Level)> _dirty = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (string Path, PassLevel Level)> _dirty = new(PathComparer.Paths);
     private readonly HashSet<(string Pass, string Demo)> _outstanding = new(PassDemoKeyComparer.Instance);
     private readonly HashSet<(string Pass, string Demo)> _faulted = new(PassDemoKeyComparer.Instance);
     private readonly Func<IReadOnlyList<IDemoPass>> _passes;
@@ -232,8 +232,8 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
         string demo = DemoKey(path);
         lock (_lock)
         {
-            _faulted.RemoveWhere(k => string.Equals(k.Demo, demo, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(k.Demo, path, StringComparison.OrdinalIgnoreCase));
+            _faulted.RemoveWhere(k => string.Equals(k.Demo, demo, PathComparer.Comparison)
+                || string.Equals(k.Demo, path, PathComparer.Comparison));
         }
     }
 
@@ -283,7 +283,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     // A path's demo key changes when its file is first hashed, so the outstanding and fault sets hold a pass
     // under the path and the key both, and a lookup by either finds it.
     private string[] KeysOf(string path) =>
-        DemoKey(path) is var key && !string.Equals(key, path, StringComparison.OrdinalIgnoreCase)
+        DemoKey(path) is var key && !string.Equals(key, path, PathComparer.Comparison)
             ? [key, path]
             : [path];
 
@@ -404,7 +404,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
 
                 if (recheck)
                 {
-                    HashSet<string> seen = new(batch.Select(b => b.Demo), StringComparer.OrdinalIgnoreCase);
+                    HashSet<string> seen = new(batch.Select(b => b.Demo), PathComparer.Paths);
                     foreach (string path in SafeAllDemos())
                     {
                         string demo = DemoKey(path);
@@ -505,7 +505,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     private bool Plan(string demoKey, string path, PassLevel level, IReadOnlyList<IDemoPass> passes)
     {
         VisitedDemo demo = new(path);
-        string[] keys = [.. KeysOf(path).Append(demoKey).Distinct(StringComparer.OrdinalIgnoreCase)];
+        string[] keys = [.. KeysOf(path).Append(demoKey).Distinct(PathComparer.Paths)];
         List<IDemoPass> candidates;
         lock (_lock)
         {
@@ -608,7 +608,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     {
         PassFinished?.Invoke(path, pass.Id, outcome);
         string[] faultKeys = outcome == PassOutcome.Failed
-            ? [.. keys.Concat(KeysOf(path)).Distinct(StringComparer.OrdinalIgnoreCase)]
+            ? [.. keys.Concat(KeysOf(path)).Distinct(PathComparer.Paths)]
             : [];
         lock (_lock)
         {

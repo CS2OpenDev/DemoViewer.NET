@@ -92,7 +92,7 @@ public class HostLibraryTests
             .IsEquivalentTo(store.Index.Select(e => e.Path).Order(), CollectionOrdering.Matching);
         await Assert.That(ReferenceEquals(library.Demos, first)).IsTrue();
 
-        LibraryDemo one = library.Find("/D/ONE.dem")!;
+        LibraryDemo one = library.Find(PathCase.Other("/d/one.dem"))!;
         await Assert.That(one.Sha256).IsEqualTo(Sha);
         await Assert.That(one.Server).IsEqualTo("Valve CS2 Server");
         await Assert.That(one.SourceKind).IsEqualTo("Valve");
@@ -231,7 +231,7 @@ public class HostLibraryTests
             await Assert.That(one.FilePath).IsEqualTo("/nfs/one.dem");
             await Assert.That(one.Locations).IsEquivalentTo(["/nfs/one.dem", "/smb/one.dem"],
                 CollectionOrdering.Matching);
-            await Assert.That(library.Find("/SMB/one.dem")).IsSameReferenceAs(one);
+            await Assert.That(library.Find(PathCase.Other("/smb/one.dem"))).IsSameReferenceAs(one);
             await Assert.That(library.Demos.Single(d => d.Sha256 == Sha)).IsSameReferenceAs(one);
             await Assert.That(unconfirmed.Sha256).IsNull();
             await Assert.That(unconfirmed.Locations).IsEquivalentTo(["/a/one.dem"], CollectionOrdering.Matching);

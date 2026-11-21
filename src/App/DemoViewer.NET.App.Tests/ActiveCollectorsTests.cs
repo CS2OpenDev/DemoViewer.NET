@@ -21,7 +21,7 @@ public class ActiveCollectorsTests
     {
         ActiveCollectors active = new();
         IDisposable background = active.Begin(Demo, Set("c.a"));
-        IDisposable open = active.Begin(Demo.ToUpperInvariant(), Set("c.b"));
+        IDisposable open = active.Begin(PathCase.Other(Demo), Set("c.b"));
 
         await Assert.That(Ids(active.For(Demo))).IsEquivalentTo(["c.a", "c.b"], CollectionOrdering.Matching);
 

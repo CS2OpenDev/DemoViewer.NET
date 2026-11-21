@@ -840,6 +840,52 @@ public class DemoLibraryServiceTests
     }
 
     /// <summary>
+    ///     On Linux two demos whose names differ only by case are two files, and the library lists both. Windows
+    ///     and macOS fold case, so there the pair cannot exist; the test runs only on Linux.
+    /// </summary>
+    [Test]
+    public async Task OnLinux_TwoDemosWhoseNamesDifferOnlyByCase_AreBothListed()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new SkipTestException("only a Linux file system keeps two names that differ only by case");
+        }
+
+        string dir = Path.Combine(Path.GetTempPath(), "dvlib_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        File.WriteAllBytes(Path.Combine(dir, "Match.dem"), [1, 2, 3]);
+        File.WriteAllBytes(Path.Combine(dir, "match.dem"), [4, 5, 6, 7]);
+        try
+        {
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), _ => SyntheticDemo());
+            using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json"), null,
+                new DemoCacheStore(dir + "_cache"));
+            using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
+            svc.Scheduler = coord;
+            await svc.AddFoldersAsync([dir]);
+            await WaitForAsync(() => svc.Entries.Count == 2 && svc.Entries.All(e => e.State == DemoIndexState.Indexed),
+                () => $"both demos indexed; saw [{string.Join(", ", svc.Entries.Select(e => $"{e.FileName}={e.State}"))}]");
+
+            await Assert.That(svc.Entries.Select(e => e.FileName).Order(StringComparer.Ordinal))
+                .IsEquivalentTo(["Match.dem", "match.dem"], CollectionOrdering.Matching);
+        }
+        finally
+        {
+            foreach (string root in new[] { dir, dir + "_cache" })
+            {
+                try
+                {
+                    Directory.Delete(root, true);
+                }
+                catch
+                {
+                    /* best-effort cleanup */
+                }
+            }
+        }
+    }
+
+    /// <summary>
     ///     A demo rewritten in place between rescans is indexed again on the next rescan, without a
     ///     relaunch. An untouched demo is not.
     /// </summary>

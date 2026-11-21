@@ -187,7 +187,7 @@ public class DemoOpenQueueTests
             _ => { }, DisplayName: "a.dem"));
         await rig.ParseStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        using IDemoOpenTicket open = rig.Queue.BeginOpen("/D/A.dem", "a.dem");
+        using IDemoOpenTicket open = rig.Queue.BeginOpen(PathCase.Other("/d/a.dem"), "a.dem");
         Task<ParsedDemo> parse = open.ParseAsync(_bytes);
         await Assert.That(rig.Open.State).IsEqualTo(DemoQueueItemState.Running);
         rig.Release.SetResult();

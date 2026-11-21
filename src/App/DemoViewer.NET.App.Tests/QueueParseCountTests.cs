@@ -68,7 +68,7 @@ public class QueueParseCountTests
         cache.Upsert(new DemoCacheRecord { Path = "/smb/match.dem", Size = 1, Sha256 = "sha-m" });
         using DemoProcessingQueue queue = Queue(path => cache.TryGetIndex(path)?.Sha256);
         await queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("library")])).Completion;
-        await queue.SubmitVisit(new DemoVisitRequest("/SMB/match.dem", PassLevel.Backlog, [new TestPass("library")]))
+        await queue.SubmitVisit(new DemoVisitRequest(PathCase.Other("/smb/match.dem"), PassLevel.Backlog, [new TestPass("library")]))
             .Completion;
 
         using (Assert.Multiple())

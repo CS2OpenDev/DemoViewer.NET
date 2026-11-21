@@ -56,13 +56,13 @@ public sealed partial class DemoCacheStore
     // The only thing persisted; everything below is derived from it. Under _gate.
     private readonly Dictionary<string, DemoCacheIndexEntry> _rows = new(StringComparer.Ordinal);
 
-    // Path to the key of the row that lists it. Case-insensitive like every path map here: macOS and
-    // Windows default filesystems are. Under _gate.
-    private readonly Dictionary<string, string> _keyByPath = new(StringComparer.OrdinalIgnoreCase);
+    // Path to the key of the row that lists it. Compared like every path map here (PathComparer): ignoring case
+    // where macOS and Windows default filesystems do, by case on Linux. Under _gate.
+    private readonly Dictionary<string, string> _keyByPath = new(PathComparer.Paths);
 
     // One view per location (the row re-stamped with that path's size and time), rebuilt only when its row
     // changes, so an unchanged demo keeps the same instance across Index reads. Under _gate.
-    private readonly Dictionary<string, DemoCacheIndexEntry> _index = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DemoCacheIndexEntry> _index = new(PathComparer.Paths);
 
     // Rows whose files moved key in this session; their old names go after the next index save. Under _gate.
     private readonly HashSet<string> _settleAfterSave = new(StringComparer.Ordinal);
@@ -71,7 +71,7 @@ public sealed partial class DemoCacheStore
     // Hashes of whole files read by a parse or an open, so a write after the read can settle its path without
     // reading the file again. Under _gate.
     private const int RecentReadCapacity = 64;
-    private readonly Dictionary<string, RecentRead> _recentReads = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, RecentRead> _recentReads = new(PathComparer.Paths);
     private long _readClock; // under _gate
 
     private readonly record struct RecentRead(
@@ -229,7 +229,7 @@ public sealed partial class DemoCacheStore
     /// <summary>
     ///     What identifies the demo at <paramref name="path" />: its content id when a row lists the path with
     ///     one and the path's bytes were confirmed, else the path itself. Two paths of one hashed demo answer the
-    ///     same; compare with <see cref="StringComparer.OrdinalIgnoreCase" />, as paths are compared everywhere here.
+    ///     same; compare with <see cref="PathComparer.Paths" />, as paths are compared everywhere here.
     /// </summary>
     /// <param name="path">A demo path.</param>
     public string DemoKeyOf(string path)
@@ -251,7 +251,7 @@ public sealed partial class DemoCacheStore
     {
         ArgumentNullException.ThrowIfNull(a);
         ArgumentNullException.ThrowIfNull(b);
-        return SamePath(a, b) || string.Equals(DemoKeyOf(a), DemoKeyOf(b), StringComparison.OrdinalIgnoreCase);
+        return SamePath(a, b) || string.Equals(DemoKeyOf(a), DemoKeyOf(b), PathComparer.Comparison);
     }
 
     /// <summary>Number of paths known to the index; <see cref="Contents" /> counts demos.</summary>
@@ -1022,7 +1022,7 @@ public sealed partial class DemoCacheStore
             return record;
         }
 
-        if (!string.Equals(record.Path, path, StringComparison.OrdinalIgnoreCase)
+        if (!SamePath(record.Path, path)
             && row.Locations.FirstOrDefault(l => SamePath(l.Path, path)) is { } here)
         {
             record.Path = here.Path;
@@ -2903,7 +2903,7 @@ public sealed partial class DemoCacheStore
 
     private static bool IsProvisional(DemoCacheIndexEntry row) => string.IsNullOrEmpty(row.Sha256);
 
-    private static bool SamePath(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    private static bool SamePath(string a, string b) => string.Equals(a, b, PathComparer.Comparison);
 
     // The file key a row's files settle under. A content id outside [0-9a-z_-] is hashed into a safe name.
     private static string FileKeyOf(DemoCacheIndexEntry row)
@@ -3310,7 +3310,7 @@ public sealed partial class DemoCacheStore
             groups.Add((group.Key, files, locations));
         }
 
-        Dictionary<string, (string RowKey, long Seen)> owner = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, (string RowKey, long Seen)> owner = new(PathComparer.Paths);
         foreach ((string rowKey, _, List<DemoLocation> locations) in groups)
         {
             foreach (DemoLocation location in locations)

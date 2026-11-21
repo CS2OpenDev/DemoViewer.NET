@@ -275,7 +275,7 @@ public class LibraryTeamTablesTests
         ActiveCollectors active = new();
         IDisposable visit =
             active.Begin("/demos/a.dem", CollectorSet.Empty, ForwardNeeds.FinalState | ForwardNeeds.Rules);
-        ForwardNeeds during = active.NeedsFor("/DEMOS/A.DEM");
+        ForwardNeeds during = active.NeedsFor(PathCase.Other("/demos/a.dem"));
         visit.Dispose();
 
         using (Assert.Multiple())

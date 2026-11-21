@@ -72,7 +72,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     private readonly ActiveCollectors _visitCollectors = new();
     private readonly Func<string, string?>? _contentHash;
     private readonly DemoFileRead _fileRead;
-    private readonly Dictionary<string, int> _parsesByPath = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _parsesByPath = new(PathComparer.Paths);
     private readonly JobKindRegistry _jobKinds;
     private readonly Action<ParsedDemo>? _parseReleased;
     private readonly Action<Action> _post;
@@ -371,7 +371,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         // Folded at read time: a first import learns its hash during the visit that read it.
-        Dictionary<string, int> byContent = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, int> byContent = new(PathComparer.Paths);
         foreach ((string path, int count) in byPath)
         {
             string key = ContentKey(path);
@@ -1526,7 +1526,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                 end++;
             }
 
-            Dictionary<string, Queue<int>> byPath = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, Queue<int>> byPath = new(PathComparer.Paths);
             for (int i = start; i < end; i++)
             {
                 string path = pending[i].Entry.Path;
@@ -2994,7 +2994,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     }
 
     private static bool PathEquals(string a, string b) =>
-        string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+        string.Equals(a, b, PathComparer.Comparison);
 
     private static DemoQueueItemSnapshot ToSnapshot(Entry e) => new(
         e.Id, e.Path, e.DisplayName,
