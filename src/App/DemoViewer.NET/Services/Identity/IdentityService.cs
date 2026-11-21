@@ -231,19 +231,30 @@ public sealed class IdentityService : IDisposable
         }
 
         int added = 0;
-        settings.Write(s =>
+        try
         {
-            s.Identity.MigratedFromTeamsJson = true;
-            if (s.Identity.Accounts.Length > 0 || ids.Count == 0)
+            settings.Write(s =>
             {
-                return;
-            }
+                s.Identity.MigratedFromTeamsJson = true;
+                if (s.Identity.Accounts.Length > 0 || ids.Count == 0)
+                {
+                    return;
+                }
 
-            DateTime now = DateTime.UtcNow;
-            s.Identity.Accounts = [.. ids.Select(id => new IdentityAccountSettings { SteamId64 = id, AddedUtc = now })];
-            s.Identity.ActiveSteamId64 = ids[0];
-            added = ids.Count;
-        });
+                DateTime now = DateTime.UtcNow;
+                s.Identity.Accounts =
+                    [.. ids.Select(id => new IdentityAccountSettings { SteamId64 = id, AddedUtc = now })];
+                s.Identity.ActiveSteamId64 = ids[0];
+                added = ids.Count;
+            });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Runs while the container is composed, so a throw here stopped the app starting. The migration flag
+            // did not land either, so the next launch that can write tries again.
+            return 0;
+        }
+
         return added;
     }
 

@@ -1870,7 +1870,19 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         bool firstRun = _settingsService.NeedsFirstRun;
-        _settingsService.Write(s => s.LastSeenVersion = version);
+        try
+        {
+            _settingsService.Write(s => s.LastSeenVersion = version);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Posted from window.Opened, so a throw here was an unhandled UI-thread exception, on every launch:
+            // the failed write is the one that records the version. A window that cannot be recorded as seen
+            // would show on every launch, so it waits for a launch that can.
+            AppLog.OperationFailed(DiagLog, "record the version for What's New", ex);
+            return;
+        }
+
         if (firstRun || !AutomaticChecksAllowed)
         {
             return;

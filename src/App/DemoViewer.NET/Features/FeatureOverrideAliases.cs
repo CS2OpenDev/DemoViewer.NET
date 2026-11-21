@@ -67,7 +67,17 @@ public static class FeatureOverrideAliases
             return false;
         }
 
-        settings.Write(s => _ = Migrate(s.Features.Overrides, descriptors));
+        try
+        {
+            settings.Write(s => _ = Migrate(s.Features.Overrides, descriptors));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Runs while the container is composed, so a throw here stopped the app starting. The old id keeps
+            // its value on disk and the next launch that can write moves it.
+            return false;
+        }
+
         return true;
     }
 }

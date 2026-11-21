@@ -101,6 +101,52 @@ public class WhatsNewGateTests
         }
     }
 
+    /// <summary>
+    ///     settings.json held by another process (a sync client, an AV scan) or otherwise unwritable: the gate
+    ///     runs from a posted callback on the UI thread, so a throw there killed the app on every launch. It
+    ///     cannot record the version, so it does not show the window either (that would show on every launch).
+    /// </summary>
+    [Test]
+    public async Task AnUnwritableSettingsFile_DoesNotThrow_AndShowsNothing()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            string file = Path.Combine(dir, "settings.json");
+            await File.WriteAllTextAsync(file, """{ "FirstRunCompleted": true, "LastSeenVersion": "0.0.1" }""");
+            await HeadlessSession.RunOnUi(async () =>
+            {
+                RecordingWindowService windows = new();
+                SettingsService settings = new(dir);
+                MainViewModel vm = NewShell(windows, settings);
+
+                Exception? thrown;
+                using (new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    try
+                    {
+                        vm.StartWhatsNewCheck();
+                        thrown = null;
+                    }
+                    catch (Exception ex)
+                    {
+                        thrown = ex;
+                    }
+                }
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(thrown).IsNull();
+                    await Assert.That(windows.WhatsNews).Count().IsEqualTo(0);
+                }
+            });
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     /// <summary>Unchanged version: nothing shows, nothing changes.</summary>
     [Test]
     public async Task SameVersion_StaysSilent()

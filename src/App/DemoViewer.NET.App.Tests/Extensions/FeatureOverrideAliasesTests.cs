@@ -112,6 +112,31 @@ public class FeatureOverrideAliasesTests
         }
     }
 
+    // Apply runs while the container is composed: a settings.json held by another process must not stop the launch.
+    [Test]
+    public async Task Apply_OnASettingsFileItCannotWrite_DoesNotThrow()
+    {
+        string dir = Directory.CreateTempSubdirectory("dv-feature-alias-").FullName;
+        try
+        {
+            SettingsService settings = new(dir);
+            settings.Write(s => s.Features.Overrides[OldestId] = false);
+            string path = Directory.EnumerateFiles(dir, "*.json").Single();
+
+            bool wrote;
+            using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                wrote = FeatureOverrideAliases.Apply(settings, Catalog(OldestId));
+            }
+
+            await Assert.That(wrote).IsFalse();
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     [Test]
     public async Task APreviousId_ThatIsStillLive_IsRefusedAtCompose()
     {
