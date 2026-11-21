@@ -882,7 +882,7 @@ public sealed class StratStore
                 JsonValue.Create(into.ToString("D")));
             if (SessionFor(entry.Id) is { } holder)
             {
-                holder.Apply(op);
+                holder.ApplyUnrecorded(op);
                 holder.Commit("moved with its team's merge");
                 continue;
             }

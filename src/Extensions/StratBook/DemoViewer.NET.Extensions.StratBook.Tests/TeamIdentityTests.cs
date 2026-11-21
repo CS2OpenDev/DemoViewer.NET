@@ -769,6 +769,8 @@ public class TeamIdentityTests
                 await Assert.That(session.Document!.Owner).IsEqualTo(StratOwner.Team(a))
                     .Because("an open strat moves through its session, which would otherwise write it back");
                 await Assert.That(session.HasPending).IsFalse();
+                await Assert.That(session.CanUndo).IsFalse()
+                    .Because("the move is the merge's, not an edit: Undo would file the strat back under the merged id");
                 await Assert.That(strats.Query(StratOwner.Team(b), null, null, null)).IsEmpty();
                 await Assert.That(strats.TryLoad(theirs.Id)!.Owner).IsEqualTo(StratOwner.Team(a));
                 await Assert.That(merged.SlotDefaults["e1"]["A"]).IsEqualTo("76560001")

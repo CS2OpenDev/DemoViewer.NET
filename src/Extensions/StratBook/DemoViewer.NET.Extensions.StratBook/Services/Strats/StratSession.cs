@@ -325,6 +325,18 @@ public sealed class StratSession : IDisposable
     }
 
     /// <summary>
+    ///     An edit the user did not make, so it is not theirs to undo: a strat moved with its team's merge. On
+    ///     the undo stack it would let Undo file the strat back under the merged id, which nothing lists again.
+    ///     The entries already there touch none of what such an edit changes, so they stay.
+    /// </summary>
+    /// <param name="op">The op.</param>
+    internal void ApplyUnrecorded(PatchOp op)
+    {
+        ArgumentNullException.ThrowIfNull(op);
+        Touch(ApplyCore([op]));
+    }
+
+    /// <summary>
     ///     Takes back the newest undo entry and puts <paramref name="ops" /> in its place, as one change: a combo box
     ///     stepped through several values leaves one entry, computed from where it started. Empty ops only take the
     ///     entry back. The redo stack is cleared as by any edit.
