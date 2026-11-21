@@ -432,6 +432,10 @@ public sealed class LiveSyncService : ILiveSyncService
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<string?> GetCs2GameDirectoryAsync(CancellationToken cancellationToken = default) =>
+        Task.Run(() => InstallRecovery.FindCsgoDirectory(CurrentSettings()), cancellationToken);
+
+    /// <inheritdoc />
     public Task RestoreInstallAsync(CancellationToken cancellationToken = default) =>
         Task.Run(() => InstallRecovery.Restore(CurrentSettings(), PostRecoveryLine, null, () => _ownsStartedSession),
             cancellationToken);

@@ -99,6 +99,13 @@ public interface ILiveSyncService : IAsyncDisposable
         new(await HasLeftoverInstallModificationsAsync(cancellationToken).ConfigureAwait(false), false, false);
 
     /// <summary>
+    ///     The CS2 install's <c>game/csgo</c> directory, which the engine reports a demo path relative to, or null
+    ///     when no install is found (or in mock mode). Runs off-thread.
+    /// </summary>
+    Task<string?> GetCs2GameDirectoryAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<string?>(null);
+
+    /// <summary>
     ///     Crash recovery: restores the CS2 install: un-patches <c>gameinfo.gi</c> from
     ///     CSVG's own backup and removes the plugin files. Also the permanent-disable uninstall
     ///     path. Throws with manual-fallback copy (<c>csvg restore</c>) when the install remains

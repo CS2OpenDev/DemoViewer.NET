@@ -97,6 +97,27 @@ internal static class InstallRecovery
     }
 
     /// <summary>
+    ///     The CS2 install's <c>game/csgo</c> directory, or null in mock mode or when install discovery fails.
+    /// </summary>
+    public static string? FindCsgoDirectory(LiveSyncSettings settings)
+    {
+        if (IsMock(settings))
+        {
+            return null;
+        }
+
+        try
+        {
+            using ServiceProvider services = BuildCsvgServices(settings);
+            return services.GetRequiredService<Cs2DirectoryUtil>().CsgoGameFilesDirectory;
+        }
+        catch
+        {
+            return null; // no Steam/CS2 on this machine: nothing to resolve against
+        }
+    }
+
+    /// <summary>
     ///     Restores the install: un-patches <c>gameinfo.gi</c> from CSVG's backup and removes the
     ///     plugin files. Also the permanent-disable uninstall path. Throws on hard failures (the
     ///     caller surfaces them with the <c>csvg restore</c> fallback copy).

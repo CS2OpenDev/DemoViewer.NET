@@ -425,18 +425,46 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
 
         // The path comes off the unauthenticated localhost stream, so any local process can name it. A
         // share or device path would make DemoViewer authenticate to a host of the sender's choosing.
-        // Windows reads '/' and '\' as the same separator, so two of either in front is one of those however
-        // they are mixed, and \??\ is the device namespace as the NT layer spells it.
-        if ((path.Length >= 2 && path[0] is '\\' or '/' && path[1] is '\\' or '/')
-            || path.StartsWith(@"\??\", StringComparison.Ordinal))
+        if (IsShareOrDevicePath(path))
         {
             ReasonText = $"DemoViewer only opens a CS2 demo from a local drive, not {path}.";
             return;
         }
 
+        // The engine may report the demo relative to game/csgo. Read as it is, that path would name a file under
+        // DemoViewer's own working directory, so it is joined to the CS2 install, or refused when there is none.
+        // A path rooted without a drive (C:x, \x) is relative to something else again and is not guessed at.
+        string target = path;
+        if (!Path.IsPathFullyQualified(path))
+        {
+            string? csgo = Path.IsPathRooted(path)
+                ? null
+                : await _liveSync.GetCs2GameDirectoryAsync().ConfigureAwait(true);
+            if (csgo is null)
+            {
+                ReasonText =
+                    $"CS2 named the demo as {path}, and DemoViewer could not find the CS2 install it is relative to.";
+                return;
+            }
+
+            target = Path.GetFullPath(Path.Combine(csgo, path));
+            if (IsShareOrDevicePath(target))
+            {
+                ReasonText = $"DemoViewer only opens a CS2 demo from a local drive, not {target}.";
+                return;
+            }
+        }
+
+        // Conservative: a name without the extension is not completed into a guess.
+        if (!target.EndsWith(".dem", StringComparison.OrdinalIgnoreCase))
+        {
+            ReasonText = $"DemoViewer only opens a .dem file, and CS2 named {path}.";
+            return;
+        }
+
         try
         {
-            await _openDemoInDv(path).ConfigureAwait(true);
+            await _openDemoInDv(target).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -445,6 +473,12 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
             ReasonText = $"Could not open the demo — {ex.Message}";
         }
     }
+
+    // Windows reads '/' and '\' as the same separator, so two of either in front is a share or device path
+    // however they are mixed, and \??\ is the device namespace as the NT layer spells it.
+    private static bool IsShareOrDevicePath(string path) =>
+        (path.Length >= 2 && path[0] is '\\' or '/' && path[1] is '\\' or '/')
+        || path.StartsWith(@"\??\", StringComparison.Ordinal);
 
     // ── Engine → UI mapping ─────────────────────────────────────────────────────────────────────────
 
