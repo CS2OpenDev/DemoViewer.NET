@@ -2967,9 +2967,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         UnloadDemoState();
+        int shellGeneration = _unloadGeneration;
 
         IsLoading = true;
         StatusText = $"Auto-loading {Path.GetFileName(path)}…";
+        string loadingStatus = StatusText;
         // Match Overview parity with the interactive funnel: show the landing immediately (CLI/debug auto-load).
         MatchOverviewTab.BeginOpening(Path.GetFileName(path), null, null, path, path);
         MatchOverviewTab.IsSampleClip = IsTourSample(path);
@@ -2991,6 +2993,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
             string demoKey = await demoKeyTask;
             open.CancellationToken.ThrowIfCancellationRequested();
+            ThrowIfShellTaken(shellGeneration);
             open.Report(0.5, "Building the views");
             MatchOverviewTab.SetSummary(path, parsed);
             MatchOverviewTab.SetParseHealth(path, parsed.Health, parsed.Warnings); // damaged-demo banner
@@ -3049,6 +3052,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             open.Report(0.6, "Analysing");
             await Analysis.RunOpenAsync(parsed, demoKey, path, clock);
             ThrowIfSuperseded(open);
+            ThrowIfShellTaken(shellGeneration);
             MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.Rounds.Count,
                 StatsTab.AccountsBySlot);
             // Per-team round wins from the same evaluation: each team's total across BOTH halves.
@@ -3067,17 +3071,24 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _openPassesTask = RunOpenVisitAsync(open, path, parsed);
         }
         catch (Exception ex) when (open.IsSuperseded
+                                   || shellGeneration != _unloadGeneration
                                    || (ex is OperationCanceledException
                                        && open.CancellationToken.IsCancellationRequested))
         {
-            superseded = open.IsSuperseded;
+            // See LoadDemoFromBytesCoreAsync: only an unload since this open's own means the shell is not its.
+            superseded = shellGeneration != _unloadGeneration;
             open.Dispose();
             if (!superseded)
             {
                 // No census will be built to end the collecting. A superseding open has set the flag for
                 // its own parse, so only an open that still owns the shell clears it.
                 _collectingUnknowns = false;
-                StatusText = $"Auto-load of {Path.GetFileName(path)} was cancelled";
+                AbandonOpen();
+                if (!open.IsSuperseded || StatusText == loadingStatus)
+                {
+                    StatusText = $"Auto-load of {Path.GetFileName(path)} was cancelled";
+                }
+
                 MatchOverviewTab.Fail(path, StatusText);
             }
         }
@@ -3085,6 +3096,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             _collectingUnknowns = false;
             open.Fail(ex);
+            if (!HasFile)
+            {
+                AbandonOpen();
+            }
+
             StatusText = $"Auto-load failed: {ex.Message}";
             MatchOverviewTab.Fail(path, ex.Message);
         }
@@ -3663,6 +3679,40 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // A load core captures _unloadGeneration right after its own UnloadDemoState. A later bump is a Close Demo
+    // (which nothing tells the load about) or a newer open that has taken the shell: either way this load no
+    // longer owns it. The queue's Superseded flag is not that: it is set when a newer open BEGINS, and a newer
+    // open whose read fails, or that is removed while reading, never takes the shell.
+    private void ThrowIfShellTaken(int shellGeneration)
+    {
+        if (shellGeneration != _unloadGeneration)
+        {
+            throw new OperationCanceledException();
+        }
+    }
+
+    /// <summary>
+    ///     An open that ended without its demo while it still owned the shell. Its own
+    ///     <see cref="UnloadDemoState" /> dropped the previous demo without telling modules, so they are told
+    ///     here (extensions read it as <c>CurrentDemoChanged</c>), and what the open had set up goes: a demo
+    ///     that reached the shell is unloaded whole, otherwise the path and the buffer.
+    /// </summary>
+    private void AbandonOpen()
+    {
+        if (HasFile)
+        {
+            UnloadDemoState();
+        }
+        else
+        {
+            _demoBytes = null;
+            LoadedDemoPath = null;
+            StatsTab.NotifyDemoChanged();
+        }
+
+        _moduleContext?.RaiseDemoReset();
+    }
+
     // Every open is one queue item at the front.
     private IDemoOpenTicket BeginOpenItem(string? path, string fileName) =>
         (_processingQueue ?? OwnedQueue()).BeginOpen(path, fileName);
@@ -3966,6 +4016,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         UnloadDemoState();
         _moduleContext?.RaiseDemoReset();
         int generation = _unloadGeneration;
+        // A close can land while an open is still analysing (HasFile is already true then). That load sees the
+        // generation move and stands down without touching the shell, the spinner included, so it is the
+        // close's to clear.
+        IsLoading = false;
 
         if (passes is { IsCompleted: false })
         {
@@ -4377,9 +4431,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         UnloadDemoState();
+        int shellGeneration = _unloadGeneration;
 
         IsLoading = true;
         StatusText = $"Parsing {fileName}…";
+        string loadingStatus = StatusText;
         AppLog.DemoLoadStarted(DiagLog, fileName, rawBytes.Length);
 
         // Match Overview landing (responsiveness): surface the demo the INSTANT the open begins, before the
@@ -4446,6 +4502,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             string demoKey = await demoKeyTask;
             // Last point where stopping is safe: past it the shell holds this demo.
             open.CancellationToken.ThrowIfCancellationRequested();
+            ThrowIfShellTaken(shellGeneration);
             open.Report(0.5, "Building the views");
             MatchOverviewTab.SetSummary(subjectKey, parsed);
             MatchOverviewTab.SetParseHealth(subjectKey, parsed.Health, parsed.Warnings); // damaged-demo banner
@@ -4523,6 +4580,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             open.Report(0.6, "Analysing");
             await Analysis.RunOpenAsync(parsed, demoKey, localPath, clock);
             ThrowIfSuperseded(open);
+            ThrowIfShellTaken(shellGeneration);
             // StatsTab is fed by AnalysisViewModel.EvaluationCompleted, which is raised SYNCHRONOUSLY inside
             // RunAsync (AnalysisViewModel.cs), so its tables are already built by the time this await
             // returns. Reading them here rather than subscribing keeps the Match Overview's score and
@@ -4583,17 +4641,27 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _tutorial.NotifyDemoLoaded();
         }
         catch (Exception ex) when (open.IsSuperseded
+                                   || shellGeneration != _unloadGeneration
                                    || (ex is OperationCanceledException
                                        && open.CancellationToken.IsCancellationRequested))
         {
-            superseded = open.IsSuperseded;
+            // Superseded in the queue is not replaced in the shell: only a close or an open that ran
+            // UnloadDemoState since this one did owns the spinner, the status line and the tick groups. A
+            // replacing open that ended before that point leaves this open to clean up after itself.
+            superseded = shellGeneration != _unloadGeneration;
             open.Dispose();
             if (!superseded)
             {
                 // No census will be built to end the collecting. A superseding open has set the flag for
                 // its own parse, so only an open that still owns the shell clears it.
                 _collectingUnknowns = false;
-                StatusText = $"Opening {fileName} was cancelled";
+                AbandonOpen();
+                // A replacing open whose read failed has put its own error on the status line; keep it.
+                if (!open.IsSuperseded || StatusText == loadingStatus)
+                {
+                    StatusText = $"Opening {fileName} was cancelled";
+                }
+
                 MatchOverviewTab.Fail(subjectKey, StatusText);
             }
         }
@@ -4601,6 +4669,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             _collectingUnknowns = false;
             open.Fail(ex);
+            // A demo that reached the shell stays, loaded with errors; one that did not is not open.
+            if (!HasFile)
+            {
+                AbandonOpen();
+            }
+
             // Clean text on the user surfaces (v0.6.0, a corrupt .dem used to surface as raw CLR
             // text like "Index was outside the bounds of the array"); the full exception goes to
             // the Diagnostics tab + file.
