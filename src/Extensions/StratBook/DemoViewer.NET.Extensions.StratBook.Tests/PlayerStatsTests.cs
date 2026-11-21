@@ -529,6 +529,35 @@ public class PlayerStatsTests
         teams.Dispose();
     }
 
+    [Test]
+    public async Task AFailedRead_SaysSo_InsteadOfLoadingForever()
+    {
+        DemoCacheStore cache = Cache();
+        TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
+        await teams.StartAsync();
+        cache.Upsert(Record(DemoOne, 0, RowsOne()));
+        await teams.Idle;
+        Guid teamB = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(11)) == true)).Id;
+        FakeFacts facts = new(cache.RoundFacts()) { ReadFails = true };
+        facts.Set(DemoOne, FactStatus.Current, Table(Row(Id(11), 20, 1.20, 1600, 75, 18, 12, 10)));
+        QueuedPost posted = new();
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), false,
+            null, null, _ => true, () => new SetupHeatmapRenderer(_ => null), posted.Post,
+            runSection: _ => _inline, roundFacts: cache.RoundFacts(), analysisFacts: facts);
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamB);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        PlayerRowViewModel p5 = vm.Players.Single(p => p.Name == "p5");
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(p5.Rating.IsLoading).IsFalse().Because("the read is over; it failed");
+            await Assert.That(p5.Rating.Label).IsEqualTo("—");
+            await Assert.That(vm.PlayersStatusLine).Contains("could not be read");
+        }
+
+        teams.Dispose();
+    }
+
     internal sealed class FakeFacts(IRoundFacts roundFacts) : IAnalysisFacts
     {
         private readonly Dictionary<string, (FactStatus Status, FactTable? Table)> _demos =
@@ -554,8 +583,16 @@ public class PlayerStatsTests
 
         public bool IsCurrent(string demoPath, FactKey key) => Status(demoPath, key) == FactStatus.Current;
 
+        /// <summary>Set: every read throws, as a facts file another process holds locked would.</summary>
+        public bool ReadFails { get; set; }
+
         public FactTable? TryGet(string demoPath, FactKey key)
         {
+            if (ReadFails)
+            {
+                throw new IOException("the facts file is locked");
+            }
+
             lock (_demos)
             {
                 return _demos.TryGetValue(demoPath, out (FactStatus Status, FactTable? Table) d) ? d.Table : null;

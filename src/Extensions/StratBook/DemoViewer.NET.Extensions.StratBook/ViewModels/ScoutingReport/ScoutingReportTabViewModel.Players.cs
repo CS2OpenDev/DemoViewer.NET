@@ -25,6 +25,9 @@ public sealed partial class ScoutingReportTabViewModel
     private Dictionary<string, FactStatus> _factStatuses = new(StringComparer.OrdinalIgnoreCase);
     private bool _projectingIgl;
     private PlayerStatsSet? _playerStats;
+
+    // The load ended without numbers (a facts file could not be read): null stats no longer mean "still reading".
+    private bool _playerStatsFailed;
     private int _playersGeneration;
 
     /// <summary>The players' numbers over every map instead of the map in view.</summary>
@@ -73,6 +76,7 @@ public sealed partial class ScoutingReportTabViewModel
     {
         Interlocked.Increment(ref _playersGeneration);
         _playerStats = null;
+        _playerStatsFailed = false;
         _factStatuses = new Dictionary<string, FactStatus>(StringComparer.OrdinalIgnoreCase);
         PlayersStatusLine = "";
     }
@@ -118,6 +122,7 @@ public sealed partial class ScoutingReportTabViewModel
             }
 
             _playerStats = run.IsCompletedSuccessfully ? run.Result : null;
+            _playerStatsFailed = _playerStats is null;
             ProjectPlayers();
         }
 
@@ -263,7 +268,9 @@ public sealed partial class ScoutingReportTabViewModel
             });
         }
 
-        PlayersStatusLine = StatusLine(stats, demosInScope, withFacts, pending, failed, where);
+        PlayersStatusLine = _playerStatsFailed
+            ? PlayerStatsUnreadable
+            : StatusLine(stats, demosInScope, withFacts, pending, failed, where);
     }
 
     private void ProjectIglOptions(IReadOnlyList<ScoutingRosterPlayer> roster, string? igl)
@@ -285,6 +292,8 @@ public sealed partial class ScoutingReportTabViewModel
             _projectingIgl = false;
         }
     }
+
+    private const string PlayerStatsUnreadable = "Player stats could not be read; select the team again to retry.";
 
     // "Player stats cover 4 of 6 demos on de_nuke. The library is computing the rest in the background."
     private static string StatusLine(PlayerStatsSet? stats, int demos, int withFacts, int pending, int failed,
@@ -332,7 +341,9 @@ public sealed partial class ScoutingReportTabViewModel
     {
         if (stats is null)
         {
-            PlayerStatCellViewModel reading = PlayerStatCellViewModel.Reading;
+            PlayerStatCellViewModel reading = _playerStatsFailed
+                ? PlayerStatCellViewModel.Missing("—", PlayerStatsUnreadable)
+                : PlayerStatCellViewModel.Reading;
             return new PlayerStatCells(reading, reading, reading, reading, reading, reading);
         }
 
