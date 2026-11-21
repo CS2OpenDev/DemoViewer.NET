@@ -59,7 +59,13 @@ internal sealed class InboundSync : IDisposable
         _pump.Start();
     }
 
-    public void Dispose() => _pump.Stop();
+    public void Dispose()
+    {
+        // The servo's bent speed is restored only from RunServo, which never runs again once the
+        // pump stops: without this a Disable mid-correction leaves DV playing every later demo at it.
+        RestoreServoSpeedIfEngaged();
+        _pump.Stop();
+    }
 
     // ── The 30 Hz pump ────────────────────────────────────────────────────────
 
@@ -70,15 +76,16 @@ internal sealed class InboundSync : IDisposable
             // The range playback owns CS2 — its seeks are neither drift nor user intent.
             // Reset jump tracking so the range's moves never read as user seeks afterwards.
             _lastSeenTick = null;
-            _servoEngaged = false;
+            RestoreServoSpeedIfEngaged();
             return;
         }
 
         LiveSyncState state = _serviceState();
         if (!state.IsSynced && state.Kind != LiveSyncStateKind.Degraded)
         {
+            // Faulted or suspended: nothing will correct the drift any more, so hand back the base speed.
             _lastSeenTick = null;
-            _servoEngaged = false;
+            RestoreServoSpeedIfEngaged();
             return;
         }
 
