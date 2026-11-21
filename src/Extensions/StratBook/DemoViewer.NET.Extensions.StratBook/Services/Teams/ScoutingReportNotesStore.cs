@@ -52,6 +52,12 @@ public sealed class ScoutingReportNotesStore
     /// <summary>Why the file could not be read, or null. While set the file is never written.</summary>
     public string? FileProblem { get; private set; }
 
+    /// <summary>
+    ///     Why the last write failed, or null once one lands. The edits stand in memory meanwhile and every later
+    ///     mutation writes them all again, but nothing keeps them past the session unless one succeeds.
+    /// </summary>
+    public string? SaveProblem { get; private set; }
+
     /// <summary>Every team this store holds something for; Team Identity keeps these through a rebuild.</summary>
     public IReadOnlyList<Guid> TeamIds => [.. _teams.Select(t => t.TeamId).Distinct()];
 
@@ -607,10 +613,13 @@ public sealed class ScoutingReportNotesStore
         {
             ScoutingReportNotesFile file = new() { Teams = [.. _teams] };
             _file.Write(JsonSerializer.SerializeToUtf8Bytes(file, ScoutingReportNotesFile.JsonOptions));
+            SaveProblem = null;
         }
-        catch (Exception)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // Best effort: the in-memory notes stand for the session and the next mutation retries.
+            // The in-memory notes stand for the session and the next mutation retries, but typed notes that never
+            // reach the file are lost at exit: the editor says so until a write lands. Commit raises Changed.
+            SaveProblem = $"{_file.Name} could not be saved ({e.Message}); edits are kept for this session only.";
         }
     }
 }

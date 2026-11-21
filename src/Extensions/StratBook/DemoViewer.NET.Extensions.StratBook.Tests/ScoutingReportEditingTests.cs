@@ -166,6 +166,47 @@ public class ScoutingReportEditingTests
     }
 
     [Test]
+    public async Task AFailedWrite_IsReported_AndClearedByTheNextWriteThatLands()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "dv-scouting-report-notes-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            // The notes file's folder is a regular file: every write fails, on every OS.
+            string blocker = Path.Combine(root, "config");
+            await File.WriteAllTextAsync(blocker, "not a folder");
+            string path = Path.Combine(blocker, ScoutingReportNotesStore.FileName);
+            ScoutingReportNotesStore store = new(StoredFile.At(path));
+            Guid team = Guid.NewGuid();
+            int changes = 0;
+            store.Changed += () => changes++;
+
+            store.AddNote(team, "watch the B apps smoke");
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.SaveProblem).IsNotNull()
+                    .Because("the note lives only in memory now, and the user has to be told");
+                await Assert.That(store.FileProblem).IsNull().Because("the file was read; it is not refused");
+                await Assert.That(changes).IsEqualTo(1);
+            }
+
+            File.Delete(blocker);
+            Directory.CreateDirectory(blocker);
+            store.SetSummary(team, "Aggressive CT.");
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.SaveProblem).IsNull();
+                await Assert.That(new ScoutingReportNotesStore(StoredFile.At(path)).For(team).Notes.Single().Text)
+                    .IsEqualTo("watch the B apps smoke").Because("the next write carries the edits the failed one held");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task TheStore_PersistsStarsEditsHiddenNotesAndSummary_BesideTeamsJson()
     {
         string root = Path.Combine(Path.GetTempPath(), "dv-scouting-report-notes-" + Guid.NewGuid().ToString("N"));

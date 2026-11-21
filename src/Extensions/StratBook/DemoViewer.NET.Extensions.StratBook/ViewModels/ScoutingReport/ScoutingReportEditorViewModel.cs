@@ -323,10 +323,13 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
     public bool NotesAreSessionOnly => _store.IsSessionOnly;
 
-    /// <summary>Set when the notes file could not be read, so the long form says why edits do not stick.</summary>
-    public string NotesProblem => _store.FileProblem ?? "";
+    /// <summary>
+    ///     Set when the notes file could not be read or the last write to it failed, so the long form says why
+    ///     edits do not stick.
+    /// </summary>
+    public string NotesProblem => _store.FileProblem ?? _store.SaveProblem ?? "";
 
-    public bool HasNotesProblem => _store.FileProblem is not null;
+    public bool HasNotesProblem => (_store.FileProblem ?? _store.SaveProblem) is not null;
 
     /// <summary>"Export one-pager · 5 starred", or "Export long form".</summary>
     public string ExportLabel => ExportForm == ScoutingReportForm.OnePager
