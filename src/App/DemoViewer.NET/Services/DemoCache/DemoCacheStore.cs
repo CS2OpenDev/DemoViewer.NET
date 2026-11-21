@@ -3193,6 +3193,7 @@ public sealed partial class DemoCacheStore
     {
         string dir = SidecarDir!;
         List<(string Key, DemoCacheRecord Record)> found = [];
+        List<string> unread = [];
         try
         {
             if (!Directory.Exists(dir))
@@ -3227,6 +3228,11 @@ public sealed partial class DemoCacheStore
                     {
                         _unreadAtRebuild.Add(key);
                     }
+
+                    if (key.Length == 64 && key.All(char.IsAsciiHexDigitLower))
+                    {
+                        unread.Add(key);
+                    }
                 }
             }
         }
@@ -3235,7 +3241,7 @@ public sealed partial class DemoCacheStore
             return false;
         }
 
-        if (found.Count == 0)
+        if (found.Count == 0 && unread.Count == 0)
         {
             return false;
         }
@@ -3304,6 +3310,14 @@ public sealed partial class DemoCacheStore
                     entry.ImportedUtcTicks = seen.Count == 0 ? now : null;
                     Link(rowKey, WithKeys(entry, keys));
                 }
+            }
+
+            // A record under a content id that did not read is orphaned from now under that id, with no path:
+            // the saved index names it, so a later run's sweep gives it the grace period like any orphan
+            // rather than deleting it and its siblings as files no row names.
+            foreach (string key in unread.Where(k => !_rows.ContainsKey(k)))
+            {
+                Link(key, new DemoCacheIndexEntry { Sha256 = key, OrphanedSinceUtcTicks = now });
             }
 
             _contentKeyMigrationVersion = _rows.Values.Any(r => r.SidecarKeys is not null)

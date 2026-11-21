@@ -642,4 +642,54 @@ public class OrphanedContentTests
             Cleanup(root);
         }
     }
+
+    /// <summary>
+    ///     The rebuilt index is saved, so the next run's rows come from it and not from the records. A record
+    ///     the rebuild could not read is written into it as an orphan from that moment: later runs keep it and
+    ///     its siblings for the grace period like any other orphan, and the sweep takes them after that.
+    /// </summary>
+    [Test]
+    public async Task ARecordTheRebuildCouldNotRead_IsKeptAsAnOrphan_ForTheGracePeriod()
+    {
+        string root = TempRoot();
+        string unread = new('a', 64);
+        string read = new('b', 64);
+        try
+        {
+            DemoCacheStore store = new(root);
+            store.Upsert(Analysed("/m/a.dem", unread));
+            store.WriteSibling("/m/a.dem", Suffix, "facts");
+            store.Upsert(Analysed("/m/b.dem", read, 1001, 2001));
+            store.SaveIndex();
+            string record = store.SidecarPathFor("/m/a.dem")!;
+            string[] before = Files(root);
+
+            File.Delete(Path.Combine(root, "index.json"));
+            await File.WriteAllBytesAsync(record, [0x1F, 0x8B, 1, 2, 3, 4, 5]);
+            DemoCacheStore rebuilt = new(root);
+            rebuilt.ExpireOrphans(DateTime.UtcNow, TimeSpan.FromDays(14));
+            await Assert.That(rebuilt.IsOrphaned(unread)).IsTrue();
+
+            TimeSpan grace = TimeSpan.FromDays(14);
+            DemoCacheStore next = new(root);
+            next.ExpireOrphans(DateTime.UtcNow, grace);
+            using (Assert.Multiple())
+            {
+                await Assert.That(next.IsOrphaned(unread)).IsTrue().Because("the saved index names it");
+                await Assert.That(Files(root)).IsEquivalentTo(before)
+                    .Because("a run after the rebuild keeps it within the grace period");
+            }
+
+            new DemoCacheStore(root).ExpireOrphans(DateTime.UtcNow + grace + TimeSpan.FromMinutes(1), grace);
+            using (Assert.Multiple())
+            {
+                await Assert.That(Files(root).Where(f => f.StartsWith(unread, StringComparison.Ordinal))).IsEmpty();
+                await Assert.That(new DemoCacheStore(root).TryGetIndex("/m/b.dem")).IsNotNull();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
 }
