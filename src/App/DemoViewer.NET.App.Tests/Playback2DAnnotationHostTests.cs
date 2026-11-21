@@ -171,6 +171,30 @@ public class Playback2DAnnotationHostTests
     }
 
     /// <summary>
+    ///     A demo re-opened at the SAME path with different bytes (overwritten, re-downloaded, or on the
+    ///     browser head any demo with the same file name) reaches the 2D tab only as a re-activation, since
+    ///     the open deactivates it before DemoReset. Path alone said "same demo" and kept the old document.
+    /// </summary>
+    [Test]
+    public async Task ReactivateTab_OnDifferentBytesAtTheSamePath_DropsTheOldDemosStrokes()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using Fixture f = Fixture.Create();
+            f.DrawStroke();
+            await Assert.That(f.Document.Elements.Count).IsEqualTo(1);
+
+            f.Vm.OnDeactivated();
+            f.Ctx.DemoSha256 = new string('b', 64);
+            f.Vm.OnActivated(f.Ctx);
+            Playback2DTimelineHarness.Pump();
+
+            await Assert.That(f.Document.Elements.Count).IsEqualTo(0)
+                .Because("the strokes belong to the bytes that were at this path before, not to these");
+        });
+    }
+
+    /// <summary>
     ///     The whole remap chain (<c>LevelSetChange.TryRemapAnchor</c> → <c>ApplyLevelRebuild</c> →
     ///     <c>AnnotationDocument.RemapWorldLevels</c>) existed and was unit-tested, but nothing in
     ///     production called it. The test above this one drives the VM entry point by hand; this one

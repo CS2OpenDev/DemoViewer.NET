@@ -157,6 +157,11 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // tells the next activation's resync whether the state it is holding is still about this demo.
     private string? _followDemoPath;
 
+    // The content hash the annotation controller was last attached under. The controller keys on the
+    // path, and a demo re-opened at the same path with other bytes (overwritten, re-downloaded, or on the
+    // browser head any demo with the same file name) reaches a deactivated tab only as a re-activation.
+    private string? _annotationDemoSha256;
+
     // A follow by account asked for before the roster of its demo was seeded: the account and the demo it is
     // about. SeedRosterDisplay applies it once that demo's roster is in, and drops it when another demo's is.
     private (ulong SteamId, string? DemoPath)? _pendingFollow;
@@ -1326,6 +1331,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             return;
         }
 
+        // Other bytes at the same path are another demo: its strokes and identity are not these.
+        force |= !string.Equals(_annotationDemoSha256, ctx.DemoSha256, StringComparison.OrdinalIgnoreCase);
+        _annotationDemoSha256 = ctx.DemoSha256;
         _ = _annotationController.AttachDemoAsync(ctx.DemoPath, FrameClock.IdentityFor(ctx), force)
             .ContinueWith(static _ => { }, TaskScheduler.Default);
     }
