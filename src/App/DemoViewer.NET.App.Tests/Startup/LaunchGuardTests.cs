@@ -73,6 +73,65 @@ public class LaunchGuardTests
         }
     }
 
+    /// <summary>
+    ///     A second launch inside the first one's start-up window reads the first one's Starting record. The
+    ///     first one is alive and well, so that is not a failed start, and its record is not the second's to
+    ///     overwrite. The same goes for a running instance flagged hung.
+    /// </summary>
+    [Test]
+    public async Task ARecordOfAnotherLiveInstance_IsNotAFailedStart()
+    {
+        string root = NewRoot();
+        try
+        {
+            string file = Path.Combine(root, LaunchGuard.FileName);
+            for (int pass = 0; pass < 2; pass++)
+            {
+                LaunchGuard first = LaunchGuard.Begin(root, []);
+                if (pass == 1)
+                {
+                    first.MarkRunning();
+                    first.MarkHung(true);
+                }
+
+                LaunchState? other = LaunchGuard.Read(file);
+                LaunchGuard alive = LaunchGuard.Begin(root, [], null, _ => true);
+                using (Assert.Multiple())
+                {
+                    await Assert.That(alive.Decision).IsEqualTo(SafeModeState.Off);
+                    await Assert.That(LaunchGuard.Read(file)).IsEqualTo(other)
+                        .Because("the running instance's record is its own");
+                }
+
+                LaunchGuard dead = LaunchGuard.Begin(root, [], null, _ => false);
+                await Assert.That(dead.Decision.IsActive).IsTrue()
+                    .Because("a record whose process is gone is the previous launch's, as before");
+                dead.MarkExited();
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task TheLivenessCheck_RejectsThisProcessAGoneProcessAndARecycledId()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        using System.Diagnostics.Process self = System.Diagnostics.Process.GetCurrentProcess();
+        DateTimeOffset beforeThisProcess = self.StartTime.ToUniversalTime().AddMinutes(-5);
+        using (Assert.Multiple())
+        {
+            await Assert.That(LaunchGuard.IsAnotherLiveInstance(
+                new LaunchState(LaunchPhase.Starting, now, false, Environment.ProcessId))).IsFalse();
+            await Assert.That(LaunchGuard.IsAnotherLiveInstance(
+                new LaunchState(LaunchPhase.Starting, now, false, int.MaxValue))).IsFalse();
+            await Assert.That(LaunchGuard.IsAnotherLiveInstance(
+                new LaunchState(LaunchPhase.Starting, beforeThisProcess, false, Environment.ProcessId))).IsFalse();
+        }
+    }
+
     [Test]
     public async Task TheSwitch_TurnsSafeModeOn_InEitherSpelling()
     {
