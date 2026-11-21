@@ -224,6 +224,9 @@ public sealed class LiveSyncService : ILiveSyncService
                 }
                 catch (Exception ex)
                 {
+                    // CSVG's StopAsync ends Disconnected even when it throws, as StopSessionCoreAsync relies on:
+                    // whatever the session left is leftovers now, which the banner may restore.
+                    _ownsStartedSession = false;
                     SetState(new LiveSyncState(LiveSyncStateKind.Faulted,
                         $"Could not clean up the previous session — {ex.Message}"));
                     return;
