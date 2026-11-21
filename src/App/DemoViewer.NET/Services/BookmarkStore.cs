@@ -21,11 +21,16 @@ namespace DemoViewer.NET.Services;
 ///         key</em> (lowercase hex SHA-256 of the <c>.dem</c> bytes, as <see cref="GraphBreakpointStore" />
 ///         keys its file) → that demo's bookmarks. A bookmark is a frame index, which says nothing outside
 ///         the demo it was set on. The file before this one, <c>SessionState.json</c>, was one list shared by
-///         every demo; it cannot be told which demo each entry belonged to, so it is neither read nor touched.
+///         every demo; it cannot be told which demo each entry belonged to, so it is never written or moved. It is
+///         read only to count its entries for a one-time notice (<see cref="LegacyCount" />), and a dismissal of
+///         that notice is kept as a marker file beside it.
 ///     </para>
 /// </summary>
 public sealed class BookmarkStore
 {
+    private const string LegacyFileName = "SessionState.json";
+    private const string LegacyNoticeDismissedFileName = "SessionState.json.notice-dismissed";
+
     private static readonly JsonSerializerOptions _writeOptions = new() { WriteIndented = true };
 
     private readonly string? _path;
@@ -87,6 +92,50 @@ public sealed class BookmarkStore
         catch
         {
             // Persistence is best-effort; never crash the app on a write failure.
+        }
+    }
+
+    /// <summary>
+    ///     How many bookmarks the shared pre-v2 <c>SessionState.json</c> holds, or 0 when there is none, it does not
+    ///     read, or its notice was dismissed. The file is only read.
+    /// </summary>
+    public int LegacyCount()
+    {
+        string? dir = _path is null ? null : Path.GetDirectoryName(_path);
+        if (dir is null || File.Exists(Path.Combine(dir, LegacyNoticeDismissedFileName)))
+        {
+            return 0;
+        }
+
+        try
+        {
+            string legacy = Path.Combine(dir, LegacyFileName);
+            return File.Exists(legacy)
+                ? JsonSerializer.Deserialize<List<Bookmark?>>(File.ReadAllText(legacy))?.OfType<Bookmark>().Count() ?? 0
+                : 0;
+        }
+        catch
+        {
+            return 0; // a notice about a file that does not read would name no number worth showing
+        }
+    }
+
+    /// <summary>Records that the notice about the pre-v2 bookmarks was dismissed. No-op on WASM or on I/O failure.</summary>
+    public void DismissLegacyNotice()
+    {
+        string? dir = _path is null ? null : Path.GetDirectoryName(_path);
+        if (dir is null)
+        {
+            return;
+        }
+
+        try
+        {
+            AtomicFile.WriteAllText(Path.Combine(dir, LegacyNoticeDismissedFileName), DateTime.UtcNow.ToString("O"));
+        }
+        catch
+        {
+            // Best-effort: the notice shows again next launch.
         }
     }
 

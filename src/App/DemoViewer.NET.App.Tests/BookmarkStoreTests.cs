@@ -225,4 +225,74 @@ public class BookmarkStoreTests
             Cleanup(file);
         }
     }
+
+    /// <summary>
+    ///     The list every demo shared before bookmarks were kept per demo cannot be matched to a demo. The panel
+    ///     says so once, until dismissed, and the old file is left as it was.
+    /// </summary>
+    [Test]
+    public async Task OlderSharedBookmarks_AreNoticedOnce_AndLeftOnDisk()
+    {
+        string file = TempFile();
+        try
+        {
+            string dir = Path.GetDirectoryName(file)!;
+            string legacy = Path.Combine(dir, "SessionState.json");
+            const string Old =
+                """[{"FrameIndex":1,"Tick":2,"Label":"a"},{"FrameIndex":3,"Tick":4,"Label":"b"}]""";
+            Directory.CreateDirectory(dir);
+            await File.WriteAllTextAsync(legacy, Old);
+
+            BookmarksViewModel panel = new(new FrameNavigationViewModel(), new BookmarkStore(file));
+            using (Assert.Multiple())
+            {
+                await Assert.That(panel.HasLegacyNotice).IsTrue();
+                await Assert.That(panel.LegacyNotice).IsEqualTo(
+                    "Bookmarks are now saved per demo; 2 older bookmarks from before this change could not be matched to a demo.");
+            }
+
+            panel.SetDemo(DemoA);
+            await Assert.That(panel.HasLegacyNotice).IsTrue().Because("opening a demo is not a dismissal");
+            panel.DismissLegacyNoticeCommand.Execute(null);
+
+            BookmarksViewModel next = new(new FrameNavigationViewModel(), new BookmarkStore(file));
+            using (Assert.Multiple())
+            {
+                await Assert.That(panel.HasLegacyNotice).IsFalse();
+                await Assert.That(next.HasLegacyNotice).IsFalse().Because("a dismissal is remembered");
+                await Assert.That(await File.ReadAllTextAsync(legacy)).IsEqualTo(Old);
+            }
+        }
+        finally
+        {
+            Cleanup(file);
+        }
+    }
+
+    [Test]
+    public async Task WithNoOlderBookmarks_ThereIsNoNotice()
+    {
+        string file = TempFile();
+        try
+        {
+            string dir = Path.GetDirectoryName(file)!;
+            BookmarksViewModel none = new(new FrameNavigationViewModel(), new BookmarkStore(file));
+            Directory.CreateDirectory(dir);
+            await File.WriteAllTextAsync(Path.Combine(dir, "SessionState.json"), "[]");
+            BookmarksViewModel empty = new(new FrameNavigationViewModel(), new BookmarkStore(file));
+            await File.WriteAllTextAsync(Path.Combine(dir, "SessionState.json"), "[{\"FrameIndex\"");
+            BookmarksViewModel unreadable = new(new FrameNavigationViewModel(), new BookmarkStore(file));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(none.HasLegacyNotice).IsFalse();
+                await Assert.That(empty.HasLegacyNotice).IsFalse();
+                await Assert.That(unreadable.HasLegacyNotice).IsFalse();
+            }
+        }
+        finally
+        {
+            Cleanup(file);
+        }
+    }
 }

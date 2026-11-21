@@ -27,6 +27,10 @@ public sealed partial class BookmarksViewModel : ObservableObject
     private string? _demoKey;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLegacyNotice))]
+    private string? _legacyNotice;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasBookmarks))]
     private Bookmark? _selected;
 
@@ -40,7 +44,20 @@ public sealed partial class BookmarksViewModel : ObservableObject
     {
         _nav = nav;
         _store = store;
+
+        // Bookmarks were once one list for every demo, and that list cannot be matched to a demo. Say so until
+        // the user dismisses it rather than drop them without a word; the old file stays where it is.
+        int legacy = store.LegacyCount();
+        if (legacy > 0)
+        {
+            LegacyNotice = legacy == 1
+                ? "Bookmarks are now saved per demo; 1 older bookmark from before this change could not be matched to a demo."
+                : $"Bookmarks are now saved per demo; {legacy} older bookmarks from before this change could not be matched to a demo.";
+        }
     }
+
+    /// <summary>True while the one-time notice about the older shared bookmarks shows.</summary>
+    public bool HasLegacyNotice => LegacyNotice is not null;
 
     /// <summary>Bookmarks.</summary>
     public ObservableCollection<Bookmark> Bookmarks { get; } = [];
@@ -107,6 +124,13 @@ public sealed partial class BookmarksViewModel : ObservableObject
         {
             _nav.SeekToFrame(bookmark.FrameIndex);
         }
+    }
+
+    [RelayCommand]
+    private void DismissLegacyNotice()
+    {
+        LegacyNotice = null;
+        _store.DismissLegacyNotice();
     }
 
     private void Persist()
