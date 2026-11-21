@@ -152,6 +152,67 @@ public class HostileYamlTests
     // ── Quoting: a value that would parse as something else ───────────────────────────────
 
     /// <summary>
+    ///     A key written with no value is an empty scalar sitting right after the colon. Setting it must
+    ///     not splice the new text against the colon (<c>label:Kills</c>).
+    /// </summary>
+    [Test]
+    [Arguments("")]
+    [Arguments("  # a note")]
+    public async Task SettingAKeyWrittenWithNoValue_KeepsTheSpaceAfterTheColon(string tail)
+    {
+        string yaml = "ruleset: probe\nfor: match\nstats:\n  kills:\n    count: kill\n    label:" + tail + "\n";
+
+        RulesetDocumentEditor edited = RulesetDocumentEditor.Open(yaml).SetStatField("kills", "label", "Kills");
+
+        await Assert.That(edited.Text).Contains("label: Kills");
+        await Assert.That(edited.Scalar(RulesetDocumentEditor.StatPath("kills").Key("label")))
+            .IsEqualTo("Kills");
+    }
+
+    [Test]
+    public async Task SettingTheOnlyBlankKeyOfAStat_StillLeavesAMapping()
+    {
+        const string Yaml = "ruleset: probe\nfor: match\nstats:\n  kills:\n    label:\n";
+
+        RulesetDocumentEditor edited = RulesetDocumentEditor.Open(Yaml).SetStatField("kills", "label", "Kills");
+
+        await Assert.That(edited.Scalar(RulesetDocumentEditor.StatPath("kills").Key("label")))
+            .IsEqualTo("Kills");
+    }
+
+    [Test]
+    public async Task SettingABareDashItem_KeepsTheSpaceAfterTheDash()
+    {
+        const string Yaml = "ruleset: probe\nfor: match\nstats:\n  kills:\n    tags:\n      -\n      - b\n";
+        YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
+        YamlPath item = RulesetDocumentEditor.StatPath("kills").Key("tags").Index(0);
+
+        string after = TextEditor.Apply(Yaml, [YamlEdits.SetScalar(doc, item, "a")]);
+
+        await Assert.That(after).Contains("- a");
+    }
+
+    /// <summary>A lone dash is a legal string, and plain it is a block-entry indicator.</summary>
+    [Test]
+    public async Task SettingAValueOfASingleDash_IsQuoted()
+    {
+        const string Yaml = """
+                            ruleset: probe
+                            for: match
+                            stats:
+                              kills:
+                                count: kill
+                                label: Kills
+                            """;
+
+        RulesetDocumentEditor edited = RulesetDocumentEditor.Open(Yaml).SetStatField("kills", "label", "-");
+
+        await Assert.That(edited.Text).Contains("label: \"-\"");
+        await Assert.That(edited.Scalar(RulesetDocumentEditor.StatPath("kills").Key("label")))
+            .IsEqualTo("-");
+    }
+
+    /// <summary>
     ///     A label is a string in the ruleset schema. Writing <c>true</c> into it plain would make
     ///     it a boolean, and the file would fail the schema its own modeline points at.
     /// </summary>

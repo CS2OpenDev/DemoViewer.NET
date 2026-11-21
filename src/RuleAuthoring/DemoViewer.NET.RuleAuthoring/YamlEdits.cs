@@ -45,9 +45,17 @@ public static class YamlEdits
         }
 
         (int start, int length) = doc.SpanOf(scalar);
-        return new TextEdit(start, length,
-            Quote(value, scalar.Style, InFlow(doc, path), LooksNonString(scalar.Value ?? "")),
-            $"set {path}");
+        string replacement =
+            Quote(value, scalar.Style, InFlow(doc, path), LooksNonString(scalar.Value ?? ""));
+
+        // A key or dash written with no value is an empty scalar that starts right after the ':' or
+        // '-', so the new text would land against it (`label:Kills`, `-value`).
+        if (length == 0 && start > 0 && doc.Text[start - 1] is ':' or '-')
+        {
+            replacement = " " + replacement;
+        }
+
+        return new TextEdit(start, length, replacement, $"set {path}");
     }
 
     /// <summary>
@@ -358,7 +366,7 @@ public static class YamlEdits
 
         if (value[0] is '?' or ':' or ',' or '[' or ']' or '{' or '}' or '#' or '&' or '*'
                 or '!' or '|' or '>' or '\'' or '"' or '%' or '@' or '`'
-            || (value[0] == '-' && value.Length > 1 && value[1] == ' '))
+            || (value[0] == '-' && (value.Length == 1 || value[1] == ' ')))
         {
             return false;
         }
