@@ -729,6 +729,31 @@ public sealed partial class DemoCacheStore
     }
 
     /// <summary>
+    ///     True when a read of the file at <paramref name="path" /> should hash it: no row lists the path with a
+    ///     hash, or the file no longer has the size and write time its listing was recorded at, so the hash
+    ///     there vouches for bytes nobody has seen since. Null stats count as changed.
+    /// </summary>
+    /// <param name="path">A demo path.</param>
+    public bool WantsContentHash(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        if (TryGetIndex(path) is not { Sha256.Length: > 0 } row)
+        {
+            return true;
+        }
+
+        try
+        {
+            (long size, long ticks) = StatStamps(path);
+            return row.Size != size || !SameTicks(row.ModifiedTicks, ticks);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>
     ///     The hash <see cref="NoteContentRead" /> took of the file at <paramref name="path" />, while the file
     ///     still has the size and write time it was read at; else null.
     /// </summary>
@@ -1126,6 +1151,17 @@ public sealed partial class DemoCacheStore
         if (existing is not null && existing.MatchesFile(size, modifiedTicks))
         {
             return existing;
+        }
+
+        // The stamps moved but a full read at these very stamps hashed the same bytes (a restore, a sync tool, a
+        // time zone change): the demo is the same, so its tiers and the user's own data stay under the new stamps.
+        if (existing is { Sha256.Length: > 0 } hashed
+            && RecentContentRead(path, size, modifiedTicks) is { } read
+            && string.Equals(read.Sha256, hashed.Sha256, StringComparison.Ordinal))
+        {
+            hashed.Size = size;
+            hashed.ModifiedTicks = modifiedTicks;
+            return hashed;
         }
 
         return FreshRecord(path, size, modifiedTicks);

@@ -1142,7 +1142,7 @@ public class App : Application
             // A parse of a demo with no confirmed hash hashes the bytes it reads, so the library and the cache
             // never read the file again for it. Resolved at the first read, never while the queue is built.
             DemoFileRead fileRead = new(TimeProvider.System,
-                path => sp.GetRequiredService<DemoCacheStore>().TryGetIndex(path)?.Sha256 is null,
+                path => sp.GetRequiredService<DemoCacheStore>().WantsContentHash(path),
                 read => sp.GetRequiredService<DemoCacheStore>().NoteContentRead(read.Path, read.Sha256,
                     read.Fingerprint,
                     read.Stat.Length, read.Stat.LastWriteUtc.UtcDateTime));
