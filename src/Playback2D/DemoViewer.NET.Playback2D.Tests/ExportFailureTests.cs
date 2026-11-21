@@ -338,6 +338,108 @@ public class ExportFailureTests
         }
     }
 
+    /// <summary>
+    ///     A cancel that lands while ffmpeg is draining, after the session's last look at the token.
+    ///     The cancel stops ffmpeg and the output is removed, so the close must say it was cancelled
+    ///     rather than return as if the file were finished.
+    /// </summary>
+    [Test]
+    public async Task ACancelDuringTheDrain_ThrowsFromTheClose_AndLeavesNoFile()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-draincancel-{Guid.NewGuid():N}.mp4");
+        using CancellationTokenSource source = new();
+        FfmpegFrameSink sink = DrainUntilKilled(path, ExportFormats.Mp4, 8, 8);
+
+        try
+        {
+            await sink.WriteAsync(new byte[8 * 8 * 4], 8, 8, source.Token);
+            Task closing = sink.DisposeAsync().AsTask();
+            await source.CancelAsync();
+
+            Exception? failure = null;
+            try
+            {
+                await closing;
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+
+            await Assert.That(failure is OperationCanceledException).IsTrue();
+            await Assert.That(File.Exists(path)).IsFalse();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>The same cancel through the session: the run is Cancelled, never Completed with no file.</summary>
+    [Test]
+    public async Task ACancelDuringTheDrain_IsReportedCancelled_NotCompletedWithNoFile()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-draincancel-{Guid.NewGuid():N}.webm");
+        using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
+        using CpuSurfaceProvider surfaces = new();
+        using CancellationTokenSource source = new();
+        List<ExportProgress> reports = [];
+        CancelOnCloseFrameSink sink = new(DrainUntilKilled(path, ExportFormats.WebM, 64, 48), source);
+
+        try
+        {
+            Exception? failure = null;
+            try
+            {
+                await new SceneExportSession(compositor).RunAsync(
+                    ExportFixtures.Request(4, ExportFormats.WebM, new SKSizeI(64, 48), fps: 30),
+                    ExportFixtures.Source(4), sink, surfaces, new DirectProgress(reports.Add), source.Token);
+            }
+            catch (OperationCanceledException ex)
+            {
+                failure = ex;
+            }
+
+            await Assert.That(File.Exists(path)).IsFalse();
+            await Assert.That(reports[^1].Phase).IsEqualTo(ExportPhase.Cancelled);
+            await Assert.That(failure).IsNotNull();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>An encoder that writes a stub file and runs until the token that stops ffmpeg fires.</summary>
+    private static FfmpegFrameSink DrainUntilKilled(string path, string format, int width, int height) =>
+        new(new FfmpegSinkOptions(path, format, width, height, 30))
+        {
+            StartEncoder = kill =>
+            {
+                File.WriteAllBytes(path, [0, 0, 0, 24]);
+                TaskCompletionSource<bool> encoder = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                kill.Register(() => encoder.TrySetCanceled(kill));
+                return encoder.Task;
+            }
+        };
+
+    /// <summary>The cancel arrives once the session has started closing the sink: mid-drain.</summary>
+    private sealed class CancelOnCloseFrameSink(FfmpegFrameSink inner, CancellationTokenSource source)
+        : IFrameSink, IAbortableFrameSink
+    {
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct) =>
+            inner.WriteAsync(rgba, width, height, ct);
+
+        public void Abort() => ((IAbortableFrameSink)inner).Abort();
+
+        public async ValueTask DisposeAsync()
+        {
+            Task closing = inner.DisposeAsync().AsTask();
+            await source.CancelAsync();
+            await closing;
+        }
+    }
+
     /// <summary>The same failure through the subprocess sink: ffmpeg is stopped, not allowed to mux.</summary>
     [Test]
     [Category("Integration")]

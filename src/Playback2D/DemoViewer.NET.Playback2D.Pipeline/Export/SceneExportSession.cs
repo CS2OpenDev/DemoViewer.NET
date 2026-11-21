@@ -290,7 +290,8 @@ public sealed class SceneExportSession
         // A cancel that landed after the last frame was written threw nowhere: the loop reads the token
         // at the top of a frame and inside the write, and there is no next frame. The sinks do see it (a
         // GIF is not written, ffmpeg is killed), so without this the run closes with no file and is
-        // reported Completed. It is a cancelled run like any other.
+        // reported Completed. It is a cancelled run like any other. A cancel later still, during the
+        // close itself, is the sink's to report: FfmpegFrameSink throws it from DisposeAsync below.
         if (failure is null && ct.IsCancellationRequested)
         {
             failure = new OperationCanceledException(ct);
