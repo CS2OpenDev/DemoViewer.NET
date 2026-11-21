@@ -137,14 +137,20 @@ public static class ExtensionStartup
                 return false;
             }
 
-            JsonNode? root = JsonNode.Parse(File.ReadAllText(settingsFile));
+            // The settings service's own leniency, so a file it reads reads the same here.
+            JsonNode? root = JsonNode.Parse(File.ReadAllText(settingsFile), documentOptions: new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true
+            });
             return Find(root, "Extensions") is JsonObject section
                 && Find(section, "AllowUnverified") is JsonValue value
                 && value.TryGetValue(out bool allowed)
                 && allowed;
         }
+        // ArgumentException: a key the file holds twice, found when an object is first enumerated. The settings
+        // service refuses that file too and reads defaults. This runs before Main has a crash handler.
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException
-                                       or InvalidOperationException)
+                                       or InvalidOperationException or ArgumentException)
         {
             return false;
         }
