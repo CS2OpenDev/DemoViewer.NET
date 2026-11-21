@@ -11,6 +11,7 @@ using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.Playback2D.Timeline;
+using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Views.Playback2D;
 using TUnit.Assertions.Enums;
 using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
@@ -184,6 +185,23 @@ public class ReviewPanelTests
                 await Assert.That(saved.ToTick).IsEqualTo(19_999).Because("clamped to the round the start falls in");
                 await Assert.That(saved.Source).IsEqualTo(TagSources.Human);
             }
+        });
+    }
+
+    // The tab and its panel outlive a demo change; the session is re-attached under them. An editor opened on the
+    // first demo would otherwise save its span into the second demo's document.
+    [Test]
+    public async Task AnOpenEditor_ClosesWhenTheSessionMovesToAnotherDemo()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (TagSession session, ReviewPanelViewModel panel, _, _) = await Panel();
+            panel.LabelRoundCommand.Execute(null);
+            await Assert.That(panel.HasEditor).IsTrue();
+
+            await session.AttachAsync(new DemoIdentity(new string('b', 64), "other.dem", 1), Clock, "/d/other.dem");
+
+            await Assert.That(panel.HasEditor).IsFalse();
         });
     }
 
