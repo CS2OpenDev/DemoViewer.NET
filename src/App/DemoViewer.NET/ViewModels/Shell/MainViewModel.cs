@@ -388,8 +388,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     ///     Loaded-but-not-yet-applied session snapshot. We can't restore frame selection until a demo
-    ///     is loaded, so the payload is stashed in the ctor and consumed once <see cref="HasFile" />
-    ///     flips true after the next file load. Cleared after a one-shot restore.
+    ///     is loaded, so the payload is stashed by RestoreSession and consumed at the end of the next
+    ///     load that leaves a demo open. Cleared after a one-shot restore.
     /// </summary>
     private SessionPayload? _pendingRestore;
 
@@ -3126,6 +3126,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 IsLoading = false;
             }
         }
+
+        if (!superseded)
+        {
+            ApplyPendingSessionRestore();
+        }
     }
 
     // ── Unknown net-message census (reverse-engineering support) ───────────────
@@ -3561,11 +3566,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         NotifyDebuggerCommandsCanExecute();
         NotifyNavCommandsCanExecute();
+    }
 
-        // One-shot session restore once a demo is loaded. Re-select the persisted frame
-        // (which rebuilds the parser payload tree) then push the within-frame Parser + Entity
-        // selection. Best-effort: out-of-range / missing targets are silently skipped.
-        if (value && _pendingRestore is { } restore)
+    // One-shot session restore once a demo is loaded. Re-select the persisted frame (which rebuilds the parser
+    // payload tree) then push the within-frame Parser + Entity selection. Best-effort: out-of-range / missing
+    // targets are silently skipped. Called at the END of a load that kept the shell, not when HasFile flips: at
+    // that point the frame list and the playback controller are not handed over yet, so the frame resolved to
+    // none, and the analysis run's landing seek that follows would move the selection anyway.
+    private void ApplyPendingSessionRestore()
+    {
+        if (HasFile && _pendingRestore is { } restore)
         {
             _pendingRestore = null;
 
@@ -4724,6 +4734,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             ReplayTab.BuildTickGroups();
         }
+
+        ApplyPendingSessionRestore();
     }
 
     /// <summary>
