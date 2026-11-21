@@ -195,7 +195,18 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
         NeedsRestore = false;
     }
 
-    private void OnLiveSyncStateChanged(object? sender, LiveSyncStateChangedEventArgs e) => Reevaluate();
+    private void OnLiveSyncStateChanged(object? sender, LiveSyncStateChangedEventArgs e)
+    {
+        // A session that ends in Disconnected went through StopAsync (Disable, Reconnect, dispose), which is
+        // what restores the install, often from Faulted: CSVG keeps its backups across a CS2 quit, and the
+        // probe Faulted let run saw them. Look again, or a banner from that probe outlives the restore.
+        if (e.Current.Kind == LiveSyncStateKind.Disconnected && e.Previous.Kind != LiveSyncStateKind.Disconnected)
+        {
+            _wasBusy = true;
+        }
+
+        Reevaluate();
+    }
 
     /// <summary>The one-click restore, with the outcome in the banner either way.</summary>
     [RelayCommand(CanExecute = nameof(CanRestore))]

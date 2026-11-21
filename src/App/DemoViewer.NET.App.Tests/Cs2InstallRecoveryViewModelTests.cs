@@ -331,6 +331,31 @@ public class Cs2InstallRecoveryAcrossProfilesTests
         });
     }
 
+    // CS2 quit in game: CSVG goes Faulted still holding its backups (its StopAsync is the reset path that restores
+    // them), so the probe on Faulted sees the session's own changes. Disable then restores them and ends in
+    // Disconnected; the banner has to look again there rather than keep saying the install is modified.
+    [Test]
+    public async Task ABannerRaisedOnFaulted_IsClearedWhenTheSessionStopsAndRestoresTheInstall()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            MainViewModel vm = new(library: TestLibraries.Empty());
+            Cs2InstallRecoveryViewModelTests.FakeLiveSync liveSync = new(new Cs2InstallProbe(false, false, false));
+            vm.AttachLiveSync(liveSync);
+
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.HostStarting));
+            liveSync.Probe = new Cs2InstallProbe(true, true, false);
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.Faulted, "CS2 quit"));
+            await Assert.That(vm.Cs2InstallRecovery!.NeedsRestore).IsTrue();
+
+            liveSync.Probe = new Cs2InstallProbe(false, false, false);
+            liveSync.Raise(LiveSyncState.Disconnected);
+
+            await Assert.That(vm.Cs2InstallRecovery.IsVisible).IsFalse()
+                .Because("the session's StopAsync restored the install");
+        });
+    }
+
     [Test]
     [Arguments(UserCategory.Consumer, false)]
     [Arguments(UserCategory.PowerUser, false)]
