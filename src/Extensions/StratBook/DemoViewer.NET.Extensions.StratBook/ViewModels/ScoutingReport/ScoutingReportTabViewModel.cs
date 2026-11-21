@@ -583,7 +583,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         _vetoes.Add(new VetoEntry
         {
             OpponentTeamId = team.Id,
-            Order = Vetoes.Count + 1,
+            // Past the highest step, as the store's merge numbers: a removal leaves a gap, not a free number.
+            Order = _vetoes.For(team.Id).Select(v => v.Order).DefaultIfEmpty(0).Max() + 1,
             Map = NewVetoMap.Trim(),
             Action = NewVetoAction,
             ByOpponent = NewVetoByOpponent
