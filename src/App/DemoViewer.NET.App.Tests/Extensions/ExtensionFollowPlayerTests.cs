@@ -32,7 +32,7 @@ public class ExtensionFollowPlayerTests
             {
                 using HeavyJobGate gate = new();
                 using DemoProcessingQueue queue = new(gate, run => run(),
-                    parseBytes: _ => throw new InvalidDataException("not a demo"),
+                    parseBytes: _ => SyntheticParsedDemo.Create(),
                     compactHeap: () => Task.CompletedTask);
                 ModuleRegistry registry = new();
                 registry.Register(new Playback2DModule());
@@ -44,7 +44,8 @@ public class ExtensionFollowPlayerTests
                     bool beforeLoad = shell.FollowPlayer(42);
                     string? tabBeforeLoad = vm.SelectedTab?.TabId;
 
-                    // The parse fails, which leaves the path on the shell and no roster: the follow is queued.
+                    // An empty demo leaves the path on the shell and no roster: the follow is queued. (A failed
+                    // parse no longer does: the path names only a demo that is open.)
                     await vm.LoadDemoFromPathAsync(demo);
                     bool afterLoad = shell.FollowPlayer(42);
 
