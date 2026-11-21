@@ -218,24 +218,18 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
             return;
         }
 
-        StratDocument? doc;
-        if (Preview is { IsReady: true, Document: { } built } preview)
+        PromoteResult result = Preview is { IsReady: true, Document: { } built } preview
+            ? _mining.Promote(preview.Pattern, built, book)
+            : await _mining.PromoteAsync(row.Key, book);
+        if (result.PatternChanged)
         {
-            PromoteResult result = _mining.Promote(preview.Pattern, built, book);
-            if (result.PatternChanged)
-            {
-                const string Changed = "This pattern changed; review again.";
-                StatusLine = Changed;
-                await Rebuild(Changed);
-                return;
-            }
+            const string Changed = "This pattern changed; review again.";
+            StatusLine = Changed;
+            await Rebuild(Changed);
+            return;
+        }
 
-            doc = result.Document;
-        }
-        else
-        {
-            doc = await _mining.PromoteAsync(row.Key, book);
-        }
+        StratDocument? doc = result.Document;
 
         StatusLine = doc is not null ? $"Added \"{doc.Name}\" to the book."
             : _mining.StateProblem is { } problem ? $"Not added: {problem}"

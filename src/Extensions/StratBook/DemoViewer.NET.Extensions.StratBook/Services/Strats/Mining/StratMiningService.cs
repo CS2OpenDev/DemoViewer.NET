@@ -657,20 +657,29 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
     /// <summary>
     ///     <see cref="Promote(string, StratOwner, DateTime?)" /> with the build read on the processing queue, for a
-    ///     caller on the UI thread. The save runs back on the caller's context.
+    ///     caller on the UI thread. The save runs back on the caller's context. A mine can publish while the build
+    ///     is read, so the pattern is checked again after it, as a preview is: refused with
+    ///     <see cref="PromoteResult.PatternChanged" /> when the key is gone or no longer has the medoid and rounds
+    ///     the build was of.
     /// </summary>
     /// <param name="key"><see cref="MinedPattern.Key" />.</param>
     /// <param name="owner">The book.</param>
-    public async Task<StratDocument?> PromoteAsync(string key, StratOwner owner)
+    public async Task<PromoteResult> PromoteAsync(string key, StratOwner owner)
     {
         ArgumentNullException.ThrowIfNull(owner);
         if (Patterns.FirstOrDefault(p => p.Pattern.Key == key)?.Pattern is not { } pattern
             || await PreviewAsync(pattern, owner, DateTime.UtcNow) is not { } doc)
         {
-            return null;
+            return new PromoteResult(null, false);
         }
 
-        return Commit(pattern, doc);
+        if (Patterns.FirstOrDefault(p => p.Pattern.Key == key)?.Pattern is not { } current
+            || !SameRounds(pattern, current))
+        {
+            return new PromoteResult(null, true);
+        }
+
+        return new PromoteResult(Commit(current, doc), false);
     }
 
     /// <summary>

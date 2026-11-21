@@ -291,6 +291,50 @@ public class DetectedStratsTests
     }
 
     [Test]
+    public async Task AddingWithoutAPreview_WhenAMineChangesThePatternMeanwhile_RefusesAndRebuilds()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool hold = false;
+            using Library library = Library.Create();
+            using StratMiningService mining = library.Service(a =>
+            {
+                if (hold)
+                {
+                    return release.Task.ContinueWith(_ => a(), TaskScheduler.Default);
+                }
+
+                a();
+                return Task.CompletedTask;
+            });
+            using StratBookTabViewModel vm = Tab(library, mining);
+            DetectedRowViewModel row = SelectAExecute(vm);
+            await Assert.That(vm.Detected.Preview).IsNull();
+
+            // Add to book reads the pattern, then waits on the build; a re-mine publishes in that wait.
+            hold = true;
+            Task adding = vm.Detected.AddToBookCommand.ExecuteAsync(null);
+            hold = false;
+            library.Cache.Upsert(StratMiningServiceTests.Record(5, BombSite.A));
+            library.Positions.WritePositions("/d/m5.dem", StratMiningServiceTests.PositionsOf(5, BombSite.A, 200));
+            await mining.MineAsync();
+            MinedPattern now = mining.Patterns.Single(p => p.Pattern.Key == row.Key).Pattern;
+            release.SetResult();
+            await adding;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(library.Strats.Index).IsEmpty()
+                    .Because("the build was of the pattern as it was before the mine, with its old rounds");
+                await Assert.That(vm.Detected.StatusLine).IsEqualTo("This pattern changed; review again.");
+                await Assert.That(vm.Detected.Preview?.Pattern.Support).IsEqualTo(now.Support);
+                await Assert.That(vm.IsDetectedView).IsTrue();
+            }
+        });
+    }
+
+    [Test]
     public async Task ThePreview_Loads_ThenSaysTheFilesAreGone()
     {
         await HeadlessSession.RunOnUi(async () =>
