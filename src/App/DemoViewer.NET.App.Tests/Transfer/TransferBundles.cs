@@ -136,6 +136,19 @@ internal sealed class BundleBuilder(string root)
             elements = elementIds.Select(id => new { id, kind = "stroke" }).ToArray()
         }));
 
+    /// <summary>An annotation sidecar recording the clock of a parse with this many frames.</summary>
+    public static byte[] AnnotationDocumentWithClock(string sha, int frameCount, params string[] elementIds) =>
+        Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+        {
+            schemaVersion = 1,
+            demo = new { sha256 = sha, fileName = "match.dem", sizeBytes = 1 },
+            clock = new { kind = "dv-frame-clock", tickRate = 64, frameCount, firstTick = 0, lastTick = frameCount },
+            elements = elementIds.Select(id => new { id, kind = "stroke" }).ToArray()
+        }));
+
+    public TransferFile AnnotationsWithClock(string sha, int frameCount, params string[] elementIds) =>
+        File(TransferLayout.AnnotationsFile(sha), AnnotationDocumentWithClock(sha, frameCount, elementIds));
+
     /// <summary>The element ids of an annotation sidecar, in order.</summary>
     public static List<string> ElementIds(string file)
     {

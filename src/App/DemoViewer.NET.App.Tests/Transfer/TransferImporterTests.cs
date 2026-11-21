@@ -224,6 +224,27 @@ public class TransferImporterTests
     }
 
     [Test]
+    [Arguments(500, new[] { "mine", "theirs" })]
+    [Arguments(900, new[] { "mine" })]
+    public async Task KeepBoth_MergesAnnotationsOnlyFromTheSameParseClock(int theirFrames, string[] annotations)
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string config = temp.New();
+        OneDemo(root, (b, files) => files.Add(b.AnnotationsWithClock(Sha, theirFrames, "theirs"))).Write();
+        string mineFile = AnnotationStore.AppDataFile(config, Sha);
+        Directory.CreateDirectory(Path.GetDirectoryName(mineFile)!);
+        File.WriteAllBytes(mineFile, BundleBuilder.AnnotationDocumentWithClock(Sha, 500, "mine"));
+        TransferImporter importer = new(new DemoCacheStore(null), config);
+
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        await importer.RunAsync(ImportRequest.DataOnly(root, ConflictPolicy.KeepBoth), preview, null,
+            CancellationToken.None);
+
+        await Assert.That(BundleBuilder.ElementIds(mineFile)).IsEquivalentTo(annotations, CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task Annotations_WithNoLocalCopy_GoToAppData_NotBesideTheDemo()
     {
         using TempFolders temp = new();

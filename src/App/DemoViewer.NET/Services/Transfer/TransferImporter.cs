@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Library;
+using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
@@ -551,9 +552,19 @@ internal sealed partial class TransferImporter : ITransferImporter
             return false;
         }
 
-        byte[] next = policy == ConflictPolicy.TakeImported
-            ? bytes
-            : AnnotationStore.MergeDocuments(File.ReadAllBytes(mine.Path), bytes);
+        byte[] local = policy == ConflictPolicy.TakeImported ? [] : File.ReadAllBytes(mine.Path);
+        // Merging keeps this machine's clock, so strokes anchored to another parse's ticks would load as if they
+        // were this one's and the load-time clock check could never flag them.
+        if (policy == ConflictPolicy.KeepBoth
+            && AnnotationStore.TryReadClock(local, out ClockIdentity? mineClock)
+            && AnnotationStore.TryReadClock(bytes, out ClockIdentity? theirClock)
+            && mineClock is not null && !mineClock.Matches(theirClock))
+        {
+            notes.Add("your annotations were kept; the imported ones were drawn against a different parse of the demo");
+            return false;
+        }
+
+        byte[] next = policy == ConflictPolicy.TakeImported ? bytes : AnnotationStore.MergeDocuments(local, bytes);
         Write(mine.Path, next);
         return true;
     }

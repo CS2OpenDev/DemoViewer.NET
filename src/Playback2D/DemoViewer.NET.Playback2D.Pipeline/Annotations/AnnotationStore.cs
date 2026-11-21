@@ -441,6 +441,31 @@ public sealed class AnnotationStore
     }
 
     /// <summary>
+    ///     Reads the clock a sidecar was authored against. False when the bytes are not a sidecar; true with a
+    ///     null clock for one that records none.
+    /// </summary>
+    /// <param name="json">The sidecar's bytes.</param>
+    /// <param name="clock">The clock it records, or null.</param>
+    public static bool TryReadClock(ReadOnlySpan<byte> json, out ClockIdentity? clock)
+    {
+        clock = null;
+        try
+        {
+            if (JsonSerializer.Deserialize(json, AnnotationJsonContext.Default.AnnotationDocumentDto) is not { } dto)
+            {
+                return false;
+            }
+
+            clock = ToClock(dto.Clock);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     ///     One sidecar holding both documents' elements: <paramref name="mine" /> as it is, then each element of
     ///     <paramref name="theirs" /> whose id it lacks. The header and clock stay mine.
     /// </summary>
