@@ -579,6 +579,25 @@ public class TransferImporterTests
     }
 
     [Test]
+    public async Task KeepBoth_ImportingTheSameDifferingClipTwice_AddsItOnce()
+    {
+        ReviewQueue review = new(null);
+        review.ImportClips([ReviewEntry.Clip("", 10, 20, "a", ReviewSources.Manual, 64, Sha)], ConflictPolicy.TakeImported);
+        ReviewEntry[] theirs = [ReviewEntry.Clip("", 10, 20, "b", ReviewSources.Manual, 64, Sha)];
+
+        ReviewImportResult first = review.ImportClips(theirs, ConflictPolicy.KeepBoth);
+        ReviewImportResult second = review.ImportClips(theirs, ConflictPolicy.KeepBoth);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(first.Added).IsEqualTo(1);
+            await Assert.That(second.Added).IsEqualTo(0);
+            await Assert.That(second.Kept).IsEqualTo(1);
+            await Assert.That(review.Clips.Count).IsEqualTo(2);
+        }
+    }
+
+    [Test]
     public async Task AReviewFile_ResolvesItsClipsWithNoPath_AsItLoads()
     {
         using TempFolders temp = new();
