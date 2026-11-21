@@ -95,6 +95,9 @@
                                         HorizontalAlignment="Center" />
                             <TextBlock Text="{Binding ClipLine}" IsVisible="{Binding HasClipLine}" FontSize="11"
                                        TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
+                            <Button Content="Render clip" Classes="ghost" HorizontalAlignment="Left"
+                                    Command="{Binding RenderClipCommand}" IsVisible="{Binding CanRenderClip}"
+                                    ToolTip.Tip="Queue this position's clip now, ahead of the others" />
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>

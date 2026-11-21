@@ -28,7 +28,7 @@ public sealed class StratBookSettings
     private const string RenderLineupClipsKey = "grenades.renderLineupClips";
 
     /// <summary>Grenades: the most the lineup clips may take on disk, in MB.</summary>
-    private const string LineupClipsMaxMegabytesKey = "grenades.lineupClipsMaxMegabytes";
+    internal const string LineupClipsMaxMegabytesKey = "grenades.lineupClipsMaxMegabytes";
 
     /// <summary>The tag palette 2D Playback tags with.</summary>
     private const string TagPaletteIdKey = "tagPalette.id";

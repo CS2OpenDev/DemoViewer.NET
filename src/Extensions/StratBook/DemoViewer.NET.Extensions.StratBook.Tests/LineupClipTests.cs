@@ -5,6 +5,7 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoProcessing;
@@ -714,6 +715,89 @@ public class LineupClipTests
                 await Assert.That(later.Calls.Single().Jobs.Single().LineupId).IsEqualTo(jobs[0].LineupId);
                 await Assert.That(HasPair(clips, jobs[0].Stem)).IsTrue();
                 await Assert.That(next.Evicted).IsEmpty();
+            }
+        }
+        finally
+        {
+            System.IO.Directory.Delete(clips, true);
+        }
+    }
+
+    [Test]
+    public async Task AnEvictedPositionsCard_SaysSo_AndRenderClipBringsItBack()
+    {
+        GrenadeCluster cluster = TwoLineups();
+        string clips = TempClips();
+        try
+        {
+            IReadOnlyList<LineupClipJob> jobs = LineupClipPlanner.PlanEvery([cluster], clips);
+            await File.WriteAllTextAsync(Path.Combine(clips, LineupClipService.EvictedFileName), jobs[0].Stem);
+            FileRenderer renderer = new();
+            using LineupClipService service = new(() => [cluster], PackStores.At(clips), () => true, renderer);
+            await Assert.That(service.Plan()).IsEqualTo(1).Because("the other lineup is not evicted");
+            await service.WorkerTask;
+
+            GrenadeLineup evicted = cluster.Lineups.Single(l => l.Id == jobs[0].LineupId);
+            LineupDetail card = new(new LandingGroup(cluster, cluster.Lineups), evicted, _ => null,
+                _ => Task.CompletedTask, _ => Task.CompletedTask, clipDirectory: clips, clips: service);
+            using (Assert.Multiple())
+            {
+                await Assert.That(card.HasClip).IsFalse();
+                await Assert.That(card.ClipLine).IsEqualTo(LineupDetail.EvictedClipLine);
+                await Assert.That(card.CanRenderClip).IsTrue();
+            }
+
+            await card.RenderClipCommand.ExecuteAsync(null);
+            await service.WorkerTask;
+            using (Assert.Multiple())
+            {
+                await Assert.That(HasPair(clips, jobs[0].Stem)).IsTrue();
+                await Assert.That(service.Evicted).IsEmpty();
+                await Assert.That(card.CanRenderClip).IsFalse();
+                await Assert.That(card.ClipLine).IsNotEqualTo(LineupDetail.EvictedClipLine);
+            }
+        }
+        finally
+        {
+            System.IO.Directory.Delete(clips, true);
+        }
+    }
+
+    [Test]
+    public async Task RaisingTheCap_ClearsTheEvictions_AndTheirClipsArePlannedAgain()
+    {
+        GrenadeCluster cluster = TwoLineups();
+        string clips = TempClips();
+        try
+        {
+            IReadOnlyList<LineupClipJob> jobs = LineupClipPlanner.PlanEvery([cluster], clips);
+            foreach (LineupClipJob job in jobs)
+            {
+                WritePair(clips, job.Stem, 100, DateTime.UtcNow);
+            }
+
+            File.Delete(jobs[0].GifPath);
+            File.Delete(jobs[0].SetposPath);
+            await File.WriteAllTextAsync(Path.Combine(clips, LineupClipService.EvictedFileName), jobs[0].Stem);
+            long cap = 1024 * 1024;
+            using LineupClipService service = new(() => [cluster], PackStores.At(clips), () => true,
+                new FileRenderer(), maxBytes: () => cap);
+            await Assert.That(service.Plan()).IsEqualTo(0);
+
+            // The same cap again, or a lower one, keeps the eviction.
+            cap /= 2;
+            await Assert.That(service.Plan()).IsEqualTo(0);
+            await Assert.That(service.Evicted).IsEquivalentTo([jobs[0].Stem], CollectionOrdering.Matching);
+
+            cap *= 8;
+            await Assert.That(service.Plan()).IsEqualTo(1);
+            await service.WorkerTask;
+            using (Assert.Multiple())
+            {
+                await Assert.That(service.Evicted).IsEmpty();
+                await Assert.That(HasPair(clips, jobs[0].Stem)).IsTrue();
+                await Assert.That(File.ReadAllText(Path.Combine(clips, LineupClipService.EvictedFileName)).Trim())
+                    .IsEmpty();
             }
         }
         finally

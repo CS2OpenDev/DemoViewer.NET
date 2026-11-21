@@ -46,8 +46,8 @@ public interface ILineupClipRenderer
 ///         planned most-thrown first; once the byte cap is full a lineup is planned only if it outranks the
 ///         lowest-ranked pair on disk, so a full directory stops rendering instead of trading one kept clip for
 ///         another. After each render the directory is held under the cap by deleting the lowest-ranked pairs;
-///         an evicted pair is listed in <see cref="EvictedFileName" /> and rendered again only through
-///         <see cref="Request" />.
+///         an evicted pair is listed in <see cref="EvictedFileName" /> and rendered again through
+///         <see cref="Request" /> (a position card's Render clip), or once the cap is raised, which clears the list.
 ///     </para>
 ///     <para>
 ///         <b>Threading.</b> <see cref="PlanSoon" /> is what an index change calls: it coalesces a burst of
@@ -114,6 +114,9 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     private bool _disposed;
     private bool _released;
     private HashSet<string>? _evicted;
+
+    // The cap the last plan ran under, this session; null before the first.
+    private long? _planCap;
     private TaskCompletionSource? _idle;
     private bool _running;
 
@@ -182,6 +185,25 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
     /// <summary>The last orphan sweep, so a test can await it.</summary>
     internal Task SweepTask { get; private set; } = Task.CompletedTask;
+
+    /// <summary>Whether a planned clip's pair was evicted to keep the folder under its cap. Any thread.</summary>
+    /// <param name="job">The clip, as the planner names it.</param>
+    internal bool IsEvicted(LineupClipJob job)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+        lock (_gate)
+        {
+            if (_folder is null)
+            {
+                return false;
+            }
+
+            HashSet<string> evicted = LoadEvicted();
+            return evicted.Contains(job.Stem)
+                   || (evicted.Count > 0
+                       && job.FormerGifPaths.Any(f => evicted.Contains(Path.GetFileNameWithoutExtension(f))));
+        }
+    }
 
     /// <summary>The evicted pair stems, for a test.</summary>
     internal IReadOnlyCollection<string> Evicted
@@ -365,6 +387,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
             return 0;
         }
 
+        ForgetEvictionsIfTheCapRose();
         IReadOnlyList<LineupClipJob> every = LineupClipPlanner.PlanEvery(_clusters(), _directory);
         List<LineupClipJob> jobs = ChooseLocked(every, _directory);
         if (_complete())
@@ -394,6 +417,30 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
         StartWorker();
         return jobs.Count;
+    }
+
+    // A pair was evicted to fit the cap it was rendered under; a higher cap, or none, is room to have it back, so the
+    // list is cleared and the cap decides again. Only a rise seen this session counts. Under _planLock.
+    private void ForgetEvictionsIfTheCapRose()
+    {
+        long cap = _maxBytes();
+        int forgotten = 0;
+        lock (_gate)
+        {
+            bool rose = _planCap is { } last && last > 0 && (cap <= 0 || cap > last);
+            _planCap = cap;
+            if (rose && LoadEvicted().Count > 0)
+            {
+                forgotten = _evicted!.Count;
+                _evicted.Clear();
+                SaveEvicted();
+            }
+        }
+
+        if (forgotten > 0)
+        {
+            _log?.Invoke($"lineup clips: the folder limit rose; {forgotten} evicted pairs may render again");
+        }
     }
 
     // The jobs to render out of every planned one: no finished pair, not evicted or adopted, not planned already

@@ -707,6 +707,14 @@ public sealed class StratBookPack : IExtension
                 jobs: Host(sp).Jobs,
                 storedLineups: index.StoredLineupIds);
             index.Changed += () => clips.PlanSoon();
+            // A raised folder limit clears the evictions on the next plan, so plan now, not at the next index change.
+            settings.Changed += key =>
+            {
+                if (key == StratBookSettings.LineupClipsMaxMegabytesKey)
+                {
+                    _ = clips.PlanSoon();
+                }
+            };
             sp.GetRequiredService<StratBookPackInstances>().Record(clips);
             return clips;
         });
@@ -1078,7 +1086,8 @@ public sealed class StratBookPack : IExtension
                 new JobOptions(Key: lockedMap is null ? "section:utility" : "section:lineup-picker",
                     Preemptible: true)),
             post: Host(sp).Post,
-            lockedMap: lockedMap);
+            lockedMap: lockedMap,
+            clips: sp.GetRequiredService<LineupClipService>());
     }
 
     // Undoes an event subscription when disposed.
