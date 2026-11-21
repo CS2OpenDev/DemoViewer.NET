@@ -161,6 +161,11 @@ public class RuleWorkbenchModuleTests
             await Assert.That(File.Exists(Path.Combine(userDir, "my-fork.rules.yaml"))).IsTrue();
             await Assert.That(vm.SelectedFile!.IsShipped).IsFalse();
             await Assert.That(vm.IsReadOnlyFile).IsFalse().Because("the forked copy is an editable user file");
+            await Assert.That(vm.Summary).Contains("after a restart")
+                .Because("the reselect's check must not replace the restart notice");
+
+            vm.DocumentText += "\n# edited again\n";
+            await Assert.That(vm.Summary).DoesNotContain("after a restart");
         });
     }
 

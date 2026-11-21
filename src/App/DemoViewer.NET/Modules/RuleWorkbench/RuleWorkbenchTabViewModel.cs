@@ -151,6 +151,12 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
 
     private bool _suppressWatcherReload;
 
+    // Set by a successful save and kept in front of every check summary until the next edit or pick, so the
+    // reload the save's own rename triggers (and Save As's reselect) cannot overwrite the restart notice.
+    private bool _savedNotice;
+
+    private const string SavedNotice = "Saved. Library-wide highlights and stats use the new rules after a restart.";
+
     /// <summary>The last evaluation's trace, source of the <see cref="TraceFires" /> lookups.</summary>
     private WorkbenchTraceReport _traceReport = WorkbenchTraceReport.Empty;
 
@@ -878,6 +884,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             return;
         }
 
+        _savedNotice = false;
         StashDirtyBuffer();
         SaveAsName = SuggestSaveAsName(value);
         LoadSelected();
@@ -892,6 +899,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         }
 
         IsDirty = true;
+        _savedNotice = false;
         OnPropertyChanged(nameof(CanSave));
         OnPropertyChanged(nameof(CanSaveAs));
         MarkUnsavedFiles();
@@ -1002,6 +1010,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
 
         RefreshFiles();
         SelectedFile = FindOpenable(path);
+        _savedNotice = true; // the reselect cleared it; the new file was just saved
+        Check();
     }
 
     /// <summary>
@@ -1023,6 +1033,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             // an in-place write leaves it truncated.
             AtomicFile.WriteAllText(path, stamped);
             IsDirty = false;
+            _savedNotice = true;
             _stashedBuffers.Remove(path);
         }
         catch (Exception ex)
@@ -1045,10 +1056,6 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         }
         else
         {
-            // The background passes (highlight scan, staleness, round facts) read the rulesets once per
-            // session, so a saved edit reaches them only after a restart. Say so rather than let it look live.
-            Summary = "Saved. Library-wide highlights and stats use the new rules after a restart."
-                + (IsClean ? "" : $" {Summary}");
             OnPropertyChanged(nameof(CanSave));
             OnPropertyChanged(nameof(CanSaveAs));
             MarkUnsavedFiles();
@@ -1214,6 +1221,13 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             AppLog.OperationFailed(DiagLog, "check the rulesets", ex);
             IsClean = false;
             Summary = UserFacingError.Describe("check the rulesets", ex);
+        }
+
+        if (_savedNotice)
+        {
+            // The background passes (highlight scan, staleness, round facts) read the rulesets once per
+            // session, so a saved edit reaches them only after a restart. Say so rather than let it look live.
+            Summary = IsClean ? SavedNotice : $"{SavedNotice} {Summary}";
         }
     }
 
