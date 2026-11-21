@@ -243,6 +243,7 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         // Place warnings from the canvas's loaded zones: none until they land, then a fresh validation.
         Session.PlaceLookup = map => Canvas.LoadedPlaces(map);
         Canvas.PlacesLoaded += OnPlacesLoaded;
+        Canvas.Reprojected += CloseStaleExport;
 
         Detected = new DetectedStratsViewModel(mining, playback ?? (() => null),
             id => _teams?.AllTeams.FirstOrDefault(t => t.Id == id)?.Name, () => SelectedOwner?.Owner,
@@ -480,6 +481,7 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         }
 
         Canvas.PlacesLoaded -= OnPlacesLoaded;
+        Canvas.Reprojected -= CloseStaleExport;
         Session.Dispose();
         RecordPanel.Dispose();
         HistoryPanel.Dispose();

@@ -126,6 +126,40 @@ public class StratExportTests
     }
 
     /// <summary>
+    ///     The canvas reprojects without a session change too: picking another branch path changes the range
+    ///     Start would capture, while the pane still holds the main path's. The branch here leaves for another
+    ///     strat whose last step comes earlier, so the two paths end at different ticks.
+    /// </summary>
+    [Test]
+    public async Task ThePane_ClosesWhenTheCanvasSwitchesToAnotherBranchPath()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            StratDocument other = FiveSteps();
+            other.Name = "B exec";
+            other.Steps.RemoveAt(other.Steps.Count - 1);
+            (StratBookTabViewModel vm, _, ExtensionSceneExport export) = OpenFiveSteps(other);
+            using (export)
+            using (vm)
+            {
+                vm.Session.Apply(
+                [
+                    PatchOp.ReplaceOp("/branches/0/target/stratId", null,
+                        System.Text.Json.Nodes.JsonValue.Create(other.Id.ToString("D"))),
+                    PatchOp.ReplaceOp("/branches/0/target/stepId", null,
+                        System.Text.Json.Nodes.JsonValue.Create(other.Steps[^1].Id.ToString("D")))
+                ]);
+                IReadOnlyList<SceneExportRange> main = StratExportJob.Ranges(vm.Canvas.Projection!);
+                vm.OpenExportCommand.Execute(null);
+                await Assert.That(vm.ExportDialog).IsNotNull();
+                vm.Canvas.SelectedPath = vm.Canvas.PathOptions.Single(o => o.BranchId == BranchId);
+                await Assert.That(StratExportJob.Ranges(vm.Canvas.Projection!).SequenceEqual(main)).IsFalse();
+                await Assert.That(vm.ExportDialog).IsNull().Because("the pane's range is the main path's");
+            }
+        });
+    }
+
+    /// <summary>
     ///     A GIF of a five-step strat, through the tab's dialog defaults and the job the tab builds,
     ///     on the managed GIF floor so the bytes do not depend on which ffmpeg this machine has. Its frame count is
     ///     pinned, and the frame at step 3 is held to a committed golden (<c>STRAT_GOLDEN_UPDATE=1</c> rewrites it).

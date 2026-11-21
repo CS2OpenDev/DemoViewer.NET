@@ -1570,10 +1570,22 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
     }
 
+    /// <summary>
+    ///     Raised after every reprojection, including the ones no session change causes (another branch path,
+    ///     lineup origins or places moving, the routing gate), so a holder of the projection's ranges can check them.
+    /// </summary>
+    internal event Action? Reprojected;
+
+    private void Reproject()
+    {
+        ReprojectCore();
+        Reprojected?.Invoke();
+    }
+
     // Rebuilds everything the canvas shows from the session's document: path, schedule, tracks, ink, the
     // frame source, the transport's range and the timeline. Cheap next to a render: ten tracks and a few
     // dozen strokes.
-    private void Reproject()
+    private void ReprojectCore()
     {
         if (_disposed)
         {
