@@ -494,8 +494,9 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
     }
 
     // Every loadable demo the index does not hold, or just the one named: Load's read for a demo that arrived
-    // after it, with no Indexed raised (a Watched Situation counts new writes, not a fill). Reads the sidecar, so
-    // never on the UI thread.
+    // after it, with no Indexed raised (Indexed is for new writes, not a fill). The Changed it raises still lets a
+    // watch count a filled demo stamped after its watermark as a new hit, as a restart's Load does. Reads the
+    // sidecar, so never on the UI thread.
     private void MergeAbsent(string? path)
     {
         IEnumerable<LibraryDemo> entries = path is null ? _library.Demos
