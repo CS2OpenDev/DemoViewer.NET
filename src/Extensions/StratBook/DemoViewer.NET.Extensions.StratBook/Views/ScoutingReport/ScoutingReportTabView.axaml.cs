@@ -79,8 +79,16 @@ public partial class ScoutingReportTabView : UserControl
     {
         // By key: a rebuild of the findings hands the open edit to a new row object under the same key.
         if (box is { DataContext: ScoutingReportFindingViewModel { IsEditing: true } row }
-            && string.Equals(row.Key, _editing?.Key, StringComparison.Ordinal) && !box.IsFocused)
+            && string.Equals(row.Key, _editing?.Key, StringComparison.Ordinal))
         {
+            // The claim follows the live row. The old one is never committed or cancelled, so it reads as
+            // editing for good, and a claim left on it would outlive the focus leaving this box.
+            _editing = row;
+            if (box.IsFocused)
+            {
+                return;
+            }
+
             Dispatcher.UIThread.Post(() =>
             {
                 if (ReferenceEquals(box.DataContext, row) && row.IsEditing)
