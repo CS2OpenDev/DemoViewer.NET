@@ -83,6 +83,27 @@ public class AssetsRootResolverTests
 
         await Assert.That(run.ExitCode).IsEqualTo(2);
     }
+
+    [Test]
+    public async Task Bench_MissingRoot_IsExitTwo()
+    {
+        CliRun run = Dv2d.InProcess("bench", "--corpus", Dv2d.CorpusDirectory, "--name", "duel-mirage-b",
+            "--frames", "4", "--warmup", "0", "--assets",
+            Path.Combine(Path.GetTempPath(), "dv2d-no-such-root"), "--json");
+
+        await Assert.That(run.ExitCode).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Export_MissingRoot_IsExitTwo_NotARadarlessVideo()
+    {
+        string outPath = Path.Combine(Path.GetTempPath(), "dv2d-missing-root-" + Guid.NewGuid().ToString("N") + ".gif");
+        CliRun run = Dv2d.InProcess("export", "--demo", Dv2d.RequireDemo(), "--from", "0", "--to", "2",
+            "--format", "gif", "--fps", "20", "--out", outPath, "--no-encode", "--assets",
+            Path.Combine(Path.GetTempPath(), "dv2d-no-such-root"), "--json");
+
+        await Assert.That(run.ExitCode).IsEqualTo(2);
+    }
 }
 
 /// <summary>A temporary directory that removes itself.</summary>

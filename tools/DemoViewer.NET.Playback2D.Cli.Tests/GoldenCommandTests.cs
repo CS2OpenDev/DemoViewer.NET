@@ -236,6 +236,51 @@ public class GoldenCommandTests
         await Assert.That(sawStale).IsTrue();
     }
 
+    /// <summary>
+    ///     A missing explicit asset root is the same exit-2 environment answer on every command that
+    ///     renders map art, never a radar-less render. Under <c>update</c> the corpus must stay as it was.
+    /// </summary>
+    [Test]
+    [Arguments("verify")]
+    [Arguments("update")]
+    public async Task MissingAssetRoot_IsExitTwo_AndLeavesTheGoldensAlone(string action)
+    {
+        using CorpusCopy copy = new();
+        // A rewrite of a deterministic render would be byte-identical, so corrupt one golden first:
+        // an update that ran would visibly repair it.
+        copy.CorruptGolden("fitmap-mirage-eco");
+        string before = Snapshot(copy.Path);
+
+        CliRun run = Dv2d.InProcess("golden", action, "--corpus", copy.Path, "--name", "fitmap-mirage-eco",
+            "--assets", Path.Combine(Path.GetTempPath(), "dv2d-no-such-root"), "--json");
+
+        await Assert.That(run.ExitCode).IsEqualTo(2);
+        await Assert.That(Snapshot(copy.Path)).IsEqualTo(before);
+    }
+
+    /// <summary>A mistyped option is refused before update rewrites a single golden.</summary>
+    [Test]
+    public async Task Update_WithAnUnknownOption_RewritesNothing()
+    {
+        using CorpusCopy copy = new();
+        // A rewrite of a deterministic render would be byte-identical, so corrupt one golden first:
+        // an update that ran would visibly repair it.
+        copy.CorruptGolden("fitmap-mirage-eco");
+        string before = Snapshot(copy.Path);
+
+        CliRun run = Dv2d.InProcess("golden", "update", "--corpus", copy.Path, "--nmae", "fitmap-mirage-eco",
+            "--assets", Dv2d.AssetsDirectory, "--json");
+
+        await Assert.That(run.ExitCode).IsEqualTo(1);
+        await Assert.That(run.StdErr).Contains("unknown option");
+        await Assert.That(Snapshot(copy.Path)).IsEqualTo(before);
+    }
+
+    private static string Snapshot(string directory) => string.Join("|",
+        Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+            .Select(f => f + ":" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                File.ReadAllBytes(f)))));
+
     [Test]
     public async Task UnknownName_ExitsOne()
     {

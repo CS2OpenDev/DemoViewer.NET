@@ -66,13 +66,6 @@ internal static class RenderCommand
         RefuseOutputOverInput(outPath, args.String("fixture"), args.String("demo"), args.String("ink"),
             zonesOverlay, args.String("query"), args.String("overlay"));
 
-        if (plan.Assets is { Source: AssetsRootSource.Flag or AssetsRootSource.Env, Path: null })
-        {
-            throw new DirectoryNotFoundException(
-                $"the asset root given by --assets/{AssetsRootResolver.EnvironmentVariable} does not exist: " +
-                string.Join(", ", plan.Assets.Probed));
-        }
-
         Scene2DFrame frame = plan.WithRadarArt(source.FrameAt(0));
         SceneTime time = source.TimeAt(0);
         plan.Renderer.Camera = CameraSpec.Resolve(cameraSpec, frame, plan.Size, source.Camera);

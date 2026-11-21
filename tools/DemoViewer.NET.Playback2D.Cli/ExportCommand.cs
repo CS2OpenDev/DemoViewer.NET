@@ -99,6 +99,7 @@ internal static class ExportCommand
         bool perf = PerfOutput.Requested(args);
         IReadOnlyList<string>? layers = args.List("layers");
         AssetsRoot assets = AssetsRootResolver.Resolve(args);
+        CliScenePlan.RequireAssetsRoot(assets);
         // ForceCpu as the bottom rung, same as the golden lane. An auto-probe that finds ANGLE would
         // hand SceneExportSession a thread-affine provider, which the session refuses; auto-probing into
         // a guaranteed refusal is no default. An explicit --gpu still reaches that refusal, and says so.

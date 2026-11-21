@@ -50,6 +50,16 @@ internal static class GoldenCommand
         string diffDir = args.String("diff-dir") ?? DefaultDiffDirectory;
         GoldenMode? toleranceOverride = ParseTolerance(args.String("tolerance"));
 
+        // Read every per-plan option once, and refuse a typo or a missing asset root, BEFORE the loop:
+        // in update mode the loop writes each golden as it goes, so a refusal after it is a refusal
+        // after the corpus was rewritten (or rewritten without its radar).
+        CliScenePlan.RequireAssetsRoot(AssetsRootResolver.Resolve(args));
+        _ = args.List("layers");
+        _ = args.List("exclude-layers");
+        _ = BackendResolver.Preference(args, RenderBackendPreference.ForceCpu);
+        CliScenePlan.RequireSingleLevelLayout(args);
+        args.ThrowIfUnconsumed();
+
         int matched = 0;
         int mismatched = 0;
         int missing = 0;
