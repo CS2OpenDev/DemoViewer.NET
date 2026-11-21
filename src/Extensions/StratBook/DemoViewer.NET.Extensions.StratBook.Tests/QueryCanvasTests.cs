@@ -1,5 +1,8 @@
 #region
 
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Data;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
@@ -315,6 +318,44 @@ public class QueryCanvasTests
             () => RoundIndexTokenSource.Pawn, isBrowser: false);
         await Assert.That(tab.Canvas.Maps).IsEquivalentTo(["de_nuke"], CollectionOrdering.Matching);
         await Assert.That(tab.Canvas.CanSearch).IsTrue();
+    }
+
+    [Test]
+    [Category("Integration")]
+    [NotInParallel(TestLanes.HeadlessUi)]
+    public async Task ANewMapInTheLibrary_KeepsThePickedMap_TheTokensAndTheResult()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using Harness h = new();
+
+            // The view's own bindings: a ComboBox that loses its selection writes null back into Map.
+            ComboBox maps = new() { DataContext = h.Vm };
+            maps.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(QueryCanvasViewModel.Maps)));
+            maps.Bind(SelectingItemsControl.SelectedItemProperty, new Binding(nameof(QueryCanvasViewModel.Map)));
+            Window window = new() { Width = 400, Height = 200, Content = maps };
+            window.Show();
+            Playback2DTimelineHarness.Pump();
+
+            h.Drop(QuerySide.T, 0, "Ramp");
+            h.Drop(QuerySide.T, 1, "Ramp");
+            h.Vm.SearchCommand.Execute(null);
+            await Assert.That(h.Vm.ResultCount).IsEqualTo(1);
+
+            // A scan lands the first demo on a map not listed yet, sorted ahead of the picked one.
+            h.Cache.Upsert(ParsedRecord("/d/b.dem", "de_ancient"));
+            Playback2DTimelineHarness.Pump();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(h.Vm.Maps).IsEquivalentTo(["de_ancient", "de_nuke"], CollectionOrdering.Matching);
+                await Assert.That(h.Vm.Map).IsEqualTo("de_nuke");
+                await Assert.That(h.Vm.Document.PlacedCount).IsEqualTo(2);
+                await Assert.That(h.Vm.ResultCount).IsEqualTo(1);
+            }
+
+            window.Close();
+        });
     }
 
     /// <summary>
