@@ -1717,6 +1717,28 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     // WriteUInt32LE moved to ParserTab in 3.5a.
 
+    /// <summary>
+    ///     Shutdown: deactivates the 2D tab, then disposes it, which is its last annotation flush. In that
+    ///     order because the view's teardown edits the document after the deactivation flush (an open text
+    ///     label is rolled back or committed), and only the debounce would otherwise carry that to disk,
+    ///     which does not outlive the process. Nothing disposes the shell on exit, so the app calls this
+    ///     from its shutdown handler. Runs once.
+    /// </summary>
+    public void ClosePlayback2DForShutdown()
+    {
+        if (_playback2DClosed
+            || Tabs.FirstOrDefault(t => t.TabId == HostIds.Playback2DTab) is not { } descriptor)
+        {
+            return;
+        }
+
+        _playback2DClosed = true;
+        ExtensionTabs.Deactivate(descriptor);
+        (descriptor.TabViewModel as Playback2DTabViewModel)?.Dispose();
+    }
+
+    private bool _playback2DClosed;
+
     /// <summary>Dispose.</summary>
     public void Dispose()
     {
@@ -1783,6 +1805,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _perfTimer?.Stop();
         _library.Dispose();
         ExtensionTabs.Deactivate(SelectedTab);
+        ClosePlayback2DForShutdown();
         if (_extensionFaults is not null)
         {
             _extensionFaults.Changed -= OnExtensionFaultsChanged;

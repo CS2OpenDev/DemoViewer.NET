@@ -319,7 +319,7 @@ public class App : Application
 
             // Runs only on the request that really exits, after any CSVG or export teardown: a store that
             // throws or hangs here must never cost the machine its restored CS2 install.
-            static void FlushStores(ServiceProvider services)
+            static void FlushStores(ServiceProvider services, MainViewModel shell)
             {
                 // Shutdown is a strat commit trigger; the user-truth stores defer their
                 // index to it. The Review Queue is core (Reels uses it too), so its flush stays unconditional
@@ -330,6 +330,8 @@ public class App : Application
                 [
                     // First, so what the active tab writes on its way out reaches the stores flushed below.
                     () => services.GetService<MainViewModel>()?.FlushForShutdown(),
+                    // The 2D tab's annotations: its own shutdown flush, which nothing else reaches on exit.
+                    shell.ClosePlayback2DForShutdown,
                     () => services.GetService<ReviewQueue>()?.Flush(TimeSpan.FromSeconds(5)),
 
                     // The library's metadata cache is checkpointed every 12 demos, and nothing disposes the
@@ -396,7 +398,7 @@ public class App : Application
 
                 if (csvgTornDown || liveSync is null && !reelRunning && !exportRunning)
                 {
-                    FlushStores(services);
+                    FlushStores(services, viewModel);
                     return;
                 }
 
@@ -456,7 +458,7 @@ public class App : Application
                         // does on the request that really exits has to happen here.
                         try
                         {
-                            FlushStores(services);
+                            FlushStores(services, viewModel);
                         }
                         finally
                         {
