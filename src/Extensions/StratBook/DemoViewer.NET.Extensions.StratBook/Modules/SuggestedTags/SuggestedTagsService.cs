@@ -616,11 +616,16 @@ public sealed class SuggestedTagsService : IExtensionPass
             FrameCount = document.Clock.FrameCount
         };
 
-    // The pending count follows every verdict, so the index can say "12 pending" without a file read.
+    // The pending count follows every verdict, so the index can say "12 pending" without a file read. Under the
+    // build's lock: a build counts before it writes, so a verdict recounted between the two would be stamped over
+    // with the build's older count, and a recount of the proposals a build is replacing would stamp over its own.
     private void AfterVerdict(string path, string? sha256)
     {
-        int pending = LoadCore(path, sha256).Set.Pending.Count;
-        Proposals.SetCount(path, pending);
+        lock (BuildLock(path))
+        {
+            int pending = LoadCore(path, sha256).Set.Pending.Count;
+            Proposals.SetCount(path, pending);
+        }
 
         RaiseChanged(path);
     }

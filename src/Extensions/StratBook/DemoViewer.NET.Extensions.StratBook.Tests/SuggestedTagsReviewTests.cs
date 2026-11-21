@@ -479,4 +479,82 @@ public class SuggestedTagsReviewTests
 
         await Assert.That(h.Service.Load(DemoPath).Entries).IsEmpty();
     }
+
+    // The build counts the pending proposals against the verdicts, then writes the count with the proposals; a
+    // verdict from the queue between the two must not leave the stamp one high.
+    [Test]
+    public async Task AVerdictBetweenARebuildsCountAndItsWrite_IsCountedOnTheStamp()
+    {
+        using SuggestedTagsReviewHarness h = new();
+        h.Build();
+        HookedData data = new(h.Cache.Data());
+        SuggestedTagsService service = new(h.Cache.Library(), h.Cache.RoundFacts(), new ProposalStore(data), h.Tags,
+            h.Regions, () => h.Profile, () => true, () => true, walk: _ => Walk(), utcNow: () => Now);
+        await Assert.That(service.Load(DemoPath).Pending.Count).IsGreaterThan(1);
+
+        Thread? verdict = null;
+        data.BeforeWrite = write =>
+        {
+            if (write.Facet != ProposalStore.Facet)
+            {
+                return;
+            }
+
+            data.BeforeWrite = null;
+            verdict = new Thread(() => service.Reject(DemoPath, ExecuteId));
+            verdict.Start();
+            // Long enough for an unguarded verdict to finish; a guarded one waits for the build instead.
+            verdict.Join(TimeSpan.FromSeconds(1));
+        };
+        service.Request(DemoPath);
+        service.Evaluate(DemoPath, Parse());
+        await Assert.That(verdict).IsNotNull();
+        await Assert.That(verdict!.Join(TimeSpan.FromSeconds(10))).IsTrue();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(service.Load(DemoPath).Pending.Any(e => e.Proposal.Id == ExecuteId)).IsFalse();
+            await Assert.That(new ProposalStore(data).Stamp(DemoPath)!.Count)
+                .IsEqualTo(service.Load(DemoPath).Pending.Count);
+        }
+    }
+
+    private sealed class HookedData(IExtensionDemoData inner) : IExtensionDemoData
+    {
+        public Action<DemoDataWrite>? BeforeWrite { get; set; }
+
+        public bool IsAvailable => inner.IsAvailable;
+
+        public event Action<string?>? Changed
+        {
+            add => inner.Changed += value;
+            remove => inner.Changed -= value;
+        }
+
+        public DemoDataStamp? Stamp(string demoPath, string facet) => inner.Stamp(demoPath, facet);
+
+        public IReadOnlyList<DemoDataStamp> Stamps(string facet) => inner.Stamps(facet);
+
+        public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null) =>
+            inner.Read(demoPath, facet, schema, fingerprint, part);
+
+        public DemoDataRecord? ReadAny(string demoPath, string facet, string? part = null) =>
+            inner.ReadAny(demoPath, facet, part);
+
+        public DemoDataStamp? Write(string demoPath, DemoDataWrite write)
+        {
+            BeforeWrite?.Invoke(write);
+            return inner.Write(demoPath, write);
+        }
+
+        public void MarkFailed(string demoPath, string facet) => inner.MarkFailed(demoPath, facet);
+
+        public void ClearFailed(string demoPath, string facet) => inner.ClearFailed(demoPath, facet);
+
+        public void Invalidate(string facet, string? demoPath = null) => inner.Invalidate(facet, demoPath);
+
+        public void SetCount(string demoPath, string facet, int count) => inner.SetCount(demoPath, facet, count);
+
+        public void Delete(string demoPath, string facet) => inner.Delete(demoPath, facet);
+    }
 }
