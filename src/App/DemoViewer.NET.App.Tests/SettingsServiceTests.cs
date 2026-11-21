@@ -206,6 +206,78 @@ public class SettingsServiceTests
     }
 
     /// <summary>
+    ///     A file that parses but holds a value the binder cannot convert (an enum member from a newer build, a
+    ///     word where a number belongs) threw out of the first <c>Current</c> read at start-up, on every launch.
+    ///     It is set aside and read as defaults instead, like a file that does not parse, and the sections the
+    ///     preferences do not model are kept.
+    /// </summary>
+    [Test]
+    [Arguments("""{ "UserCategory": "Coach", "Session": { "ActiveTab": "library" } }""")]
+    [Arguments("""{ "ProcessingQueue": { "MaxConcurrency": "auto" }, "Session": { "ActiveTab": "library" } }""")]
+    public async Task AValueTheBinderCannotConvert_ReadsAsDefaults_AndIsSetAside(string json)
+    {
+        string dir = NewTempDir();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), json);
+
+            SettingsService svc = new(dir);
+            ServiceCollection services = new();
+            services.Configure<AppSettings>(svc.Configuration);
+            await using ServiceProvider sp = services.BuildServiceProvider();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(() => svc.Current).ThrowsNothing();
+                await Assert.That(() => sp.GetRequiredService<IOptionsMonitor<AppSettings>>().CurrentValue)
+                    .ThrowsNothing();
+                await Assert.That(svc.NeedsFirstRun).IsTrue();
+                await Assert.That(Directory.GetFiles(dir, "settings.json.unreadable-*").Length).IsEqualTo(1);
+                await Assert.That(svc.ReadPersisted("Session:ActiveTab")?.GetValue<string>()).IsEqualTo("library");
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // The same bad value from the environment layer: the file is fine and is left alone, and the override is
+    // what gets dropped.
+    [Test]
+    public async Task AnEnvironmentValueTheBinderCannotConvert_IsIgnored_AndTheFileKept()
+    {
+        string dir = NewTempDir();
+        const string EnvKey = "DEMOVIEWER_UserCategory";
+        string? previous = Environment.GetEnvironmentVariable(EnvKey);
+        try
+        {
+            SettingsService seed = new(dir);
+            seed.Write(s =>
+            {
+                s.Theme = "Light";
+                s.FirstRunCompleted = true;
+            });
+
+            Environment.SetEnvironmentVariable(EnvKey, "Coach");
+            SettingsService svc = new(dir);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(() => svc.Current).ThrowsNothing();
+                await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+                await Assert.That(svc.NeedsFirstRun).IsFalse();
+                await Assert.That(Directory.GetFiles(dir, "settings.json.unreadable-*")).IsEmpty();
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvKey, previous);
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
     ///     A file the writers cannot parse is replaced by the next save, so its text is set aside first, once:
     ///     a hand edit with a typo loses nothing the user cannot copy back.
     /// </summary>

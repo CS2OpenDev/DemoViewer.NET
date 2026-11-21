@@ -86,8 +86,6 @@ public sealed class SettingsService
     {
         bool fileless = OperatingSystem.IsBrowser() || configDir is null;
         _settingsPath = fileless ? null : Path.Combine(configDir!, SettingsFileName);
-
-        ConfigurationBuilder builder = new();
         if (fileless)
         {
             // No filesystem to watch: an in-memory provider instead. Reload()/OnChange still work for
@@ -96,11 +94,46 @@ public sealed class SettingsService
             // is added directly (it is its own IConfigurationSource) so a write can atomically replace all
             // keys: see WriteInMemory.
             _mem = new ResettableMemoryConfigurationProvider();
-            builder.Add(_mem);
         }
         else
         {
             Directory.CreateDirectory(configDir!); // ensure the base path exists before the watcher attaches
+        }
+
+        IConfigurationRoot root = Build(configDir, withEnvironment: true);
+
+        // A file that parses can still hold a value the binder cannot convert (an enum member from a newer
+        // build, "auto" where a number belongs). Every Current and options read would then throw, starting
+        // with the first one at start-up, so the layer that holds it is dropped here instead: the file is set
+        // aside and its preferences read as defaults, as an unparseable file's do, and a bad environment
+        // override is ignored.
+        if (!Binds(root))
+        {
+            if (_settingsPath is not null && !FileBinds(configDir))
+            {
+                ResetUnbindablePreferences();
+                root.Reload();
+            }
+
+            if (!Binds(root))
+            {
+                (root as IDisposable)?.Dispose();
+                root = Build(configDir, withEnvironment: false);
+            }
+        }
+
+        Configuration = root;
+    }
+
+    private IConfigurationRoot Build(string? configDir, bool withEnvironment)
+    {
+        ConfigurationBuilder builder = new();
+        if (_mem is not null)
+        {
+            builder.Add(_mem);
+        }
+        else
+        {
             builder.SetBasePath(configDir!)
                 .AddJsonFile(SettingsFileName, true, true);
             // Swallow a corrupt/partial file: keep defaults, flag first-run, instead of throwing at Build.
@@ -111,10 +144,62 @@ public sealed class SettingsService
             });
         }
 
-        builder.AddEnvironmentVariables(EnvPrefix);
+        if (withEnvironment)
+        {
+            builder.AddEnvironmentVariables(EnvPrefix);
+        }
 
-        IConfigurationRoot root = builder.Build();
-        Configuration = root;
+        return builder.Build();
+    }
+
+    private static bool Binds(IConfiguration configuration)
+    {
+        try
+        {
+            configuration.Get<AppSettings>();
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    // Whether the file alone binds, so a failure can be pinned on the file rather than the environment layer.
+    private static bool FileBinds(string? configDir)
+    {
+        try
+        {
+            using ConfigurationManager probe = new();
+            probe.SetBasePath(configDir!).AddJsonFile(SettingsFileName, true, false);
+            return Binds(probe);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException
+                                       or InvalidDataException)
+        {
+            return true; // not a bind failure; the loader's own handler deals with a file it cannot read
+        }
+    }
+
+    // The file as it stands is kept beside it, and every preference key in it goes back to its default. The
+    // sections the preferences do not model (Session, Recents) stay.
+    private void ResetUnbindablePreferences()
+    {
+        SetAsideUnreadable();
+        JsonObject file = ReadFileObject(forWrite: true);
+        MergePreferences(file, new AppSettings());
+        WriteObject(file);
+        _loadFailed = true;
+    }
+
+    // Writes every key of `settings` into `file`, leaving the keys AppSettings does not model alone.
+    private static void MergePreferences(JsonObject file, AppSettings settings)
+    {
+        JsonObject prefs = JsonSerializer.SerializeToNode(settings, _serializerOptions)!.AsObject();
+        foreach (string key in prefs.Select(kv => kv.Key).ToList())
+        {
+            file[key] = prefs[key]?.DeepClone();
+        }
     }
 
     /// <summary>
@@ -177,12 +262,7 @@ public sealed class SettingsService
             // Session / Recents sections (which AppSettings does not model) untouched: a preference write
             // must never clobber them.
             JsonObject file = ReadFileObject(forWrite: true);
-            JsonObject prefs = JsonSerializer.SerializeToNode(settings, _serializerOptions)!.AsObject();
-            foreach (string key in prefs.Select(kv => kv.Key).ToList())
-            {
-                file[key] = prefs[key]?.DeepClone();
-            }
-
+            MergePreferences(file, settings);
             WriteObject(file);
             _loadFailed = false; // valid JSON was just written, so any prior parse failure is cleared
         }
