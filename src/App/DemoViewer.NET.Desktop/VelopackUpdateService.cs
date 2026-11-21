@@ -61,6 +61,9 @@ internal sealed class VelopackUpdateService : IUpdateService
     /// </summary>
     private (UpdateManager Manager, UpdateInfo Info)? _staged;
 
+    /// <summary>Whether an update is staged, in which case <see cref="ApplyStagedUpdate" /> restarts the app.</summary>
+    internal bool HasStagedUpdate => _staged is not null;
+
     /// <param name="subscribedToBeta">Read on every check, so the Settings toggle applies without a restart.</param>
     public VelopackUpdateService(Func<bool> subscribedToBeta) => _subscribedToBeta = subscribedToBeta;
 

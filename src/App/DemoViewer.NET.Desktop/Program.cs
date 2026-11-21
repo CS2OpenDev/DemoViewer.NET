@@ -22,6 +22,10 @@ namespace DemoViewer.NET.Desktop;
 
 internal static class Program
 {
+    // Set by Restart, started by Main once the lifetime has returned: the old process saves, tears down
+    // and flushes first, so the new one does not race it on settings.json or a patched CS2 install.
+    private static ProcessStartInfo? s_pendingRestart;
+
     // Avalonia configuration, don't remove; also used by visual designer.
     /// <summary>Build avalonia app.</summary>
     [UsedImplicitly]
@@ -106,7 +110,7 @@ internal static class Program
             }
         };
 
-        AppHostHooks.Restart = () => Restart(launch);
+        AppHostHooks.Restart = Restart;
 
         // CSVG live sync: the engine lives in the desktop-only
         // DemoViewer.NET.LiveSync project (CSVG + ASP.NET Core: the App/Browser projects must
@@ -148,19 +152,27 @@ internal static class Program
         launch.MarkExited();
 
         // After ShutdownRequested has saved the session and torn down live sync, reels and exports.
+        // Velopack restarts the app itself after applying a staged update, so a requested restart only
+        // starts the replacement when nothing is staged; otherwise two instances would launch.
         updater?.ApplyStagedUpdate();
+        if (s_pendingRestart is { } restart && updater?.HasStagedUpdate != true)
+        {
+            using Process? started = Process.Start(restart);
+        }
     }
 
     // The same executable with the same arguments minus --safe-mode. Under `dotnet run` the process is the
-    // dotnet host, whose first argument is the app's own assembly.
-    private static void Restart(LaunchGuard launch)
+    // dotnet host, whose first argument is the app's own assembly. The exit is a posted TryShutdown, not
+    // Shutdown: a forced Shutdown raises no ShutdownRequested, and that handler saves the session, tears
+    // down live sync, reels and exports and flushes the stores. Main marks the clean exit and starts the
+    // replacement after the lifetime returns.
+    private static void Restart()
     {
         if (Environment.ProcessPath is not { } executable)
         {
             return;
         }
 
-        launch.MarkExited();
         string[] commandLine = Environment.GetCommandLineArgs();
         ProcessStartInfo start = new(executable) { UseShellExecute = false };
         if (string.Equals(Path.GetFileNameWithoutExtension(executable), "dotnet", StringComparison.OrdinalIgnoreCase))
@@ -173,11 +185,14 @@ internal static class Program
             start.ArgumentList.Add(arg);
         }
 
-        using Process? started = Process.Start(start);
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        s_pendingRestart = start;
+        Dispatcher.UIThread.Post(static () =>
         {
-            desktop.Shutdown();
-        }
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.TryShutdown();
+            }
+        });
     }
 
     private static void WriteCrashLog(object exceptionObject)
