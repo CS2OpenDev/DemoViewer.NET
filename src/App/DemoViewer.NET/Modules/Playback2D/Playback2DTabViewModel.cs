@@ -1037,6 +1037,10 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         string? map = _context?.MapName;
         MapBundleLease? lease = string.IsNullOrEmpty(map) ? null : MapBundleLeases.Acquire(map);
 
+        // Read once, for the same reason: a map change nulls the tab's engine and later points it at the
+        // new map's mesh, and a solver closing over the property would follow it mid-render.
+        VisibilityEngine? engine = VisionEngine;
+
         try
         {
             return new ExportSceneSetup(
@@ -1047,8 +1051,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
                 LevelStrip.DisplayMode,
 
                 // The export builds its own solver over the same engine: VisionLayer is stateless per frame,
-                // and the engine itself is a read-only mesh.
-                VisionEngine is null ? null : new VisibilityEngineSolver(() => VisionEngine),
+                // and the engine itself is a read-only mesh, captured above for the whole run.
+                engine is null ? null : new VisibilityEngineSolver(() => engine),
                 BuildExportHud(),
                 lease,
 

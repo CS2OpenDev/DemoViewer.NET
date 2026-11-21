@@ -4,6 +4,7 @@ using CS2DemoKit.Analysis.Visibility;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Services;
+using DemoViewer.NET.Services.Export;
 using DemoViewer.NET.ViewModels.Playback;
 using TUnit.Core.Exceptions;
 
@@ -81,6 +82,48 @@ public sealed class Playback2DVisionEngineSharingTests
             vm.Dispose();
         }
     }
+
+    /// <summary>
+    ///     An export renders for minutes on a pool thread while the user may open a demo on another map.
+    ///     The setup's solver used to close over the tab's live <c>VisionEngine</c>, which a map change
+    ///     nulls and later points at the new map's mesh, so the rest of the video lost its cones and then
+    ///     ray-cast them against the wrong map.
+    /// </summary>
+    [Test]
+    public async Task TheExportSolver_KeepsTheEngineItWasBuiltWith_WhenTheTabMovesToAnotherMap() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            Playback2DFakeContext ctx = new() { MapName = "de_nuke", Gate = new FakeModuleFeatureGate() };
+            ctx.AddPlayer(0, "Alpha", 2);
+            Playback2DTabViewModel vm = new();
+            vm.OnActivated(ctx);
+            ExportSceneSetup? setup = null;
+            try
+            {
+                vm.LoadVisionEngineSyncForTest();
+                if (vm.VisionEngine is null)
+                {
+                    throw new SkipTestException("no de_nuke collision mesh reachable from the test binaries");
+                }
+
+                setup = vm.BuildExportSetup(new Playback2DExportHost(() => null, null, null, null));
+                await Assert.That(setup.Vision!.IsReady).IsTrue();
+
+                // The user opens a demo on a map with no collision while the export renders.
+                ctx.MapName = null;
+                ctx.RaiseDemoReset();
+                await Assert.That(vm.VisionEngine).IsNull();
+
+                await Assert.That(setup.Vision.IsReady).IsTrue()
+                    .Because("the run solves against the map it is rendering, whatever the tab now shows");
+            }
+            finally
+            {
+                setup?.Owned?.Dispose();
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+        });
 
     /// <summary>
     ///     The production path (switching the overlay on) asks the shared cache from its pool thread:
