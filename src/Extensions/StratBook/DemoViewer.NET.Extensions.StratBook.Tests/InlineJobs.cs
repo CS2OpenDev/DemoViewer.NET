@@ -33,8 +33,8 @@ internal sealed class InlineJobs : IExtensionJobs
     public Task WaitForSubmissionAsync(Func<bool> until) =>
         _submissions.WaitUntilAsync(until, "the expected job to be submitted");
 
-    /// <summary>The parse a job on a demo gets; a job on a demo is rejected when null.</summary>
-    public Func<string, ParsedDemo>? ParseDemo { get; init; }
+    /// <summary>The parse a job on a demo gets; a job on a demo is rejected while null.</summary>
+    public Func<string, ParsedDemo>? ParseDemo { get; set; }
 
     public IJobHandle Enqueue(JobRequest request)
     {

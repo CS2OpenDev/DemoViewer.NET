@@ -846,6 +846,28 @@ public class LineupClipTests
                 Throw(demo, Row(i == 0 ? id : $"{id}-{i}", 1000 + (i * 500), 1100 + (i * 500))))
         ]);
 
+    // A full background tier refuses the batch; the clips stay pending and planned, so the next plan finds
+    // nothing new to add and must still start the worker that the refusal stopped.
+    [Test]
+    public async Task AQueueThatRefusedTheBatch_IsAskedAgain_OnTheNextPlan()
+    {
+        FakeRenderer renderer = new();
+        InlineJobs jobs = new();
+        GrenadeCluster cluster = Cluster(Thrown("/d/two.dem", "t", 2));
+        using LineupClipService service = new(() => [cluster], PackStores.At(Directory), () => true, renderer,
+            _ => false, (_, _) => { }, jobs: jobs);
+
+        await Assert.That(service.Plan()).IsEqualTo(1);
+        await service.WorkerTask.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.That(renderer.Calls).IsEmpty().Because("the queue refused the batch");
+
+        jobs.ParseDemo = _ => SyntheticParsedDemo.Create();
+        service.Plan();
+        await service.WorkerTask.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await Assert.That(renderer.Calls.Select(c => c.Demo)).IsEquivalentTo(["/d/two.dem"]);
+    }
+
     [Test]
     public async Task ThePlan_RendersTheMostThrownLineupsFirst()
     {

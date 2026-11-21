@@ -374,6 +374,9 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
         if (jobs.Count == 0)
         {
+            // Nothing new, but a queue that refused the last batch left its clips pending and planned: this plan
+            // is the one that asks the queue again. A no-op while the worker runs or nothing is pending.
+            StartWorker();
             return 0;
         }
 
