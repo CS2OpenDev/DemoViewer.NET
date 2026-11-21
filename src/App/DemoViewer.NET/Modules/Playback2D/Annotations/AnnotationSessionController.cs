@@ -63,6 +63,10 @@ public sealed class AnnotationSessionController : IDisposable
     private bool _attached;
     private bool _awaitingSidecar;
 
+    // The file the attached demo's document was read from, or null. Not always the save target: an import
+    // parks annotations in app-data, which the store reads until the demo's folder has its own sidecar.
+    private string? _loadedFrom;
+
     // The document's version when it last matched its file: at the load, and at each save that landed.
     private int _cleanVersion = -1;
     private CancellationTokenSource? _debounce;
@@ -276,6 +280,7 @@ public sealed class AnnotationSessionController : IDisposable
         _demoPath = normalized;
         Clock = clock;
         _demo = null;
+        _loadedFrom = null;
         _attached = true;
         ClockMismatch = false;
         DemoMismatch = false;
@@ -307,6 +312,7 @@ public sealed class AnnotationSessionController : IDisposable
             ClockMismatch = result.ClockMismatch;
             DemoMismatch = result.DemoMismatch;
             Session.Document.Reset(result.Elements);
+            _loadedFrom = result.Path;
             _cleanVersion = Session.Document.Version;
             _awaitingSidecar = false;
             StatusText = DescribeLocation();
@@ -741,6 +747,7 @@ public sealed class AnnotationSessionController : IDisposable
         AnnotationElement[] elements = [.. Session.Document.Elements];
         int version = Session.Document.Version;
         string demoPath = _demoPath;
+        string? loadedFrom = _loadedFrom;
         ClockIdentity clock = Clock;
 
         try
@@ -774,9 +781,12 @@ public sealed class AnnotationSessionController : IDisposable
 
             // Nothing to say, and nothing already on disk to correct: opening a demo must not litter a
             // .dvann.json beside it. An EXISTING sidecar is still rewritten when the last stroke is
-            // erased: that is the user clearing their annotations, and it has to stick.
+            // erased: that is the user clearing their annotations, and it has to stick. So is the file the
+            // document was loaded from when that is not the target: an import's app-data copy is read until
+            // an empty sidecar beside the demo takes over, so clearing it has to write one.
             string? target = _store.ResolvePath(demoPath);
-            if (elements.Length == 0 && (target is null || !File.Exists(target)))
+            if (elements.Length == 0
+                && (target is null || (!File.Exists(target) && (loadedFrom is null || !File.Exists(loadedFrom)))))
             {
                 return;
             }

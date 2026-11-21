@@ -86,6 +86,39 @@ public class Playback2DAnnotationPersistenceTests
         await Assert.That(loaded.Elements).IsEmpty();
     }
 
+    /// <summary>
+    ///     Annotations a transfer import parked in app-data load for a demo whose folder has no sidecar.
+    ///     Erasing every one of them wrote nothing, because nothing was beside the demo to correct, so the
+    ///     app-data copy fed them back on the next open.
+    /// </summary>
+    [Test]
+    public async Task Controller_ErasingEveryImportedStroke_Sticks()
+    {
+        using TempDemo demo = new();
+        static string Key(string _) => "imported";
+        AnnotationElement stroke = Stroke();
+        await new AnnotationStore(demo.AppData, Key).SaveAsync(demo.DemoPath,
+            AnnotationStore.IdentityFor(demo.DemoPath), demo.Clock, [stroke]);
+        string imported = AnnotationStore.AppDataFile(demo.AppData, "imported");
+        Directory.CreateDirectory(Path.GetDirectoryName(imported)!);
+        File.Move(demo.SidecarPath, imported);
+
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData, Key), null)
+        {
+            AutoSaveDelay = TimeSpan.FromMilliseconds(20)
+        };
+
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+
+        controller.Document.Apply(new DocDelta.Remove(stroke.Id));
+        await controller.FlushAsync();
+
+        AnnotationLoadResult reopened = await new AnnotationStore(demo.AppData, Key)
+            .LoadAsync(demo.DemoPath, demo.Clock);
+        await Assert.That(reopened.Elements).IsEmpty();
+    }
+
     [Test]
     public async Task Controller_AutosavesAfterDebounce()
     {
