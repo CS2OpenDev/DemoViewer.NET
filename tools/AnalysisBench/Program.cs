@@ -814,12 +814,14 @@ static object? ParseStatValue(string? raw)
         return true;
     }
 
-    if (int.TryParse(raw, out int i))
+    // The engine formats these strings with the invariant culture, so they are read back with it. The
+    // machine's culture would read "1.43" as 143 under de-DE and refuse it under fr-FR.
+    if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i))
     {
         return i;
     }
 
-    if (double.TryParse(raw, out double d))
+    if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double d))
     {
         return d;
     }
