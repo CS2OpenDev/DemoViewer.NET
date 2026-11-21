@@ -99,6 +99,12 @@ public sealed record ScoutingReportHeader
 ///         <see cref="ToggleStarCommand" />; both land on the same key, so the one-pager preview, the long form and
 ///         the inspector agree. A star written elsewhere over the same store is read back on its <c>Changed</c>.
 ///     </para>
+///     <para>
+///         <b>A star the long form has no line for.</b> The inspector files a star under the buy in view and, on the
+///         AWP trail, the window; the long form builds every layer at All with no window. A starred key no long-form
+///         row carries still stars the row with the same map, side, layer and text (<see cref="StarredRows" />), so
+///         it prints; unstarring that row takes those keys off too. Stored keys are never rewritten.
+///     </para>
 /// </summary>
 public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 {
@@ -183,7 +189,21 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             return;
         }
 
-        HashSet<string> starred = new(_store.For(id).Starred, StringComparer.Ordinal);
+        if (ApplyStars(id))
+        {
+            AfterStar();
+        }
+        else
+        {
+            // A star on a line the long form has no row for at all still moves the inspector's.
+            StarsChanged?.Invoke();
+        }
+    }
+
+    // Sets every row's star from the store; true when one changed.
+    private bool ApplyStars(Guid id)
+    {
+        HashSet<string> starred = StarredRows(_store.For(id).Starred);
         bool any = false;
         foreach (ScoutingReportFindingViewModel row in _rows)
         {
@@ -195,16 +215,59 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             }
         }
 
-        if (any)
-        {
-            AfterStar();
-        }
-        else
-        {
-            // A star on a line the long form does not list (a narrower buy) still moves the inspector's.
-            StarsChanged?.Invoke();
-        }
+        return any;
     }
+
+    /// <summary>
+    ///     The row keys that print starred: every starred key, plus, for a starred key no row carries (filed under
+    ///     a buy or an AWP window the long form does not build), the row keys with the same map, side, layer and
+    ///     text under any buy or window.
+    /// </summary>
+    /// <param name="stored">The team's starred keys.</param>
+    private HashSet<string> StarredRows(IEnumerable<string> stored)
+    {
+        HashSet<string> starred = new(stored, StringComparer.Ordinal);
+        HashSet<string> rowKeys = new(_rows.Select(r => r.Key), StringComparer.Ordinal);
+        HashSet<(string, string, string, string)> orphans = [];
+        foreach (string key in starred)
+        {
+            if (!rowKeys.Contains(key) && Line(key) is { } line)
+            {
+                orphans.Add(line);
+            }
+        }
+
+        if (orphans.Count > 0)
+        {
+            foreach (string key in rowKeys)
+            {
+                if (Line(key) is { } line && orphans.Contains(line))
+                {
+                    starred.Add(key);
+                }
+            }
+        }
+
+        return starred;
+    }
+
+    // The starred keys no row carries that star this row through StarredRows: unstarring the row clears them.
+    private List<string> AliasesOf(Guid id, string rowKey)
+    {
+        if (Line(rowKey) is not { } line)
+        {
+            return [];
+        }
+
+        HashSet<string> rowKeys = new(_rows.Select(r => r.Key), StringComparer.Ordinal);
+        return [.. _store.For(id).Starred.Where(k => !rowKeys.Contains(k) && Line(k) == line)];
+    }
+
+    // A key's line without its buy and window: (map, side, layer, text); null for a note's or an old key.
+    private static (string, string, string, string)? Line(string key) =>
+        ScoutingReportStarKeys.Parse(key) is { } parsed
+            ? (parsed.Scope.Map, parsed.Scope.Side, parsed.Scope.Layer, parsed.Text)
+            : null;
 
     /// <summary>The layer ids in the order lines print under a side: the registry's chip order.</summary>
     public IReadOnlyList<string> LayerOrder { get; set; } = _catalogOrder;
@@ -352,11 +415,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         }
 
         _store.SetStarred(id, key, starred);
-        foreach (ScoutingReportFindingViewModel row in _rows.Where(r => r.Key == key))
-        {
-            row.IsStarred = starred;
-        }
-
+        ApplyStars(id);
         AfterStar();
     }
 
@@ -376,15 +435,12 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             if (_store.Seed(id, key))
             {
                 any = true;
-                foreach (ScoutingReportFindingViewModel row in _rows.Where(r => r.Key == key))
-                {
-                    row.IsStarred = true;
-                }
             }
         }
 
         if (any)
         {
+            ApplyStars(id);
             AfterStar();
         }
     }
@@ -664,8 +720,18 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             return;
         }
 
-        row.IsStarred = !row.IsStarred;
-        _store.SetStarred(id, row.Key, row.IsStarred);
+        bool starred = !row.IsStarred;
+        if (!starred)
+        {
+            // The star may be one the inspector filed under a buy or window this line is shown without.
+            foreach (string alias in AliasesOf(id, row.Key))
+            {
+                _store.SetStarred(id, alias, false);
+            }
+        }
+
+        _store.SetStarred(id, row.Key, starred);
+        ApplyStars(id);
         if (ShowStarredOnly)
         {
             Project();
@@ -772,7 +838,6 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             else
             {
                 ScoutingReportTeamNotes notes = _store.For(id);
-                HashSet<string> starred = new(notes.Starred, StringComparer.Ordinal);
                 HashSet<string> hidden = new(notes.Hidden, StringComparer.Ordinal);
                 HashSet<string> seen = new(StringComparer.Ordinal);
                 foreach (ScoutingReportFindingSource source in _sources)
@@ -790,7 +855,6 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                             Map = source.Map,
                             Stage = source.Stage,
                             Shape = source.Shape,
-                            IsStarred = starred.Contains(source.Key),
                             IsHidden = hidden.Contains(source.Key),
                             EditText = open.GetValueOrDefault(source.Key, ""),
                             IsEditing = open.ContainsKey(source.Key)
@@ -802,12 +866,12 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                     string key = ScoutingReportNotesStore.NoteKey(note.Id);
                     _rows.Add(new ScoutingReportFindingViewModel(key, NotesSection, note.Text, note.Text, true, null)
                     {
-                        IsStarred = starred.Contains(key),
                         EditText = open.GetValueOrDefault(key, ""),
                         IsEditing = open.ContainsKey(key)
                     });
                 }
 
+                ApplyStars(id);
                 Summary = notes.Summary;
             }
         }

@@ -799,6 +799,57 @@ public class ScoutingReportEditingTests
         }
     }
 
+    [Test]
+    public async Task AnInspectorStarUnderAWindowOrABuy_PrintsOnTheLongFormsLine_AndUnstarsFromIt()
+    {
+        // The long form builds every layer at All with no AWP window; the inspector files a star under the window
+        // and the buy in view. Setups carries its own per-row buy, so its lines exist under each buy.
+        const string awpLong = "de_nuke|CT|awp|All||route Outside → Ramp";
+        const string awpContact = "de_nuke|CT|awp|All|contact|route Outside → Ramp";
+        const string utilLong = "de_nuke|CT|util|All||most thrown smoke at Outside";
+        const string utilFull = "de_nuke|CT|util|Full||most thrown smoke at Outside";
+        const string setupsEco = "de_nuke|CT|setups|Eco||read";
+        ScoutingReportFindingSource[] sources =
+        [
+            new(awpLong, "de_nuke CT · AWP", "route Outside → Ramp: 4 rounds"),
+            new(utilLong, "de_nuke CT · Utility", "most thrown smoke at Outside: 6"),
+            new(SetupKey, "de_nuke CT · Setups", "Full buy: BombsiteA held"),
+            new(setupsEco, "de_nuke CT · Setups", "Eco: BombsiteB stacked")
+        ];
+        ScoutingReportNotesStore store = new(null);
+        ScoutingReportEditorViewModel editor = new(store);
+        Guid team = Guid.NewGuid();
+        editor.Load(team, "Falcons", "", sources);
+
+        editor.SetStarred(awpContact, true);
+        editor.SetStarred(utilFull, true);
+        editor.SetStarred(SetupKey, true);
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.StarredCount).IsEqualTo(3);
+            await Assert.That(editor.Starred.Select(r => r.Key))
+                .IsEquivalentTo([awpLong, utilLong, SetupKey], CollectionOrdering.Matching);
+            await Assert.That(editor.Document().Findings.Where(f => f.IsStarred).Select(f => f.Key))
+                .IsEquivalentTo([awpLong, utilLong, SetupKey], CollectionOrdering.Matching);
+            await Assert.That(editor.Findings.Single(f => f.Key == setupsEco).IsStarred).IsFalse()
+                .Because("a line the long form lists under its own buy keeps its own star");
+        }
+
+        // The same holds after a rebuild, and unstarring the long form's line takes the inspector's star off too.
+        editor.Load(team, "Falcons", "", sources);
+        await Assert.That(editor.StarredCount).IsEqualTo(3);
+        editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Key == awpLong));
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.StarredCount).IsEqualTo(2);
+            await Assert.That(editor.IsStarred(awpContact)).IsFalse();
+            await Assert.That(store.For(team).Starred).DoesNotContain(awpContact);
+        }
+
+        editor.SetStarred(utilFull, false);
+        await Assert.That(editor.StarredCount).IsEqualTo(1);
+    }
+
     private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
 
     private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map, int ctScore,
