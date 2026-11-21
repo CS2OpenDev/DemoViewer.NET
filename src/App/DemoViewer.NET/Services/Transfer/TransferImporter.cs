@@ -739,7 +739,11 @@ internal sealed partial class TransferImporter : ITransferImporter
             string name = names.Claim(WithDemExtension(demo.OriginalFileName));
             try
             {
-                CopyDem(run, demo, Path.Combine(destination, name), progress, bytesTotal, ct);
+                string copy = Path.Combine(destination, name);
+                CopyDem(run, demo, copy, progress, bytesTotal, ct);
+                // The copy was hashed in full on its way in: the library's attach settles the path with that
+                // read instead of leaving it unconfirmed, so this demo counts as here the next time round.
+                _cache.NoteContentRead(copy, demo.Sha256, null, demo.SizeBytes, File.GetLastWriteTimeUtc(copy));
                 run.CopiedDems++;
                 if (!run.Items.TryGetValue(demo.Sha256, out TransferSummaryItem? item)
                     || item.Outcome == TransferOutcome.Skipped)

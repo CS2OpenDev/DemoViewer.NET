@@ -99,6 +99,48 @@ public class TransferImportLibraryTests
         }
     }
 
+    // The importer hashed its own copy, so the library lists it as a confirmed location and a second import of
+    // the same bundle finds the demo already here instead of copying it again as "name (2).dem".
+    [Test]
+    public async Task ImportingTheSameBundleTwice_DoesNotCopyTheDemoAgain()
+    {
+        using TempFolders temp = new();
+        string bundleRoot = temp.New();
+        string destination = Path.Combine(temp.New(), "Imported demos");
+        // Bigger than the fingerprint's two windows, so a fingerprint match leaves part of the file unread.
+        byte[] bytes = new byte[(1 << 20) + 4096];
+        new Random(74).NextBytes(bytes);
+        using Library library = new(temp.New(), new DemoCacheStore(temp.New()));
+        (string sha, DemoContentFingerprint fingerprint) =
+            DemoContentFingerprint.ComputeWithContentHash(new MemoryStream(bytes), library.Reader.WindowBytes);
+        BundleBuilder bundle = new(bundleRoot);
+        bundle.Demo(sha, "match one.dem", bytes.Length,
+            [bundle.Record(BundleBuilder.ParsedRecord(sha, bytes.Length, "de_imported"))], fingerprint,
+            bundle.Dem(sha, bytes));
+        bundle.Write();
+        TransferImporter importer = new(library.Store, library: library.Service);
+        ImportRequest request = new(bundleRoot, ConflictPolicy.KeepMine, new HashSet<string> { sha }, destination,
+            true);
+
+        ImportPreview first = await importer.PreviewAsync(bundleRoot, CancellationToken.None);
+        await importer.RunAsync(request, first, null, CancellationToken.None);
+        string copied = Path.Combine(destination, "match one.dem");
+        await library.Service.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
+        await WaitForAsync(() => library.Store.LocationOf(copied) is not null, "the copied demo attached");
+
+        ImportPreview second = await importer.PreviewAsync(bundleRoot, CancellationToken.None);
+        await importer.RunAsync(request with { DemDestinationIsNewFolder = false }, second, null,
+            CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(library.Store.LocationOf(copied)?.Location.Confirmed).IsTrue();
+            await Assert.That(second.Entries.Single().DemAlreadyInLibrary).IsTrue();
+            await Assert.That(Directory.EnumerateFiles(destination).Select(f => Path.GetFileName(f)!))
+                .IsEquivalentTo(["match one.dem"]);
+        }
+    }
+
     // Cancels once the second demo's copy is under way, after the first finished.
     private sealed class CancelOnSecond(CancellationTokenSource cts, long firstBytes) : IProgress<TransferProgress>
     {

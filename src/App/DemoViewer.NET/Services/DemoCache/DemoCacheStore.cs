@@ -512,10 +512,13 @@ public sealed partial class DemoCacheStore
                     return false;
                 }
 
+                // A full read of this very file already hashed it to the row's content: nothing is left to confirm.
+                bool read = RecentContentRead(path, size, modifiedTicks) is { } seen
+                    && string.Equals(seen.Sha256, contentId, StringComparison.Ordinal);
                 List<DemoLocation> locations =
                 [
                     .. row.Locations,
-                    new(path, false, size, modifiedTicks, DateTime.UtcNow.Ticks)
+                    new(path, read, size, modifiedTicks, DateTime.UtcNow.Ticks)
                 ];
                 Link(contentId, Shape(row.Copy(), locations, row.SidecarKeys));
             }
