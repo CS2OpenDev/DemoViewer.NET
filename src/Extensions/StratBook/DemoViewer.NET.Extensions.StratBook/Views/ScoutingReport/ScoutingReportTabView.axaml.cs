@@ -77,8 +77,9 @@ public partial class ScoutingReportTabView : UserControl
 
     private void Reclaim(TextBox? box)
     {
-        if (box is { DataContext: ScoutingReportFindingViewModel { IsEditing: true } row } && ReferenceEquals(row, _editing)
-            && !box.IsFocused)
+        // By key: a rebuild of the findings hands the open edit to a new row object under the same key.
+        if (box is { DataContext: ScoutingReportFindingViewModel { IsEditing: true } row }
+            && string.Equals(row.Key, _editing?.Key, StringComparison.Ordinal) && !box.IsFocused)
         {
             Dispatcher.UIThread.Post(() =>
             {

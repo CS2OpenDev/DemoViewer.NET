@@ -331,6 +331,34 @@ public class ScoutingReportEditingTests
     }
 
     [Test]
+    public async Task AnEditInProgress_SurvivesARebuildOfTheSameTeam_AndNotATeamChange()
+    {
+        ScoutingReportNotesStore store = new(null);
+        ScoutingReportEditorViewModel editor = new(store);
+        Guid team = Guid.NewGuid();
+        editor.Load(team, "Falcons", "3 demos across 2 maps", Sources());
+        ScoutingReportFindingViewModel nuke = editor.Findings.Single(f => f.Key == NukeKey);
+        nuke.BeginEditCommand.Execute(null);
+        nuke.EditText = "de_nuke: half typed";
+
+        // The long form landing, a background stamp, or a note added while the line is open.
+        editor.Load(team, "Falcons", "3 demos across 2 maps", [.. Sources().Reverse()]);
+        editor.NewNoteText = "they stack B";
+        editor.AddNoteCommand.Execute(null);
+        ScoutingReportFindingViewModel again = editor.Findings.Single(f => f.Key == NukeKey);
+        using (Assert.Multiple())
+        {
+            await Assert.That(again.IsEditing).IsTrue();
+            await Assert.That(again.EditText).IsEqualTo("de_nuke: half typed");
+            await Assert.That(editor.Findings.Count(f => f.IsEditing)).IsEqualTo(1);
+        }
+
+        editor.Load(Guid.NewGuid(), "Vitality", "2 demos", Sources());
+        await Assert.That(editor.Findings.Any(f => f.IsEditing)).IsFalse()
+            .Because("another team's line under the same key is not the one being rewritten");
+    }
+
+    [Test]
     public async Task TheEditor_StarsRewritesLeavesOutAndAddsNotes_AndKeepsThemAcrossARebuild()
     {
         ScoutingReportNotesStore store = new(null);

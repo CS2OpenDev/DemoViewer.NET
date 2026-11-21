@@ -411,7 +411,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             NewNoteText = "";
         }
 
-        Rebuild();
+        Rebuild(keepOpenEdits: !teamChanged);
         OnPropertyChanged(nameof(HasTeam));
         RaiseCounts();
         StarsChanged?.Invoke();
@@ -754,8 +754,13 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         StarsChanged?.Invoke();
     }
 
-    private void Rebuild()
+    private void Rebuild(bool keepOpenEdits = true)
     {
+        // A line open for editing stays open with what was typed: the long form landing, a background stamp or a
+        // note added mid-edit rebuilds every row. Another team's line under the same key is not the one being edited.
+        Dictionary<string, string> open = keepOpenEdits
+            ? _rows.Where(r => r.IsEditing).ToDictionary(r => r.Key, r => r.EditText, StringComparer.Ordinal)
+            : [];
         _rows.Clear();
         _loading = true;
         try
@@ -786,7 +791,9 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                             Stage = source.Stage,
                             Shape = source.Shape,
                             IsStarred = starred.Contains(source.Key),
-                            IsHidden = hidden.Contains(source.Key)
+                            IsHidden = hidden.Contains(source.Key),
+                            EditText = open.GetValueOrDefault(source.Key, ""),
+                            IsEditing = open.ContainsKey(source.Key)
                         });
                 }
 
@@ -795,7 +802,9 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                     string key = ScoutingReportNotesStore.NoteKey(note.Id);
                     _rows.Add(new ScoutingReportFindingViewModel(key, NotesSection, note.Text, note.Text, true, null)
                     {
-                        IsStarred = starred.Contains(key)
+                        IsStarred = starred.Contains(key),
+                        EditText = open.GetValueOrDefault(key, ""),
+                        IsEditing = open.ContainsKey(key)
                     });
                 }
 
