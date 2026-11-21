@@ -314,8 +314,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             { State: DemoDataState.Written, Schema: RoundIndexStore.Schema };
 
     // Reads one sidecar and replaces whatever the demo contributed before. Does nothing when the file is
-    // missing, unreadable, or belongs to another demo.
-    private void Merge(LibraryDemo entry, bool raise)
+    // missing, unreadable, or belongs to another demo; true when the rows went in.
+    private bool Merge(LibraryDemo entry, bool raise)
     {
         string fileName = Path.GetFileName(entry.FilePath);
         // Before the document: read after it, the stamp could be a newer write's and date these rows as that
@@ -325,21 +325,21 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         if (document is null)
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "missing or unreadable");
-            return;
+            return false;
         }
 
         if (document.SchemaVersion != RoundIndexStore.Schema)
         {
             string reason = $"schema {document.SchemaVersion}";
             RoundIndexLog.SidecarIgnored(Log, fileName, reason);
-            return;
+            return false;
         }
 
         if (!string.Equals(document.Clock.Kind, ClockIdentity.DvFrameClock, StringComparison.Ordinal))
         {
             string reason = $"clock {document.Clock.Kind}";
             RoundIndexLog.SidecarIgnored(Log, fileName, reason);
-            return;
+            return false;
         }
 
         // A reader that has a hash compares it and ignores a mismatching file: the sidecar belongs to a
@@ -348,13 +348,13 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             && !string.Equals(sha, written, StringComparison.Ordinal))
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "content hash differs");
-            return;
+            return false;
         }
 
         if (document.CadenceTicks <= 0)
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "no cadence");
-            return;
+            return false;
         }
 
         RoundIndexedEvent indexed = new(entry.FilePath, DemoKeys.StableKey(entry.FilePath), entry.Sha256,
@@ -364,7 +364,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             // A merge posted before a release lands after it: released means empty.
             if (!_attached)
             {
-                return;
+                return false;
             }
 
             // The read above ran outside the gate. Load walks the library while the evaluator's Written is
@@ -374,7 +374,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
                  || LoadedAtLocked(entry.FilePath, out resident))
                 && resident.ComputedAtTicks > computedAt)
             {
-                return;
+                return false;
             }
 
             RemoveLocked(DemoKey(entry));
@@ -396,6 +396,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
                 Changed?.Invoke();
             });
         }
+
+        return true;
     }
 
     private MapIndex MapFor(string map)
@@ -438,18 +440,24 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
 
     private void OnLibraryChanged(LibraryChange change) => OnCacheChanged(change.Path);
 
-    // Removals only: a demo that left the library, or one whose record lost its stamp (the file was
-    // replaced and identity drift discarded every tier). New rows arrive through the evaluator's
-    // Written, so no sidecar is read on the UI thread here.
+    // Removals here: a demo that left the library, or one whose record lost its stamp (the file was
+    // replaced and identity drift discarded every tier). A written demo's rows arrive through the evaluator's
+    // Written; a sidecar written current with no write behind it (a Library Transfer import) is read off this
+    // thread, as a restart's load would read it.
     private void OnCacheChanged(string? path)
     {
         bool changed = false;
+        bool absent;
         lock (_gate)
         {
             if (!_ready)
             {
                 return;
             }
+
+            absent = path is null
+                     || ((_library.Find(path) is not { } named || !_loaded.ContainsKey(DemoKey(named)))
+                         && !LoadedAtLocked(path, out _));
 
             foreach (LoadedDemo demo in _loaded.Values
                          .Where(d => path is null || string.Equals(d.Path, path, StringComparison.OrdinalIgnoreCase))
@@ -475,6 +483,39 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         }
 
         if (changed)
+        {
+            _post(() => Changed?.Invoke());
+        }
+
+        if (absent)
+        {
+            _ = Task.Run(() => MergeAbsent(path));
+        }
+    }
+
+    // Every loadable demo the index does not hold, or just the one named: Load's read for a demo that arrived
+    // after it, with no Indexed raised (a Watched Situation counts new writes, not a fill). Reads the sidecar, so
+    // never on the UI thread.
+    private void MergeAbsent(string? path)
+    {
+        IEnumerable<LibraryDemo> entries = path is null ? _library.Demos
+            : _library.Find(path) is { } named ? [named] : [];
+        bool merged = false;
+        foreach (LibraryDemo entry in entries)
+        {
+            bool held;
+            lock (_gate)
+            {
+                held = !_ready || _loaded.ContainsKey(DemoKey(entry)) || LoadedAtLocked(entry.FilePath, out _);
+            }
+
+            if (!held && IsLoadable(entry) && Merge(entry, raise: false))
+            {
+                merged = true;
+            }
+        }
+
+        if (merged)
         {
             _post(() => Changed?.Invoke());
         }
