@@ -846,6 +846,16 @@ public class ScoutingReportEditingTests
             await Assert.That(store.For(team).Starred).DoesNotContain(awpContact);
         }
 
+        // The one-pager preview unstars by the row's key, which the store never held.
+        editor.SetStarred(awpContact, true);
+        await Assert.That(editor.StarredCount).IsEqualTo(3);
+        editor.SetStarred(awpLong, false);
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.StarredCount).IsEqualTo(2);
+            await Assert.That(store.For(team).Starred).DoesNotContain(awpContact);
+        }
+
         editor.SetStarred(utilFull, false);
         await Assert.That(editor.StarredCount).IsEqualTo(1);
     }

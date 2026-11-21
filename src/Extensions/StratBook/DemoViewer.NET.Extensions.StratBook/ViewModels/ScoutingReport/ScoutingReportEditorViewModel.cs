@@ -414,6 +414,15 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             return;
         }
 
+        if (!starred && _rows.Any(r => r.Key == key))
+        {
+            // The one-pager unstars by the row's key; the star may be an inspector alias the store holds instead.
+            foreach (string alias in AliasesOf(id, key))
+            {
+                _store.SetStarred(id, alias, false);
+            }
+        }
+
         _store.SetStarred(id, key, starred);
         ApplyStars(id);
         AfterStar();
