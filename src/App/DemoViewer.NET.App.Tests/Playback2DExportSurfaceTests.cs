@@ -320,6 +320,54 @@ public class Playback2DExportStatusSurfaceTests
         });
 
     /// <summary>
+    ///     A Pack Export runs as a queue job with no status chip, and exit already counts it as an export; idle has
+    ///     to as well, or a long pack render is the one export idle closes the demo under.
+    /// </summary>
+    [Test]
+    public async Task ARunningPackExport_HoldsOffIdle() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using HeavyJobGate gate = new();
+            using DemoProcessingQueue queue = new(gate, a => a());
+            MainViewModel shell = new(processingQueue: queue);
+            try
+            {
+                bool before = shell.IsIdleBlocked();
+                TaskCompletionSource running = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                using CancellationTokenSource stop = new();
+                Task<int> pack = PackExportQueue.RunAsync(queue, "Pack export", null, async (_, ct) =>
+                {
+                    running.SetResult();
+                    await Task.Delay(Timeout.Infinite, ct);
+                    return 0;
+                }, null, stop.Token);
+                await running.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                bool packRunning = shell.IsIdleBlocked();
+
+                await stop.CancelAsync();
+                try
+                {
+                    await pack.WaitAsync(TimeSpan.FromSeconds(10));
+                }
+                catch (OperationCanceledException)
+                {
+                    // The cancel is the point.
+                }
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(before).IsFalse();
+                    await Assert.That(packRunning).IsTrue();
+                    await Assert.That(shell.IsIdleBlocked()).IsFalse().Because("an ended pack no longer holds idle off");
+                }
+            }
+            finally
+            {
+                shell.Dispose();
+            }
+        });
+
+    /// <summary>
     ///     Exit cancels every export that owns an ffmpeg child and a half-written file, not only the 2D tab's: an
     ///     extension's mounted export and a Pack Export running on the processing queue are cancelled and waited
     ///     for too.

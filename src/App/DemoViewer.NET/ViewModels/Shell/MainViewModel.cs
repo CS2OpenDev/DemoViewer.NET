@@ -4182,14 +4182,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // but a running reel render, a running export or an ACTIVE live-sync session are long-running operations
     // with no per-frame input either: closing the demo under them would break work in flight, so they block
     // idle too. Evaluated fresh each poll tick (ReelJob / LiveSync / the export status are attached after the
-    // ctor).
+    // ctor). The exports are the ones exit tears down: the 2D tab's, a mounted one and a Pack Export on the queue.
     internal bool IsIdleBlocked() =>
         Playback.IsPlaying
         || _tutorial.IsActive
         || ReelJob is { Status.IsRunning: true }
         || LiveSync is { State.IsSessionActive: true }
-        || Playback2DExportStatus is { IsRunning: true }
-        || _shellChips.OfType<ExportChipSlot>().Any(slot => slot.IsRunning);
+        || HasRunningExport();
 
     /// <summary>
     ///     True while an export that owns an ffmpeg child and a half-written file runs: the 2D tab's, a mounted
