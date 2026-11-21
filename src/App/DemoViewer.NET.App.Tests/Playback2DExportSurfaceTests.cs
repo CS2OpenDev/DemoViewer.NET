@@ -716,6 +716,31 @@ public class Playback2DExportDialogLifetimeTests
             }
         });
 
+    // The toolbar button stays visible while the pane is open. A second click replaced the dialog without
+    // closing it, so its ffmpeg download kept running unanswered and its Start still closed the new pane.
+    [Test]
+    public async Task OpeningTheExportAgain_ClosesTheDialogItReplaces() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext _) = Activate("a.dem");
+            try
+            {
+                vm.OpenExportCommand.Execute(null);
+                Playback2DExportDialogViewModel first = vm.ExportDialog!;
+
+                vm.OpenExportCommand.Execute(null);
+
+                await Assert.That(vm.ExportDialog).IsNotSameReferenceAs(first);
+                await Assert.That(StartRequestedHandlers(first)).IsEqualTo(0)
+                    .Because("CloseExport unhooks and disposes the dialog it lets go of");
+            }
+            finally
+            {
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+        });
+
     private static (Playback2DTabViewModel, Playback2DFakeContext) Activate(string demo)
     {
         Playback2DFakeContext ctx = new() { DemoPath = demo };
@@ -725,4 +750,11 @@ public class Playback2DExportDialogLifetimeTests
         vm.OnActivated(ctx);
         return (vm, ctx);
     }
+
+    // The field-like event's backing field: the dialog's only observable trace of having been let go.
+    private static int StartRequestedHandlers(Playback2DExportDialogViewModel dialog) =>
+        (typeof(Playback2DExportDialogViewModel)
+            .GetField(nameof(Playback2DExportDialogViewModel.StartRequested),
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(dialog) as Delegate)?.GetInvocationList().Length ?? 0;
 }

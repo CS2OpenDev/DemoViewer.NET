@@ -884,6 +884,10 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // The export pane and a contributed side pane share one place.
         Surface.CloseSidePane();
 
+        // The button stays visible while the pane is open. A dialog replaced without closing would keep its
+        // ffmpeg download running with no pane to answer its licence prompt.
+        CloseExport();
+
         if (_exportJob is null)
         {
             // The log sink is passed at BOTH levels on purpose: the runner's carries the chosen encoder
