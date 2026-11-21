@@ -256,6 +256,7 @@ public class Cs2InstallRecoveryViewModelTests
         public Action? DuringRestore { get; set; }
 
         public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
+        public bool OwnsStartedSession { get; set; }
         public long? LastCs2DemoTick => null;
         public LiveSyncVersionInfo? Versions => null;
         public LiveSyncCapabilities? Capabilities => null;
@@ -338,8 +339,70 @@ public class Cs2InstallRecoveryAcrossProfilesTests
     }
 
     // CS2 quit in game: CSVG goes Faulted still holding its backups (its StopAsync is the reset path that restores
-    // them), so the probe on Faulted sees the session's own changes. Disable then restores them and ends in
-    // Disconnected; the banner has to look again there rather than keep saying the install is modified.
+    // them). The session still owns the install, so the banner stays down rather than call the session's own
+    // changes a crash's leftovers, and stays down on a clean install once Disable has stopped it.
+    [Test]
+    public async Task AFaultedSessionThatStillOwnsTheInstall_RaisesNoBanner_AndDisableLeavesItClean()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            MainViewModel vm = new(library: TestLibraries.Empty());
+            Cs2InstallRecoveryViewModelTests.FakeLiveSync liveSync = new(new Cs2InstallProbe(false, false, false));
+            vm.AttachLiveSync(liveSync);
+
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.HostStarting));
+            liveSync.OwnsStartedSession = true;
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.SyncedHolding));
+            liveSync.Probe = new Cs2InstallProbe(true, true, false);
+            int probes = liveSync.ProbeCalls;
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.Faulted, "CS2 quit"));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Cs2InstallRecovery!.IsVisible).IsFalse()
+                    .Because("the faulted session restores its own changes when it is stopped");
+                await Assert.That(liveSync.ProbeCalls).IsEqualTo(probes);
+                await Assert.That(liveSync.RestoreCalls).IsEqualTo(0);
+            }
+
+            liveSync.OwnsStartedSession = false;
+            liveSync.Probe = new Cs2InstallProbe(false, false, false);
+            liveSync.Raise(LiveSyncState.Disconnected);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(liveSync.ProbeCalls).IsEqualTo(probes + 1).Because("released, so it looks again");
+                await Assert.That(vm.Cs2InstallRecovery.IsVisible).IsFalse();
+            }
+        });
+    }
+
+    // A stop that could not restore everything: once the session is gone, what it left is leftovers again.
+    [Test]
+    public async Task WhatAStoppedSessionLeftBehind_RaisesTheBanner()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            MainViewModel vm = new(library: TestLibraries.Empty());
+            Cs2InstallRecoveryViewModelTests.FakeLiveSync liveSync = new(new Cs2InstallProbe(false, false, false));
+            vm.AttachLiveSync(liveSync);
+
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.HostStarting));
+            liveSync.OwnsStartedSession = true;
+            liveSync.Probe = new Cs2InstallProbe(true, false, false);
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.Faulted, "CS2 quit"));
+            await Assert.That(vm.Cs2InstallRecovery!.IsVisible).IsFalse();
+
+            liveSync.OwnsStartedSession = false;
+            liveSync.Raise(LiveSyncState.Disconnected);
+
+            await Assert.That(vm.Cs2InstallRecovery.NeedsRestore).IsTrue();
+        });
+    }
+
+    // An engine whose faulted session was already let go (it reports no ownership) is probed on Faulted, and a
+    // banner that probe raised has to be looked at again once a stop ends in Disconnected, rather than keep
+    // saying the install is modified after the stop restored it.
     [Test]
     public async Task ABannerRaisedOnFaulted_IsClearedWhenTheSessionStopsAndRestoresTheInstall()
     {

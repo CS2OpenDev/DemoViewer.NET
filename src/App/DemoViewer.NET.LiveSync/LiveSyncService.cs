@@ -62,6 +62,9 @@ public sealed class LiveSyncService : ILiveSyncService
 
     private CsvgWebHost? _host;
 
+    // Set just before a CS2 launch, cleared once that session has been stopped: see OwnsStartedSession.
+    private volatile bool _ownsStartedSession;
+
     // Inbound pipeline: the 30 Hz Cs2EventPump + servo + mirroring.
     private InboundSync? _inbound;
     private long _lastTickSlot = NoTick;
@@ -114,6 +117,9 @@ public sealed class LiveSyncService : ILiveSyncService
     ///     own host start hits the port and fails blaming "another program".
     /// </summary>
     internal bool OwnsSessionResources => _host is not null;
+
+    /// <inheritdoc />
+    public bool OwnsStartedSession => _ownsStartedSession;
 
     /// <inheritdoc />
     public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
@@ -214,6 +220,7 @@ public sealed class LiveSyncService : ILiveSyncService
                 {
                     await session.StopAsync(CancellationToken.None);
                     stoppedFaulted = true;
+                    _ownsStartedSession = false;
                 }
                 catch (Exception ex)
                 {
@@ -252,6 +259,8 @@ public sealed class LiveSyncService : ILiveSyncService
                 settings.UsesMock()
                     ? "Launching mock CS2"
                     : "Launching CS2 (up to ~2 min)"));
+            // From here CSVG patches the install, and only its StopAsync restores it, Faulted or not.
+            _ownsStartedSession = true;
             try
             {
                 await session.StartWatchAsync(
@@ -424,7 +433,8 @@ public sealed class LiveSyncService : ILiveSyncService
 
     /// <inheritdoc />
     public Task RestoreInstallAsync(CancellationToken cancellationToken = default) =>
-        Task.Run(() => InstallRecovery.Restore(CurrentSettings(), PostRecoveryLine), cancellationToken);
+        Task.Run(() => InstallRecovery.Restore(CurrentSettings(), PostRecoveryLine, null, () => _ownsStartedSession),
+            cancellationToken);
 
     private void PostRecoveryLine(string line) => Dispatcher.UIThread.Post(() =>
     {
@@ -711,6 +721,9 @@ public sealed class LiveSyncService : ILiveSyncService
                     // Best-effort: CSVG's StopAsync is itself the recovery path; a failure
                     // here leaves `csvg restore` / doctor as the manual fallback (the crash-recovery offer surfaces it).
                 }
+
+                // The session is gone either way: whatever it left is now leftovers the banner may restore.
+                _ownsStartedSession = false;
 
                 Unsubscribe();
                 try

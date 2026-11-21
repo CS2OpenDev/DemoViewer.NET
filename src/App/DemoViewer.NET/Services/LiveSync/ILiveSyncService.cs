@@ -34,6 +34,14 @@ public interface ILiveSyncService : IAsyncDisposable
     /// </summary>
     LiveSyncCapabilities? Capabilities { get; }
 
+    /// <summary>
+    ///     True from the moment a CS2 session is launched until it is stopped, whatever <see cref="State" /> says
+    ///     meanwhile. A session that faulted because CS2 quit still holds the install's changes and restores them
+    ///     when it is stopped (Reconnect, Disable), so the install is the engine's, not a crash's leftovers. A
+    ///     launch refused before CS2 started never sets it. An engine that keeps no session reports false.
+    /// </summary>
+    bool OwnsStartedSession => false;
+
     /// <summary>Raised on the UI thread after every state transition.</summary>
     event EventHandler<LiveSyncStateChangedEventArgs>? StateChanged;
 
