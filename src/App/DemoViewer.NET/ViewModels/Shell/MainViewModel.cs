@@ -3555,9 +3555,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             {
                 AnalysisTab.RestoreState(analysis);
             }
-
-            // Module tabs: parked on their descriptors, applied when each VM is first built (they are lazy).
-            RestoreModuleTabs(restore.ModuleTabs);
         }
     }
 
@@ -5020,6 +5017,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         RestoreHubRails(p.Hubs);
         RestorePackSessions(p.Packs);
 
+        // Module-tab state needs no demo, and must land before RestoreActiveTab builds the restored tab.
+        RestoreModuleTabs(p.ModuleTabs);
         RestoreActiveTab(p);
         // Never restore an owned panel OPEN when its chrome is gated off for the current
         // category: otherwise a drawer/rail a developer left open would return open at startup with its
@@ -5270,6 +5269,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     Hands each module tab its persisted blob. Parked on the descriptor rather than applied here:
     ///     module VMs are built lazily on first activation, so at restore time most of them do not exist yet:
     ///     <c>WorkspaceTabDescriptor.Activate</c> applies the state the moment it builds one, exactly once.
+    ///     A tab whose VM already exists (the first tab, selected and built by the constructor) is handed its
+    ///     state directly, since Activate would never apply a parked one. Walks every descriptor, gated or
+    ///     not, so a tab turned on later in the session still finds its state.
     /// </summary>
     private void RestoreModuleTabs(IReadOnlyDictionary<string, JsonElement>? states)
     {
@@ -5278,12 +5280,21 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        foreach (WorkspaceTabDescriptor tab in TabsAndSections())
+        foreach (WorkspaceTabDescriptor tab in AllDescriptors())
         {
             // A renamed tab finds the state saved under its old id; the next save writes it under the new one.
-            if (TabIdAliases.TryGetState(tab, states, out JsonElement state))
+            if (!TabIdAliases.TryGetState(tab, states, out JsonElement state))
+            {
+                continue;
+            }
+
+            if (tab.TabViewModel is null)
             {
                 tab.PendingRestoreState = state;
+            }
+            else
+            {
+                ExtensionTabs.Restore(tab, state);
             }
         }
     }

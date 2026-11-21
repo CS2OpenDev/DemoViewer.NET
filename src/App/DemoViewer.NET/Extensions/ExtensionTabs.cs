@@ -117,6 +117,35 @@ public static class ExtensionTabs
         }
     }
 
+    /// <summary>
+    ///     Hands <paramref name="state" /> to <paramref name="tab" />'s already-built view model, as its extension's
+    ///     when it has one. A throw is swallowed, as <see cref="WorkspaceTabDescriptor.Activate" /> swallows one
+    ///     from a restore: session state is a convenience, and a bad blob must not cost the user the tab.
+    /// </summary>
+    internal static void Restore(WorkspaceTabDescriptor tab, object state)
+    {
+        ArgumentNullException.ThrowIfNull(tab);
+        if (tab.TabViewModel is not { } viewModel)
+        {
+            return;
+        }
+
+        if (ExtensionGuards.For(tab) is { } guard)
+        {
+            guard.Run("tab session restore", () => viewModel.RestoreState(state));
+            return;
+        }
+
+        try
+        {
+            viewModel.RestoreState(state);
+        }
+        catch (Exception)
+        {
+            // The same backstop as Activate's: the blob was written by a previous build and may not fit.
+        }
+    }
+
     /// <summary>The session state of <paramref name="tab" />'s view model, or null; an extension's throw reads as null.</summary>
     public static object? Snapshot(WorkspaceTabDescriptor tab)
     {
