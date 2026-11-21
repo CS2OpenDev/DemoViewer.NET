@@ -68,6 +68,10 @@ public sealed class SettingsService
 
     private readonly string? _settingsPath;
 
+    // Serialises every read-modify-write of the file (and the set-aside state it updates). Most writers are on
+    // the UI thread, but not all of them.
+    private readonly Lock _writeSync = new();
+
     // Set by the file-load exception handler when settings.json is present but unparseable.
     private bool _loadFailed;
 
@@ -264,22 +268,28 @@ public sealed class SettingsService
         // as the basis would bake that override into settings.json on an unrelated write and permanently
         // overwrite the user's real file value. Env overrides stay effective for READS (Current), they
         // are simply never persisted by a write.
-        AppSettings settings = ReadPersistedBasis();
-        mutate(settings);
+        // Held from the basis read to the replace: a write from another thread (the annotation style is saved
+        // from the pool) would otherwise start from the same file and put this write's keys back. The reload
+        // runs outside it, so an OnChange handler never runs under the lock; it reads the latest file anyway.
+        lock (_writeSync)
+        {
+            AppSettings settings = ReadPersistedBasis();
+            mutate(settings);
 
-        if (_settingsPath is null)
-        {
-            WriteInMemory(settings);
-        }
-        else
-        {
-            // Merge the mutated PREFERENCE keys into the existing file object, leaving the consolidated
-            // Session / Recents sections (which AppSettings does not model) untouched: a preference write
-            // must never clobber them.
-            JsonObject file = ReadFileObject(forWrite: true);
-            MergePreferences(file, settings);
-            WriteObject(file);
-            _loadFailed = false; // valid JSON was just written, so any prior parse failure is cleared
+            if (_settingsPath is null)
+            {
+                WriteInMemory(settings);
+            }
+            else
+            {
+                // Merge the mutated PREFERENCE keys into the existing file object, leaving the consolidated
+                // Session / Recents sections (which AppSettings does not model) untouched: a preference write
+                // must never clobber them.
+                JsonObject file = ReadFileObject(forWrite: true);
+                MergePreferences(file, settings);
+                WriteObject(file);
+                _loadFailed = false; // valid JSON was just written, so any prior parse failure is cleared
+            }
         }
 
         // Reload immediately: fires the reload token synchronously on this thread, so self-write OnChange is
@@ -372,10 +382,13 @@ public sealed class SettingsService
         {
             // One write carries the rows and their marker, so a crash leaves either the old section unmarked or
             // the new one marked. A marker a newer build wrote is never lowered.
-            JsonObject file = ReadFileObject(forWrite: true);
-            Set(file, "Recents", JsonSerializer.SerializeToNode(recents.ToList(), _serializerOptions));
-            Set(file, RecentsVersionKey, Math.Max(ReadVersion(file), RecentsFormatVersion));
-            WriteObject(file);
+            lock (_writeSync)
+            {
+                JsonObject file = ReadFileObject(forWrite: true);
+                Set(file, "Recents", JsonSerializer.SerializeToNode(recents.ToList(), _serializerOptions));
+                Set(file, RecentsVersionKey, Math.Max(ReadVersion(file), RecentsFormatVersion));
+                WriteObject(file);
+            }
         }
         catch
         {
@@ -486,9 +499,12 @@ public sealed class SettingsService
     // (preferences + the sibling Session/Recents). Deliberately does NOT Reload(): see SaveSession/SaveRecents.
     private void WriteSection<T>(string sectionName, T value)
     {
-        JsonObject file = ReadFileObject(forWrite: true);
-        Set(file, sectionName, JsonSerializer.SerializeToNode(value, _serializerOptions));
-        WriteObject(file);
+        lock (_writeSync)
+        {
+            JsonObject file = ReadFileObject(forWrite: true);
+            Set(file, sectionName, JsonSerializer.SerializeToNode(value, _serializerOptions));
+            WriteObject(file);
+        }
     }
 
     /// <summary>

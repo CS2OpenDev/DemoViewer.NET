@@ -283,6 +283,45 @@ public class SettingsServiceTests
         }
     }
 
+    /// <summary>
+    ///     Each write reads the file, changes its part and replaces the file. The annotation style is written
+    ///     from a pool thread, so two writes can overlap, and the later replace used to put back the other's
+    ///     keys as they were before it.
+    /// </summary>
+    [Test]
+    public async Task OverlappingWrites_FromTwoThreads_BothLand()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            SettingsService svc = new(dir);
+            using ManualResetEventSlim entered = new();
+            using ManualResetEventSlim release = new();
+            Task first = Task.Run(() => svc.Write(s =>
+            {
+                s.Playback2D.AnnotationWidth = 7;
+                entered.Set();
+                release.Wait(TimeSpan.FromSeconds(10));
+            }));
+            entered.Wait(TimeSpan.FromSeconds(10));
+            Task second = Task.Run(() => svc.Write(s => s.Theme = "Light"));
+            await Task.WhenAny(second, Task.Delay(300));
+            release.Set();
+            await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10));
+
+            AppSettings read = new SettingsService(dir).Current;
+            using (Assert.Multiple())
+            {
+                await Assert.That(read.Theme).IsEqualTo("Light");
+                await Assert.That(read.Playback2D.AnnotationWidth).IsEqualTo(7);
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     // The same bad value from the environment layer: the file is fine and is left alone, and the override is
     // what gets dropped.
     [Test]
