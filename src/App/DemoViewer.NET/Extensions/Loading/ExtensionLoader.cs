@@ -28,7 +28,8 @@ public static class ExtensionLoader
     ///     Lists the staged directories under <paramref name="extensionsDirectory" /> whose manifest parses
     ///     and whose <c>&lt;id&gt;/&lt;version&gt;</c> folders equal the manifest's id and version, ordered by id
     ///     and then highest version first. A directory that fails is in <see cref="Discovery.Rejected" />
-    ///     with the reason. A missing directory yields nothing.
+    ///     with the reason; one that carries <see cref="Updates.ExtensionStaging.RemovalMarkerName" /> is in
+    ///     neither. A missing directory yields nothing.
     /// </summary>
     public static Discovery Discover(string extensionsDirectory)
     {
@@ -58,6 +59,13 @@ public static class ExtensionLoader
 
             foreach (string versionDir in Directory.EnumerateDirectories(idDir))
             {
+                // A version marked for removal failed to load and is deleted at the next start; until it is
+                // gone it is neither a candidate nor a refusal.
+                if (File.Exists(Path.Combine(versionDir, Updates.ExtensionStaging.RemovalMarkerName)))
+                {
+                    continue;
+                }
+
                 Inspect(root, idDir, versionDir, candidates, rejected);
             }
         }

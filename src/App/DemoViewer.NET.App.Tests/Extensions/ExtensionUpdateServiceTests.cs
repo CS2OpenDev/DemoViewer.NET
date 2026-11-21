@@ -700,6 +700,60 @@ public class ExtensionUpdateServiceTests
         }
     }
 
+    // The loader takes the highest trusted staged copy and falls back to the bundled one when that copy fails
+    // to load; it never tries a lower staged copy. So while a copy that failed to load is on disk, a lower one
+    // is not pending. The sweep marks the failed copy (its assembly is mapped), the next start deletes it
+    // before anything loads, and from the mark on the lower copy is what that start takes. A copy refused by
+    // the trust check does not shadow (the loader passes over it) and is not the sweep's to delete.
+    [Test]
+    public async Task Pending_AHigherCopyThatFailedToLoad_ShadowsTheLowerOne_UntilTheSweepMarksItForTheNextStart()
+    {
+        string root = NewRoot();
+        try
+        {
+            string extensions = Path.Combine(root, "extensions");
+            string good = StageVersion(extensions, "1.0.1");
+            string broken = StageVersion(extensions, "1.0.2");
+            string untrusted = StageVersion(extensions, "1.0.3");
+            PackStatus status = Status(version: "1.0.0", source: PackSource.Bundled) with
+            {
+                Rejected =
+                [
+                    new LoadOutcome(untrusted, null, LoadFailure.Untrusted, "the signature does not verify"),
+                    new LoadOutcome(broken, null, LoadFailure.ReferenceMismatch, "it was built for another app")
+                ]
+            };
+            ExtensionUpdateService service = NewService(root, new FakeFeedClient(), statuses: [status]);
+
+            SemVersion? pendingBefore = service.PendingVersion(Id);
+            bool restartBefore = service.PendingRestart;
+            service.Cleanup();
+            bool marked = File.Exists(Path.Combine(broken, ExtensionStaging.RemovalMarkerName));
+            SemVersion? pendingAfter = service.PendingVersion(Id);
+            bool brokenCandidate = ExtensionLoader.Discover(extensions).Candidates.Any(c => c.Directory == broken);
+            IReadOnlyList<string> removed = ExtensionStaging.ApplyPendingRemovals(extensions);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(pendingBefore).IsNull()
+                    .Because("the next start would select 1.0.2 again, fail, and fall back to the bundled copy");
+                await Assert.That(restartBefore).IsFalse();
+                await Assert.That(marked).IsTrue().Because("its assembly is mapped until this process exits");
+                await Assert.That(pendingAfter).IsEqualTo(SemVersion.Parse("1.0.1"));
+                await Assert.That(brokenCandidate).IsFalse().Because("a marked version is never loaded");
+                await Assert.That(removed).Contains(broken);
+                await Assert.That(Directory.Exists(broken)).IsFalse();
+                await Assert.That(Directory.Exists(good)).IsTrue();
+                await Assert.That(Directory.Exists(untrusted)).IsTrue();
+                await Assert.That(File.Exists(Path.Combine(untrusted, ExtensionStaging.RemovalMarkerName))).IsFalse();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     // A folder for the version that is not a loadable copy of it (no manifest) is replaced, not reported as
     // installed: nothing would load from it at the next start.
     [Test]

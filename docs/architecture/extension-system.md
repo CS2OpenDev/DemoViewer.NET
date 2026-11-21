@@ -210,7 +210,8 @@ after `VelopackApp.Build().Run()` and before Avalonia starts, and returns the `P
 
 1. `Discover` lists every `<id>/<version>/` whose manifest parses and whose folder names equal the
    manifest's id and version (`FolderMismatch` otherwise, `ManifestInvalid` for a missing or malformed
-   file), ordered highest version first.
+   file), ordered highest version first. A version folder carrying the marker file `.remove` is skipped:
+   it failed to load at an earlier launch and the next start deletes it (see "At startup" below).
 2. `Select` walks that pack's candidates from the top and takes the first that is **newer than the shipped
    version** (`NotNewer` otherwise; equal is not newer), that **`PackCompatibility.Check` accepts**
    (`Incompatible`, with the section 1 message), and that the **trust policy allows** (`Untrusted`).
@@ -720,7 +721,13 @@ never touches the extension's data; "Delete extension data" never removes the in
 loader's report: removes `extensions/.staging/` whole (a download the last run did not finish), then removes every staged version of a declared extension that is not newer than
 the running copy and is not the directory the running copy loaded from, whether that is a staged update
 or an installed first-party copy. Newer versions stay, even ones the loader refused today, since they may
-load after an app update. Nothing outside `extensions/` is touched. A superseded installed version is
+load after an app update. The exception is a staged update of a shipped extension that `Select` chose and
+that then failed to load (`AssemblyLoadFailed`, `EntryTypeMissing`, `NotAPack`, `IdentityMismatch`,
+`ReferenceMismatch` or `ProbeFailed`): the loader would choose it again at every start and fall back to the
+bundled copy without looking at an older staged one, so the sweep writes `<id>/<version>/.remove` in it.
+`Discover` skips a marked version from then on, and `ApplyPendingRemovals` deletes it at the next start
+before anything loads, so an older staged copy loads in its place. Until it is marked, `PendingVersion`
+reports nothing lower as pending. Nothing outside `extensions/` is touched. A superseded installed version is
 therefore on disk until the next launch's sweep, which is the stated expectation.
 
 **Settings.** Under Extensions, each extension's master row carries one update line (`FeatureToggleRow.Update`,

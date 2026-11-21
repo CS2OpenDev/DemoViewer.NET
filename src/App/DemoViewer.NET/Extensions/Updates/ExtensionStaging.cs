@@ -26,6 +26,8 @@ public static class ExtensionStaging
     /// <summary>
     ///     The file under <c>extensions/&lt;id&gt;/</c> that asks the next start to delete the whole id folder.
     ///     A file, not a folder, so <see cref="Loading.ExtensionLoader.Discover" /> never sees it as a version.
+    ///     Under <c>extensions/&lt;id&gt;/&lt;version&gt;/</c> it asks the same for that one version, and
+    ///     <see cref="Loading.ExtensionLoader.Discover" /> passes the version over until it is gone.
     /// </summary>
     public const string RemovalMarkerName = ".remove";
 
@@ -90,8 +92,37 @@ public static class ExtensionStaging
     }
 
     /// <summary>
+    ///     Asks the next start to delete one staged version, <c>extensions/&lt;id&gt;/&lt;version&gt;/</c>: a copy
+    ///     that failed to load, whose assembly stays mapped until this process exits. Until then
+    ///     <see cref="Loading.ExtensionLoader.Discover" /> no longer lists it. False when the folder is not under
+    ///     an id folder in <paramref name="extensionsDirectory" /> or the marker could not be written.
+    /// </summary>
+    internal static bool MarkVersionForRemoval(string extensionsDirectory, string versionDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(extensionsDirectory);
+        ArgumentNullException.ThrowIfNull(versionDirectory);
+        string idFolder = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(versionDirectory)))!;
+        if (!IsInside(extensionsDirectory, versionDirectory) || !IsInside(extensionsDirectory, idFolder)
+            || !Directory.Exists(versionDirectory))
+        {
+            return false;
+        }
+
+        try
+        {
+            File.WriteAllText(Path.Combine(versionDirectory, RemovalMarkerName), string.Empty);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     ///     Deletes every id folder under <paramref name="extensionsDirectory" /> that carries
-    ///     <see cref="RemovalMarkerName" />, as <see cref="ApplyPendingRemoval" /> does for one. Only safe before
+    ///     <see cref="RemovalMarkerName" />, as <see cref="ApplyPendingRemoval" /> does for one, and every version
+    ///     folder that carries it (<see cref="MarkVersionForRemoval" />). Only safe before
     ///     any extension is loaded, which is before logging is up, so it logs nothing: it returns the folders it
     ///     deleted whole for the caller to log. Never follows a link; never throws.
     /// </summary>
@@ -117,13 +148,66 @@ public static class ExtensionStaging
         foreach (string idFolder in idFolders)
         {
             string id = Path.GetFileName(idFolder);
-            if (!id.StartsWith('.') && ApplyPendingRemoval(extensionsDirectory, id, null))
+            if (id.StartsWith('.'))
+            {
+                continue;
+            }
+
+            if (ApplyPendingRemoval(extensionsDirectory, id, null))
             {
                 removed.Add(idFolder);
+            }
+            else
+            {
+                ApplyPendingVersionRemovals(extensionsDirectory, idFolder, removed);
             }
         }
 
         return removed;
+    }
+
+    // The version folders under idFolder that carry the marker. The marker goes last, so a folder that did not
+    // delete whole stays passed over by the loader and keeps asking at the next start.
+    private static void ApplyPendingVersionRemovals(string extensionsDirectory, string idFolder, List<string> removed)
+    {
+        try
+        {
+            if (!IsInside(extensionsDirectory, idFolder))
+            {
+                return;
+            }
+
+            foreach (string versionFolder in Directory.GetDirectories(idFolder))
+            {
+                string marker = Path.Combine(versionFolder, RemovalMarkerName);
+                if (!IsInside(extensionsDirectory, versionFolder) || !File.Exists(marker))
+                {
+                    continue;
+                }
+
+                foreach (string child in Directory.EnumerateFileSystemEntries(versionFolder))
+                {
+                    if (!string.Equals(child, marker, StringComparison.Ordinal))
+                    {
+                        DeleteTree(child);
+                    }
+                }
+
+                if (Directory.EnumerateFileSystemEntries(versionFolder)
+                    .Any(c => !string.Equals(c, marker, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                TryDeleteFile(marker);
+                Directory.Delete(versionFolder, false);
+                removed.Add(versionFolder);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Left for the next start, still passed over by the loader.
+        }
     }
 
     /// <summary>
