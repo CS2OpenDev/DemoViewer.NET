@@ -2243,10 +2243,29 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         else if (!shouldShow && present)
         {
             Chips.Remove(_liveSyncStatus.Chip);
+
+            // The chip's flyout is the only place Disable lives, so a session (or a Faulted one still holding
+            // CS2 and the patched install) stops with the switch rather than run on with no control left.
+            if (LiveSync is { State.Kind: not LiveSyncStateKind.Disconnected } liveSync)
+            {
+                _ = DisableLiveSyncAsync(liveSync);
+            }
         }
 
         // The gate feeds the 2D indicator's visibility too: re-raise so an active 2D tab reflows.
         _liveSyncStatus.NotifyHudGateChanged();
+    }
+
+    private async Task DisableLiveSyncAsync(ILiveSyncService liveSync)
+    {
+        try
+        {
+            await liveSync.DisableAsync();
+        }
+        catch (Exception ex)
+        {
+            AppLog.OperationFailed(DiagLog, "stop Live Sync after it was turned off", ex);
+        }
     }
 
     internal void AttachReelJob(IReelJobService reelJob)

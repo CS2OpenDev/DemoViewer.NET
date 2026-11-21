@@ -263,7 +263,13 @@ public class Cs2InstallRecoveryViewModelTests
         public event EventHandler<LiveSyncStateChangedEventArgs>? StateChanged;
 
         public Task EnableAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task DisableAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public int DisableCalls { get; private set; }
+
+        public Task DisableAsync(CancellationToken cancellationToken = default)
+        {
+            DisableCalls++;
+            return Task.CompletedTask;
+        }
         public Task ResyncAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task<bool> VerifyMomentAsync(int frameClockTick, int preRollTicks = 192, int postRollTicks = 64,
