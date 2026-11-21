@@ -140,7 +140,14 @@ public sealed class LiveSyncService : ILiveSyncService
     /// <inheritdoc />
     public async Task EnableAsync(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_disposed)
+        {
+            // Shutdown sets _disposed and then spends seconds stopping CS2 with the window still up:
+            // a flyout click in that window is a no-op, never an ObjectDisposedException out of a
+            // relay command that would crash the process mid-restore.
+            return;
+        }
+
         CancellationTokenSource enableCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _enableCts = enableCts;
         try
@@ -303,7 +310,12 @@ public sealed class LiveSyncService : ILiveSyncService
     /// <inheritdoc />
     public async Task DisableAsync(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_disposed)
+        {
+            // The teardown already stops the session (see EnableAsync).
+            return;
+        }
+
         CancelInFlightEnable();
         await _lifecycleGate.WaitAsync(cancellationToken);
         try
@@ -330,8 +342,7 @@ public sealed class LiveSyncService : ILiveSyncService
         int postRollTicks = VerificationRunner.DefaultPostRollTicks,
         string? spectateName = null, CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_engine is not { } engine || _subscribedSession is not { } session || !State.IsSynced)
+        if (_disposed || _engine is not { } engine || _subscribedSession is not { } session || !State.IsSynced)
         {
             // Not synced for the current demo: the UI owns the enable/sync prompt.
             return false;
@@ -411,8 +422,7 @@ public sealed class LiveSyncService : ILiveSyncService
     /// <inheritdoc />
     public Task ResyncAsync(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_observer is null)
+        if (_disposed || _observer is null)
         {
             return Task.CompletedTask;
         }
