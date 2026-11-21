@@ -126,6 +126,49 @@ public class DemoCacheImportTests
         }
     }
 
+    // A facts stamp settles the facet; taken without its sidecar it would leave the stats current and unreadable.
+    [Test]
+    public async Task ACurrentFactsStamp_IsTakenOnlyWithItsSibling()
+    {
+        DemoCacheStore store = new(null);
+        DemoCacheRecord imported = BundleBuilder.ParsedRecord(Sha, 4096, "de_imported");
+        imported.SetStamp(new PackStamp(StampedFacts.StampId("player_event"), 1, "fp"));
+        imported.SetStamp(new PackStamp(StampedFacts.StampId("player_round"), 1, "fp"));
+
+        DemoImportResult result = store.ImportContent(Sha, null, RecordBytes(imported), [Sibling(RoundFacts, "r")]);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(result.TakenStamps).IsEquivalentTo([StampedFacts.StampId("player_round")]);
+            await Assert.That(store.TryGetOrphan(Sha)?.Stamp(StampedFacts.StampId("player_event"))).IsNull();
+            await Assert.That(store.TryGetOrphan(Sha)?.Stamp(StampedFacts.StampId("player_round"))).IsNotNull();
+        }
+    }
+
+    [Test]
+    public async Task AMerge_KeepsTheLocalFactsAndSibling_WhenTheImportCarriesNoSiblingForThem()
+    {
+        DemoCacheStore store = new(null);
+        const string Path = "/library/match.dem";
+        DemoCacheRecord local = BundleBuilder.ParsedRecord(Sha, 4096, "de_local");
+        local.Path = Path;
+        local.Locations = [];
+        local.SetStamp(new PackStamp(StampedFacts.StampId("player_event"), 1, "fp-old"));
+        store.Upsert(local);
+        store.WriteSiblingBytes(Path, EventFacts, Encoding.UTF8.GetBytes("local"));
+        DemoCacheRecord imported = BundleBuilder.ParsedRecord(Sha, 4096, "de_imported");
+        imported.SetStamp(new PackStamp(StampedFacts.StampId("player_event"), 1, "fp-new"));
+
+        store.ImportContent(Sha, null, RecordBytes(imported), [], new DemoImportCurrency(null, (stamp, _) => stamp.Fingerprint == "fp-new"));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(store.TryLoadRecord(Path)?.Stamp(StampedFacts.StampId("player_event"))?.Fingerprint)
+                .IsEqualTo("fp-old");
+            await Assert.That(store.TryReadSibling(Path, EventFacts)).IsEqualTo("local");
+        }
+    }
+
     [Test]
     public async Task AMerge_NeverDowngrades_AndTakesASiblingOnlyWithItsStamp()
     {

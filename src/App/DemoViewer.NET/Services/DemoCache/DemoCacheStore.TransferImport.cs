@@ -84,6 +84,14 @@ public sealed partial class DemoCacheStore
             throw new InvalidDataException("The demo's cache record does not read.");
         }
 
+        // A current facts stamp is taken only with its outputs: the stamp settles the facet, so one taken without
+        // a sidecar would leave the demo's stats current on the index and unreadable, and nothing would rewrite
+        // them. The local stamp and its sidecar stay. A Failed stamp has no outputs by nature.
+        HashSet<string> backed = new(siblings.Select(s => StampOfSibling(s.Key)).OfType<string>(),
+            StringComparer.Ordinal);
+        imported.PackStamps.RemoveAll(s => s.State == DemoAnalysisState.Indexed
+            && StampedFacts.RulesetOf(s.Id) is not null && !backed.Contains(s.Id));
+
         long now = (nowUtc ?? DateTime.UtcNow).Ticks;
         DemoImportOutcome outcome;
         List<string> taken;
