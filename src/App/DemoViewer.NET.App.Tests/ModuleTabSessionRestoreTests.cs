@@ -85,6 +85,23 @@ public class ModuleTabSessionRestoreTests
             }
         });
 
+    [Test]
+    public async Task ASave_KeepsTheBlobOfATabNeverOpenedThisSession() =>
+        await WithShell(async (vm, svc, _) =>
+        {
+            vm.SaveSession();
+            Dictionary<string, JsonElement>? saved = svc.LoadSession()?.ModuleTabs;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(saved).IsNotNull();
+                await Assert.That(saved!.TryGetValue(UnopenedTab, out JsonElement blob)).IsTrue();
+                await Assert.That(blob.ValueKind == JsonValueKind.String ? blob.GetString() : null)
+                    .IsEqualTo("unopened-blob");
+                await Assert.That(saved[FirstTab].GetString()).IsEqualTo("first-blob");
+            }
+        });
+
     internal sealed class RestoreModule : IWorkspaceModule
     {
         public Dictionary<string, string?> Restored { get; } = [];

@@ -401,6 +401,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // The hub rail states loaded at startup, carried through for hubs not contributed this session.
     private Dictionary<string, HubSessionState>? _loadedHubSessions;
 
+    // The module-tab blobs loaded at startup, carried through for tabs whose VM was never built this session.
+    private Dictionary<string, JsonElement>? _loadedModuleTabs;
+
     /// <summary>
     ///     Pack ids <c>RestorePackState</c> has been called for this session, at startup or on a live
     ///     enable. Once a pack is in here, <c>SnapshotPackSessions</c> trusts its host's current value over
@@ -5014,6 +5017,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         _loadedPackSessions = p.Packs;
         _loadedHubSessions = p.Hubs;
+        _loadedModuleTabs = p.ModuleTabs;
         RestoreHubRails(p.Hubs);
         RestorePackSessions(p.Packs);
 
@@ -5237,16 +5241,32 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     <para>
     ///         Only tabs whose VM ALREADY EXISTS are asked. <c>TabViewModel</c> is null until first
     ///         activation, and building every module VM at shutdown purely to ask it for state would pay each
-    ///         module's construction cost on every exit, for tabs the user never opened.
+    ///         module's construction cost on every exit, for tabs the user never opened. Such a tab keeps the
+    ///         blob it was loaded with, as <see cref="SnapshotPackSessions" /> does for a pack, so not opening
+    ///         a tab for a session does not reset it.
     ///     </para>
     /// </summary>
     private Dictionary<string, JsonElement>? SnapshotModuleTabs()
     {
-        Dictionary<string, JsonElement> states = [];
-        foreach (WorkspaceTabDescriptor tab in TabsAndSections())
+        Dictionary<string, JsonElement> states = _loadedModuleTabs is { } loaded
+            ? new(loaded, StringComparer.Ordinal)
+            : new(StringComparer.Ordinal);
+        foreach (WorkspaceTabDescriptor tab in AllDescriptors())
         {
+            if (tab.TabViewModel is null)
+            {
+                continue;
+            }
+
+            // A built VM speaks for its tab, under the current id: an entry saved under an old id goes.
+            foreach (string previous in tab.PreviousTabIds)
+            {
+                states.Remove(previous);
+            }
+
             if (ExtensionTabs.Snapshot(tab) is not { } state)
             {
+                states.Remove(tab.TabId);
                 continue;
             }
 
@@ -5256,7 +5276,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             }
             catch (Exception ex) when (ex is JsonException or NotSupportedException)
             {
-                // A module returned something unserializable. That module's state is lost; the SESSION is
+                // A module returned something unserializable. That module's new state is lost; the SESSION is
                 // not. One badly-behaved tab must never cost the user their whole restored layout.
                 AppLog.DemoLoadFailed(DiagLog, tab.TabId, ex.Message);
             }
