@@ -301,6 +301,32 @@ public class StripLayersTests
     }
 
     [Test]
+    public async Task Impact_TradedShare_CountsOnlyTheDecidedRoundsItIsOutOf()
+    {
+        // A traded opening death in a round the recording cut off is not in LostOpening, so it must not be in
+        // Traded either: the share would count it on top but not underneath and could pass 100%.
+        TendencyRound Clip(int n) => new(Demo, "abc", n, Freeze(n), At(n, 100), Rate);
+        OpeningDuelBlock block = new()
+        {
+            Map = "de_nuke",
+            Side = 3,
+            Duels =
+            [
+                new OpeningDuelRound(Clip(1), Clip(1), "k", "p", false, false, false, null),
+                new OpeningDuelRound(Clip(2), Clip(2), "k", "p", false, true, false, null, RoundDecided: false)
+            ]
+        };
+        OpeningImpact impact = OpeningImpact.Of(block);
+        ScoutingTableChart chart = ImpactLayer.Chart([impact]);
+        using (Assert.Multiple())
+        {
+            await Assert.That(impact.LostOpening.Count).IsEqualTo(1);
+            await Assert.That(impact.Traded).IsEmpty();
+            await Assert.That(chart.Rows[2].First).IsEqualTo("0% (1)");
+        }
+    }
+
+    [Test]
     public async Task Score_ShowsEachCellsRounds_HidesThinCells_AndReadsTheBiggestSwingAgainstTheOverall()
     {
         // A's scores before each round: T r1-r3 within (won), r4 leading (lost), r5 within (lost), r6 within (won);

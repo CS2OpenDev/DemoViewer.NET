@@ -12,7 +12,7 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 /// <param name="WonAfterWinning">Those the team went on to win.</param>
 /// <param name="LostOpening">Rounds the team lost the opening duel in.</param>
 /// <param name="WonAfterLosing">Those the team still won.</param>
-/// <param name="Traded">Lost openings a teammate traded.</param>
+/// <param name="Traded">Those lost openings a teammate traded.</param>
 public sealed record OpeningImpact(
     int Side,
     IReadOnlyList<TendencyRound> WonOpening,
@@ -38,7 +38,8 @@ public sealed record OpeningImpact(
             // Only decided rounds have an outcome to split by; an undecided trailing round is left out.
             [.. won.Where(d => d.RoundDecided).Select(d => d.Rest)], [.. won.Where(d => d.RoundWon).Select(d => d.Rest)],
             [.. lost.Where(d => d.RoundDecided).Select(d => d.Rest)], [.. lost.Where(d => d.RoundWon).Select(d => d.Rest)],
-            [.. lost.Where(d => d.Traded).Select(d => d.Clip)]);
+            // Traded is a share of LostOpening, so it counts the same decided rounds.
+            [.. lost.Where(d => d.RoundDecided && d.Traded).Select(d => d.Clip)]);
     }
 }
 
