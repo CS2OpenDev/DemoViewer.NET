@@ -1311,7 +1311,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         }
     }
 
-    private bool Merge(LibraryDemo entry, IReadOnlyDictionary<string, List<TrajectoryPoint>>? flights = null)
+    private bool Merge(LibraryDemo entry, IReadOnlyDictionary<string, List<TrajectoryPoint>>? flights = null,
+        bool onlyIfAbsent = false)
     {
         lock (_gate)
         {
@@ -1364,6 +1365,12 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
             if (_loaded.TryGetValue(entry.FilePath, out LoadedDemo? resident) && resident.WrittenAtTicks > writtenAt)
             {
                 return true;
+            }
+
+            // A fill for a demo nobody walked yields to whatever arrived meanwhile: a walk's merge carries flights.
+            if (onlyIfAbsent && resident is not null)
+            {
+                return false;
             }
 
             _loaded[entry.FilePath] = new LoadedDemo(demo, map, zones?.ZonesVersion, grenades, writtenAt);
@@ -1435,16 +1442,20 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     private void OnLibraryChanged(LibraryChange change) => OnCacheChanged(change.Path);
 
 
-    // Removals only: new rows arrive through the evaluator's Walked, so no rows are read here.
+    // Removals here. A walked demo's rows arrive through the evaluator's Walked; rows written current with no walk
+    // (a Library Transfer import, or a demo whose imported facet is listed later) are read off this thread.
     private void OnCacheChanged(string? path)
     {
         bool changed = false;
+        bool absent;
         lock (_gate)
         {
             if (!_ready)
             {
                 return;
             }
+
+            absent = path is null || !_loaded.ContainsKey(path);
 
             IEnumerable<string> candidates = path is null ? _loaded.Keys.ToList() : [path];
             foreach (string loaded in candidates)
@@ -1478,6 +1489,32 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         }
 
         if (changed)
+        {
+            _post(() => Changed?.Invoke());
+        }
+
+        if (absent)
+        {
+            _ = Task.Run(() => MergeAbsent(path));
+        }
+    }
+
+    // Every loadable demo the index does not hold, or just the one named: Load's read for a demo that arrived
+    // after it. Reads the rows, so never on the UI thread.
+    private void MergeAbsent(string? path)
+    {
+        IEnumerable<LibraryDemo> entries = path is null ? _library.Demos
+            : _library.Find(path) is { } named ? [named] : [];
+        bool merged = false;
+        foreach (LibraryDemo entry in entries)
+        {
+            if (!IsLoaded(entry.FilePath) && IsLoadable(entry) && Merge(entry, onlyIfAbsent: true))
+            {
+                merged = true;
+            }
+        }
+
+        if (merged)
         {
             _post(() => Changed?.Invoke());
         }

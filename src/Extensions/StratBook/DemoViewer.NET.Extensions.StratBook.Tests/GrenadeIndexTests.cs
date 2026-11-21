@@ -589,6 +589,30 @@ public class GrenadeIndexTests
         }
     }
 
+    // A Library Transfer import writes a current facet with no walk behind it, so the evaluator's Walked never
+    // comes; the store's own Changed is the only word the index gets.
+    [Test]
+    public async Task RowsWrittenCurrentWithNoWalk_JoinTheLoadedIndex()
+    {
+        DemoCacheStore cache = new(null);
+        Indexed(cache, DemoPath(1), Mirage, "sha1", MirageRows(1));
+        using GrenadeIndex index = Loaded(cache);
+
+        // The read runs off the thread the store raised on, so the test waits for it.
+        Indexed(cache, DemoPath(2), Mirage, "sha2", MirageRows(2));
+        for (int i = 0; i < 1000 && !index.IsLoaded(DemoPath(2)); i++)
+        {
+            await Task.Delay(10);
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(index.IsLoaded(DemoPath(2))).IsTrue();
+            await Assert.That(index.DemoCount).IsEqualTo(2);
+            await Assert.That(index.Rows(SmokesIntoCt()).Count(r => r.Demo.Path == DemoPath(2))).IsGreaterThan(0);
+        }
+    }
+
     [Test]
     public async Task LineupId_IsStableAcrossAReindex_EvenWhenTheRepresentativeThrowChanges()
     {
