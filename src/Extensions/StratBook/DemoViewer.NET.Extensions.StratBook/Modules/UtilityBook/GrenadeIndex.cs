@@ -1368,7 +1368,9 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
             }
 
             // A fill for a demo nobody walked yields to whatever arrived meanwhile: a walk's merge carries flights.
-            if (onlyIfAbsent && resident is not null)
+            // And to a removal: the demo was loadable when the fill read it, but a change that took it away since
+            // found it absent here and had nothing to remove, so nothing later would.
+            if (onlyIfAbsent && (resident is not null || !IsLoadable(_library.Find(entry.FilePath))))
             {
                 return false;
             }
