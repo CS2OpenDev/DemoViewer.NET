@@ -1210,7 +1210,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
             // ordering then falls back to kills, which every ruleset has.
             IEnumerable<OverviewStatRow> rows = gameTable.Rows
                 .Select(BuildStatRow)
-                .Where(r => r.Name.Length > 0)
+                .Where(r => r.Name.Length > 0 && !IsOffSideAndIdle(r))
                 .OrderBy(r => r.IsCt ? 0 : 1)
                 .ThenByDescending(r => ParseSortable(r.Rating))
                 .ThenByDescending(r => ParseSortable(r.Kills))
@@ -1527,7 +1527,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
                     ? CachedPlayer(owner).PlayerOverview
                     : PlayerOverviewEntry.None
             })
-            .Where(r => r.Name.Length > 0)
+            .Where(r => r.Name.Length > 0 && !IsOffSideAndIdle(r))
             .OrderBy(r => r.IsCt ? 0 : 1)
             .ThenByDescending(r => ParseSortable(r.Rating))
             .ThenByDescending(r => ParseSortable(r.Kills))
@@ -2024,6 +2024,15 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
 
     private static string FormatScore(int? score) =>
         score is { } s ? s.ToString(CultureInfo.InvariantCulture) : Placeholder;
+
+    // Both scoreboard sources hold a row for every slot, including the ghost a reconnect leaves on the old slot
+    // (team 0) and a spectator (team 1), each with nothing done. Neither is on a side, and only IsCt picks the
+    // block, so they were drawn as T players. A slot off the sides with stats on it, a player who left, stays,
+    // as docs/player-match-format.md keeps such a row.
+    private static bool IsOffSideAndIdle(OverviewStatRow r) =>
+        r.Team is not (2 or 3)
+        && ParseSortable(r.Kills) == 0 && ParseSortable(r.Deaths) == 0
+        && ParseSortable(r.Assists) == 0 && ParseSortable(r.Adr) == 0;
 
     // Ordering key for an already-formatted cell: placeholders sort last.
     private static double ParseSortable(string display) =>

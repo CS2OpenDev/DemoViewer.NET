@@ -112,6 +112,54 @@ public class MatchOverviewFacetScoreboardTests
         }
     }
 
+    // The facet has a row for every slot: the ghost a reconnect leaves on the old slot (team 0, nothing done)
+    // and a spectator (team 1). Neither is a T player; a slot left with real stats on it still counts.
+    [Test]
+    public async Task GhostAndSpectatorRows_AreNotDrawnAsTPlayers()
+    {
+        DemoCacheRecord record = Scanned();
+        record.Players.Add(new CachedPlayerInfo { Slot = 10, Name = "s1mple", SteamId64 = "76561198000000000" });
+        record.Players.Add(new CachedPlayerInfo { Slot = 11, Name = "caster", Team = 1 });
+        record.Players.Add(new CachedPlayerInfo { Slot = 12, Name = "leaver", SteamId64 = "76561198000000012" });
+
+        static FactRow Idle(int slot, int team) => new(
+            new Dictionary<string, FactValue>
+            {
+                ["player_slot"] = FactValue.Of(slot),
+                ["steam_id"] = FactValue.Of("7656119800000000" + slot),
+                ["team"] = FactValue.Of(team)
+            },
+            new Dictionary<string, FactValue>
+            {
+                ["rounds"] = FactValue.Of(22L),
+                ["TotalK"] = FactValue.Of(0L),
+                ["TotalD"] = FactValue.Of(0L),
+                ["TotalA"] = FactValue.Of(0L),
+                ["EnemyDmg"] = FactValue.Of(0L),
+                ["HLTV"] = FactValue.Of(0.5),
+                ["CTW"] = FactValue.Of(0L),
+                ["TW"] = FactValue.Of(0L)
+            });
+
+        FactTable facet = Facet(
+        [
+            .. Match().Rows,
+            Idle(10, 0),
+            Idle(11, 1),
+            Row(12, 0, 3, 300, 0.4, 0, 0)
+        ]);
+        MatchOverviewTabViewModel vm = new();
+        vm.SetCachedRecord(record, facet);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.PlayerStats.Count).IsEqualTo(11);
+            await Assert.That(vm.PlayerStats.Count(r => r.Name == "s1mple")).IsEqualTo(1);
+            await Assert.That(vm.PlayerStats.Any(r => r.Name == "caster")).IsFalse();
+            await Assert.That(vm.PlayerStats.Any(r => r.Name == "leaver")).IsTrue();
+        }
+    }
+
     [Test]
     public async Task TheFacet_WinsOverAScoreboardAnEarlierVersionStored()
     {
