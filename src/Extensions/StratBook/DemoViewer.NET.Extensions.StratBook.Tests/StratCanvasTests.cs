@@ -355,6 +355,43 @@ public class StratCanvasTests
         });
     }
 
+    // A stroke in flight keeps the ink document the gesture opened on; a step edit landing under it would be
+    // undone, or moved onto another step, when the gesture closes and the ink is carried back into the strat.
+    [Test]
+    public async Task TheStepKeys_AreRefused_WhileAStrokeIsInFlight()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (StratStore _, StratSession session) = Opened(FiveSteps());
+            using StratCanvasViewModel canvas = Canvas(session, new ManualTicker());
+            canvas.Timeline.RequestSeek(Step3 + 100);
+            AnnotationSession ink = canvas.Ink;
+            AnnotationElement arrow = new(Guid.NewGuid(), AnnotationKind.Arrow, AnnotationStyle.Default,
+                new SpaceRef.World(0), ink.EnvelopeForNewElement(canvas.Transport.Tick),
+                [new InkPoint(10, 10, 0.5f), new InkPoint(500, 500, 0.5f)], null);
+
+            bool cleared;
+            bool deleted;
+            using (ink.Document.BeginGesture("arrow"))
+            {
+                ink.Document.Apply(new DocDelta.Add(arrow, ink.Document.Elements.Count));
+                cleared = canvas.ExecuteAction(nameof(Playback2DAction.ClearAnnotations));
+                deleted = canvas.ExecuteAction(StratBookActions.DeleteStep);
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(cleared).IsFalse();
+                await Assert.That(deleted).IsFalse();
+                await Assert.That(session.Document!.Steps.Any(s => s.Id == StratTestData.StepId(3))).IsTrue();
+                await Assert.That(session.Document.Steps[1].Strokes).IsEmpty()
+                    .Because("step 3's label does not move onto the step before it");
+                await Assert.That(session.Document.Steps[2].Strokes.Count).IsEqualTo(2);
+                await Assert.That(session.UndoDepth).IsEqualTo(1).Because("the stroke is the only edit");
+            }
+        });
+    }
+
     [Test]
     public async Task TheStepKeys_EachMakeOneUndoEntry()
     {

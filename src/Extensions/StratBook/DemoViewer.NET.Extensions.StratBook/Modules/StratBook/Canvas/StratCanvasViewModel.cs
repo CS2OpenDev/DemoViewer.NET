@@ -732,15 +732,33 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             case CoreActions.Redo:
                 return !IsGestureOpen && _session.Redo();
 
+            // A stroke in flight keeps the ink it opened on, and its close carries that ink back into the strat:
+            // an edit under it would come back undone, or land on another step. Refused, as the host's
+            // annotations panel refuses a clear mid-gesture; a token drag is cancelled instead.
             case CoreActions.ClearAnnotations:
-                return ClearActiveStepStrokes();
+                return !Ink.Document.IsGestureOpen && ClearActiveStepStrokes();
             case StratBookActions.AddStep:
+                if (Ink.Document.IsGestureOpen)
+                {
+                    return false;
+                }
+
                 CancelOpenDrag();
                 return InsertStep();
             case StratBookActions.DuplicateStep:
+                if (Ink.Document.IsGestureOpen)
+                {
+                    return false;
+                }
+
                 CancelOpenDrag();
                 return DuplicateActiveStep();
             case StratBookActions.DeleteStep:
+                if (Ink.Document.IsGestureOpen)
+                {
+                    return false;
+                }
+
                 CancelOpenDrag();
                 return DeleteActiveStep();
             case StratBookActions.PrevStep:
