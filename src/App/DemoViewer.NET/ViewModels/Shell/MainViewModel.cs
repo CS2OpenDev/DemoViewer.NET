@@ -3192,14 +3192,17 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void BookmarkCurrentFrame()
     {
-        if (_selectedFrameIndex < 0 || _selectedFrameIndex >= Frames.Count)
+        // The playhead, not _selectedFrameIndex: the play loop moves only the controller and defers the
+        // selected-frame fan-out to Pause, so mid-play the selection is still the frame Play started on.
+        int idx = Playback.CurrentFrameIndex >= 0 ? Playback.CurrentFrameIndex : _selectedFrameIndex;
+        if (idx < 0 || idx >= Frames.Count)
         {
             return;
         }
 
-        DemoFrame frame = Frames[_selectedFrameIndex];
+        DemoFrame frame = Frames[idx];
         int tick = frame.GameTick ?? frame.ServerTick;
-        Bookmarks.Add(_selectedFrameIndex, tick, $"{frame.Command} · tick {tick}");
+        Bookmarks.Add(idx, tick, $"{frame.Command} · tick {tick}");
     }
 
     /// <summary>
