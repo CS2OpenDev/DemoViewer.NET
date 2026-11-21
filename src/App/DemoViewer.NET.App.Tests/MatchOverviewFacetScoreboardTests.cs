@@ -1,5 +1,6 @@
 #region
 
+using CS2DemoKit.Analysis.Output;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -158,6 +159,33 @@ public class MatchOverviewFacetScoreboardTests
             await Assert.That(vm.PlayerStats.Any(r => r.Name == "caster")).IsFalse();
             await Assert.That(vm.PlayerStats.Any(r => r.Name == "leaver")).IsTrue();
         }
+    }
+
+    // The live game table formats a missing value as the placeholder and a NaN as "NaN", and a slot that played
+    // no round has no ADR to give. Neither is a number above zero, so the row is as idle as one that says 0.
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ASpectatorRowWithNoAdr_FromTheLiveTable_IsNotDrawnAsATPlayer(bool nan)
+    {
+        static MetricRow Row(string name, int team, int kills, object? adr) => new(
+            new Dictionary<string, object?> { ["player_name"] = name, ["team"] = team },
+            new Dictionary<string, object?>
+            {
+                ["TotalK"] = kills, ["TotalD"] = 0, ["TotalA"] = 0, ["ADR"] = adr, ["HLTV"] = 1.0
+            });
+
+        MetricTable table = new("player_game", ["player_name", "team"], ["TotalK", "TotalD", "TotalA", "ADR", "HLTV"],
+        [
+            Row("ct", 3, 10, 80.0),
+            Row("t", 2, 9, 70.0),
+            Row("caster", 1, 0, nan ? double.NaN : null)
+        ]);
+        MatchOverviewTabViewModel vm = new();
+        vm.BeginOpening("a.dem", "Mirage", "Server", "/demos/a.dem");
+        vm.SetAnalysis("/demos/a.dem", table, 22);
+
+        await Assert.That(vm.PlayerStats.Select(r => r.Name)).IsEquivalentTo(["ct", "t"]);
     }
 
     [Test]

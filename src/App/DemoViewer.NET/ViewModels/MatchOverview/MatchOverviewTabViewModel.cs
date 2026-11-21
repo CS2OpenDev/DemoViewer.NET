@@ -2031,8 +2031,12 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     // as docs/player-match-format.md keeps such a row.
     private static bool IsOffSideAndIdle(OverviewStatRow r) =>
         r.Team is not (2 or 3)
-        && ParseSortable(r.Kills) == 0 && ParseSortable(r.Deaths) == 0
-        && ParseSortable(r.Assists) == 0 && ParseSortable(r.Adr) == 0;
+        && Nothing(r.Kills) && Nothing(r.Deaths) && Nothing(r.Assists) && Nothing(r.Adr);
+
+    // Zero, or no number at all: the live table's placeholder for a missing value, or a NaN a slot that played no
+    // round can carry for a per-round stat.
+    private static bool Nothing(string display) =>
+        ParseSortable(display) is var v && (v == 0 || v == double.MinValue || double.IsNaN(v));
 
     // Ordering key for an already-formatted cell: placeholders sort last.
     private static double ParseSortable(string display) =>
