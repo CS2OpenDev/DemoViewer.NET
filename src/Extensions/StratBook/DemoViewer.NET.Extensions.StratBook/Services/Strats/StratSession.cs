@@ -269,11 +269,10 @@ public sealed class StratSession : IDisposable
         }
 
         Commit();
-        if (HasPending)
-        {
-            Flush();
-        }
-
+        // Not only when edits are pending: an undo of an edit the autosave already wrote leaves nothing pending
+        // and the working copy still holding it. The write stands down when the file is current, and writes the
+        // copy without the marker when nothing is pending.
+        Flush();
         Cancel(ref _autosave);
         Cancel(ref _idle);
         _checkOut?.Dispose();

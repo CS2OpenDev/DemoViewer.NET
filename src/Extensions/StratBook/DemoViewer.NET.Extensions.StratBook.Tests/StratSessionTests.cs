@@ -330,6 +330,42 @@ public class StratSessionTests
     }
 
     [Test]
+    public async Task ClosingRightAfterAnUndoThatNetsToNothing_LeavesNoPendingEditsBehind()
+    {
+        string root = TempRoot();
+        try
+        {
+            (StratStore store, StratDocument committed) = Stored(root);
+            using (StratSession first = Session(store))
+            {
+                first.Open(committed.Id);
+                first.Apply(PatchOp.ReplaceOp("/name", null, JsonValue.Create("renamed")));
+                await first.FlushAsync();
+                await Assert.That(first.Undo()).IsTrue();
+                await Assert.That(first.HasPending).IsFalse().Because("the rename and its undo cancel");
+
+                // Closed before the autosave that would have written the undone state.
+                first.Close();
+            }
+
+            StratStore reopened = new(PackStores.At(root));
+            using StratSession session = Session(reopened);
+            session.Open(committed.Id);
+            using (Assert.Multiple())
+            {
+                await Assert.That(session.RecoveredPending).IsFalse()
+                    .Because("the edit the user took back is not an edit to recover");
+                await Assert.That(session.HasPending).IsFalse();
+                await Assert.That(session.Document!.Name).IsEqualTo("A exec");
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
     public async Task APendingFile_ReopensWithItsEditsUncommitted_AndTheNextCommitWritesThem()
     {
         string root = TempRoot();
