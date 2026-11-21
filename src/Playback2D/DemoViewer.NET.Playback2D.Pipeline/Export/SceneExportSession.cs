@@ -41,6 +41,14 @@ public sealed class SceneExportSession
     /// <summary>The width ceiling for a GIF. Wider is technically legal and practically unusable.</summary>
     public const int GifMaxWidth = 1920;
 
+    /// <summary>
+    ///     The memory a GIF may buffer, counted as RGBA (4 bytes a pixel) over every frame. Both GIF
+    ///     encoders hold the whole animation until the palette is built: the managed sink keeps every
+    ///     frame, and ffmpeg's split/palettegen/paletteuse chain queues every frame until EOF. The frame
+    ///     and width caps alone still let a 1080p GIF buffer over 10 GB; this is what bounds it.
+    /// </summary>
+    public const long GifMaxBufferedBytes = 2L * 1024 * 1024 * 1024;
+
     /// <summary>fps values every video format accepts.</summary>
     private static readonly int[] _videoFps = [24, 25, 30, 50, 60, 64];
 
@@ -419,7 +427,34 @@ public sealed class SceneExportSession
             throw new ExportValidationException(string.Create(CultureInfo.InvariantCulture,
                 $"A GIF is capped at {GifMaxWidth} px wide; this export is {req.Size.Width}. Export WebM instead."));
         }
+
+        int fits = GifMaxFramesFor(req.Size.Width, req.Size.Height);
+        if (req.FrameCount > fits)
+        {
+            throw new ExportValidationException(string.Create(CultureInfo.InvariantCulture,
+                $"A {req.Size.Width}×{req.Size.Height} GIF of {req.FrameCount} frames would hold about " +
+                $"{GifBufferedBytes(req.Size.Width, req.Size.Height, req.FrameCount) / (1024.0 * 1024 * 1024):0.0} GB " +
+                $"in memory while it encodes; the limit is 2 GB, which fits {fits} frames at this size. " +
+                $"Shorten the range, choose a smaller size, or export MP4."));
+        }
     }
+
+    /// <summary>
+    ///     The most frames a GIF of this size may hold: <see cref="GifMaxFrames" />, or fewer when that many
+    ///     frames at this size would outgrow <see cref="GifMaxBufferedBytes" />. Never below one.
+    /// </summary>
+    /// <param name="width">Frame width in pixels.</param>
+    /// <param name="height">Frame height in pixels.</param>
+    public static int GifMaxFramesFor(int width, int height)
+    {
+        long frameBytes = GifBufferedBytes(width, height, 1);
+        return frameBytes <= 0
+            ? GifMaxFrames
+            : (int)Math.Clamp(GifMaxBufferedBytes / frameBytes, 1, GifMaxFrames);
+    }
+
+    private static long GifBufferedBytes(int width, int height, int frames) =>
+        (long)Math.Max(0, width) * Math.Max(0, height) * 4 * Math.Max(0, frames);
 
     /// <summary>
     ///     The frame rates a format supports. GIF gets its own list (<see cref="_gifFps" />); an unknown format id gets

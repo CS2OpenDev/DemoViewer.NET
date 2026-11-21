@@ -17,7 +17,9 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///     <para>
 ///         <b>It buffers every frame in memory</b> (as RGB; alpha is dropped, export frames are
 ///         opaque), which is why the caps exist: the one global palette needs the whole animation
-///         before any frame can be mapped to it. <see cref="SceneExportSession.Validate" /> enforces the same ceilings on the request,
+///         before any frame can be mapped to it, and the memory budget
+///         (<see cref="SceneExportSession.GifMaxBufferedBytes" />) is checked here too.
+///         <see cref="SceneExportSession.Validate" /> enforces the same ceilings on the request,
 ///         so a user is refused before rendering rather than after.
 ///     </para>
 ///     <para>
@@ -92,6 +94,14 @@ public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink, IOutputOpe
         {
             throw new ExportValidationException(string.Create(CultureInfo.InvariantCulture,
                 $"A GIF is capped at {_maxFrames} frames. Shorten the range or export WebM."));
+        }
+
+        // The memory budget, for a caller that skipped Validate: the size is only known from the frames.
+        if (FramesWritten >= SceneExportSession.GifMaxFramesFor(width, height))
+        {
+            throw new ExportValidationException(string.Create(CultureInfo.InvariantCulture,
+                $"A {width}×{height} GIF is capped at {FramesWritten} frames to stay within 2 GB of memory. " +
+                $"Shorten the range, choose a smaller size, or export MP4."));
         }
 
         if (rgba.Length < width * height * 4)

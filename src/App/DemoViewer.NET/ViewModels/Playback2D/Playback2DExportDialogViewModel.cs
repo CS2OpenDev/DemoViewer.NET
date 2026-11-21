@@ -902,15 +902,17 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
             return "ffmpeg isn't installed — install it and press Re-check, or switch the format to GIF.";
         }
 
+        ExportRequest request = BuildRequest(range, DefaultCamera());
         try
         {
             // The ONE validator. Everything above is about the dialog's own environment; everything a
             // request can be wrong about is Pipeline's rule set, so the CLI refuses identically.
-            SceneExportSession.Validate(BuildRequest(range, DefaultCamera()));
+            SceneExportSession.Validate(request);
         }
         catch (ExportValidationException ex)
         {
-            return ex.Message + GifCapHint(range, gif);
+            return ex.Message + GifCapHint(range, gif,
+                SceneExportSession.GifMaxFramesFor(request.Size.Width, request.Size.Height));
         }
 
         return null;
@@ -918,11 +920,12 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
 
     // A strat's whole round at 20 fps runs past the GIF cap, and the lower rate that fits is one pick away,
     // so the refusal names it with its frame count rather than leaving the user to
-    // try each rate. Only for a strat: the demo dialog's copy is the validator's own.
-    private string GifCapHint(ExportRangeOption range, bool gif)
+    // try each rate. Only for a strat: the demo dialog's copy is the validator's own. The cap is the one
+    // for this size, so a large GIF's memory budget is what the lower rate has to fit.
+    private string GifCapHint(ExportRangeOption range, bool gif, int cap)
     {
         if (ShowDemoLayers || !gif || _outputFrameCount(range.StartFrame, range.EndFrame, SelectedFps, 1.0)
-            <= SceneExportSession.GifMaxFrames)
+            <= cap)
         {
             return "";
         }
@@ -930,7 +933,7 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         foreach (int fps in AvailableFps.Where(f => f < SelectedFps).OrderByDescending(f => f))
         {
             int frames = _outputFrameCount(range.StartFrame, range.EndFrame, fps, 1.0);
-            if (frames <= SceneExportSession.GifMaxFrames)
+            if (frames <= cap)
             {
                 return string.Create(CultureInfo.InvariantCulture, $" At {fps} fps it is {frames} frames and fits.");
             }

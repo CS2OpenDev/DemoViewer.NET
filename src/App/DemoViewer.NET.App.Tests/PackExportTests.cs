@@ -199,6 +199,21 @@ public class PackExportTests
         SceneExportSession.Validate(request.Core);
     }
 
+    [Test]
+    public async Task Plan_HoldsALargeGifClip_ToWhatTheMemoryBudgetFits()
+    {
+        PackSettings settings = PackSettings.For("/p/x.gif", ExportFormats.Gif) with { Side = 1920 };
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64 * 200)], settings, Exists);
+
+        Scene2DExportRequest? request =
+            PackPlanner.BuildClipRequest(plan.Clips[0], plan.Settings, Frames(0, 64 * 200), 64);
+
+        // 1920² RGBA is 14,745,600 bytes a frame; 2 GiB holds 145 of them.
+        await Assert.That(plan.Clips[0].MaxFrames).IsEqualTo(145);
+        await Assert.That(request!.Core.FrameCount).IsEqualTo(145);
+        SceneExportSession.Validate(request.Core);
+    }
+
     // ── The stitch ────────────────────────────────────────────────────────────
 
     [Test]
