@@ -259,6 +259,58 @@ public class MatchOverviewStagingTests
         }
     }
 
+    // Clear tray on the Reels tab tells this page nothing. A row still showing ✓ must stage on its first press,
+    // not run an unstage of a clip that is no longer there.
+    [Test]
+    public async Task AfterTheTrayIsClearedElsewhere_OnePressStages()
+    {
+        (HighlightsTabViewModel tray, _) = Tray();
+        MatchOverviewTabViewModel vm = Overview(tray);
+        vm.SetCachedRecord(Record());
+        OverviewHighlightRow row = FirstRow(vm);
+        row.StageCommand.Execute(null);
+
+        tray.ConfirmClearTrayCommand.Execute(null);
+        await Assert.That(tray.StagedCount).IsEqualTo(0);
+
+        row.StageCommand.Execute(null);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(tray.StagedCount).IsEqualTo(1);
+            await Assert.That(row.IsStaged).IsTrue();
+        }
+    }
+
+    // Shown again after the tray was cleared, the section re-reads the tray, so "Select all" takes every clip.
+    [Test]
+    public async Task AfterTheTrayIsClearedElsewhere_SyncThenSelectAllStagesEveryClip()
+    {
+        DemoCacheStore multi = new(null);
+        multi.Upsert(MultiRecord());
+        HighlightScanService scanner = new(multi, new NoopHarvester(), () => [], () => false);
+        HighlightsTabViewModel multiTray = new(multi, scanner);
+        MatchOverviewTabViewModel vm = new(
+            stageClip: multiTray.StageFromCache,
+            unstageClip: (d, r, h, t, s) => multiTray.Unstage(new HighlightKey(d, r, h, t, s)),
+            isClipStaged: (d, r, h, t, s) => multiTray.IsStaged(new HighlightKey(d, r, h, t, s)));
+        vm.SetCachedRecord(MultiRecord());
+        OverviewHighlightGroup group = vm.HighlightGroups[0];
+        group.SelectAllCommand.Execute(null);
+
+        multiTray.ConfirmClearTrayCommand.Execute(null);
+        vm.SyncStagedFlags();
+        await Assert.That(group.Highlights.Any(h => h.IsStaged)).IsFalse();
+
+        group.SelectAllCommand.Execute(null);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(multiTray.StagedCount).IsEqualTo(3);
+            await Assert.That(group.Highlights.All(h => h.IsStaged)).IsTrue();
+        }
+    }
+
     private sealed class NoopHarvester : IHighlightHarvester
     {
         public (string Fingerprint, IReadOnlyDictionary<string, string> Hashes) ComputeFingerprint(int tickRate)

@@ -1631,11 +1631,16 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     // itself and returns false when the demo or the highlight is no longer cached (a rescan can drop a
     // highlight the page is still showing). Assuming success would leave a ✓ on a clip that is not in the
     // tray, and the tray is the thing that actually renders.
+    //
+    // Stage or unstage is decided by asking the tray too, not by the row's flag: the Reels tab can clear or
+    // trim the tray behind this page's back, and a stale ✓ then ran an unstage that did nothing.
     private void ToggleStage(OverviewHighlightRow row)
     {
         (string rulesetId, string highlightId) = SplitTypeKey(row.TypeKey);
 
-        if (row.IsStaged)
+        bool staged = _isClipStaged?.Invoke(row.DemoPath, rulesetId, highlightId, row.Tick, row.PlayerSlot)
+                      ?? row.IsStaged;
+        if (staged)
         {
             _unstageClip?.Invoke(row.DemoPath, rulesetId, highlightId, row.Tick, row.PlayerSlot);
             row.IsStaged = false;
@@ -1644,6 +1649,28 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
 
         row.IsStaged =
             _stageClip?.Invoke(row.DemoPath, rulesetId, highlightId, row.Tick, row.PlayerSlot) ?? false;
+    }
+
+    /// <summary>
+    ///     Re-reads every highlight row's staged flag from the tray. The rows are seeded only when the section is
+    ///     filled, and the tray changes on the Reels tab without telling this page, so the view calls this each
+    ///     time it is shown. Otherwise a cleared tray left ✓ rows that "Select all" then skipped.
+    /// </summary>
+    public void SyncStagedFlags()
+    {
+        if (_isClipStaged is null)
+        {
+            return;
+        }
+
+        foreach (OverviewHighlightGroup group in HighlightGroups)
+        {
+            foreach (OverviewHighlightRow row in group.Highlights)
+            {
+                (string rulesetId, string highlightId) = SplitTypeKey(row.TypeKey);
+                row.IsStaged = _isClipStaged(row.DemoPath, rulesetId, highlightId, row.Tick, row.PlayerSlot);
+            }
+        }
     }
 
     // TypeKey is "{rulesetId}.{highlightId}". Split on the FIRST dot: a ruleset id is a single segment while

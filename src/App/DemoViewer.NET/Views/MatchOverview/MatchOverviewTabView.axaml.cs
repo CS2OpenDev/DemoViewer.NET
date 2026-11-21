@@ -27,6 +27,8 @@ public partial class MatchOverviewTabView : UserControl
                 vm.SetViewportWidth(e.NewSize.Width);
             }
         };
+        // The view is rebuilt on every visit to the tab, and the tray may have changed on the Reels tab since.
+        AttachedToVisualTree += (_, _) => (DataContext as MatchOverviewTabViewModel)?.SyncStagedFlags();
     }
 
     // The clipboard needs the visual tree, so the copy lives here rather than on the view-model.
