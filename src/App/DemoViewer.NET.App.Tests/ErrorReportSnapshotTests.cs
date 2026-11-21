@@ -37,6 +37,30 @@ public class ErrorReportSnapshotTests
     };
 
     [Test]
+    public async Task ASnapshotRedactsTheUserProfilePrefixOfTheDemoPath()
+    {
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string demo = Path.Combine(home, "Videos", "match.dem");
+
+        DemoErrorReportSnapshot snapshot = ErrorReportSnapshotBuilder.Build(demo, null, null, null, null, _now);
+        string text = ErrorReportSnapshotBuilder.ToText(snapshot, "");
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(snapshot.DemoPath).StartsWith("~");
+            await Assert.That(snapshot.DemoPath).EndsWith("match.dem");
+            await Assert.That(text).DoesNotContain(home);
+            await Assert.That(ErrorReportSnapshotBuilder.RedactHome(@"C:\Users\alice\a.dem", @"C:\Users\alice\"))
+                .IsEqualTo(@"~\a.dem");
+            await Assert.That(ErrorReportSnapshotBuilder.RedactHome(@"C:\Users\alice2\a.dem", @"C:\Users\alice"))
+                .IsEqualTo(@"C:\Users\alice2\a.dem")
+                .Because("the prefix must end at a directory boundary");
+            await Assert.That(ErrorReportSnapshotBuilder.RedactHome("/demos/a.dem", "/home/bob"))
+                .IsEqualTo("/demos/a.dem");
+        }
+    }
+
+    [Test]
     public async Task ASnapshotOfAnUncachedDemoWithNoRules_StillBuilds()
     {
         DemoErrorReportSnapshot snapshot =

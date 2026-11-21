@@ -52,7 +52,7 @@ public static class ErrorReportSnapshotBuilder
     {
         DemoErrorReportSnapshot snapshot = new()
         {
-            CapturedAtUtcTicks = nowUtc.ToUniversalTime().Ticks, DemoPath = demoPath
+            CapturedAtUtcTicks = nowUtc.ToUniversalTime().Ticks, DemoPath = RedactHome(demoPath)
         };
 
         AddDemo(snapshot, record);
@@ -414,6 +414,32 @@ public static class ErrorReportSnapshotBuilder
         {
             return null;
         }
+    }
+
+    /// <summary>
+    ///     The path with the user-profile prefix replaced by <c>~</c>, so a copied report does not carry the
+    ///     Windows user name. The rest of the path is kept: the folder is useful context, the account is not.
+    /// </summary>
+    internal static string RedactHome(string path) =>
+        RedactHome(path, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+
+    internal static string RedactHome(string path, string home)
+    {
+        if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(home))
+        {
+            return path;
+        }
+
+        string root = home.TrimEnd('\\', '/');
+        if (root.Length == 0 || !path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            return path;
+        }
+
+        // Only at a directory boundary: C:\Users\al must not eat the front of C:\Users\alice.
+        return path.Length == root.Length ? "~"
+            : path[root.Length] is '\\' or '/' ? "~" + path[root.Length..]
+            : path;
     }
 
     // The file a ruleset was read from, by NAME only. The full path is the user's home directory and has no

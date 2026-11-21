@@ -66,7 +66,7 @@ public sealed class DemoErrorReportSnapshot
     /// <summary>When the snapshot was taken, UTC ticks.</summary>
     public long CapturedAtUtcTicks { get; init; }
 
-    /// <summary>The demo's path on the reporting machine. Differs per machine; <see cref="DemoSha256" /> does not.</summary>
+    /// <summary>The demo's path on the reporting machine, with the user-profile prefix shown as <c>~</c>. Differs per machine; <see cref="DemoSha256" /> does not.</summary>
     public string DemoPath { get; init; } = "";
 
     /// <summary>Content hash of the demo's bytes, which is how a developer identifies the same demo.</summary>
