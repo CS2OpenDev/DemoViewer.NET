@@ -1596,6 +1596,7 @@ public class App : Application
         // throws partway leaves nothing half-registered: the extension does not start this session and the
         // rest of the app does. The copy holds the host's registrations, so TryAdd sees them, and only what
         // the pack added comes back: a Replace or RemoveAll in Register never reaches the host's own.
+        Dictionary<ServiceDescriptor, IExtension> packOwned = new(ReferenceEqualityComparer.Instance);
         foreach (IExtension pack in packs)
         {
             ServiceCollection scratch = new();
@@ -1624,6 +1625,7 @@ public class App : Application
             foreach (ServiceDescriptor descriptor in added)
             {
                 ((IServiceCollection)services).Add(descriptor);
+                packOwned[descriptor] = pack;
             }
         }
 
@@ -1654,7 +1656,70 @@ public class App : Application
         // handed in so the shell FILTERS the workspace tab strip per user category (and reconciles live on
         // IFeatureGate.Changed). A null gate (the designer / unit-test path) fails open: no tab filtering.
         services.AddSingleton(BuildShell);
+        DropPacksThatDoNotValidate(services, packs, packOwned, faults);
         return services;
+    }
+
+    // BuildServices validates every descriptor's constructor call site, the extensions' included, so one pack's
+    // type-based registration the container cannot satisfy (a parameter nobody registers) failed the whole
+    // provider at launch, with no extension frame on the stack for the launch guard to blame. Run at the end of
+    // ComposeServices, when every host registration is in. When the whole set validates (the normal launch) that
+    // is all; otherwise each pack is tried in registration order against the host and the packs already
+    // accepted, and one that does not validate fails its start, as a Register that throws does, and its
+    // registrations go. A host that does not validate on its own is left to fail loudly in BuildServices.
+    // Validation constructs nothing.
+    private static void DropPacksThatDoNotValidate(ServiceCollection services, IReadOnlyList<IExtension> packs,
+        Dictionary<ServiceDescriptor, IExtension> packOwned, ExtensionFaults faults)
+    {
+        if (packOwned.Count == 0 || ValidationFailure(services) is null
+                                 || ValidationFailure(services.Where(d => !packOwned.ContainsKey(d))) is not null)
+        {
+            return;
+        }
+
+        HashSet<IExtension> accepted = new(ReferenceEqualityComparer.Instance);
+        foreach (IExtension pack in packs)
+        {
+            if (ValidationFailure(services.Where(d =>
+                    !packOwned.TryGetValue(d, out IExtension? owner)
+                    || ReferenceEquals(owner, pack)
+                    || accepted.Contains(owner))) is { } failure)
+            {
+                faults.FailStartup(faults.GuardFor(pack).Scope, "register", failure);
+            }
+            else
+            {
+                accepted.Add(pack);
+            }
+        }
+
+        for (int i = services.Count - 1; i >= 0; i--)
+        {
+            if (packOwned.TryGetValue(services[i], out IExtension? owner) && !accepted.Contains(owner))
+            {
+                services.RemoveAt(i);
+            }
+        }
+    }
+
+    private static AggregateException? ValidationFailure(IEnumerable<ServiceDescriptor> descriptors)
+    {
+        ServiceCollection probe = new();
+        foreach (ServiceDescriptor descriptor in descriptors)
+        {
+            ((IServiceCollection)probe).Add(descriptor);
+        }
+
+        try
+        {
+            using ServiceProvider validated =
+                probe.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
+            return null;
+        }
+        catch (AggregateException ex)
+        {
+            return ex;
+        }
     }
 
     /// <summary>
