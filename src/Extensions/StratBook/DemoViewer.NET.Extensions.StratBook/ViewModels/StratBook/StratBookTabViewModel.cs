@@ -68,6 +68,9 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
     // The open pane, or null. The host owns it; closing it disposes this handle, not the running export.
     private ISceneExportPane? _exportPane;
 
+    // The strat the open pane was built for: its ranges and file name are that strat's.
+    private Guid _exportStrat;
+
     private readonly Func<IExtensionSceneExport?>? _sceneExport;
 
 
@@ -589,6 +592,7 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         });
 
         _exportPane.Started += OnExportStarted;
+        _exportStrat = document.Id;
         ExportDialog = _exportPane.ViewModel;
     }
 
@@ -983,6 +987,13 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
                 || open.Steps.All(st => st.Id != target.Step)))
         {
             CancelLineupPicker();
+        }
+
+        // Another strat, or none: the pane's ranges and file name are the one it was opened on, and Start
+        // captures whatever the canvas shows. Edits to the same strat keep it open.
+        if (_exportPane is not null && Session.Document?.Id != _exportStrat)
+        {
+            CloseExport();
         }
 
         Editor.Project();

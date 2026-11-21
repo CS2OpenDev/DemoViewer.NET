@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
@@ -656,4 +657,72 @@ public class Playback2DExportMapHoldTests
 
             await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before);
         });
+}
+
+/// <summary>
+///     The export pane's lifetime against the tab's. Its ranges are frame indices of the demo open when
+///     it was built, and it owns the ffmpeg download it started.
+/// </summary>
+[NotInParallel]
+public class Playback2DExportDialogLifetimeTests
+{
+    private static readonly HeavyJobGate _gate = new();
+
+    // Opened on one demo and started after another was loaded, the pane applied the first demo's round
+    // boundaries to the second demo's frames and wrote a video of an arbitrary span of it.
+    [Test]
+    public async Task ANewDemo_ClosesThePane_WhoseRangesBelongToTheOldOne() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Activate("a.dem");
+            try
+            {
+                vm.OpenExportCommand.Execute(null);
+                await Assert.That(vm.ExportDialog).IsNotNull();
+
+                ctx.DemoPath = "b.dem";
+                ctx.RaiseDemoReset();
+
+                await Assert.That(vm.ExportDialog).IsNull();
+            }
+            finally
+            {
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+        });
+
+    // The swap that happened while the tab was away has no reset signal; the next activation sees it.
+    [Test]
+    public async Task ADemoSwappedWhileDeactivated_ClosesThePaneOnReturn() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Activate("a.dem");
+            try
+            {
+                vm.OpenExportCommand.Execute(null);
+                vm.OnDeactivated();
+                await Assert.That(vm.ExportDialog).IsNotNull().Because("a tab switch alone keeps the pane");
+
+                ctx.DemoPath = "b.dem";
+                vm.OnActivated(ctx);
+
+                await Assert.That(vm.ExportDialog).IsNull();
+            }
+            finally
+            {
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+        });
+
+    private static (Playback2DTabViewModel, Playback2DFakeContext) Activate(string demo)
+    {
+        Playback2DFakeContext ctx = new() { DemoPath = demo };
+        ctx.SetService(new Playback2DExportHost(() => null, new FirstPartyExports(_gate, null!), null, null));
+        ctx.AddPlayer(0, "Alpha", 2);
+        Playback2DTabViewModel vm = new();
+        vm.OnActivated(ctx);
+        return (vm, ctx);
+    }
 }

@@ -96,6 +96,32 @@ public class StratExportTests
     }
 
     /// <summary>
+    ///     The pane's ranges and file name are the strat's that was open when it was built, and Start captures
+    ///     whatever the canvas shows then. Left open across a switch to another strat, it exported the second
+    ///     strat over the first one's tick range and under its name.
+    /// </summary>
+    [Test]
+    public async Task OpeningAnotherStrat_ClosesThePaneBuiltForTheFirst()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            StratDocument other = FiveSteps();
+            (StratBookTabViewModel vm, List<Playback2DExportStatusViewModel> _, ExtensionSceneExport export) =
+                OpenFiveSteps(other);
+            using (export)
+            using (vm)
+            {
+                vm.OpenExportCommand.Execute(null);
+                await Assert.That(vm.ExportDialog).IsNotNull();
+
+                vm.Session.Open(other.Id);
+
+                await Assert.That(vm.ExportDialog).IsNull();
+            }
+        });
+    }
+
+    /// <summary>
     ///     A GIF of a five-step strat, through the tab's dialog defaults and the job the tab builds,
     ///     on the managed GIF floor so the bytes do not depend on which ffmpeg this machine has. Its frame count is
     ///     pinned, and the frame at step 3 is held to a committed golden (<c>STRAT_GOLDEN_UPDATE=1</c> rewrites it).
@@ -389,14 +415,17 @@ public class StratExportTests
     private static readonly FirstPartyExports _exports = new(_gate, new DemoProcessingQueue(_gate, a => a()));
 
     private static (StratBookTabViewModel Vm, List<Playback2DExportStatusViewModel> Chips, ExtensionSceneExport Export)
-        OpenFiveSteps()
+        OpenFiveSteps(StratDocument? also = null)
     {
         StratStore store = new(null);
         StratDocument document = FiveSteps();
-        StratSaveResult saved = store.Save(document, [], "created");
-        if (!saved.Saved)
+        foreach (StratDocument each in also is null ? [document] : new[] { document, also })
         {
-            throw new InvalidOperationException(saved.Reason);
+            StratSaveResult saved = store.Save(each, [], "created");
+            if (!saved.Saved)
+            {
+                throw new InvalidOperationException(saved.Reason);
+            }
         }
 
         List<Playback2DExportStatusViewModel> chips = [];

@@ -2334,6 +2334,13 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             NotifyFollowSlotChanged(-1);
         }
 
+        // The export pane's ranges are frame indices of the demo it was opened on, and Start reads the
+        // frames live: left open, it would export the old demo's round boundaries out of the new one.
+        if (demoChanged)
+        {
+            CloseExport();
+        }
+
         // Cache the stable identity roster (slot → name) for marker labels + seed one attributes row per
         // slot; also (re)loads the baked map asset for the demo's map. Re-runnable: if the roster is set
         // AFTER activation (host order), BuildFrame re-seeds on the empty→populated transition too.
