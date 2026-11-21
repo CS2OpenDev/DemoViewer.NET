@@ -916,6 +916,78 @@ public class RuleWorkbenchModuleTests
     }
 
     /// <summary>
+    ///     Picking another ruleset, or New, while the buffer is edited used to replace it with the other file
+    ///     and clear the dirty flag: the edits were never written and could not come back. They are parked
+    ///     under the file's path now, restored when it is picked again, and starred in the dropdown meanwhile.
+    /// </summary>
+    [Test]
+    public async Task SwitchingRulesets_StashesTheDirtyBufferAndRestoresItOnReselect()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            const string Other = "ruleset: other_probe\nfor: each_player\nstats:\n  k:\n    count: kill\n    per: match\n";
+            string otherPath = Path.Combine(userDir, "other.rules.yaml");
+            await File.WriteAllTextAsync(otherPath, Other);
+
+            vm.NewFileCommand.Execute(null);
+            RulesetFileRef draft = vm.SelectedFile!;
+            vm.DocumentText += "\n# not saved yet\n";
+            string edited = vm.DocumentText;
+
+            vm.SelectedFile = vm.OpenableFiles.First(f => f.FileName == "other.rules.yaml");
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.DocumentText).IsEqualTo(Other);
+                await Assert.That(vm.IsDirty).IsFalse();
+                await Assert.That(vm.OpenableFiles.First(f => f.FullPath == draft.FullPath).Label).EndsWith(" *");
+            }
+
+            vm.NewFileCommand.Execute(null); // New from a clean buffer; the first draft stays parked
+            await Assert.That(vm.OpenableFiles.First(f => f.FullPath == draft.FullPath).HasUnsavedEdits).IsTrue();
+
+            vm.SelectedFile = vm.OpenableFiles.First(f => f.FullPath == draft.FullPath);
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.DocumentText).IsEqualTo(edited);
+                await Assert.That(vm.IsDirty).IsTrue();
+                await Assert.That(vm.CanSave).IsTrue();
+            }
+
+            vm.SaveCommand.Execute(null);
+            await Assert.That(await File.ReadAllTextAsync(draft.FullPath)).Contains("# not saved yet");
+            await Assert.That(vm.OpenableFiles.Any(f => f.HasUnsavedEdits)).IsFalse();
+            await Assert.That(vm.Summary).Contains("after a restart");
+        });
+    }
+
+    /// <summary>
+    ///     When the open file vanishes under an edited buffer nothing is selected, which used to disable Save
+    ///     As and leave the buffer unsavable. It can be saved under a name.
+    /// </summary>
+    [Test]
+    public async Task ADirtyBufferWhoseFileVanished_CanStillBeSavedAs()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string open = vm.SelectedFile!.FullPath;
+            vm.DocumentText += "\n# not saved yet\n";
+
+            File.Delete(open);
+            vm.OnDeactivated();
+            vm.OnActivated(new FakeDemoContext(null!)); // rebuilds the list; the open file is gone from it
+            await Assert.That(vm.SelectedFile).IsNull();
+            await Assert.That(vm.IsDirty).IsTrue();
+            await Assert.That(vm.CanSaveAs).IsTrue();
+
+            vm.SaveAsName = "rescued";
+            vm.SaveAsCommand.Execute(null);
+            await Assert.That(await File.ReadAllTextAsync(Path.Combine(userDir, "rescued.rules.yaml")))
+                .Contains("# not saved yet");
+        });
+    }
+
+    /// <summary>
     ///     A ruleset that is there but cannot be read (another program holds it) is not an empty ruleset. The
     ///     buffer shown in its place must not be saveable over it, whether the dirty flag came across from
     ///     the file open before or from typing into the blank editor.

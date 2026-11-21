@@ -21,7 +21,7 @@
                       SelectedItem="{Binding SelectedFile}">
                 <ComboBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:RulesetFileRef">
-                        <TextBlock Text="{Binding Display}" />
+                        <TextBlock Text="{Binding Label}" />
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>

@@ -124,6 +124,14 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     // without the user having picked anything, and neither change may reload the buffer.
     private bool _refreshingFiles;
 
+    // The file the buffer holds, by path. SelectedFile cannot say: it is null when the open file vanished
+    // under a dirty buffer, and by the time OnSelectedFileChanged runs it is already the NEW pick.
+    private string? _bufferPath;
+
+    // Edits to files that are not open right now, by path: a dirty buffer is parked here when another
+    // ruleset is picked (or New is pressed) and comes back when its file is picked again.
+    private readonly Dictionary<string, string> _stashedBuffers = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>The open file's proposed save-as name (the read-only save-as prompt).</summary>
     [ObservableProperty]
     private string _saveAsName = "";
@@ -272,8 +280,11 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     public bool CanSave =>
         _userDir is not null && SelectedFile is not null && IsDirty && !IsReadOnlyFile && !_loadFailed;
 
-    /// <summary>Save-As is offered whenever a file is open and the user overlay is writable.</summary>
-    public bool CanSaveAs => _userDir is not null && SelectedFile is not null;
+    /// <summary>
+    ///     Save-As is offered whenever a file is open and the user overlay is writable, and for an edited
+    ///     buffer whose file vanished (nothing is selected, but the edits can still be saved under a name).
+    /// </summary>
+    public bool CanSaveAs => _userDir is not null && (SelectedFile is not null || IsDirty);
 
     /// <summary>
     ///     Evaluates the open ruleset (+ its sibling rulesets, the open file from the edited buffer)
@@ -867,6 +878,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             return;
         }
 
+        StashDirtyBuffer();
         SaveAsName = SuggestSaveAsName(value);
         LoadSelected();
         RenderGraphForOpenFile(); // graph follows the open ruleset
@@ -881,6 +893,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
 
         IsDirty = true;
         OnPropertyChanged(nameof(CanSave));
+        OnPropertyChanged(nameof(CanSaveAs));
+        MarkUnsavedFiles();
         Check(); // buffer-aware, inline diagnostics track the edit
     }
 
@@ -1009,6 +1023,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             // an in-place write leaves it truncated.
             AtomicFile.WriteAllText(path, stamped);
             IsDirty = false;
+            _stashedBuffers.Remove(path);
         }
         catch (Exception ex)
         {
@@ -1027,6 +1042,16 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             // After the check, which writes its own summary: an unsaved buffer that reads as saved is the
             // one thing this must not look like.
             Summary = UserFacingError.Describe("save the ruleset", failure);
+        }
+        else
+        {
+            // The background passes (highlight scan, staleness, round facts) read the rulesets once per
+            // session, so a saved edit reaches them only after a restart. Say so rather than let it look live.
+            Summary = "Saved. Library-wide highlights and stats use the new rules after a restart."
+                + (IsClean ? "" : $" {Summary}");
+            OnPropertyChanged(nameof(CanSave));
+            OnPropertyChanged(nameof(CanSaveAs));
+            MarkUnsavedFiles();
         }
 
         return failure is null;
@@ -1052,6 +1077,26 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         return file.IsShipped ? $"{stem}-copy" : stem;
     }
 
+    /// <summary>Parks the dirty buffer under its file's path before another ruleset replaces it.</summary>
+    private void StashDirtyBuffer()
+    {
+        if (IsDirty && !_loadFailed && _bufferPath is not null)
+        {
+            _stashedBuffers[_bufferPath] = DocumentText;
+        }
+    }
+
+    /// <summary>Stars the dropdown entries whose edits are not on disk: the open buffer and the stashed ones.</summary>
+    private void MarkUnsavedFiles()
+    {
+        foreach (RulesetFileRef file in OpenableFiles)
+        {
+            file.HasUnsavedEdits = _stashedBuffers.ContainsKey(file.FullPath)
+                || (IsDirty && !_loadFailed
+                    && string.Equals(file.FullPath, _bufferPath, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     private void LoadSelected()
     {
         if (SelectedFile is null)
@@ -1064,10 +1109,21 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         try
         {
             _loadingDocument = true;
-            DocumentText = _extensionTexts.TryGetValue(path, out string? yaml) ? yaml
-                : File.Exists(path) ? File.ReadAllText(path) : "";
-            IsDirty = false;
+            if (_stashedBuffers.Remove(path, out string? stashed))
+            {
+                // Edits parked when another ruleset was picked: they, not the file, are what was open.
+                DocumentText = stashed;
+                IsDirty = true;
+            }
+            else
+            {
+                DocumentText = _extensionTexts.TryGetValue(path, out string? yaml) ? yaml
+                    : File.Exists(path) ? File.ReadAllText(path) : "";
+                IsDirty = false;
+            }
+
             _loadFailed = false;
+            _bufferPath = path;
         }
         catch (Exception ex)
         {
@@ -1086,6 +1142,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         }
 
         OnPropertyChanged(nameof(CanSave));
+        OnPropertyChanged(nameof(CanSaveAs));
+        MarkUnsavedFiles();
         Check();
         if (failure is not null)
         {
@@ -1240,6 +1298,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         {
             OpenableFiles.Add(extension);
         }
+
+        MarkUnsavedFiles();
     }
 
     private void StartWatcher()
