@@ -450,6 +450,9 @@ public class GrenadeStoreTests
     [Arguments("{\"schemaVersion\":1,\"maps\":{\"de_mirage\":{\"anchors\":null}}}")]
     [Arguments("{\"schemaVersion\":1,\"maps\":{\"de_mirage\":{\"aliases\":null}}}")]
     [Arguments("{\"schemaVersion\":1,\"maps\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"maps\":{\"de_mirage\":{\"paths\":{\"k\":null}}}}")]
+    [Arguments("{\"schemaVersion\":1,\"maps\":{\"de_mirage\":{\"paths\":{\"k\":{\"throw\":null,\"points\":[]}}}}}")]
+    [Arguments("{\"schemaVersion\":1,\"maps\":{\"de_mirage\":{\"paths\":{\"k\":{\"throw\":\"t\",\"points\":null}}}}}")]
     public async Task ALineupFileWithCollidingMapsOrANullTable_IsNotALineupDocument_AndIsNotReplaced(string json)
     {
         string root = TempRoot();
