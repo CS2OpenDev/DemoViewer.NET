@@ -117,6 +117,8 @@ stats:
     while: round.active
     per: match
 
+  # Weapon categories mirror player_stats: awp_kills is the AWP only, the Scout (ssg08) counts as a rifle,
+  # and g3sg1/scar20 are in no category. Changing that needs the upstream player_stats to change first.
   awp_kills:
     count: kill
     where: 'event.Weapon == "awp"'
@@ -518,6 +520,10 @@ stats:
     per: match
 
   # ── player_stats' four highlight counts (see the header) ──
+  # Opening-duel definition, kept identical to player_stats (which mirrors the package's shipped copy):
+  # the first death of the round, unfiltered. A team kill therefore credits an opening kill and death, and
+  # a suicide or fall death counts as an opening death. Not changed here: excluding team kills and
+  # suicides has to land upstream in CS2DemoKit's player_stats first, then be mirrored.
   opening_kills_round:
     count: kill
     while: round.no_deaths_yet
