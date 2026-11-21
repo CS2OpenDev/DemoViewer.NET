@@ -68,8 +68,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
     // The open pane, or null. The host owns it; closing it disposes this handle, not the running export.
     private ISceneExportPane? _exportPane;
 
-    // The strat the open pane was built for: its ranges and file name are that strat's.
-    private Guid _exportStrat;
+    // The strat, file stem and ranges the open pane was handed; its Start captures whatever the canvas shows then.
+    private (Guid Strat, string FileStem, IReadOnlyList<SceneExportRange> Ranges)? _exportFor;
 
     private readonly Func<IExtensionSceneExport?>? _sceneExport;
 
@@ -576,11 +576,13 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         // The strat's own starting choices, not the 2D tab's saved ones: a strat is shared as a short GIF, and
         // choosing here must not rewrite what the 2D tab opens with. Only the folder is shared.
         CloseExport();
+        string stem = ExportFileStem(document.Name);
+        IReadOnlyList<SceneExportRange> ranges = StratExportJob.Ranges(projection);
         _exportPane = export.OpenPane(new SceneExportPaneRequest
         {
             Title = "Export strat",
-            FileStem = ExportFileStem(document.Name),
-            Ranges = StratExportJob.Ranges(projection),
+            FileStem = stem,
+            Ranges = ranges,
             Choices = new SceneExportChoices(SceneExportFormats.Gif, StratExportJob.DefaultFps,
                 StratExportJob.DefaultWidth, StratExportJob.DefaultHeight, IncludeHud: true,
                 IncludeHudClock: true, IncludeAnnotations: true, IncludeVision: false),
@@ -592,7 +594,7 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         });
 
         _exportPane.Started += OnExportStarted;
-        _exportStrat = document.Id;
+        _exportFor = (document.Id, stem, ranges);
         ExportDialog = _exportPane.ViewModel;
     }
 
@@ -607,7 +609,25 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
             _exportPane = null;
         }
 
+        _exportFor = null;
         ExportDialog = null;
+    }
+
+    // The host's pane copies its range and file name once and has no refresh: once another strat is open, or the
+    // open one no longer has that range or name, Start would export this strat over the other's. Close it instead.
+    private void CloseStaleExport()
+    {
+        if (_exportFor is not { } handed)
+        {
+            return;
+        }
+
+        if (Session.Document is not { } document || document.Id != handed.Strat
+            || ExportFileStem(document.Name) != handed.FileStem || Canvas.Projection is not { } projection
+            || !StratExportJob.Ranges(projection).SequenceEqual(handed.Ranges))
+        {
+            CloseExport();
+        }
     }
 
     private void OnExportStarted() => CloseExport();
@@ -812,12 +832,14 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         }
 
         SelectedStrat = null;
-        if (!_store.Delete(row.Id))
+        bool deleted = _store.Delete(row.Id);
+        RefreshList();
+
+        // After the refresh, which writes the strat count over the line.
+        if (!deleted)
         {
             ListLine = "strat could not be deleted";
         }
-
-        RefreshList();
     }
 
     /// <summary>The explicit save: a commit of the pending edits.</summary>
@@ -989,13 +1011,6 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
             CancelLineupPicker();
         }
 
-        // Another strat, or none: the pane's ranges and file name are the one it was opened on, and Start
-        // captures whatever the canvas shows. Edits to the same strat keep it open.
-        if (_exportPane is not null && Session.Document?.Id != _exportStrat)
-        {
-            CloseExport();
-        }
-
         Editor.Project();
         RecordPanel.Configure(Session.Document);
         HistoryPanel.Configure(Session.Document);
@@ -1011,6 +1026,7 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         OnPropertyChanged(nameof(CanApplyTemplate));
         ApplyTemplateCommand.NotifyCanExecuteChanged();
         RaiseExportState();
+        CloseStaleExport();
     }
 
     // The open strat's own working-copy writes land here every half second while it is edited; they change

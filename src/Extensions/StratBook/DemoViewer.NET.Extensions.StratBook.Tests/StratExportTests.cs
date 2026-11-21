@@ -96,27 +96,31 @@ public class StratExportTests
     }
 
     /// <summary>
-    ///     The pane's ranges and file name are the strat's that was open when it was built, and Start captures
-    ///     whatever the canvas shows then. Left open across a switch to another strat, it exported the second
-    ///     strat over the first one's tick range and under its name.
+    ///     The pane holds the range and file name of the strat it was opened over, and its Start captures whatever
+    ///     the canvas shows then: once another strat is open, or the open one no longer has that range or name, the
+    ///     pane is closed rather than export one strat over another's range and file.
     /// </summary>
     [Test]
-    public async Task OpeningAnotherStrat_ClosesThePaneBuiltForTheFirst()
+    public async Task ThePane_ClosesWhenTheStratItWasOpenedOverIsSwitchedOrRenamed()
     {
         await HeadlessSession.RunOnUi(async () =>
         {
             StratDocument other = FiveSteps();
-            (StratBookTabViewModel vm, List<Playback2DExportStatusViewModel> _, ExtensionSceneExport export) =
-                OpenFiveSteps(other);
+            other.Name = "B exec";
+            other.Steps.RemoveAt(other.Steps.Count - 1);
+            (StratBookTabViewModel vm, _, ExtensionSceneExport export) = OpenFiveSteps(other);
             using (export)
             using (vm)
             {
                 vm.OpenExportCommand.Execute(null);
                 await Assert.That(vm.ExportDialog).IsNotNull();
+                vm.Editor.Name = "A exec, renamed";
+                await Assert.That(vm.ExportDialog).IsNull().Because("the pane's file name is the old name's");
 
+                vm.OpenExportCommand.Execute(null);
+                await Assert.That(vm.ExportDialog).IsNotNull();
                 vm.Session.Open(other.Id);
-
-                await Assert.That(vm.ExportDialog).IsNull();
+                await Assert.That(vm.ExportDialog).IsNull().Because("the pane's range is the other strat's");
             }
         });
     }
@@ -415,13 +419,13 @@ public class StratExportTests
     private static readonly FirstPartyExports _exports = new(_gate, new DemoProcessingQueue(_gate, a => a()));
 
     private static (StratBookTabViewModel Vm, List<Playback2DExportStatusViewModel> Chips, ExtensionSceneExport Export)
-        OpenFiveSteps(StratDocument? also = null)
+        OpenFiveSteps(StratDocument? alsoStored = null)
     {
         StratStore store = new(null);
         StratDocument document = FiveSteps();
-        foreach (StratDocument each in also is null ? [document] : new[] { document, also })
+        foreach (StratDocument stored in alsoStored is null ? [document] : (StratDocument[])[document, alsoStored])
         {
-            StratSaveResult saved = store.Save(each, [], "created");
+            StratSaveResult saved = store.Save(stored, [], "created");
             if (!saved.Saved)
             {
                 throw new InvalidOperationException(saved.Reason);
