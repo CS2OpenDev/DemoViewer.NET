@@ -74,4 +74,58 @@ public class PathComparerTests
             }
         }
     }
+
+    /// <summary>
+    ///     On Linux two demos whose paths differ only by case share the path-derived key until they are hashed,
+    ///     since it folds case so nothing persisted changes. So the second is not cached until it is hashed: it
+    ///     never joins, reads or writes the first one's provisional record.
+    /// </summary>
+    [Test]
+    public async Task OnLinux_AnUnhashedDemo_NeverSharesTheProvisionalRecordOfItsCaseVariant()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new SkipTestException("only a Linux file system keeps two names that differ only by case");
+        }
+
+        string root = Path.Combine(Path.GetTempPath(), $"dv-pathcase-{Guid.NewGuid():N}");
+        try
+        {
+            DemoCacheStore store = new(root);
+            store.Upsert(new DemoCacheRecord { Path = "/d/Match.dem", Size = 1000, ModifiedTicks = 2000, Map = "de_nuke" });
+            store.Upsert(new DemoCacheRecord
+            {
+                Path = "/d/match.dem", Size = 1001, ModifiedTicks = 2001, Map = "de_inferno"
+            });
+            DemoCacheRecord? variantBefore = store.TryLoadRecord("/d/match.dem");
+            store.UpdateExisting("/d/match.dem", r => r.Map = "de_mirage");
+            string? firstAfterUpdate = store.TryLoadRecord("/d/Match.dem")?.Map;
+            store.Upsert(new DemoCacheRecord
+            {
+                Path = "/d/match.dem", Size = 1001, ModifiedTicks = 2001, Sha256 = new string('b', 64),
+                Map = "de_inferno"
+            });
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(variantBefore).IsNull();
+                await Assert.That(store.TryGetIndex("/d/match.dem")?.Sha256).IsEqualTo(new string('b', 64));
+                await Assert.That(store.TryGetIndex("/d/Match.dem")?.Locations.Select(l => l.Path))
+                    .IsEquivalentTo(["/d/Match.dem"]);
+                await Assert.That(firstAfterUpdate).IsEqualTo("de_nuke");
+                await Assert.That(store.TryLoadRecord("/d/Match.dem")?.Map).IsEqualTo("de_nuke");
+                await Assert.That(store.TryLoadRecord("/d/match.dem")?.Map).IsEqualTo("de_inferno");
+            }
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(root, true);
+            }
+            catch (DirectoryNotFoundException)
+            {
+            }
+        }
+    }
 }

@@ -892,7 +892,9 @@ public sealed partial class DemoCacheStore
         {
             if (cached is not null)
             {
-                return Project(SidecarJson.Deserialize<DemoCacheRecord>(cached, _jsonOptions), path, row);
+                DemoCacheRecord? remembered = SidecarJson.Deserialize<DemoCacheRecord>(cached, _jsonOptions);
+                // The row key of a path no row lists yet folds case, as its file name does.
+                return remembered is null || Belongs(remembered, row, path) ? Project(remembered, path, row) : null;
             }
 
             foreach (string key in keys)
@@ -900,7 +902,7 @@ public sealed partial class DemoCacheStore
                 // The new file wins whenever it reads. When it does not, a legacy file beside it is the last
                 // good write.
                 byte[]? bytes = ReadRecordBytes(key);
-                if (bytes is not null && TryDeserializeRecord(bytes) is { } record && Belongs(record, row))
+                if (bytes is not null && TryDeserializeRecord(bytes) is { } record && Belongs(record, row, path))
                 {
                     RecordReadForTest?.Invoke();
                     if (remember)
@@ -922,7 +924,7 @@ public sealed partial class DemoCacheStore
                     return Project(record, path, row);
                 }
 
-                if (TryReadLegacyRecord(key) is { } old && Belongs(old, row))
+                if (TryReadLegacyRecord(key) is { } old && Belongs(old, row, path))
                 {
                     return Project(old, path, row);
                 }
@@ -955,12 +957,13 @@ public sealed partial class DemoCacheStore
 
         foreach (string key in keys)
         {
-            if (ReadRecordBytes(key) is { } bytes && TryDeserializeRecord(bytes) is { } record && Belongs(record, row))
+            if (ReadRecordBytes(key) is { } bytes && TryDeserializeRecord(bytes) is { } record
+                && Belongs(record, row, row.Path))
             {
                 return record;
             }
 
-            if (TryReadLegacyRecord(key) is { } old && Belongs(old, row))
+            if (TryReadLegacyRecord(key) is { } old && Belongs(old, row, row.Path))
             {
                 return old;
             }
@@ -1009,10 +1012,17 @@ public sealed partial class DemoCacheStore
     }
 
     // A record read under a row describes it unless it names other bytes: a file left under a fallback name
-    // by an earlier demo at the same path must not stand in for this one.
-    private static bool Belongs(DemoCacheRecord record, DemoCacheIndexEntry? row) =>
-        row is null || IsProvisional(row) || string.IsNullOrEmpty(record.Sha256)
-        || string.Equals(record.Sha256, row.Sha256, StringComparison.Ordinal);
+    // by an earlier demo at the same path must not stand in for this one. Without a hash on both sides the path
+    // decides: a path-derived file name folds case, which on Linux two demos can share.
+    private static bool Belongs(DemoCacheRecord record, DemoCacheIndexEntry? row, string? path)
+    {
+        if (row is not null && !IsProvisional(row) && !string.IsNullOrEmpty(record.Sha256))
+        {
+            return string.Equals(record.Sha256, row.Sha256, StringComparison.Ordinal);
+        }
+
+        return string.IsNullOrEmpty(record.Path) || string.IsNullOrEmpty(path) || IsRecordOf(record, path, row);
+    }
 
     // The sidecar holds whichever location wrote it last; the reader gets the one it asked for.
     private static DemoCacheRecord? Project(DemoCacheRecord? record, string path, DemoCacheIndexEntry? row)
@@ -1438,6 +1448,19 @@ public sealed partial class DemoCacheStore
                 joining = oldKey != newKey ? _rows.GetValueOrDefault(newKey) : null;
             }
 
+            // A provisional key folds case, so on Linux it can be the row of another demo whose path differs only
+            // by case. This one is not cached until it is hashed: joining would write over that demo's record.
+            if (string.IsNullOrEmpty(record.Sha256) && joining is not null && LocationIn(joining, path) is null)
+            {
+                if (mustLand)
+                {
+                    throw new IOException("Another demo whose path differs only by case holds this demo's cache "
+                                          + "files until this one is read in full.");
+                }
+
+                return;
+            }
+
             if (joining is not null && TryLoadRowRecord(newKey) is { } existing)
             {
                 record.FillMissingFrom(existing);
@@ -1496,7 +1519,11 @@ public sealed partial class DemoCacheStore
                     DateTime.UtcNow.Ticks));
                 // A new row writes under the path's key until a saved index names the content id: without
                 // the index only that name leads back to the file.
-                List<string> keys = target is null ? [StableKey(path)] : [.. WriteKeys(target)];
+                // Unless the path's key is the file name of a provisional row of a case variant (Linux): then
+                // it writes under the content id at once.
+                bool variantHoldsKey = _rows.TryGetValue(ProvisionalPrefix + pathKey, out DemoCacheIndexEntry? holder)
+                    && LocationIn(holder, path) is null;
+                List<string> keys = target is null ? variantHoldsKey ? [] : [pathKey] : [.. WriteKeys(target)];
 
                 if (oldRow is not null && oldKey != newKey)
                 {
