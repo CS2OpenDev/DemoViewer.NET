@@ -49,7 +49,18 @@ public sealed partial class ExtensionDataActionViewModel(IExtensionDataRemoval r
         StatusText = "Counting…";
         try
         {
-            ExtensionDataInventory inventory = await removal.InventoryAsync();
+            ExtensionDataInventory inventory;
+            try
+            {
+                inventory = await removal.InventoryAsync();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                IsConfirming = false;
+                StatusText = "Could not count the extension's data: " + ex.Message;
+                return;
+            }
+
             if (inventory.TotalBytes == 0 && inventory.Items.All(i => i.FileCount == 0))
             {
                 IsConfirming = false;
@@ -90,7 +101,17 @@ public sealed partial class ExtensionDataActionViewModel(IExtensionDataRemoval r
         StatusText = "Deleting…";
         try
         {
-            ExtensionDataRemovalResult result = await removal.DeleteAsync();
+            ExtensionDataRemovalResult result;
+            try
+            {
+                result = await removal.DeleteAsync();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                StatusText = "Could not delete the extension's data: " + ex.Message;
+                return;
+            }
+
             StatusText = result.Ran
                 ? $"Deleted {result.Removed.Items.Sum(i => i.FileCount)} files ({FormatBytes(result.Removed.TotalBytes)})."
                 + (result.Skipped > 0
