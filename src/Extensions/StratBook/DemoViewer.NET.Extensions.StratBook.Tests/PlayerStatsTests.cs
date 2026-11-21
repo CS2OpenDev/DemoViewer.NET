@@ -209,6 +209,33 @@ public class PlayerStatsTests
     }
 
     [Test]
+    public async Task ARosterPlayerOnTheOtherSideOfADemo_IsNotCountedForTheTeam()
+    {
+        // Team B is the CT five (Id 11 to 15) in both demos. Id 1 is in its roster now but played demo one and
+        // demo two for the T side, against it.
+        DemoCacheStore cache = Cache();
+        FakeFacts facts = new(cache.RoundFacts());
+        facts.Set(DemoOne, FactStatus.Current,
+            Table(Row(Id(11), 20, 1.20, 1600, 75, 18, 12, 0), Row(Id(1), 20, 1.50, 2400, 80, 25, 10, 9, 2)));
+        string[] key = [Id(11), Id(12), Id(13), Id(14), Id(15)];
+        TeamDemoFacts[] demos =
+        [
+            new(DemoOne, "de_mirage", 2, true, null, Players: key),
+            new(DemoTwo, "de_mirage", 1, true, null, Players: key)
+        ];
+
+        PlayerStatsSet set = PlayerStatsService.Build(cache.Library(), facts, cache.RoundFacts(), demos, [Id(11), Id(1)]);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(set.For("de_mirage", Id(1))).IsNull()
+                .Because("every number of Id 1 here was earned playing against the team");
+            await Assert.That(set.TeamAwpKills("de_mirage")).IsEqualTo(0);
+            await Assert.That(set.For("de_mirage", Id(11))!.Openings.Count).IsEqualTo(2);
+        }
+    }
+
+    [Test]
     public async Task OpeningsAndClutchAttempts_ComeFromRoundFacts_WithTheirRounds()
     {
         DemoCacheStore cache = Cache();

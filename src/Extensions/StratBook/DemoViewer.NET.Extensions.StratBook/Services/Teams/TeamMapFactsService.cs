@@ -14,8 +14,12 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// <param name="OpponentId">The team on the other side, when Team Identity named one.</param>
 /// <param name="Score">The team's final score, when the library has one.</param>
 /// <param name="OpponentScore">The other side's final score, when the library has one.</param>
+/// <param name="Players">
+///     The team's side key in the demo: the SteamID64s that played for it. A roster player outside it played the
+///     demo for the other side. Null when not known.
+/// </param>
 public sealed record TeamDemoFacts(string Path, string Map, long Ticks, bool? Won, Guid? OpponentId,
-    int? Score = null, int? OpponentScore = null);
+    int? Score = null, int? OpponentScore = null, IReadOnlyList<string>? Players = null);
 
 /// <summary>
 ///     One map's round numbers for one team, counted on the side the team actually played each round
@@ -108,7 +112,7 @@ public static class TeamMapFactsService
             }
 
             demos.Add(new TeamDemoFacts(demo.Path, map, entry.Modified.Ticks, won,
-                assignment.Side(side == 2 ? 3 : 2).TeamId, score, against));
+                assignment.Side(side == 2 ? 3 : 2).TeamId, score, against, assignment.Side(side).Key));
         }
 
         return [.. demos.OrderByDescending(d => d.Ticks)];
