@@ -374,6 +374,32 @@ public class ThemeEditorTests
         });
     }
 
+    // The editor is modeless, so Settings' Customize can Reveal another theme while the delete prompt is up.
+    // The prompt still named the first theme, and confirming it deleted the one shown by then.
+    [Test]
+    public async Task Delete_PromptDoesNotOutliveASwitchToAnotherTheme()
+    {
+        using TempThemesFolder folder = new();
+        string first = folder.Write("partial.json", Partial);
+        string second = folder.Write("other.json",
+            """{ "id": "other", "name": "Other", "tokens": { "ShellBg": "#070809" } }""");
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (ThemeEditorViewModel vm, _, _) = Open("partial");
+            using (vm)
+            {
+                vm.DeleteCommand.Execute(null);
+                vm.Reveal("other", missingOnly: false);
+                await Assert.That(vm.Theme.Id).IsEqualTo("other");
+                await Assert.That(vm.Prompt).IsEqualTo(ThemeEditorPrompt.None);
+
+                vm.ConfirmDeleteCommand.Execute(null);
+                await Assert.That(File.Exists(second)).IsTrue();
+                await Assert.That(File.Exists(first)).IsTrue();
+            }
+        });
+    }
+
     [Test]
     public async Task Renaming_ToATakenName_IsRefused()
     {
