@@ -217,8 +217,7 @@ internal static class ExportCommand
                 : new FfmpegFrameSink(new FfmpegSinkOptions(outPath, format, size.Width, size.Height, fps,
                     ffmpeg.Directory, encoder, Log: ffmpegLog ? ConsoleOut.Info : null));
 
-        ExportProgress last = default;
-        Progress<ExportProgress> progress = new(p => last = p);
+        LastProgress progress = new();
 
         try
         {
@@ -231,6 +230,7 @@ internal static class ExportCommand
             mapAssets?.Dispose();
         }
 
+        ExportProgress last = progress.Last;
         double elapsedMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         double demoSeconds = (frames[endFrame].ServerTick - frames[startFrame].ServerTick) / (double)tickRate;
         double realtimeRatio = elapsedMs > 0 ? demoSeconds / (elapsedMs / 1000.0) : 0;
@@ -488,4 +488,19 @@ internal static class ExportCommand
     internal static TimelineHudDataSource BuildHud(TrackerFrameSource source, int tickRate) =>
         new([], tickRate, _ => ClockReading.From(source.LastGameInfo),
             rosterAt: _ => source.LastRoster);
+
+    /// <summary>
+    ///     Keeps the session's latest report, assigned inline on the reporting thread. A
+    ///     <see cref="Progress{T}" /> in a console process has no synchronization context to capture, so it
+    ///     posts every report to the thread pool: the summary read straight after the run could see a
+    ///     stale report, or none. Internal so a test can pin it.
+    /// </summary>
+    internal sealed class LastProgress : IProgress<ExportProgress>
+    {
+        /// <summary>The most recent report, or the default value before the first.</summary>
+        public ExportProgress Last { get; private set; }
+
+        /// <inheritdoc />
+        public void Report(ExportProgress value) => Last = value;
+    }
 }
