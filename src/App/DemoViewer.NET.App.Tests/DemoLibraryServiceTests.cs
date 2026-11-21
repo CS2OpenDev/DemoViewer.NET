@@ -494,6 +494,72 @@ public class DemoLibraryServiceTests
     }
 
     /// <summary>
+    ///     A demo enlisted for tier 2 but not yet parsed, which a later scan holds back for fingerprinting
+    ///     because a same-size file appeared beside it. The full scan's backlog trim dropped it from the
+    ///     backlog, and the held-back branch recorded nothing, so the reconcile after fingerprinting found it
+    ///     owed nothing: the card stayed on Indexing for the rest of the session.
+    /// </summary>
+    [Test]
+    public async Task APendingDemoHeldBackByALaterScan_IsStillIndexed()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "dvlib_" + Guid.NewGuid().ToString("N"));
+        string first = Path.Combine(dir, "a");
+        string second = Path.Combine(dir, "b");
+        Directory.CreateDirectory(first);
+        Directory.CreateDirectory(second);
+        await File.WriteAllBytesAsync(Path.Combine(first, "one.dem"), [1, 2, 3]);
+        await File.WriteAllBytesAsync(Path.Combine(first, "two.dem"), [4, 5, 6, 7]);
+        try
+        {
+            ConcurrentBag<string> parsedNames = [];
+            using ManualResetEventSlim release = new(false);
+            // One background slot: whichever demo submits first holds the worker, the other is refused and
+            // stays enlisted, unparsed.
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(),
+                path =>
+                {
+                    parsedNames.Add(Path.GetFileName(path));
+                    release.Wait(10000);
+                    return SyntheticDemo();
+                }, parseBytes: _ => SyntheticDemo()) { MaxQueueSize = 1 };
+
+            using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json"));
+            using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
+            svc.Scheduler = coord;
+
+            await svc.AddFoldersAsync([first]);
+            await WaitForAsync(() => parsedNames.Count == 1, "one demo occupies the worker");
+            string targetName = parsedNames.First() == "one.dem" ? "two.dem" : "one.dem";
+            string target = svc.Entries.Single(e => e.FileName == targetName).FilePath;
+            await Assert.That(svc.Wants(target)).IsTrue().Because("enlisted, refused by the full tier");
+
+            // A copy of it in a folder that sorts after: same size, so the scan holds both back.
+            File.Copy(target, Path.Combine(second, targetName));
+            await svc.AddFoldersAsync([second]);
+            await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
+            await svc.Confirmed.WaitAsync(TimeSpan.FromSeconds(10));
+
+            release.Set();
+            await WaitForAsync(
+                () => svc.Entries.Single(e => e.FilePath == target).State == DemoIndexState.Indexed,
+                () => $"{targetName} indexed (state {svc.Entries.SingleOrDefault(e => e.FilePath == target)?.State}, "
+                    + $"wanted {svc.Wants(target)})",
+                10000);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(dir, true);
+            }
+            catch
+            {
+                /* best-effort cleanup */
+            }
+        }
+    }
+
+    /// <summary>
     ///     The open as the demo's visit over a REAL demo: the synthetic sibling proves the no-reparse control
     ///     flow; this proves the actual work: the library's pass runs the real entity-decode score replay on
     ///     the open's parse and fills the card (players + duration + final score), while the background queue

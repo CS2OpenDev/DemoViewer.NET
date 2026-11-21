@@ -2161,6 +2161,13 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
                     needFull.Add(kept);
                 }
+                else if (owed)
+                {
+                    // Still owed once its fingerprint is in, as a new row held back is. Left in the backlog it
+                    // is trimmed by this scan's KeepOnlyInTier2Backlog, and the reconcile after the
+                    // fingerprints would then find it owed nothing.
+                    HoldBackTier2([kept]);
+                }
 
                 continue;
             }
