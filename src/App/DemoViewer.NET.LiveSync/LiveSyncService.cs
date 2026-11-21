@@ -365,27 +365,38 @@ public sealed class LiveSyncService : ILiveSyncService
         {
             VerificationRunner.Outcome outcome = await VerificationRunner.RunAsync(
                 session, mapper, frameClockTick, preRollTicks, postRollTicks, spectateName, cancellationToken);
-            if (outcome.Success)
+            if (!outcome.Success)
             {
-                // Remote-apply DV's playhead to the trigger frame under the loop
-                // breaker, desired state aligned so the observer sees no diff.
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    ApplyingRemote = true;
-                    try
-                    {
-                        _shell.Playback.SeekToFrame(outcome.TargetFrameIndex);
-                        engine.SetDesiredTick(outcome.TargetCs2Tick);
-                        engine.SetDesiredPlaying(false);
-                    }
-                    finally
-                    {
-                        ApplyingRemote = false;
-                    }
-                });
+                return false;
             }
 
-            return outcome.Success;
+            // Remote-apply DV's playhead to the trigger frame under the loop
+            // breaker, desired state aligned so the observer sees no diff.
+            return await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                // Checked here, on the UI thread, so no DemoReset can land between it and the apply:
+                // another demo opened (or sync restarted) during the range owns the playhead now, and
+                // the old demo's frame index and tick would put both sides somewhere unrelated.
+                if (!ReferenceEquals(_observer?.Mapper, mapper) || !ReferenceEquals(_engine, engine)
+                    || !ReferenceEquals(_subscribedSession, session))
+                {
+                    return false;
+                }
+
+                ApplyingRemote = true;
+                try
+                {
+                    _shell.Playback.SeekToFrame(outcome.TargetFrameIndex);
+                    engine.SetDesiredTick(outcome.TargetCs2Tick);
+                    engine.SetDesiredPlaying(false);
+                }
+                finally
+                {
+                    ApplyingRemote = false;
+                }
+
+                return true;
+            });
         }
         finally
         {
