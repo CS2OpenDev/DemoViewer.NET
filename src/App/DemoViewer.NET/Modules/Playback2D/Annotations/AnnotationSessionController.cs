@@ -320,7 +320,7 @@ public sealed class AnnotationSessionController : IDisposable
                 return;
             }
 
-            AnnotationLoadResult result = await _store.LoadAsync(_demoPath, clock);
+            AnnotationLoadResult result = await _store.LoadForEditingAsync(_demoPath, clock);
             if (generation != _attachGeneration)
             {
                 return;

@@ -168,16 +168,32 @@ public sealed class AnnotationStore
     };
 
     /// <summary>
-    ///     Loads a demo's sidecar. Never throws for a missing, truncated or foreign file: a corrupt
-    ///     sidecar must not stop a demo from opening. One that exists and cannot be read or parsed is moved
-    ///     aside to <c>&lt;name&gt;.unreadable-&lt;yyyyMMddHHmmss&gt;</c> (see
-    ///     <see cref="AnnotationLoadResult.Unreadable" />), so a later save cannot replace it.
+    ///     Loads a demo's sidecar for a reader that never saves it (a pack export's ink, a committed fixture).
+    ///     Never throws for a missing, truncated or foreign file: a corrupt sidecar must not stop a demo from
+    ///     opening. One that exists and cannot be read or parsed loads as empty with
+    ///     <see cref="AnnotationLoadResult.Unreadable" /> set, and is left where it is.
     /// </summary>
     /// <param name="demoPath">Path to the <c>.dem</c>.</param>
     /// <param name="clock">The clock the caller's parse is on.</param>
     /// <param name="ct">Cancellation.</param>
-    public async Task<AnnotationLoadResult> LoadAsync(string demoPath, ClockIdentity clock,
-        CancellationToken ct = default)
+    public Task<AnnotationLoadResult> LoadAsync(string demoPath, ClockIdentity clock,
+        CancellationToken ct = default) =>
+        LoadCoreAsync(demoPath, clock, false, ct);
+
+    /// <summary>
+    ///     <see cref="LoadAsync" /> for the editor that saves the document back. A sidecar that exists and
+    ///     cannot be read or parsed is moved aside to <c>&lt;name&gt;.unreadable-&lt;yyyyMMddHHmmss&gt;</c>
+    ///     (<see cref="AnnotationLoadResult.MovedAsidePath" />), so a later save cannot replace it.
+    /// </summary>
+    /// <param name="demoPath">Path to the <c>.dem</c>.</param>
+    /// <param name="clock">The clock the caller's parse is on.</param>
+    /// <param name="ct">Cancellation.</param>
+    public Task<AnnotationLoadResult> LoadForEditingAsync(string demoPath, ClockIdentity clock,
+        CancellationToken ct = default) =>
+        LoadCoreAsync(demoPath, clock, true, ct);
+
+    private async Task<AnnotationLoadResult> LoadCoreAsync(string demoPath, ClockIdentity clock, bool editing,
+        CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(clock);
 
@@ -210,15 +226,15 @@ public sealed class AnnotationStore
         }
         catch (JsonException)
         {
-            return Unreadable(location, path);
+            return Unreadable(location, path, editing);
         }
         catch (IOException)
         {
-            return Unreadable(location, path);
+            return Unreadable(location, path, editing);
         }
         catch (UnauthorizedAccessException)
         {
-            return Unreadable(location, path);
+            return Unreadable(location, path, editing);
         }
 
         if (dto is null)
@@ -542,9 +558,15 @@ public sealed class AnnotationStore
 
     // A sidecar that exists and cannot be read opens as empty, so the first save would replace it with
     // only what is drawn after. It is moved aside first, never deleted; when even that fails it stays where
-    // it is and is guarded until a save can move it.
-    private AnnotationLoadResult Unreadable(AnnotationStoreLocation location, string path)
+    // it is and is guarded until a save can move it. A reader that never saves leaves the file and the store's
+    // memory of it alone: an editor sharing the store keeps what it preserved.
+    private AnnotationLoadResult Unreadable(AnnotationStoreLocation location, string path, bool editing)
     {
+        if (!editing)
+        {
+            return AnnotationLoadResult.Empty(location, path) with { Unreadable = true };
+        }
+
         Forget(path);
         string? movedTo = TryMoveAside(path);
         if (movedTo is null)

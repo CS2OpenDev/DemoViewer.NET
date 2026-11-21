@@ -47,7 +47,8 @@ public sealed record AnnotationLoadResult(
     /// <summary>
     ///     A sidecar was there and could not be read or parsed. The elements are empty; the file itself is in
     ///     <see cref="MovedAsidePath" />, or, when it could not be moved, still at <see cref="Path" />, where the
-    ///     store will not save over it until it can be moved.
+    ///     store will not save over it until it can be moved. A load for a reader only
+    ///     (<see cref="AnnotationStore.LoadAsync" />) leaves it at <see cref="Path" /> and guards nothing.
     /// </summary>
     public bool Unreadable { get; init; }
 

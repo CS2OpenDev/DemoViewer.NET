@@ -510,12 +510,14 @@ public class AnnotationStoreTests
         string truncated = text[..(text.Length / 2)];
         await File.WriteAllTextAsync(path, truncated);
 
-        AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
+        AnnotationLoadResult loaded = await store.LoadForEditingAsync(tree.DemoPath, tree.Clock);
         string[] aside = Directory.GetFiles(Path.GetDirectoryName(path)!,
             Path.GetFileName(path) + ".unreadable-*");
 
         await Assert.That(loaded.Elements).IsEmpty();
         await Assert.That(loaded.DemoMismatch).IsFalse();
+        await Assert.That(loaded.Unreadable).IsTrue();
+        await Assert.That(loaded.MovedAsidePath).IsEqualTo(aside.SingleOrDefault());
         await Assert.That(File.Exists(path)).IsFalse().Because("the next save must not land on the user's file");
         await Assert.That(aside.Length).IsEqualTo(1);
         await Assert.That(await File.ReadAllTextAsync(aside[0])).IsEqualTo(truncated);
@@ -523,6 +525,35 @@ public class AnnotationStoreTests
         await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
         await Assert.That(await File.ReadAllTextAsync(aside[0])).IsEqualTo(truncated)
             .Because("a save after the load writes a new sidecar and leaves the moved one alone");
+    }
+
+    /// <summary>
+    ///     A reader that only reads (a pack export's ink, a committed fixture) gets the same empty, flagged
+    ///     result, and the file stays where it is with nothing about it remembered.
+    /// </summary>
+    [Test]
+    public async Task Load_TruncatedJson_ForAReaderOnly_LeavesTheFileWhereItIs()
+    {
+        using TempTree tree = new();
+        AnnotationStore store = new(tree.AppData);
+        await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
+        string path = store.ResolvePath(tree.DemoPath)!;
+        string text = await File.ReadAllTextAsync(path);
+        string truncated = text[..(text.Length / 2)];
+        await File.WriteAllTextAsync(path, truncated);
+
+        AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
+        string[] aside = Directory.GetFiles(Path.GetDirectoryName(path)!,
+            Path.GetFileName(path) + ".unreadable-*");
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(loaded.Elements).IsEmpty();
+            await Assert.That(loaded.Unreadable).IsTrue();
+            await Assert.That(loaded.MovedAsidePath).IsNull();
+            await Assert.That(aside).IsEmpty();
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(truncated);
+        }
     }
 
     /// <summary>
@@ -546,7 +577,7 @@ public class AnnotationStoreTests
         bool savedWhileHeld;
         using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
         {
-            AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
+            AnnotationLoadResult loaded = await store.LoadForEditingAsync(tree.DemoPath, tree.Clock);
             await Assert.That(loaded.Elements).IsEmpty();
             savedWhileHeld = await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, []);
         }
