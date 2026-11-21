@@ -25,9 +25,10 @@ internal static class SyntheticDemo
     ///     When true the frame claims bytes past the end of the file, so copying it throws after the
     ///     output has been opened.
     /// </param>
+    /// <param name="withFileInfo">False builds an unfinalised recording: no tail, header offsets zero.</param>
     public static (byte[] Raw, ParsedDemo Demo) Build(
         IEnumerable<int>? roundStartTicks = null, IReadOnlyList<GameEvent>? events = null,
-        bool corruptFrame = false)
+        bool corruptFrame = false, bool withFileInfo = true)
     {
         using MemoryStream ms = new();
         DemoFormat.WriteFileHeader(ms, 0, 0);
@@ -37,15 +38,21 @@ internal static class SyntheticDemo
         int frameLength = (int)ms.Position - frameStart;
 
         int fileInfoOffset = (int)ms.Position;
-        CDemoFileInfo info = new()
+        if (withFileInfo)
         {
-            PlaybackTicks = 2000, GameInfo = new CGameInfo { Cs = new CGameInfo.Types.CCSGameInfo() }
-        };
-        info.GameInfo.Cs.RoundStartTicks.AddRange(roundStartTicks ?? []);
-        DemoFormat.WriteFrame(ms, DemoFormat.CommandIdByName["DEM_FileInfo"], 2000, false, info.ToByteArray());
+            CDemoFileInfo info = new()
+            {
+                PlaybackTicks = 2000, GameInfo = new CGameInfo { Cs = new CGameInfo.Types.CCSGameInfo() }
+            };
+            info.GameInfo.Cs.RoundStartTicks.AddRange(roundStartTicks ?? []);
+            DemoFormat.WriteFrame(ms, DemoFormat.CommandIdByName["DEM_FileInfo"], 2000, false, info.ToByteArray());
+        }
 
         byte[] raw = ms.ToArray();
-        BitConverter.TryWriteBytes(raw.AsSpan(8, 4), fileInfoOffset);
+        if (withFileInfo)
+        {
+            BitConverter.TryWriteBytes(raw.AsSpan(8, 4), fileInfoOffset);
+        }
 
         DemoFrame frame = new()
         {

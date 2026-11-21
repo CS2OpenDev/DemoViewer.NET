@@ -43,6 +43,30 @@ public sealed class DemoTrimWriterTests
         await Assert.That(string.Join(",", kept)).IsEqualTo("100,500,900");
     }
 
+    /// <summary>
+    ///     A source with no DEM_FileInfo (an unfinalised recording) must not come out with a header
+    ///     offset that names the end of the file. The format says 0 when the frame is absent.
+    /// </summary>
+    [Test]
+    public async Task SourceWithoutFileInfo_GetsAZeroFileInfoOffset()
+    {
+        (byte[] raw, ParsedDemo demo) = SyntheticDemo.Build(withFileInfo: false);
+        TrimWindow window = new(0, 0, SyntheticDemo.PacketTick, 1000, 1, [], false);
+        string dir = CreateTempDir();
+        try
+        {
+            string outPath = Path.Combine(dir, "trim.dem");
+            DemoTrimWriter.Write(demo, raw, window, TrimVariant.V0, outPath);
+
+            byte[] written = File.ReadAllBytes(outPath);
+            await Assert.That(BitConverter.ToInt32(written, 8)).IsEqualTo(0);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     private static IReadOnlyList<int> WriteAndReadRoundStarts(
         ParsedDemo demo, byte[] raw, TrimWindow window, TrimVariant variant)
     {

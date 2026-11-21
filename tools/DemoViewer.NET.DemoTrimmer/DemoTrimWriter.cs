@@ -206,8 +206,13 @@ internal static class DemoTrimWriter
                     raw.AsSpan(spawnGroups.PayloadStart, spawnGroups.PayloadLength));
             }
 
+            // The header names the frame's own start, or 0 when the source had none to carry over.
             int fileInfoOffset = (int)fs.Position;
-            WriteFileInfo(fs, demo, raw, tail, emitted, frames, window, out fileInfoBefore, out fileInfoAfter);
+            if (!WriteFileInfo(fs, demo, raw, tail, emitted, frames, window, out fileInfoBefore,
+                    out fileInfoAfter))
+            {
+                fileInfoOffset = 0;
+            }
 
             fs.Flush();
             fs.Position = 0;
@@ -366,7 +371,7 @@ internal static class DemoTrimWriter
     ///         CS2's scrubber cannot show markers for rounds the file no longer contains.
     ///     </para>
     /// </summary>
-    private static void WriteFileInfo(
+    private static bool WriteFileInfo(
         Stream fs, ParsedDemo demo, byte[] raw, DemoTail tail,
         IReadOnlyList<int> emitted, IReadOnlyList<DemoFrame> frames,
         TrimWindow window, out string before, out string after)
@@ -375,7 +380,7 @@ internal static class DemoTrimWriter
         after = "(none)";
         if (tail.FileInfo is not { } fileInfoFrame)
         {
-            return;
+            return false;
         }
 
         CDemoFileInfo source = CDemoFileInfo.Parser.ParseFrom(DemoTail.Payload(raw, fileInfoFrame));
@@ -396,6 +401,7 @@ internal static class DemoTrimWriter
         before = Describe(source);
         after = Describe(trimmed);
         DemoFormat.WriteFrame(fs, fileInfoFrame.CommandId, window.EndTick, false, trimmed.ToByteArray());
+        return true;
     }
 
     /// <summary>

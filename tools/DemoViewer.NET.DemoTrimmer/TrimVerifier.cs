@@ -165,6 +165,12 @@ internal static class TrimVerifier
 
         if (trimmedTail.FileInfo is not { } fileInfoFrame)
         {
+            // No frame to resolve is only legitimate when the header says so: DemoTail also reads a
+            // dangling offset as "absent", which is the shape this method exists to catch.
+            report.Check(trimmedRaw.Length < 12 || BitConverter.ToInt32(trimmedRaw, 8) == 0,
+                "container: file header bytes 8-11 are 0 when there is no DEM_FileInfo",
+                string.Create(CultureInfo.InvariantCulture,
+                    $"offset={(trimmedRaw.Length < 12 ? 0 : BitConverter.ToInt32(trimmedRaw, 8))}"));
             return;
         }
 
