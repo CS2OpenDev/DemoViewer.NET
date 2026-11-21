@@ -2852,9 +2852,12 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         e.State == DemoQueueItemState.Queued && HoldLocked(e) == DemoQueueHold.None && !BlockedLocked(e);
 
     // Pause, the user's or a hold's, stops every start; the disable switch stops only Background-priority work.
+    // The user's own pause (and the idle pause) never holds a store's debounced save: it stops parsing, and a
+    // save held until resume would lose the user's edits to any exit that skips the shutdown flush.
     private DemoQueueHold HoldLocked(Entry e) =>
         ParkedLocked(e) ? DemoQueueHold.OnOpen
-        : (_paused || _holds > 0) && e.Priority < DemoJobPriority.UserRequested ? DemoQueueHold.Paused
+        : ((_paused && e.Kind != QueueJobKind.StoreSave) || _holds > 0) && e.Priority < DemoJobPriority.UserRequested
+            ? DemoQueueHold.Paused
         : !_backgroundEnabled && e.Priority < DemoJobPriority.UserRequested && e.Kind != QueueJobKind.HeapCompaction
         && !IsLight(e) ? DemoQueueHold.BackgroundOff
         : DemoQueueHold.None;
