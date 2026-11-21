@@ -200,6 +200,14 @@ public sealed class SceneExportSession
             renderer.Palette = Palette;
             renderer.DisplayMode = DisplayMode;
             renderer.Purpose = RenderPurpose.Export;
+
+            // The renderer is born stacked, and DisplayMode alone does not re-lay it out. Single mode
+            // shows the one floor the camera script names (a Single-mode capture holds exactly one
+            // pane); a script that names no single floor keeps every floor, as before.
+            if (DisplayMode == LevelDisplayMode.Single && SingleLevelOf(req.Camera) is { } shown)
+            {
+                renderer.Panes.Policy = new SingleLayout { ActiveLevelId = shown };
+            }
             renderer.CameraPolicy = resolver;
 
             // The offscreen twin of the host's one-shot fit. An export's panes are born fitted to
@@ -327,6 +335,23 @@ public sealed class SceneExportSession
             // status, and a repackaged exception would lose where the encode actually died.
             ExceptionDispatchInfo.Capture(failure).Throw();
         }
+    }
+
+    private static MapLevelId? SingleLevelOf(CameraScript camera) => camera switch
+    {
+        CameraScript.MirrorLiveView { Panes.Length: 1 } mirror => mirror.Panes[0].LevelId,
+        CameraScript.Fixed { PaneTransforms.Count: 1 } pinned => OnlyKey(pinned.PaneTransforms),
+        _ => null
+    };
+
+    private static MapLevelId OnlyKey(IReadOnlyDictionary<MapLevelId, ViewportTransform> transforms)
+    {
+        foreach (MapLevelId key in transforms.Keys)
+        {
+            return key;
+        }
+
+        return default;
     }
 
     /// <summary>

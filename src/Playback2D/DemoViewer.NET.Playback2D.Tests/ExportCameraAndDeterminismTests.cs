@@ -278,11 +278,65 @@ public class CameraScriptResolverTests
         await Assert.That(exported.Camera.Current.PanX).IsEqualTo(captured[0].Transform.PanX).Within(1e-9);
     }
 
+    /// <summary>
+    ///     "Mirror the live view" from Single mode: the video is the one floor the user was watching,
+    ///     full frame, not every floor stacked with the picked one squeezed into a band.
+    /// </summary>
+    [Test]
+    public async Task ASingleModeMirror_ExportsOnlyTheCapturedFloor_FullFrame()
+    {
+        MapSpace space = TwoLevelSpace();
+        MapLevelId lower = space.Levels[0].Id;
+        PaneRecordingLayer layer = new();
+        using SceneCompositor compositor = new();
+        compositor.Add(layer);
+        using CpuSurfaceProvider surfaces = new();
+
+        ImmutableArray<PaneCameraSnapshot> captured =
+            [new PaneCameraSnapshot(lower, ViewportTransform.Fit(64, 48, -2000, -2000, 2000, 2000), false)];
+        ExportRequest req = ExportFixtures.Request(2, size: new SKSizeI(64, 48),
+                layerIds: new HashSet<string>(StringComparer.Ordinal) { layer.Id }) with
+            {
+                Camera = new CameraScript.MirrorLiveView(captured, LevelDisplayMode.Single)
+            };
+
+        await new SceneExportSession(compositor)
+        {
+            DisplayMode = LevelDisplayMode.Single,
+            AuthoritativeFloors = SyntheticScenes.BudgetFloors
+        }.RunAsync(req, ExportFixtures.Source(2), new RecordingFrameSink(), surfaces, null, CancellationToken.None);
+
+        await Assert.That(layer.Panes.Count).IsGreaterThan(0);
+        await Assert.That(layer.Panes.All(p => p.Level == lower)).IsTrue();
+        await Assert.That(layer.Panes.All(p => p.Height == 48)).IsTrue();
+    }
+
     private static MapSpace TwoLevelSpace()
     {
         MapSpace space = new();
         space.Rebuild(SyntheticScenes.BudgetFloors);
         return space;
+    }
+
+    /// <summary>Records which level each pane it was drawn into showed, and how tall that pane was.</summary>
+    private sealed class PaneRecordingLayer : ISceneLayer
+    {
+        public List<(MapLevelId Level, float Height)> Panes { get; } = [];
+        public string Id => "test.panes";
+        public LayerSlot Slot => LayerSlot.World;
+        public int Order => 0;
+        public LayerCacheHint Cache => LayerCacheHint.Dynamic;
+        public bool IsEnabled { get; set; } = true;
+        public int ContentVersion => 0;
+
+        public bool Advance(in SceneTime time, Scene2DFrame frame) => false;
+
+        public void Render(SKCanvas canvas, SceneRenderContext ctx) =>
+            Panes.Add((ctx.Pane.LevelId, ctx.PaneBounds.Height));
+
+        public void Dispose()
+        {
+        }
     }
 }
 
