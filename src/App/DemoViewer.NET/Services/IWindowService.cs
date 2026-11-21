@@ -357,14 +357,25 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
         ArgumentNullException.ThrowIfNull(viewModel);
 
         FirstRunWizardWindow window = new() { DataContext = viewModel };
+        bool completed = false;
 
         void OnCompleted(object? sender, EventArgs e)
         {
+            completed = true;
             window.Close();
         }
 
         viewModel.Completed += OnCompleted;
-        window.Closed += (_, _) => viewModel.Completed -= OnCompleted;
+        window.Closed += (_, _) =>
+        {
+            viewModel.Completed -= OnCompleted;
+            // The close box or Alt+F4: no Finish or Skip, so nothing was written. The host must not go on
+            // waiting for an answer that is not coming this session.
+            if (!completed)
+            {
+                viewModel.Dismiss();
+            }
+        };
 
         Window? owner = Owner();
         if (owner is not null)

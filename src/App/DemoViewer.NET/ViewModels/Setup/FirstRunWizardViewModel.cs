@@ -293,6 +293,15 @@ public sealed partial class FirstRunWizardViewModel : ViewModelBase
     public event EventHandler? Completed;
 
     /// <summary>
+    ///     Raised when the wizard's window closed without Finish or Skip (its close box, Alt+F4). Nothing was
+    ///     written, so setup is still owed and the wizard shows again at the next launch.
+    /// </summary>
+    public event EventHandler? Dismissed;
+
+    /// <summary>Raises <see cref="Dismissed" />. Called by the host that closed the wizard unanswered.</summary>
+    public void Dismiss() => Dismissed?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
     ///     Supplies the desktop folder-picker source (mirrors <c>SettingsView</c>'s storage-provider handoff).
     ///     Null on WASM / headless leaves the picker unavailable.
     /// </summary>

@@ -108,6 +108,25 @@ public class PackSwitchTests
             .IsEquivalentTo([ExtensionStartReason.EnabledInSession], CollectionOrdering.Matching);
     }
 
+    // Closing the wizard with its close box writes nothing, so the first-run wait never ended and no pack started
+    // for the rest of the session. A dismissal starts the packs for this session; the wizard asks again next launch.
+    [Test]
+    public async Task AWizardClosedWithoutAnAnswer_StartsThePacksForTheSession()
+    {
+        FakeGate gate = new() { On = true };
+        FakeLifecycle lifecycle = new();
+        FakePack pack = new();
+        using PackSwitch packs = new([pack], gate, _ => lifecycle, null, () => { }, () => true);
+
+        packs.Start();
+        packs.FirstRunDismissed();
+        gate.Raise();
+        await packs.Pending;
+
+        await Assert.That(lifecycle.Enabled)
+            .IsEquivalentTo([ExtensionStartReason.EnabledInSession], CollectionOrdering.Matching);
+    }
+
     [Test]
     public async Task APackWithoutALifecycle_IsTracked_ButNothingIsCalled()
     {

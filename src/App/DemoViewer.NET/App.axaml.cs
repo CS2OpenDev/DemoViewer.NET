@@ -492,6 +492,8 @@ public class App : Application
                             Dispatcher.UIThread.Post(viewModel.StartWalkthrough);
                         }
                     };
+                    // Closed unanswered: the packs waiting on the wizard start for this session instead.
+                    wizardVm.Dismissed += (_, _) => services.GetRequiredService<PackSwitch>().FirstRunDismissed();
                     Dispatcher.UIThread.Post(() => windowService.ShowFirstRunWizard(wizardVm));
                 }
 
