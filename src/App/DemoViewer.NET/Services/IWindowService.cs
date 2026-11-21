@@ -228,7 +228,8 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
     ///     ANOTHER demo replaces the data context rather than re-activating as the others do: the window is
     ///     about one demo, and re-activating it would show the user the previous demo's report under a
     ///     command they invoked from a different one. A second open on the SAME demo re-activates, because
-    ///     the live view-model holds notes the user has typed and not yet saved.
+    ///     the live view-model holds notes the user has typed and not yet saved. So does ANOTHER demo while
+    ///     those notes are unsaved: the window stays on the first report and says to save or close it first.
     /// </summary>
     public void ShowErrorReport(ErrorReportViewModel viewModel)
     {
@@ -239,6 +240,13 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
             if (live.DataContext is ErrorReportViewModel open
                 && string.Equals(open.DemoPath, viewModel.DemoPath, StringComparison.OrdinalIgnoreCase))
             {
+                live.Activate();
+                return;
+            }
+
+            if (live.DataContext is ErrorReportViewModel { IsDirty: true } unsaved)
+            {
+                unsaved.NoteOpenBlocked();
                 live.Activate();
                 return;
             }

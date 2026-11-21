@@ -98,12 +98,12 @@ public class DesktopWindowServiceOwnerTests
 
     /// <summary>
     ///     The error-report window is re-used rather than stacked, and the rule for what happens on a second
-    ///     open turns on WHICH demo: another demo is another report, so the window re-targets, but the same
-    ///     demo must keep the live view-model, which may hold notes the user has typed and not yet saved.
-    ///     Pressing the accelerator twice silently discarding them is the failure this pins.
+    ///     open turns on WHETHER the live view-model holds notes the user has typed and not yet saved: those
+    ///     are kept, on the same demo or another. Another demo retargets the window only once nothing is
+    ///     unsaved. Pressing the accelerator twice silently discarding them is the failure this pins.
     /// </summary>
     [Test]
-    public async Task ReopeningTheErrorReport_KeepsUnsavedNotesOnTheSameDemo_AndRetargetsOnAnother()
+    public async Task ReopeningTheErrorReport_KeepsUnsavedNotes_AndRetargetsOnceTheyAreSaved()
     {
         await HeadlessSession.RunOnUi(async () =>
         {
@@ -122,6 +122,12 @@ public class DesktopWindowServiceOwnerTests
             ErrorReportViewModel afterSame = (ErrorReportViewModel)_errorReports[0].DataContext!;
 
             service.ShowErrorReport(ReportVm("/demos/another.dem"));
+            ErrorReportViewModel afterOtherWhileDirty = (ErrorReportViewModel)_errorReports[0].DataContext!;
+            string blockedStatus = first.StatusText;
+
+            // Once the notes are no longer unsaved, another demo retargets the window.
+            first.IsDirty = false;
+            service.ShowErrorReport(ReportVm("/demos/another.dem"));
             ErrorReportViewModel afterOther = (ErrorReportViewModel)_errorReports[0].DataContext!;
 
             using (Assert.Multiple())
@@ -131,6 +137,9 @@ public class DesktopWindowServiceOwnerTests
                         + "apart");
                 await Assert.That(afterSame).IsSameReferenceAs(first);
                 await Assert.That(afterSame.Notes).IsEqualTo("half-written, never saved");
+                await Assert.That(afterOtherWhileDirty).IsSameReferenceAs(first)
+                    .Because("unsaved notes must not be replaced by another demo's report");
+                await Assert.That(blockedStatus).IsEqualTo("Save or close the open report first.");
                 await Assert.That(afterOther.DemoPath).IsEqualTo("/demos/another.dem");
             }
 
