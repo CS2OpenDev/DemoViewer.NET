@@ -44,10 +44,12 @@ public sealed class SettingsService
 
     // Reused per CA1869: constructing JsonSerializerOptions per call is expensive. The two read settings are
     // the configuration loader's: it skips comments and takes trailing commas, and a file it accepts has to
-    // read here too, or a write starts from nothing and replaces everything the file held.
+    // read here too, or a write starts from nothing and replaces everything the file held. The loader also
+    // matches keys without regard to case, so the basis read does too.
     private static readonly JsonSerializerOptions _serializerOptions = new()
     {
         WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
         Converters = { new JsonStringEnumConverter() }
@@ -198,8 +200,21 @@ public sealed class SettingsService
         JsonObject prefs = JsonSerializer.SerializeToNode(settings, _serializerOptions)!.AsObject();
         foreach (string key in prefs.Select(kv => kv.Key).ToList())
         {
-            file[key] = prefs[key]?.DeepClone();
+            Set(file, key, prefs[key]?.DeepClone());
         }
+    }
+
+    // The loader matches keys without regard to case and refuses a file with two keys that differ only in
+    // case, so a key a hand edit spelled in another case is replaced, not written beside.
+    private static void Set(JsonObject file, string key, JsonNode? value)
+    {
+        foreach (string other in file.Select(kv => kv.Key)
+                     .Where(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            file.Remove(other);
+        }
+
+        file[key] = value;
     }
 
     /// <summary>
@@ -358,8 +373,8 @@ public sealed class SettingsService
             // One write carries the rows and their marker, so a crash leaves either the old section unmarked or
             // the new one marked. A marker a newer build wrote is never lowered.
             JsonObject file = ReadFileObject(forWrite: true);
-            file["Recents"] = JsonSerializer.SerializeToNode(recents.ToList(), _serializerOptions);
-            file[RecentsVersionKey] = Math.Max(ReadVersion(file), RecentsFormatVersion);
+            Set(file, "Recents", JsonSerializer.SerializeToNode(recents.ToList(), _serializerOptions));
+            Set(file, RecentsVersionKey, Math.Max(ReadVersion(file), RecentsFormatVersion));
             WriteObject(file);
         }
         catch
@@ -472,7 +487,7 @@ public sealed class SettingsService
     private void WriteSection<T>(string sectionName, T value)
     {
         JsonObject file = ReadFileObject(forWrite: true);
-        file[sectionName] = JsonSerializer.SerializeToNode(value, _serializerOptions);
+        Set(file, sectionName, JsonSerializer.SerializeToNode(value, _serializerOptions));
         WriteObject(file);
     }
 

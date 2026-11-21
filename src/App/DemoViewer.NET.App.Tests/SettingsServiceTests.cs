@@ -242,6 +242,47 @@ public class SettingsServiceTests
         }
     }
 
+    /// <summary>
+    ///     The loader matches keys without regard to case, so a hand-edited lower-case key reads. A write used to
+    ///     miss it in its basis and add the canonical spelling beside it, and the loader refuses a file with two
+    ///     keys that differ only in case, so every setting fell back to its default.
+    /// </summary>
+    [Test]
+    public async Task AKeyInAnotherCase_SurvivesAWrite_WithoutADuplicate()
+    {
+        string dir = NewTempDir();
+        string path = Path.Combine(dir, "settings.json");
+        try
+        {
+            await File.WriteAllTextAsync(path,
+                """
+                { "firstRunCompleted": true, "theme": "Light", "library": { "folders": ["/demos/major"] },
+                  "session": { "ActiveTab": "library" } }
+                """);
+            SettingsService svc = new(dir);
+            await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+
+            svc.Write(s => s.LastSeenVersion = "1.2.3");
+            svc.SaveSession(new SessionPayload(null, null, null, false, false, "parser"));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+                await Assert.That(svc.Current.Library.Folders).IsEquivalentTo(["/demos/major"]);
+                await Assert.That(svc.NeedsFirstRun).IsFalse();
+                await Assert.That(svc.Current.LastSeenVersion).IsEqualTo("1.2.3");
+                await Assert.That(new SettingsService(dir).Current.Theme).IsEqualTo("Light");
+                JsonDocument written = JsonDocument.Parse(await File.ReadAllTextAsync(path));
+                string[] keys = written.RootElement.EnumerateObject().Select(p => p.Name).ToArray();
+                await Assert.That(keys.Length).IsEqualTo(keys.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     // The same bad value from the environment layer: the file is fine and is left alone, and the override is
     // what gets dropped.
     [Test]
