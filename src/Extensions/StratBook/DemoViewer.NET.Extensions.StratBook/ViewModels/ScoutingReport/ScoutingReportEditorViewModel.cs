@@ -220,48 +220,65 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
     /// <summary>
     ///     The row keys that print starred: every starred key, plus, for a starred key no row carries (filed under
-    ///     a buy or an AWP window the long form does not build), the row keys with the same map, side, layer and
-    ///     text under any buy or window.
+    ///     a buy or an AWP window the long form does not build), one row key with the same map, side, layer and
+    ///     text under another buy or window (<see cref="AliasTargets" />).
     /// </summary>
     /// <param name="stored">The team's starred keys.</param>
     private HashSet<string> StarredRows(IEnumerable<string> stored)
     {
         HashSet<string> starred = new(stored, StringComparer.Ordinal);
-        HashSet<string> rowKeys = new(_rows.Select(r => r.Key), StringComparer.Ordinal);
-        HashSet<(string, string, string, string)> orphans = [];
-        foreach (string key in starred)
-        {
-            if (!rowKeys.Contains(key) && Line(key) is { } line)
-            {
-                orphans.Add(line);
-            }
-        }
-
-        if (orphans.Count > 0)
-        {
-            foreach (string key in rowKeys)
-            {
-                if (Line(key) is { } line && orphans.Contains(line))
-                {
-                    starred.Add(key);
-                }
-            }
-        }
-
+        starred.UnionWith(AliasTargets(starred).Values);
         return starred;
     }
 
-    // The starred keys no row carries that star this row through StarredRows: unstarring the row clears them.
-    private List<string> AliasesOf(Guid id, string rowKey)
+    // Each starred key no row carries, with the one row it stars: of the rows with its (map, side, layer, text),
+    // the one under All with no window, else the first in long-form order. One row, so unstarring it unstars
+    // no other line that shares the words.
+    private Dictionary<string, string> AliasTargets(IEnumerable<string> stored)
     {
-        if (Line(rowKey) is not { } line)
+        HashSet<string> rowKeys = new(_rows.Select(r => r.Key), StringComparer.Ordinal);
+        Dictionary<string, string> targets = new(StringComparer.Ordinal);
+        List<(string Key, (string, string, string, string)? Line)>? rowLines = null;
+        foreach (string key in stored)
         {
-            return [];
+            if (rowKeys.Contains(key) || Line(key) is not { } line)
+            {
+                continue;
+            }
+
+            rowLines ??= [.. _rows.Select(r => (r.Key, Line(r.Key)))];
+            string? pick = null;
+            foreach ((string rowKey, (string, string, string, string)? rowLine) in rowLines)
+            {
+                if (rowLine != line)
+                {
+                    continue;
+                }
+
+                pick ??= rowKey;
+                if (ScoutingReportStarKeys.Parse(rowKey) is { Scope: { Buy: "All" or "", Window: "" } })
+                {
+                    pick = rowKey;
+                    break;
+                }
+            }
+
+            if (pick is not null)
+            {
+                targets[key] = pick;
+            }
         }
 
-        HashSet<string> rowKeys = new(_rows.Select(r => r.Key), StringComparer.Ordinal);
-        return [.. _store.For(id).Starred.Where(k => !rowKeys.Contains(k) && Line(k) == line)];
+        return targets;
     }
+
+    // The starred keys no row carries that star this row through StarredRows: unstarring the row clears them.
+    private List<string> AliasesOf(Guid id, string rowKey) =>
+    [
+        .. AliasTargets(_store.For(id).Starred)
+            .Where(t => string.Equals(t.Value, rowKey, StringComparison.Ordinal))
+            .Select(t => t.Key)
+    ];
 
     // A key's line without its buy and window: (map, side, layer, text); null for a note's or an old key.
     private static (string, string, string, string)? Line(string key) =>

@@ -860,6 +860,45 @@ public class ScoutingReportEditingTests
         await Assert.That(editor.StarredCount).IsEqualTo(1);
     }
 
+    [Test]
+    public async Task AnInspectorStarMatchingSeveralLines_StarsOnlyThePlainOne_AndUnstarsNoOther()
+    {
+        // The same words under two buys the long form lists, and an inspector star under a third it does not.
+        const string utilAll = "de_nuke|CT|util|All||most thrown smoke at Outside";
+        const string utilEco = "de_nuke|CT|util|Eco||most thrown smoke at Outside";
+        const string utilFull = "de_nuke|CT|util|Full||most thrown smoke at Outside";
+        ScoutingReportFindingSource[] sources =
+        [
+            new(utilEco, "de_nuke CT · Utility", "Eco: most thrown smoke at Outside: 2"),
+            new(utilAll, "de_nuke CT · Utility", "most thrown smoke at Outside: 6")
+        ];
+        ScoutingReportNotesStore store = new(null);
+        ScoutingReportEditorViewModel editor = new(store);
+        Guid team = Guid.NewGuid();
+        editor.Load(team, "Falcons", "", sources);
+
+        editor.SetStarred(utilFull, true);
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.StarredCount).IsEqualTo(1);
+            await Assert.That(editor.Starred.Select(r => r.Key)).IsEquivalentTo([utilAll]);
+        }
+
+        // Starring the Eco line on its own and then unstarring the All line leaves the Eco line starred.
+        editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Key == utilEco));
+        editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Key == utilAll));
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.Starred.Select(r => r.Key)).IsEquivalentTo([utilEco]);
+            await Assert.That(store.For(team).Starred).DoesNotContain(utilFull);
+        }
+
+        // Unstarring the Eco line by its key does not take the inspector's star off the All line.
+        editor.SetStarred(utilFull, true);
+        editor.SetStarred(utilEco, false);
+        await Assert.That(editor.Starred.Select(r => r.Key)).IsEquivalentTo([utilAll]);
+    }
+
     private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
 
     private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map, int ctScore,
