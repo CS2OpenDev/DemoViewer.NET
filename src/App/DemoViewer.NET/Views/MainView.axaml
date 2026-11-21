@@ -134,16 +134,26 @@
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
                                                 <Grid ColumnDefinitions="*,Auto" Margin="2">
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="{Binding Label}"
-                                                                   Foreground="{DynamicResource TextBright}"
-                                                                   FontSize="12" />
-                                                        <TextBlock
-                                                            Text="{Binding FrameIndex, StringFormat='frame {0}'}"
-                                                            Foreground="{DynamicResource TextDim}"
-                                                            FontFamily="Consolas,Menlo,monospace"
-                                                            FontSize="10" />
-                                                    </StackPanel>
+                                                    <!-- A click jumps through the command, not the selection: the
+                                                         row already selected would not change and so never seek. -->
+                                                    <Button Grid.Column="0"
+                                                            AutomationProperties.Name="Jump to bookmark"
+                                                            Command="{Binding $parent[ListBox].((shell:MainViewModel)DataContext).Bookmarks.JumpCommand, FallbackValue={x:Null}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="Transparent" BorderThickness="0" Padding="0"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Label}"
+                                                                       Foreground="{DynamicResource TextBright}"
+                                                                       FontSize="12" />
+                                                            <TextBlock
+                                                                Text="{Binding FrameIndex, StringFormat='frame {0}'}"
+                                                                Foreground="{DynamicResource TextDim}"
+                                                                FontFamily="Consolas,Menlo,monospace"
+                                                                FontSize="10" />
+                                                        </StackPanel>
+                                                    </Button>
                                                     <Button Grid.Column="1" Content="✕"
                                                             AutomationProperties.Name="Remove bookmark"
                                                             Command="{Binding $parent[ListBox].((shell:MainViewModel)DataContext).Bookmarks.RemoveCommand, FallbackValue={x:Null}}"

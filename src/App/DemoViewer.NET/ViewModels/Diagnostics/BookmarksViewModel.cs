@@ -14,7 +14,8 @@ namespace DemoViewer.NET.ViewModels.Diagnostics;
 /// <summary>
 ///     Bookmarks panel. In-memory model with best-effort desktop persistence via
 ///     <see cref="BookmarkStore" /> (no-ops on WASM). Selecting a bookmark seeks to its frame through
-///     the shared <see cref="FrameNavigationViewModel" />. The list is the open demo's: a bookmark is a frame
+///     the shared <see cref="FrameNavigationViewModel" />, and so does clicking a row, which also reaches the row already
+///     selected. The list is the open demo's: a bookmark is a frame
 ///     index, and <see cref="SetDemo" /> swaps the list when the demo changes.
 /// </summary>
 public sealed partial class BookmarksViewModel : ObservableObject
@@ -93,6 +94,18 @@ public sealed partial class BookmarksViewModel : ObservableObject
         if (value is not null)
         {
             _nav.SeekToFrame(value.FrameIndex);
+        }
+    }
+
+    // A click on a row jumps through this rather than through the selection: the list keeps the row it
+    // last selected, so picking it again is no change and the bookmark could be jumped to only once.
+    // Clearing Selected from the handler does not help, the list ignores a source change during its own write.
+    [RelayCommand]
+    private void Jump(Bookmark? bookmark)
+    {
+        if (bookmark is not null)
+        {
+            _nav.SeekToFrame(bookmark.FrameIndex);
         }
     }
 

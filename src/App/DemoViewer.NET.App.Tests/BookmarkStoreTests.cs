@@ -93,6 +93,33 @@ public class BookmarkStoreTests
     }
 
     [Test]
+    public async Task ClickingTheSelectedBookmarkAgain_SeeksAgain()
+    {
+        string file = TempFile();
+        try
+        {
+            List<int> seeks = [];
+            FrameNavigationViewModel nav = new() { SeekToFrameHandler = seeks.Add };
+            BookmarksViewModel panel = new(nav, new BookmarkStore(file));
+            panel.SetDemo(DemoA);
+            panel.Add(100, 200, "a");
+            Bookmark bookmark = panel.Bookmarks.Single();
+
+            // The list keeps the row it selected, so a second click on it changes no selection.
+            panel.Selected = bookmark;
+            panel.Selected = bookmark;
+            panel.JumpCommand.Execute(bookmark);
+
+            await Assert.That(seeks).IsEquivalentTo([100, 100])
+                .Because("a bookmark jumped to once must be reachable again after the playhead moves on");
+        }
+        finally
+        {
+            Cleanup(file);
+        }
+    }
+
+    [Test]
     public async Task WithNoDemoOpen_NothingIsWritten()
     {
         string file = TempFile();
