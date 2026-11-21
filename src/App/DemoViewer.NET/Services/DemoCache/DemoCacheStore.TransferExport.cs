@@ -1,3 +1,10 @@
+#region
+
+using System.Text.Json;
+using System.Text.Json.Nodes;
+
+#endregion
+
 namespace DemoViewer.NET.Services.DemoCache;
 
 /// <summary>One file of a demo's cache data on disk, as <see cref="DemoCacheStore.SnapshotFiles" /> lists it.</summary>
@@ -64,6 +71,39 @@ public sealed partial class DemoCacheStore
                 ExitAll(stripes);
             }
         }
+    }
+
+    /// <summary>
+    ///     A record file's bytes as a transfer bundle carries them: the same JSON, every member kept, but with
+    ///     <see cref="DemoCacheRecord.Path" /> and <see cref="DemoCacheRecord.Locations" /> emptied, since they
+    ///     name folders on this machine and the importer sets its own. Gzipped when the file is.
+    /// </summary>
+    /// <param name="file">A <see cref="DemoCacheFile.IsRecord" /> file.</param>
+    /// <exception cref="InvalidDataException">The file is not a record that reads.</exception>
+    /// <exception cref="JsonException">The file is not JSON.</exception>
+    internal static byte[] RecordForTransfer(string file)
+    {
+        byte[] bytes;
+        using (FileStream stream = new(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+        {
+            bytes = new byte[stream.Length];
+            stream.ReadExactly(bytes);
+        }
+
+        JsonObject record = SidecarJson.Deserialize<JsonNode>(bytes, null) as JsonObject
+                            ?? throw new InvalidDataException("The record is not a JSON object.");
+        if (record.ContainsKey(nameof(DemoCacheRecord.Path)))
+        {
+            record[nameof(DemoCacheRecord.Path)] = "";
+        }
+
+        if (record.ContainsKey(nameof(DemoCacheRecord.Locations)))
+        {
+            record[nameof(DemoCacheRecord.Locations)] = new JsonArray();
+        }
+
+        byte[] json = JsonSerializer.SerializeToUtf8Bytes(record);
+        return bytes is [0x1F, 0x8B, ..] ? SidecarJson.Gzip(json) : json;
     }
 
     // The keys the row's files may sit under, in read order; none when the content has no listed, hashed row.

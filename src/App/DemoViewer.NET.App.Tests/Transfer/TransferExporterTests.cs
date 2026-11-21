@@ -1,6 +1,7 @@
 #region
 
 using System.Collections.ObjectModel;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -138,6 +139,57 @@ public class TransferExporterTests
             await Assert.That(Directory.Exists(Path.Combine(plan.BundleFolder, TransferLayout.LibraryDirectory)))
                 .IsFalse();
         }
+    }
+
+    [Test]
+    public async Task TheBundle_CarriesNoAbsolutePathOfThisMachine_InRecordsFacetsOrTheReviewQueue()
+    {
+        using Fixture fx = Fixture.Populated();
+        TransferExporter exporter = fx.Exporter(new DemoCacheStore(fx.CacheRoot));
+        ExportPlan plan = await exporter.PlanAsync(ExportRequest.All(fx.OutRoot, false), CancellationToken.None);
+        TransferSummary summary = await exporter.RunAsync(plan, null, CancellationToken.None);
+        string bundle = plan.BundleFolder;
+        TransferManifest manifest = TransferManifest.Read(bundle);
+        // Every local path of the fixture runs through its temp root's name, which JSON does not escape.
+        string root = Path.GetFileName(fx.Root);
+        TransferFile[] scanned =
+        [
+            .. manifest.Demos.SelectMany(d => d.Files)
+                .Where(f => f.Path.Contains("/cache/", StringComparison.Ordinal)
+                            || f.Path.Contains("/ext/", StringComparison.Ordinal))
+                .Concat(manifest.Shared)
+        ];
+        Dictionary<string, string> texts = [];
+        foreach (TransferFile file in scanned)
+        {
+            byte[] bytes = await File.ReadAllBytesAsync(TransferLayout.FullPath(bundle, file.Path));
+            await Assert.That(bytes.LongLength).IsEqualTo(file.Size);
+            await Assert.That(Convert.ToHexStringLower(SHA256.HashData(bytes))).IsEqualTo(file.Sha256)
+                .Because("the manifest hashes the bytes as written, after the paths came out");
+            texts[file.Path] = Encoding.UTF8.GetString(bytes is [0x1F, 0x8B, ..] ? Gunzip(bytes) : bytes);
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Failed).IsEmpty();
+            await Assert.That(texts.Keys).Contains($"data/{fx.ShaA}/cache/demo.json.gz");
+            await Assert.That(texts.Keys).Contains($"data/{fx.ShaA}/ext/{ExtensionId}/grenades/demo.json.gz");
+            await Assert.That(texts.Keys).Contains($"shared/{TransferLayout.ReviewQueueFileName}");
+            await Assert.That(texts.Where(t => t.Value.Contains(root, StringComparison.Ordinal)).Select(t => t.Key))
+                .IsEmpty();
+            await Assert.That(texts.Where(t => t.Value.Contains("/elsewhere/", StringComparison.Ordinal))
+                .Select(t => t.Key)).IsEmpty();
+            await Assert.That(texts[$"data/{fx.ShaA}/ext/{ExtensionId}/grenades/demo.json.gz"])
+                .Contains("grenades of a").Because("only the header changes");
+        }
+    }
+
+    private static byte[] Gunzip(byte[] bytes)
+    {
+        using GZipStream gzip = new(new MemoryStream(bytes), CompressionMode.Decompress);
+        using MemoryStream plain = new();
+        gzip.CopyTo(plain);
+        return plain.ToArray();
     }
 
     [Test]

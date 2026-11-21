@@ -288,7 +288,9 @@ public sealed class TransferExporter : ITransferExporter
                     if (BundleName(file.FullPath, () => TransferLayout.CacheFile(sha,
                             TransferLayout.DemoFileName(file.Rest))) is { } relative)
                     {
-                        copied.Add(CopyData(file.FullPath, relative, FileShare.Read));
+                        copied.Add(file.IsRecord
+                            ? WriteData(RecordForTransfer(file.FullPath), relative)
+                            : CopyData(file.FullPath, relative, FileShare.Read));
                     }
                 }
 
@@ -343,6 +345,20 @@ public sealed class TransferExporter : ITransferExporter
                 row.MatchTimeUtcTicks is { } ticks ? new DateTime(ticks, DateTimeKind.Utc) : null, dem,
                 facetCounts.Count > 0 ? facetCounts : null));
             return new TransferSummaryItem(sha, entry.DisplayName, TransferOutcome.Transferred, reason);
+        }
+
+        // The record without this machine's paths of the demo; one that does not read fails its demo, as a file
+        // that cannot be read does.
+        private static byte[] RecordForTransfer(string file)
+        {
+            try
+            {
+                return DemoCacheStore.RecordForTransfer(file);
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidDataException)
+            {
+                throw new IOException($"Its cache record does not read: {ex.Message}", ex);
+            }
         }
 
         // A demo the library has not hashed: no data leaves, but its .dem can travel as a plain demo. Hashing
@@ -447,11 +463,19 @@ public sealed class TransferExporter : ITransferExporter
 
                     try
                     {
-                        files.Add(CopyData(file.FullPath, relative, FileShare.Read));
+                        // The header's demo path is this machine's; the importer writes its own.
+                        files.Add(WriteData(ExtensionDemoDataStore.ForTransfer(file.FullPath), relative));
                     }
                     catch (FileNotFoundException)
                     {
                         continue; // rewritten or dropped since it was listed; the stamps say it is stale
+                    }
+                    catch (Exception ex) when (ex is InvalidDataException or JsonException)
+                    {
+                        Warnings.Add(new TransferWarning(TransferWarningKind.Other,
+                            $"{Path.GetFileName(file.FullPath)} could not be read, so it was left out: {ex.Message}",
+                            Sha256: sha));
+                        continue;
                     }
 
                     if (file.IsMain && IndexCounts(root).GetValueOrDefault((sha, file.Facet)) is > 0 and var count)
@@ -746,6 +770,8 @@ public sealed class TransferExporter : ITransferExporter
 
                 JsonObject copy = entry.DeepClone().AsObject();
                 copy["sha256"] = sha;
+                // The path is this machine's; the importer joins by the hash and sets its own.
+                copy.Remove("demoPath");
                 kept.Add(copy);
             }
 
