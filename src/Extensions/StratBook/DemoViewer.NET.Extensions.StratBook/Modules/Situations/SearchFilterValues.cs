@@ -136,7 +136,7 @@ public sealed record SearchFilterValues
         }
 
         DateTime? from = From?.Date;
-        DateTime? to = To?.Date.AddDays(1);
+        DateTime? to = To?.Date;
         foreach (LibraryDemo row in rows)
         {
             string key = DemoKeys.StableKey(row.FilePath);
@@ -160,11 +160,12 @@ public sealed record SearchFilterValues
             }
 
             // The cache row's modified time stands in for the match date, the Library's own rule until
-            // a real one exists; the bounds are whole days in the same local clock the file time is in.
+            // a real one exists; the bounds are whole days in the same local clock the file time is in. The upper
+            // bound compares days rather than adding one, which the last representable day cannot take.
             if (from is not null || to is not null)
             {
                 DateTime modified = new(row.Modified.Ticks);
-                if ((from is { } lower && modified < lower) || (to is { } upper && modified >= upper))
+                if ((from is { } lower && modified < lower) || (to is { } upper && modified.Date > upper))
                 {
                     continue;
                 }
