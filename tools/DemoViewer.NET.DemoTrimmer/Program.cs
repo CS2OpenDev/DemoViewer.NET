@@ -60,8 +60,17 @@ internal static class Program
         }
     }
 
+    private static readonly string[] _inspectOptions = ["--boundaries"];
+
+    private static readonly string[] _trimOptions =
+    [
+        "--out", "--rounds", "--variants", "--boundary", "--skip-boundaries", "--prefix", "--no-verify",
+        "--no-baseline", "--no-identity-check"
+    ];
+
     private static int RunInspect(string[] args)
     {
+        RejectUnknownOptions(args, _inspectOptions);
         string path = args[1];
         int boundaries = IntOption(args, "--boundaries", 8);
         (byte[] raw, ParsedDemo demo) = Load(path);
@@ -84,6 +93,7 @@ internal static class Program
 
     private static int RunTrim(string[] args)
     {
+        RejectUnknownOptions(args, _trimOptions);
         string path = args[1];
         string outDir = StringOption(args, "--out") ?? Fail<string>("--out <dir> is required.");
         IReadOnlyList<int> roundCounts =
@@ -253,10 +263,32 @@ internal static class Program
         return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
     }
 
-    private static int IntOption(string[] args, string name, int fallback) =>
-        StringOption(args, name) is { } raw && int.TryParse(raw, CultureInfo.InvariantCulture, out int value)
+    // Absent is the fallback. Present but missing or not an integer is an error: falling back there
+    // made `--skip-boundaries three` indistinguishable from not passing it, and the run still
+    // reported a verified trim of the wrong rounds.
+    internal static int IntOption(string[] args, string name, int fallback)
+    {
+        if (Array.IndexOf(args, name) < 0)
+        {
+            return fallback;
+        }
+
+        return StringOption(args, name) is { } raw && int.TryParse(raw, CultureInfo.InvariantCulture, out int value)
             ? value
-            : fallback;
+            : throw new ArgumentException($"{name} expects an integer.");
+    }
+
+    // A misspelled option (`--skip-boundary`, `--skip-boundaries=3`) is otherwise silently ignored.
+    internal static void RejectUnknownOptions(string[] args, string[] known)
+    {
+        foreach (string arg in args.Skip(2))
+        {
+            if (arg.StartsWith("--", StringComparison.Ordinal) && !known.Contains(arg, StringComparer.Ordinal))
+            {
+                throw new ArgumentException($"unknown option: {arg}");
+            }
+        }
+    }
 
     private static int Fail(string message)
     {
