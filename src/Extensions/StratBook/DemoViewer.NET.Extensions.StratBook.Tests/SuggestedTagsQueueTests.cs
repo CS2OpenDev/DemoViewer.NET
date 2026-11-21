@@ -397,6 +397,42 @@ public class SuggestedTagsQueueTests
         });
     }
 
+    // A proposal id names a detector, round, side, site and bucket but no demo, so another demo's proposal can
+    // carry the same one: the draft typed against the first demo must not open on the second.
+    [Test]
+    public async Task ADraft_DoesNotFollowTheQueueOntoAnotherDemo_WithTheSameProposalId()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, _) = Queue(_execute);
+            using (h)
+            {
+                queue.ReviewCommand.Execute(null);
+                queue.Execute(StratBookActions.SuggestionEdit);
+                queue.Editor!.Note = "about the first demo";
+                queue.Editor.CancelCommand.Execute(null);
+
+                const string other = "/d/other.dem";
+                string otherSha = new('b', 64);
+                h.Cache.Upsert(RoundIndexTestData.ParsedRecord(other, SuggestedTagsTestData.Map, otherSha,
+                    SuggestedTagsReviewHarness.Rows()));
+                h.Proposals.Write(other,
+                    new ProposalDocument
+                    {
+                        Demo = new ProposalDemoHeader { Sha256 = otherSha, FileName = "other.dem" },
+                        Clock = new RoundFactsClock { TickRate = 64, FrameCount = 2, FirstTick = 1, LastTick = 20000 },
+                        DetectorSet = new ProposalDetectorSet { Fingerprint = "fp", ProfileId = "team-default" },
+                        Proposals = [StoredProposal.From(_execute, FreezeEnd)]
+                    }, "fp", 1);
+                queue.Attach(other, otherSha);
+                queue.ReviewCommand.Execute(null);
+                queue.Execute(StratBookActions.SuggestionEdit);
+
+                await Assert.That(queue.Editor!.Note).IsNotEqualTo("about the first demo");
+            }
+        });
+    }
+
     [Test]
     public async Task EscFromTheEditor_LeavesNoVerdict()
     {

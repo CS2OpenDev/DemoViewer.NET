@@ -294,6 +294,10 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
         {
             CancelModes();
             Select(null, false);
+
+            // After CancelModes, which keeps the open editor's draft: a proposal id names no demo, so a draft
+            // left here would open on the next demo's proposal of the same id with this demo's ticks.
+            _drafts.Clear();
         }
 
         Reload();
