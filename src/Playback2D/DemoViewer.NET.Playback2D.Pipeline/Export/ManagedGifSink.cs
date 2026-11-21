@@ -30,6 +30,7 @@ public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink, IOutputOpe
 {
     private readonly int _maxFrames;
     private readonly string _outputPath;
+    private readonly string _stagingPath;
     private bool _cancelled;
     private bool _disposed;
     private bool _opened;
@@ -64,6 +65,7 @@ public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink, IOutputOpe
         // Same reason as FfmpegFrameSink: the file is only opened at Dispose, and a missing directory
         // found then would discard every frame accumulated in memory.
         _outputPath = ExportOutputPath.EnsureDirectory(outputPath);
+        _stagingPath = ExportOutputPath.StagingPath(_outputPath);
         _maxFrames = maxFrames;
         FrameDelayCentiseconds = 100 / fps;
     }
@@ -167,10 +169,11 @@ public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink, IOutputOpe
 
     private void Write(byte[] palette)
     {
-        _opened = true;
+        // Written aside and moved into place, so a failed write (a full disk) leaves an earlier export at
+        // the path as it was rather than truncated and then deleted.
         try
         {
-            using FileStream file = new(_outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16);
+            using FileStream file = new(_stagingPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16);
             GifAnimationWriter writer = new(file, _width, _height, palette);
 
             for (int i = 0; i < _frames.Count; i++)
@@ -188,8 +191,11 @@ public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink, IOutputOpe
         }
         catch
         {
-            File.Delete(_outputPath);
+            File.Delete(_stagingPath);
             throw;
         }
+
+        ExportOutputPath.Commit(_stagingPath, _outputPath);
+        _opened = true;
     }
 }

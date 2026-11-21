@@ -174,11 +174,12 @@ public class ExportFailureTests
         string path = Path.Combine(Path.GetTempPath(), $"dv-drainfail-{Guid.NewGuid():N}.mp4");
         TaskCompletionSource<bool> encoder = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        FfmpegFrameSink sink = new(new FfmpegSinkOptions(path, ExportFormats.Mp4, 8, 8, 30))
+        FfmpegFrameSink sink = null!;
+        sink = new FfmpegFrameSink(new FfmpegSinkOptions(path, ExportFormats.Mp4, 8, 8, 30))
         {
             StartEncoder = _ =>
             {
-                File.WriteAllBytes(path, [0, 0, 0, 24]); // what a muxer has written when it dies
+                File.WriteAllBytes(sink.EncodePath, [0, 0, 0, 24]); // what a muxer has written when it dies
                 return encoder.Task;
             }
         };
@@ -203,6 +204,7 @@ public class ExportFailureTests
             }
 
             await Assert.That(File.Exists(path)).IsFalse();
+            await Assert.That(File.Exists(sink.EncodePath)).IsFalse();
             await Assert.That(failure).IsTypeOf<FfmpegEncodeException>();
             await Assert.That(failure!.InnerException).IsSameReferenceAs(pipe);
         }
@@ -219,12 +221,13 @@ public class ExportFailureTests
         string path = Path.Combine(Path.GetTempPath(), $"dv-drainkeep-{Guid.NewGuid():N}.mp4");
         TaskCompletionSource<bool> encoder = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        FfmpegFrameSink sink = new(new FfmpegSinkOptions(path, ExportFormats.Mp4, 8, 8, 30,
+        FfmpegFrameSink sink = null!;
+        sink = new FfmpegFrameSink(new FfmpegSinkOptions(path, ExportFormats.Mp4, 8, 8, 30,
             DeletePartialOnCancel: false))
         {
             StartEncoder = _ =>
             {
-                File.WriteAllBytes(path, [0, 0, 0, 24]);
+                File.WriteAllBytes(sink.EncodePath, [0, 0, 0, 24]);
                 return encoder.Task;
             }
         };
@@ -236,10 +239,14 @@ public class ExportFailureTests
             encoder.SetException(new IOException("Pipe is broken"));
 
             await Assert.ThrowsAsync<FfmpegEncodeException>(async () => await closing);
-            await Assert.That(File.Exists(path)).IsTrue();
+
+            // Kept beside the output under its partial name; the output path itself is never written.
+            await Assert.That(File.Exists(sink.EncodePath)).IsTrue();
+            await Assert.That(File.Exists(path)).IsFalse();
         }
         finally
         {
+            File.Delete(sink.EncodePath);
             File.Delete(path);
         }
     }
@@ -368,6 +375,7 @@ public class ExportFailureTests
 
             await Assert.That(failure is OperationCanceledException).IsTrue();
             await Assert.That(File.Exists(path)).IsFalse();
+            await Assert.That(File.Exists(sink.EncodePath)).IsFalse();
         }
         finally
         {
@@ -410,18 +418,162 @@ public class ExportFailureTests
         }
     }
 
-    /// <summary>An encoder that writes a stub file and runs until the token that stops ffmpeg fires.</summary>
-    private static FfmpegFrameSink DrainUntilKilled(string path, string format, int width, int height) =>
-        new(new FfmpegSinkOptions(path, format, width, height, 30))
+    /// <summary>
+    ///     An export to a path that already holds an earlier export, the dialog's default, that is then
+    ///     cancelled or fails while finishing: the earlier export must still be there, untouched.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task ACancelledOrFailedExport_LeavesAnEarlierExportAtThePathIntact(bool cancel)
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-keepearlier-{Guid.NewGuid():N}.mp4");
+        byte[] earlier = [1, 2, 3, 4, 5];
+        await File.WriteAllBytesAsync(path, earlier);
+        TaskCompletionSource<bool> encoder = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FfmpegFrameSink sink = new(new FfmpegSinkOptions(path, ExportFormats.Mp4, 8, 8, 30))
         {
             StartEncoder = kill =>
             {
-                File.WriteAllBytes(path, [0, 0, 0, 24]);
+                kill.Register(() => encoder.TrySetCanceled(kill));
+                return encoder.Task;
+            }
+        };
+
+        try
+        {
+            await sink.WriteAsync(new byte[8 * 8 * 4], 8, 8, CancellationToken.None);
+            if (cancel)
+            {
+                ((IAbortableFrameSink)sink).Abort();
+                await sink.DisposeAsync();
+            }
+            else
+            {
+                Task closing = sink.DisposeAsync().AsTask();
+                encoder.SetException(new IOException("No space left on device"));
+                await Assert.ThrowsAsync<FfmpegEncodeException>(async () => await closing);
+            }
+
+            await Assert.That(File.Exists(path)).IsTrue();
+            await Assert.That(await File.ReadAllBytesAsync(path)).IsEquivalentTo(earlier);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>A finished encode replaces the earlier export and leaves nothing beside it.</summary>
+    [Test]
+    public async Task AFinishedExport_ReplacesTheEarlierOne_AndLeavesNoPartialFile()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-replace-{Guid.NewGuid():N}.mp4");
+        await File.WriteAllBytesAsync(path, [1, 2, 3, 4, 5]);
+        byte[] encoded = [0, 0, 0, 24, 9, 9];
+        FfmpegFrameSink sink = null!;
+        sink = new FfmpegFrameSink(new FfmpegSinkOptions(path, ExportFormats.Mp4, 8, 8, 30))
+        {
+            StartEncoder = _ =>
+            {
+                File.WriteAllBytes(sink.EncodePath, encoded);
+                return Task.FromResult(true);
+            }
+        };
+
+        try
+        {
+            await sink.WriteAsync(new byte[8 * 8 * 4], 8, 8, CancellationToken.None);
+            await sink.DisposeAsync();
+
+            await Assert.That(await File.ReadAllBytesAsync(path)).IsEquivalentTo(encoded);
+            await Assert.That(File.Exists(sink.EncodePath)).IsFalse();
+            await Assert.That(Path.GetExtension(sink.EncodePath)).IsEqualTo(".mp4");
+            await Assert.That(Path.GetDirectoryName(sink.EncodePath)).IsEqualTo(Path.GetDirectoryName(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>The same through a real ffmpeg: it encodes beside the output, and the result is moved over it.</summary>
+    [Test]
+    [Category("Integration")]
+    public async Task ARealEncode_ReplacesTheEarlierExport_AndLeavesNoPartialFile()
+    {
+        FfmpegLocation located = FfmpegLocator.Locate(null);
+        if (!located.Found)
+        {
+            throw new SkipTestException("no ffmpeg on PATH; the subprocess sink cannot be exercised");
+        }
+
+        string dir = Path.Combine(Path.GetTempPath(), $"dv-realreplace-{Guid.NewGuid():N}");
+        string path = Path.Combine(dir, "clip.webm");
+        Directory.CreateDirectory(dir);
+        await File.WriteAllBytesAsync(path, [1, 2, 3, 4, 5]);
+
+        try
+        {
+            FfmpegFrameSink sink = new(new FfmpegSinkOptions(path, ExportFormats.WebM, 64, 48, 30, located.Directory));
+            for (int i = 0; i < 3; i++)
+            {
+                await sink.WriteAsync(new byte[64 * 48 * 4], 64, 48, CancellationToken.None);
+            }
+
+            await sink.DisposeAsync();
+
+            await Assert.That(new FileInfo(path).Length).IsGreaterThan(5);
+            await Assert.That(Directory.GetFiles(dir)).Count().IsEqualTo(1);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    /// <summary>The managed GIF writer replaces an earlier export the same way: whole, or not at all.</summary>
+    [Test]
+    public async Task AFinishedGif_ReplacesTheEarlierOne_AndLeavesNoPartialFile()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"dv-gifreplace-{Guid.NewGuid():N}");
+        string path = Path.Combine(dir, "clip.gif");
+        Directory.CreateDirectory(dir);
+        await File.WriteAllBytesAsync(path, [1, 2, 3, 4, 5]);
+
+        try
+        {
+            ManagedGifSink sink = new(path, 20);
+            await sink.WriteAsync(new byte[8 * 8 * 4], 8, 8, CancellationToken.None);
+            await sink.DisposeAsync();
+
+            byte[] written = await File.ReadAllBytesAsync(path);
+            await Assert.That(written.Length).IsGreaterThan(5);
+            await Assert.That(written[0]).IsEqualTo((byte)'G');
+            await Assert.That(Directory.GetFiles(dir)).Count().IsEqualTo(1);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    /// <summary>An encoder that writes a stub file and runs until the token that stops ffmpeg fires.</summary>
+    private static FfmpegFrameSink DrainUntilKilled(string path, string format, int width, int height)
+    {
+        FfmpegFrameSink sink = null!;
+        sink = new FfmpegFrameSink(new FfmpegSinkOptions(path, format, width, height, 30))
+        {
+            StartEncoder = kill =>
+            {
+                File.WriteAllBytes(sink.EncodePath, [0, 0, 0, 24]);
                 TaskCompletionSource<bool> encoder = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 kill.Register(() => encoder.TrySetCanceled(kill));
                 return encoder.Task;
             }
         };
+        return sink;
+    }
 
     /// <summary>The cancel arrives once the session has started closing the sink: mid-drain.</summary>
     private sealed class CancelOnCloseFrameSink(FfmpegFrameSink inner, CancellationTokenSource source)

@@ -12,7 +12,10 @@ using ChannelClosedException = System.Threading.Channels.ChannelClosedException;
 namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 
 /// <summary>How an <see cref="FfmpegFrameSink" /> is configured.</summary>
-/// <param name="OutputPath">Where the encoded file goes. Overwritten.</param>
+/// <param name="OutputPath">
+///     Where the encoded file goes. Overwritten only by a finished encode: ffmpeg writes a sibling
+///     <c>.partial-</c> file that is moved into place once it has exited cleanly.
+/// </param>
 /// <param name="FormatId">One of <see cref="ExportFormats" />.</param>
 /// <param name="Width">Frame width; must match what the session renders.</param>
 /// <param name="Height">Frame height.</param>
@@ -32,7 +35,10 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///         keeps <c>BinaryFolder</c> off <c>GlobalFFOptions</c>.
 ///     </para>
 /// </param>
-/// <param name="DeletePartialOnCancel">Remove a half-written file when the export is cancelled or fails part way.</param>
+/// <param name="DeletePartialOnCancel">
+///     Remove the half-written file when the export is cancelled or fails part way. When false it is kept
+///     under its <c>.partial-</c> name; the file at <paramref name="OutputPath" /> is never touched.
+/// </param>
 /// <param name="Log">Optional line sink for ffmpeg's stderr.</param>
 public sealed record FfmpegSinkOptions(
     string OutputPath,
@@ -74,7 +80,7 @@ public sealed record FfmpegSinkOptions(
 ///         it stops the process, removes the output, and throws <see cref="FfmpegEncodeException" />.
 ///     </para>
 /// </summary>
-public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
+public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink, IOutputOpeningFrameSink
 {
     /// <summary>How many trailing stderr lines are kept to explain a failure.</summary>
     private const int StderrTailLines = 6;
@@ -90,9 +96,14 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
     private readonly ExportClock _clock = ExportClock.Start();
     private readonly ChannelVideoFrameSource _frames = new();
     private readonly FfmpegSinkOptions _options;
+
+    // What ffmpeg actually writes. Moved over the output path only after a clean drain, so a cancelled or
+    // failed export leaves an earlier export at that path as it was.
+    private readonly string _encodePath;
     private readonly Queue<string> _stderrTail = new(StderrTailLines);
     private bool _aborted;
     private bool _disposed;
+    private bool _placed;
     private Task<bool>? _encoder;
     private CancellationTokenSource? _kill;
     private long _lastStderrMs;
@@ -109,7 +120,11 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
         ExportOutputPath.EnsureDirectory(options.OutputPath);
 
         _options = options;
+        _encodePath = ExportOutputPath.StagingPath(options.OutputPath);
     }
+
+    /// <summary>The file ffmpeg writes until the encode is finished. A test's stand-in encoder writes here.</summary>
+    internal string EncodePath => _encodePath;
 
     /// <summary>Frames handed to the encoder so far.</summary>
     private int FramesWritten { get; set; }
@@ -175,6 +190,9 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
             await AwaitEncoderAsync().ConfigureAwait(false);
         }
     }
+
+    /// <inheritdoc />
+    bool IOutputOpeningFrameSink.OutputOpened => _placed;
 
     /// <summary>
     ///     Stops ffmpeg where it is, so the disposal that follows removes the output rather than muxing it.
@@ -269,6 +287,12 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
                 {
                     TryDeleteOutput();
                 }
+            }
+
+            if (!discard)
+            {
+                ExportOutputPath.Commit(_encodePath, _options.OutputPath);
+                _placed = true;
             }
 
             return;
@@ -431,7 +455,7 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
     }
 
     private FFMpegArgumentProcessor BuildProcessor(CancellationToken ct) =>
-        Build(_options, new RawVideoPipeSource(_frames) { FrameRate = _options.Fps })
+        Build(_options with { OutputPath = _encodePath }, new RawVideoPipeSource(_frames) { FrameRate = _options.Fps })
             .CancellableThrough(ct)
             .NotifyOnError(OnStderr);
 
@@ -528,9 +552,9 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink
     {
         try
         {
-            if (File.Exists(_options.OutputPath))
+            if (File.Exists(_encodePath))
             {
-                File.Delete(_options.OutputPath);
+                File.Delete(_encodePath);
             }
         }
         catch (IOException ex)

@@ -34,4 +34,40 @@ internal static class ExportOutputPath
 
         return outputPath;
     }
+
+    /// <summary>
+    ///     A sibling name to encode into, so the file at <paramref name="outputPath" /> is replaced only by
+    ///     a finished export. The default output path is the same for every export of a scene, and an
+    ///     encoder writing straight to it truncated the previous export the moment it started; a cancel or
+    ///     a failure then deleted what was left. The extension is kept: ffmpeg picks the container by it.
+    /// </summary>
+    /// <param name="outputPath">The file the export is for.</param>
+    public static string StagingPath(string outputPath)
+    {
+        string token = Guid.NewGuid().ToString("N")[..8];
+        string name = Path.GetFileNameWithoutExtension(outputPath) + ".partial-" + token +
+                      Path.GetExtension(outputPath);
+        return Path.Combine(Path.GetDirectoryName(outputPath) ?? "", name);
+    }
+
+    /// <summary>Moves a finished export over <paramref name="outputPath" />, replacing what was there.</summary>
+    /// <param name="stagingPath">The finished file, from <see cref="StagingPath" />.</param>
+    /// <param name="outputPath">Where it goes.</param>
+    /// <exception cref="IOException">
+    ///     The file could not be replaced (a player holding it open on Windows); the finished export is
+    ///     left at <paramref name="stagingPath" /> and the message says where.
+    /// </exception>
+    public static void Commit(string stagingPath, string outputPath)
+    {
+        try
+        {
+            File.Move(stagingPath, outputPath, true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException(
+                $"The export finished but could not replace {outputPath} ({ex.Message}); it was kept as {stagingPath}.",
+                ex);
+        }
+    }
 }

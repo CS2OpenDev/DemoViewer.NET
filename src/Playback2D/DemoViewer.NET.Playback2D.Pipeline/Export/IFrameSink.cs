@@ -54,6 +54,10 @@ internal interface IAbortableFrameSink
 /// </summary>
 internal interface IOutputOpeningFrameSink
 {
-    /// <summary>True once the sink has opened, and so truncated, the file at its output path.</summary>
+    /// <summary>
+    ///     True once the sink has put a file at its output path: opened, and so truncated, it, or moved a
+    ///     finished file over it. A sink that encodes aside and moves into place on success is false on
+    ///     every failed run, so an earlier export at the path is not removed on its account.
+    /// </summary>
     bool OutputOpened { get; }
 }
