@@ -235,7 +235,8 @@ public class ExtensionJobsTests
         using Rig rig = new();
         ExtensionJobs jobs = rig.JobsFor("dev.example.one");
         List<string> ran = [];
-        rig.Queue.Pause();
+        // A hold, not the user's pause: a pause no longer holds a store save.
+        IDisposable hold = rig.Queue.HoldBackground();
         IJobHandle background = jobs.Enqueue(new JobRequest("background", _ =>
         {
             ran.Add("background");
@@ -246,7 +247,7 @@ public class ExtensionJobsTests
             ran.Add("backlog");
             return Task.CompletedTask;
         }, new JobOptions(BuiltInJobKinds.Save, JobPriority.Backlog)));
-        rig.Queue.Resume();
+        hold.Dispose();
         await Task.WhenAll(background.Completion, backlog.Completion);
 
         await Assert.That(ran)
