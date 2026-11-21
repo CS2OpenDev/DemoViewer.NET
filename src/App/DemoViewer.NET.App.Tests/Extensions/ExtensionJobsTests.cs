@@ -165,7 +165,8 @@ public class ExtensionJobsTests
             return Task.CompletedTask;
         };
 
-        rig.Queue.Pause();
+        // A hold, not the user's pause: a pause no longer holds a store save.
+        IDisposable hold = rig.Queue.HoldBackground();
         IDemoQueueHandle core = rig.Queue.SubmitJob(new QueueJobRequest(QueueJobKind.StoreSave, "Save: review queue",
             "review",
             DemoJobPriority.Background, _ => Record("core")(null!), Key: "save:review-queue", ReplacePending: true));
@@ -174,7 +175,7 @@ public class ExtensionJobsTests
         IJobHandle two = rig.JobsFor("dev.example.two").Enqueue(new JobRequest("two", Record("two"), save));
         one.Cancel();
         await one.Completion;
-        rig.Queue.Resume();
+        hold.Dispose();
         await Task.WhenAll(core.Completion, two.Completion);
 
         using (Assert.Multiple())
