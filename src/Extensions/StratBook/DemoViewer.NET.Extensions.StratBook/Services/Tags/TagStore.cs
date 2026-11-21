@@ -474,6 +474,7 @@ public sealed class TagStore
                 JsonSerializer.Deserialize(json, TagJsonContext.Default.SuggestionVerdictDocument);
             return document?.Demo is { Sha256.Length: > 0 } demo
                 && string.Equals(Normalize(demo.Sha256), key, StringComparison.Ordinal)
+                && IsWellFormed(document)
                     ? document
                     : null;
         }
@@ -755,7 +756,7 @@ public sealed class TagStore
             imported = null;
         }
 
-        if (imported?.Demo is not { Sha256.Length: > 0 } demo)
+        if (imported?.Demo is not { Sha256.Length: > 0 } demo || !IsWellFormed(imported))
         {
             notes.Add($"verdicts for {key}: the imported file could not be read");
             return TagImportOutcome.Refused;
@@ -1051,6 +1052,12 @@ public sealed class TagStore
             && i.Positions is { } positions && !positions.Contains(null!)
             && i.Movements is { } movements
             && movements.TrueForAll(static m => m is { From: not null, To: not null }));
+
+    // As IsWellFormed above, for a verdicts file: a JSON null as the map or as a verdict deserializes, survives a
+    // rewrite (WhenWritingNull does not reach dictionary values), and throws in every reader after.
+    private static bool IsWellFormed(SuggestionVerdictDocument document) =>
+        document.Verdicts is { } verdicts
+        && verdicts.Values.All(static v => v is { Verdict: not null, Detector: not null });
 
     private static bool HasLabels(List<TagLabel>? labels) =>
         labels is not null && labels.TrueForAll(static l => l is { Group: not null, Value: not null });
