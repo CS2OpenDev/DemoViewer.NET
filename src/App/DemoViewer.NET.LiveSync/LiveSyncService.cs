@@ -348,7 +348,7 @@ public sealed class LiveSyncService : ILiveSyncService
             return false;
         }
 
-        if (_observer?.Mapper is not { } mapper)
+        if (_observer is not { Mapper: { } mapper, MappedDemo: { } demo })
         {
             return false;
         }
@@ -376,8 +376,10 @@ public sealed class LiveSyncService : ILiveSyncService
             {
                 // Checked here, on the UI thread, so no DemoReset can land between it and the apply:
                 // another demo opened (or sync restarted) during the range owns the playhead now, and
-                // the old demo's frame index and tick would put both sides somewhere unrelated.
-                if (!ReferenceEquals(_observer?.Mapper, mapper) || !ReferenceEquals(_engine, engine)
+                // the old demo's frame index and tick would put both sides somewhere unrelated. The demo, not
+                // the mapper: a Re-sync rebuilds the mapper from the same demo, and its frames still hold.
+                if (_observer?.Mapper is null || !ReferenceEquals(_observer.MappedDemo, demo)
+                    || !ReferenceEquals(_engine, engine)
                     || !ReferenceEquals(_subscribedSession, session))
                 {
                     return false;
