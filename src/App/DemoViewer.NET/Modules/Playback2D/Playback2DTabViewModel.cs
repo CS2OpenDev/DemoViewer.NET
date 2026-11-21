@@ -97,6 +97,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     private List<KillFeedRow> _allKills = [];
 
     private readonly AnnotationSessionController _annotationController;
+
+    // The controller's place among the sessions a transfer import saves, holds and reloads; null headless.
+    private readonly IDisposable? _annotationWrites;
     private readonly AnnotationTrack _annotationTrack;
 
     // Attributes panel: one row per roster slot, updated in place each push (no list rebuild).
@@ -346,6 +349,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         _annotationController = new AnnotationSessionController(
             TryResolveAnnotationStore(AnnotationDemoKey), TryResolveSettings());
         _annotationController.LoadRecentColors();
+        _annotationWrites = TryResolveAnnotationWrites()?.Register(_annotationController);
 
         Annotations = new AnnotationsPanelViewModel(_annotationController,
             () => _context?.CurrentTick ?? CurrentFrame.Time.Tick);
@@ -622,6 +626,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         Timeline.TrackVisibilityChanged -= SaveTimelineSettings;
         Timeline.Dispose(); // the tracks' Changed subscriptions, taken in RegisterTrack
         LevelStrip.SettingsChanged -= SaveLevelSettings;
+        _annotationWrites?.Dispose();
         _annotationController.Flush();
         Annotations.Dispose();
         _annotationTrack.Dispose();
@@ -1258,6 +1263,18 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         catch (Exception)
         {
             return "";
+        }
+    }
+
+    private static AnnotationWriteCoordinator? TryResolveAnnotationWrites()
+    {
+        try
+        {
+            return App.Services?.GetService<AnnotationWriteCoordinator>();
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 

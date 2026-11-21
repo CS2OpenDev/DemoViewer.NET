@@ -119,6 +119,65 @@ public class Playback2DAnnotationPersistenceTests
         await Assert.That(reopened.Elements).IsEmpty();
     }
 
+    /// <summary>
+    ///     Someone else (a transfer import) writes the open demo's file. The controller saves its strokes first,
+    ///     writes nothing while the file is written, even on a flush, then shows the written file with the stroke
+    ///     drawn meanwhile put back, and saves that.
+    /// </summary>
+    [Test]
+    public async Task Controller_AnExternalWrite_IsBracketedBySaveHoldAndReload()
+    {
+        using TempDemo demo = new();
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        AnnotationElement before = Stroke(), theirs = Stroke(), during = Stroke();
+        controller.Document.Apply(new DocDelta.Add(before, 0));
+
+        await controller.BeginExternalWriteAsync();
+        AnnotationLoadResult saved = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+        await new AnnotationStore(demo.AppData).SaveAsync(demo.DemoPath, AnnotationStore.IdentityFor(demo.DemoPath),
+            demo.Clock, [before, theirs]);
+        controller.Document.Apply(new DocDelta.Add(during, int.MaxValue));
+        await controller.FlushAsync();
+        AnnotationLoadResult held = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+        await controller.EndExternalWriteAsync(true);
+        await controller.FlushAsync();
+        AnnotationLoadResult after = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(saved.Elements.Select(e => e.Id)).IsEquivalentTo([before.Id])
+                .Because("the unsaved stroke is saved before the write, so the writer can merge it");
+            await Assert.That(held.Elements.Select(e => e.Id)).IsEquivalentTo([before.Id, theirs.Id])
+                .Because("no save lands while the file is written");
+            await Assert.That(controller.Document.Elements.Select(e => e.Id))
+                .IsEquivalentTo([before.Id, theirs.Id, during.Id]);
+            await Assert.That(after.Elements.Select(e => e.Id)).IsEquivalentTo([before.Id, theirs.Id, during.Id]);
+        }
+    }
+
+    /// <summary>With auto-save off nothing reaches the file, so a reload after an external write keeps it all.</summary>
+    [Test]
+    public async Task Controller_AnExternalWrite_WithAutoSaveOff_KeepsTheSessionOnlyStrokes()
+    {
+        using TempDemo demo = new();
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        controller.AutoSave = false; // after the attach, which seeds it from settings
+        AnnotationElement mine = Stroke(), theirs = Stroke();
+        controller.Document.Apply(new DocDelta.Add(mine, 0));
+
+        await controller.BeginExternalWriteAsync();
+        await new AnnotationStore(demo.AppData).SaveAsync(demo.DemoPath, AnnotationStore.IdentityFor(demo.DemoPath),
+            demo.Clock, [theirs]);
+        await controller.EndExternalWriteAsync(true);
+
+        await Assert.That(controller.Document.Elements.Select(e => e.Id)).IsEquivalentTo([theirs.Id, mine.Id]);
+    }
+
     [Test]
     public async Task Controller_AutosavesAfterDebounce()
     {

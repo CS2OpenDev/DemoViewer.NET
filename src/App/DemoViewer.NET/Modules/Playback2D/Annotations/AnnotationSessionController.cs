@@ -75,6 +75,16 @@ public sealed class AnnotationSessionController : IDisposable
     private bool _disposed;
     private IModuleFeatureGate? _features;
 
+    // While someone else writes this demo's file (a transfer import), no save may land: one would put the
+    // document from before the write back over it. Counted, so overlapping holds end together.
+    private int _externalHolds;
+
+    // The element ids when the first hold began, if its flush left nothing unsaved: what was drawn during the
+    // hold is what is not among them. Null when the flush could not save, and then all of it may be unsaved.
+    private HashSet<Guid>? _heldIds;
+    private int _heldGeneration;
+    private bool _heldWritten;
+
     private int _lastElementCount;
     private int _lastSavedVersion = -1;
     private bool _loading;
@@ -332,6 +342,102 @@ public sealed class AnnotationSessionController : IDisposable
             if (generation == _attachGeneration)
             {
                 _loading = false;
+            }
+        }
+    }
+
+    /// <summary>The demo the controller is attached to, or null.</summary>
+    internal string? AttachedDemoPath => _attached ? _demoPath : null;
+
+    /// <summary>
+    ///     Before someone else writes this demo's annotation file: saves what is unsaved, so the writer merges
+    ///     with it, then holds every save until <see cref="EndExternalWriteAsync" />. Call on the UI thread.
+    /// </summary>
+    internal async Task BeginExternalWriteAsync()
+    {
+        try
+        {
+            await FlushAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Not saved: the end of the hold puts every stroke the file lacks back.
+        }
+
+        if (_externalHolds++ == 0)
+        {
+            _heldGeneration = _attachGeneration;
+            _heldIds = Session.Document.Version == Volatile.Read(ref _cleanVersion)
+                ? [.. Session.Document.Elements.Select(e => e.Id)]
+                : null;
+        }
+    }
+
+    /// <summary>
+    ///     After someone else wrote this demo's annotation file: when <paramref name="written" />, reloads it and
+    ///     puts back the strokes it lacks that were not saved before the write (drawn during the hold, or never
+    ///     saved at all), which then save as usual. Call on the UI thread.
+    /// </summary>
+    /// <param name="written">Whether the file was changed.</param>
+    internal async Task EndExternalWriteAsync(bool written)
+    {
+        if (_externalHolds == 0)
+        {
+            return;
+        }
+
+        _heldWritten |= written;
+        if (_externalHolds > 1)
+        {
+            _externalHolds--; // the last hold to end reloads for all of them
+            return;
+        }
+
+        HashSet<Guid>? heldIds = _heldIds;
+        AnnotationElement[] mine = [.. Session.Document.Elements];
+        bool dirty = Session.Document.Version != Volatile.Read(ref _cleanVersion);
+        // A demo attached since the hold began is another document; its file was not the one written.
+        bool reload = _heldWritten && _heldGeneration == _attachGeneration && _demoPath is not null;
+        try
+        {
+            if (reload)
+            {
+                // Still held: the attach's own flush must not write the document from before the write.
+                await AttachDemoAsync(_demoPath, Clock);
+            }
+        }
+        catch (Exception)
+        {
+            // The attach has said so on the status line; the strokes below are still put back.
+        }
+        finally
+        {
+            _externalHolds = 0;
+            _heldIds = null;
+            _heldWritten = false;
+        }
+
+        if (!dirty)
+        {
+            return;
+        }
+
+        if (!reload)
+        {
+            // Nothing reloaded: the document is as it was, and the saves the hold refused are due now.
+            if (!_disposed && AutoSave && _demoPath is not null)
+            {
+                ScheduleSave();
+            }
+
+            return;
+        }
+
+        foreach (AnnotationElement element in mine)
+        {
+            if (Session.Document.IndexOf(element.Id) < 0 && (heldIds is null || !heldIds.Contains(element.Id)))
+            {
+                Session.Document.ApplyMigration(new DocDelta.Add(element, int.MaxValue));
             }
         }
     }
@@ -726,7 +832,7 @@ public sealed class AnnotationSessionController : IDisposable
         // means "the user erased everything" and is written; a flush in this window (the next attach's, a
         // tab switch, shutdown) would erase the very file being waited for. Left set by a load that threw,
         // so that placeholder is never written either.
-        if (_awaitingSidecar)
+        if (_awaitingSidecar || Volatile.Read(ref _externalHolds) > 0)
         {
             return;
         }
@@ -768,6 +874,12 @@ public sealed class AnnotationSessionController : IDisposable
             if (_disposed || version < _lastSavedVersion)
             {
                 return; // a newer snapshot already reached the disk; this one would undo it
+            }
+
+            // A save that passed the check above before a hold began, then waited here.
+            if (Volatile.Read(ref _externalHolds) > 0)
+            {
+                return;
             }
 
             // Nothing was drawn or erased since the load or the last save, so the document is a copy of the

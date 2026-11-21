@@ -21,6 +21,7 @@ using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Modules.Playback2D.Annotations;
 using DemoViewer.NET.Modules.RuleWorkbench;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
@@ -1392,7 +1393,11 @@ public class App : Application
             extensions: new TransferExtensionHost(
                 () => sp.GetService<PackContributionSet>()?.DataTransfers ?? [],
                 featureId => sp.GetRequiredService<IFeatureGate>().IsEnabled(featureId),
-                AppPaths.ConfigRoot, AppPaths.DemoCacheDir)));
+                AppPaths.ConfigRoot, AppPaths.DemoCacheDir),
+            annotationSessions: sp.GetRequiredService<AnnotationWriteCoordinator>()));
+        // The open 2D tabs' annotation sessions, so an import writing a demo's annotations can save, hold and
+        // reload the tab that has that demo open.
+        services.AddSingleton<AnnotationWriteCoordinator>();
         // The "one parse, many evaluators" scheduler: the single submitter that asks the registered passes
         // about a demo and submits them together as ONE visit, so the demo is read once. Library,
         // Highlights and Round Facts are core, always on the visit; a pack's passes come from a PassRegistry built over its

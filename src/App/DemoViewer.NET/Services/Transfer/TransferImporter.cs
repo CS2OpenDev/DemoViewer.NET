@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Library;
+using DemoViewer.NET.Modules.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
@@ -29,6 +30,7 @@ internal sealed partial class TransferImporter : ITransferImporter
     private const string LegacyRecordSuffix = ".json";
 
     private readonly string? _annotationsRoot;
+    private readonly AnnotationWriteCoordinator? _annotationSessions;
     private readonly GraphBreakpointStore? _breakpoints;
     private readonly DemoCacheStore _cache;
     private readonly DemoImportCurrency? _currency;
@@ -58,16 +60,21 @@ internal sealed partial class TransferImporter : ITransferImporter
     /// <param name="onUi">Runs UI-thread work (the review queue, the library's folders); inline when null.</param>
     /// <param name="target">The destination checks for the <c>.dem</c> copies.</param>
     /// <param name="extensions">The extensions whose stores an import merges into; null skips every store.</param>
+    /// <param name="annotationSessions">
+    ///     The open 2D tabs' annotation sessions, which save and hold around a write of their demo's annotations
+    ///     and reload after it; null when none can be open.
+    /// </param>
     public TransferImporter(DemoCacheStore cache, string? annotationsRoot = null,
         GraphBreakpointStore? breakpoints = null, ReviewQueue? review = null, DemoLibraryService? library = null,
         IDemoProcessingQueue? queue = null, Func<string, ExtensionDemoDataStore?>? extensionData = null,
         string? extensionDataRoot = null, Func<TransferEnvironment>? environment = null,
         DemoImportCurrency? currency = null, Func<Func<Task>, Task>? onUi = null, TransferTarget? target = null,
-        TransferExtensionHost? extensions = null)
+        TransferExtensionHost? extensions = null, AnnotationWriteCoordinator? annotationSessions = null)
     {
         ArgumentNullException.ThrowIfNull(cache);
         _cache = cache;
         _annotationsRoot = annotationsRoot;
+        _annotationSessions = annotationSessions;
         _breakpoints = breakpoints;
         _review = review;
         _library = library;
@@ -308,7 +315,22 @@ internal sealed partial class TransferImporter : ITransferImporter
 
                     progress?.Report(new TransferProgress(done, manifest.Demos.Count, run.BytesDone, bytesTotal,
                         demo.OriginalFileName));
-                    run.Items[demo.Sha256] = ImportDemo(run, demo, staleShas.Contains(demo.Sha256));
+                    // An open 2D tab on the demo saves its strokes first, so the merge below keeps them, and
+                    // reloads after, so its next save does not put the file from before the merge back.
+                    AnnotationWriteCoordinator.Hold? hold = await HoldAnnotationsAsync(demo).ConfigureAwait(false);
+                    try
+                    {
+                        run.Items[demo.Sha256] = ImportDemo(run, demo, staleShas.Contains(demo.Sha256));
+                    }
+                    finally
+                    {
+                        if (hold is not null)
+                        {
+                            bool written = run.AnnotationsWritten.Contains(demo.Sha256);
+                            await _onUi(() => hold.EndAsync(written)).ConfigureAwait(false);
+                        }
+                    }
+
                     done++;
                 }
             }
@@ -333,6 +355,26 @@ internal sealed partial class TransferImporter : ITransferImporter
         }
 
         progress?.Report(new TransferProgress(done, manifest.Demos.Count, run.BytesDone, bytesTotal, null));
+    }
+
+    // Holds the open 2D tabs on the demo when the bundle carries its annotations and they can be written here.
+    private async Task<AnnotationWriteCoordinator.Hold?> HoldAnnotationsAsync(TransferDemo demo)
+    {
+        if (_annotationSessions is not { } sessions || _annotationsRoot is null
+                                                    || !demo.Files.Any(f => IsAnnotations(demo, f)))
+        {
+            return null;
+        }
+
+        string[] paths = [.. _cache.PathsOfContent(demo.Sha256)];
+        if (paths.Length == 0)
+        {
+            return null;
+        }
+
+        AnnotationWriteCoordinator.Hold? hold = null;
+        await _onUi(async () => hold = await sessions.HoldAsync(paths)).ConfigureAwait(false);
+        return hold;
     }
 
     private TransferSummaryItem ImportDemo(Run run, TransferDemo demo, bool stale)
@@ -435,7 +477,11 @@ internal sealed partial class TransferImporter : ITransferImporter
             {
                 try
                 {
-                    merged |= ImportAnnotations(run, sha, annotations, notes);
+                    if (ImportAnnotations(run, sha, annotations, notes))
+                    {
+                        merged = true;
+                        run.AnnotationsWritten.Add(sha);
+                    }
                 }
                 catch (Exception ex) when (IsStepFailure(ex))
                 {
@@ -940,6 +986,9 @@ internal sealed partial class TransferImporter : ITransferImporter
         public int CopiedDems { get; set; }
         public string? Destination { get; set; }
         public bool Cancelled { get; set; }
+
+        // The demos whose annotation file the import wrote, for the open 2D tabs to reload.
+        public HashSet<string> AnnotationsWritten { get; } = new(StringComparer.Ordinal);
 
         // One line per extension whose stores the bundle carries.
         public List<TransferSummaryItem> ExtensionItems { get; } = [];

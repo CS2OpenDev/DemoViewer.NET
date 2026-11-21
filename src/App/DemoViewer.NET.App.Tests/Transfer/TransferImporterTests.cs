@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Modules.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
@@ -267,6 +268,63 @@ public class TransferImporterTests
                 .IsEquivalentTo(["theirs"]);
         }
     }
+
+    /// <summary>
+    ///     A demo open in the 2D tab, its annotations in app-data (its folder cannot be written), with a stroke
+    ///     drawn and not saved yet. The import merges into the file the tab loaded; the tab's next flush used to
+    ///     write its own copy back over the merge, so the imported stroke was gone though the summary said merged.
+    /// </summary>
+    [Test]
+    public async Task AnImportIntoADemoOpenIn2D_KeepsItsUnsavedStrokes_AndShowsTheImportedOnes()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string config = temp.New();
+        string demo = Path.Combine(temp.New(), "unreachable", "match.dem");
+        ClockIdentity clock = new(ClockIdentity.DvFrameClock, 64, 1000, 0, 0);
+        AnnotationElement mine = Stroke(), drawn = Stroke(), theirs = Stroke();
+
+        string elsewhere = temp.New();
+        AnnotationStore theirStore = new(elsewhere, _ => Sha);
+        await theirStore.SaveAsync(demo, theirStore.IdentityOf(demo), clock, [theirs]);
+        byte[] theirBytes = await File.ReadAllBytesAsync(AnnotationStore.AppDataFile(elsewhere, Sha));
+        OneDemo(root, (b, files) => files.Add(b.File(TransferLayout.AnnotationsFile(Sha), theirBytes))).Write();
+
+        DemoCacheStore cache = new(null);
+        cache.Upsert(new DemoCacheRecord { Path = demo, Size = 4096, Sha256 = Sha });
+        AnnotationStore store = new(config, _ => Sha);
+        await store.SaveAsync(demo, store.IdentityOf(demo), clock, [mine]);
+
+        AnnotationWriteCoordinator sessions = new();
+        using AnnotationSessionController controller = new(new AnnotationStore(config, _ => Sha), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using IDisposable registration = sessions.Register(controller);
+        await controller.AttachDemoAsync(demo, clock);
+        controller.Document.Apply(new DocDelta.Add(drawn, int.MaxValue));
+
+        TransferImporter importer = new(cache, config, annotationSessions: sessions);
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        TransferSummary summary = await importer.RunAsync(ImportRequest.DataOnly(root, ConflictPolicy.KeepBoth),
+            preview, null, CancellationToken.None);
+        await controller.FlushAsync(); // a tab switch
+        AnnotationLoadResult reopened = await new AnnotationStore(config, _ => Sha).LoadAsync(demo, clock);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Items.Single().Outcome).IsNotEqualTo(TransferOutcome.Failed);
+            await Assert.That(controller.Document.Elements.Select(e => e.Id))
+                .IsEquivalentTo([mine.Id, drawn.Id, theirs.Id]).Because("the tab shows the merged file");
+            await Assert.That(reopened.Elements.Select(e => e.Id))
+                .IsEquivalentTo([mine.Id, drawn.Id, theirs.Id]).Because("no stroke from either side is lost");
+        }
+    }
+
+    private static AnnotationElement Stroke() =>
+        new(Guid.NewGuid(), AnnotationKind.Freehand, AnnotationStyle.Default, new SpaceRef.World(0),
+            TimeEnvelope.Static,
+            [new InkPoint(0, 0, 0.5f), new InkPoint(40, 10, 0.5f), new InkPoint(80, 0, 0.5f)], null);
 
     [Test]
     public async Task ImportedAnnotations_LoadFromAppData_WhileTheDemosFolderHasNone()
