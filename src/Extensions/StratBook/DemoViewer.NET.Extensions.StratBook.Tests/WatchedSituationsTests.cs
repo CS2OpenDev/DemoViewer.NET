@@ -417,6 +417,36 @@ public class WatchedSituationsTests
         }
     }
 
+    // The pack reloads its live stores after every import that carried its data; the new-hit groups are derived,
+    // and a reload that dropped them would leave the badge at zero until the index next changed.
+    [Test]
+    public async Task AReload_KeepsTheNewHits_ItsFileStillCounts()
+    {
+        string root = TempRoot();
+        try
+        {
+            using Harness h = new();
+            using WatchedSituationsService service =
+                new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(),
+                    now: () => Before);
+            WatchedSituation watch = service.Watch("A hold", "de_nuke", FiveOnA(), SituationTolerance.Exact,
+                SearchFilterValues.None);
+            h.Evaluate("/d/b.dem", "de_nuke", 1000);
+            await Assert.That(service.NewCountOf(watch.Id)).IsEqualTo(1);
+
+            service.Reload();
+
+            await Assert.That(service.NewCountOf(watch.Id)).IsEqualTo(1);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
     [Test]
     public async Task ALocalFile_WithANullToken_IsRefused_RatherThanThrowingOnEveryEvaluation()
     {

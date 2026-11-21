@@ -198,6 +198,7 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
     /// </summary>
     public void Reload()
     {
+        bool attached;
         lock (_gate)
         {
             _doc = new WatchedSituationsFile();
@@ -205,6 +206,14 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
             _refused = false;
             FileProblem = null;
             Load();
+            attached = _attached;
+        }
+
+        // The new-hit groups are derived from the index, not read from the file: the pack also reloads after an
+        // import, which deletes nothing, and the badges must not drop to zero until the index next changes.
+        if (attached)
+        {
+            Reevaluate();
         }
 
         RaiseChanged();
