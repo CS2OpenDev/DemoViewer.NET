@@ -72,6 +72,12 @@ internal sealed class PackContributions(
     /// </summary>
     internal IReadOnlyCollection<string> PassIdsOfOthers { get; set; } = [];
 
+    /// <summary>
+    ///     True when the pack's registration failed or its Contribute threw this session, so these are not
+    ///     what the pack contributes: what its passes and rulesets wrote cannot be told apart here.
+    /// </summary>
+    internal bool ContributionsUnknown { get; set; }
+
     public IExtensionContext Context => field ??= context();
     public IReadOnlyList<GatedDemoAction> DemoActions => _demoActions;
 

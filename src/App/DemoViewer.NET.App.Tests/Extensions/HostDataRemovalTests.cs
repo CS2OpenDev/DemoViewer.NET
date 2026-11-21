@@ -5,6 +5,7 @@ using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
+using DemoViewer.NET.ViewModels.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using TUnit.Assertions.Enums;
 
@@ -266,7 +267,73 @@ public class HostDataRemovalTests
         }
     }
 
-    private sealed class Pack(string id, IEnumerable<StoreDescriptor>? stores = null) : IExtension, IManifestSource
+    /// <summary>
+    ///     An extension whose Register failed or whose Contribute threw this session contributed nothing, so
+    ///     its passes and rulesets, and with them the stamps and facts its delete strips, are not known. The
+    ///     delete is refused with the reason, not run in part and reported as done.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task AnExtensionThatDidNotStartThisSession_RefusesTheDelete_AndTheRowSaysWhy(bool registerFailed)
+    {
+        string id = "dev.example.unstarted." + Guid.NewGuid().ToString("N")[..8];
+        Pack pack = new(id, throwInContribute: !registerFailed);
+        ExtensionFaults faults = ExtensionFaults.For([pack]);
+        if (registerFailed)
+        {
+            faults.FailStartup(faults.Scopes.Single(), "register", new InvalidOperationException("no"));
+        }
+
+        ServiceCollection services = new();
+        services.AddSingleton<ExtensionShellHub>();
+        services.AddSingleton(new DemoCacheStore(null));
+        services.AddSingleton(faults);
+        ExtensionContextAccess.Register(services, pack);
+        await using ServiceProvider sp = services.BuildServiceProvider();
+        DemoCacheStore cache = sp.GetRequiredService<DemoCacheStore>();
+        cache.Update("/demos/a.dem", 1, 1, r =>
+        {
+            r.Sha256 = "aaaa";
+            r.SetStamp(new PackStamp("lineups", 1, "fp"));
+        });
+        ExtensionContextAccess.ForHost(sp, id).Stores.Own(StoreRoot.Config)!.WriteAtomic("notes.json", "{}"u8);
+        string folder = Path.Combine(AppPaths.ConfigRoot!, ExtensionFolders.DataDirectoryName, id);
+
+        try
+        {
+            IExtensionDataRemoval removal = new PackContributionSet([pack], sp).DataRemovals.Single();
+            ExtensionDataActionViewModel row = new(removal, "Unstarted");
+
+            await row.ArmCommand.ExecuteAsync(null);
+            string? armed = row.StatusText;
+            bool confirming = row.IsConfirming;
+            await row.ConfirmCommand.ExecuteAsync(null);
+            string? confirmed = row.StatusText;
+            ExtensionDataRemovalResult result = await removal.DeleteAsync();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.Ran).IsFalse();
+                await Assert.That(confirming).IsFalse().Because("there is nothing to confirm");
+                await Assert.That(armed).Contains("did not start this session");
+                await Assert.That(confirmed).Contains("did not start this session");
+                await Assert.That(Directory.Exists(folder)).IsTrue().Because("nothing was deleted");
+                await Assert.That(cache.Contents.Single().PackStamps.Select(s => s.Id))
+                    .IsEquivalentTo(["lineups"], CollectionOrdering.Matching);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+            {
+                Directory.Delete(folder, true);
+            }
+        }
+    }
+
+    private sealed class Pack(string id, IEnumerable<StoreDescriptor>? stores = null, bool throwInContribute = false)
+        : IExtension, IManifestSource
     {
         public ExtensionManifest Manifest { get; } = ExtensionManifest.Parse($$"""
                                                                                {
@@ -286,6 +353,11 @@ public class HostDataRemovalTests
 
         public void Contribute(IExtensionContributions contributions, IServiceProvider services)
         {
+            if (throwInContribute)
+            {
+                contributions.Pass("lineups", () => new ExtensionPassHostTests.FakePass { PassName = "lineups" });
+                throw new InvalidOperationException("contribute failed");
+            }
         }
     }
 }

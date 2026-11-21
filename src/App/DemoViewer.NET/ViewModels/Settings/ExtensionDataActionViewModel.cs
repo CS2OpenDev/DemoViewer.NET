@@ -2,6 +2,7 @@
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DemoViewer.NET.Extensions;
 
 #endregion
 
@@ -43,6 +44,11 @@ public sealed partial class ExtensionDataActionViewModel(IExtensionDataRemoval r
         if (IsBusy)
         {
             return; // a second click landing before the UI disables the button must not start a second count
+        }
+
+        if (Refused())
+        {
+            return;
         }
 
         IsBusy = true;
@@ -96,6 +102,11 @@ public sealed partial class ExtensionDataActionViewModel(IExtensionDataRemoval r
             return; // two near-simultaneous clicks must delete once, not twice
         }
 
+        if (Refused())
+        {
+            return;
+        }
+
         IsConfirming = false;
         IsBusy = true;
         StatusText = "Deleting…";
@@ -123,6 +134,20 @@ public sealed partial class ExtensionDataActionViewModel(IExtensionDataRemoval r
         {
             IsBusy = false;
         }
+    }
+
+    // The host's delete refuses an extension that did not start this session; say why instead of counting.
+    private bool Refused()
+    {
+        if (removal is not HostDataRemoval { Refusal: { } refusal })
+        {
+            return false;
+        }
+
+        IsConfirming = false;
+        ConfirmationText = null;
+        StatusText = refusal;
+        return true;
     }
 
     private static string BuildConfirmation(ExtensionDataInventory inventory)
