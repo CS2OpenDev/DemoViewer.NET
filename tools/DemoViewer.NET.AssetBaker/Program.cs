@@ -400,6 +400,13 @@ void BakeMap(string map)
     RadarTransform t = ov.Transform;
     Console.WriteLine($"  transform: pos=({t.PosX},{t.PosY}) scale={t.Scale} rotate={t.Rotate} zoom={t.Zoom}");
 
+    // The fallible reads of the per-map vpk come BEFORE the first file is written: a missing or moved
+    // nav entry used to throw after the radar PNGs had replaced the committed ones, leaving new art
+    // under the previous bake's mapVersion (the value `dv2d golden` compares to refuse a re-bake).
+    string vpk = Path.Combine(mapsDir, $"{map}.vpk");
+    byte[] navBytes = NavFloors.ExtractNav(vpk, map);
+    NavFloors.Result floors = NavFloors.ComputeFloors(navBytes);
+
     // 2. radar vtex_c → PNG (default + optional _lower), and remember source bytes for the version hash.
     List<string> radarImages = [];
     Crc32 crc = new();
@@ -427,11 +434,8 @@ void BakeMap(string map)
         Console.WriteLine($"  radar: {l.png} (lower)");
     }
 
-    // 3. nav → floor bands (the headline)
-    string vpk = Path.Combine(mapsDir, $"{map}.vpk");
-    byte[] navBytes = NavFloors.ExtractNav(vpk, map);
+    // 3. nav → floor bands (the headline). Read above, before step 2 wrote anything.
     crc.Append(navBytes);
-    NavFloors.Result floors = NavFloors.ComputeFloors(navBytes);
     Console.WriteLine($"  floors: {floors.Floors.Count}  " +
         string.Join(" ", floors.Floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
     if (diag)
