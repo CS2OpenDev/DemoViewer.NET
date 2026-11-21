@@ -192,7 +192,7 @@
                 </Grid>
                 <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
                            IsVisible="{Binding BundleFolderPreview, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                           Text="{Binding BundleFolderPreview, StringFormat='Creates {0}'}" />
+                           Text="{Binding BundleFolderPreview, StringFormat='Bundle folder: {0}'}" />
                 <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}"
                            IsVisible="{Binding IsPlanning}" Text="Checking the folder and sizing the export…" />
             </StackPanel>

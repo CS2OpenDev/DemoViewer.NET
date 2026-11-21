@@ -27,6 +27,12 @@ public enum TransferWarningKind
     /// <summary>The target folder cannot be written.</summary>
     TargetNotWritable,
 
+    /// <summary>
+    ///     The bundle folder already holds a bundle or other files. An export never deletes anything, so what is
+    ///     there would ride along with the new bundle.
+    /// </summary>
+    TargetNotEmpty,
+
     /// <summary>The target drive has too little free space.</summary>
     InsufficientSpace,
 
