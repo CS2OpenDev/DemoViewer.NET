@@ -1132,6 +1132,15 @@ public sealed class StratStore
         }
 
         List<HistoryEntry> log = ParseHistory(logBytes is null ? [] : DecodeLines(logBytes));
+        // The log is read as a local one is, which lets a JSON null through where a list or a path is expected.
+        // Every step below walks the ops, so a bundle carrying one leaves its strat out instead of ending the import.
+        if (log.Any(e => e.Ops is null || e.Ops.Any(o => o is null || o.Path is null)))
+        {
+            ledger.Report($"'{incoming.Name}' in the bundle has a history that does not replay; it was left out");
+            ledger.CountSkipped();
+            return;
+        }
+
         if (incoming.Owner.IsTeam && teams.IsDropped(incoming.Owner.TeamId!.Value))
         {
             ledger.Report($"'{incoming.Name}' in the bundle was left out: its team was deleted on this machine");
@@ -1532,9 +1541,16 @@ public sealed class StratStore
 
         bool take = ledger.Policy == ImportConflictPolicy.TakeImported;
         bool changed = false;
-        foreach ((string epoch, Dictionary<string, string> slots) in incoming.SlotDefaults)
+        // A strict read still lets a null dictionary value through, and the local file is read leniently.
+        local.SlotDefaults ??= [];
+        foreach ((string epoch, Dictionary<string, string>? slots) in incoming.SlotDefaults)
         {
-            if (!local.SlotDefaults.TryGetValue(epoch, out Dictionary<string, string>? mine))
+            if (slots is null)
+            {
+                continue;
+            }
+
+            if (!local.SlotDefaults.TryGetValue(epoch, out Dictionary<string, string>? mine) || mine is null)
             {
                 local.SlotDefaults[epoch] = new Dictionary<string, string>(slots, StringComparer.Ordinal);
                 changed = true;
@@ -1597,8 +1613,12 @@ public sealed class StratStore
             return;
         }
 
+        // A strict read still lets a null element through a list, and a hand-edited local table can say
+        // "aliases": null; LoadCallouts reads both as nothing, and so does the merge.
+        local.Aliases = [.. (local.Aliases ?? []).Where(a => a is not null)];
         bool changed = false;
-        foreach (CalloutAlias alias in incoming.Aliases.Where(a => !string.IsNullOrWhiteSpace(a.Alias)))
+        foreach (CalloutAlias alias in incoming.Aliases.Where(a =>
+                     a is not null && !string.IsNullOrWhiteSpace(a.Alias)))
         {
             // The validator's own key, case and separators folded, so the merged table never holds an alias twice.
             string key = CalloutResolver.Fold(alias.Alias!);

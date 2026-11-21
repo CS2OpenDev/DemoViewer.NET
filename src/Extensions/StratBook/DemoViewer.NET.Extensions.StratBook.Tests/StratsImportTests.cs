@@ -428,6 +428,68 @@ public class StratsImportTests
     }
 
     [Test]
+    public async Task ALogLineWithNullOps_LeavesThatStratOut_AndTheRestOfTheImportRuns()
+    {
+        using Machines m = new();
+        StratDocument broken = Committed(m.There);
+        Rename(m.There, broken.Id, "A split");
+        StratDocument fine = Committed(m.There);
+        string log = Directory.EnumerateFiles(m.TherePath, broken.Id + StratStore.HistoryExtension,
+            SearchOption.AllDirectories).Single();
+        string[] lines = [.. File.ReadAllLines(log).Where(l => l.Length > 0)];
+        JsonObject second = JsonNode.Parse(lines[1])!.AsObject();
+        second["ops"] = null;
+        lines[1] = second.ToJsonString();
+        File.WriteAllLines(log, lines);
+        m.There.SaveBook(new StratBook { Owner = StratTestData.Team, Notes = "their notes" });
+
+        ImportLedger ledger = null!;
+        await Assert.That(() => ledger = m.Import()).ThrowsNothing();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(m.Here.Index.Any(e => e.Id == broken.Id)).IsFalse();
+            await Assert.That(m.Here.Index.Any(e => e.Id == fine.Id)).IsTrue();
+            await Assert.That(m.Here.LoadBook(StratTestData.Team).Notes).IsEqualTo("their notes")
+                .Because("the books come after the strats, and one bad strat does not end the import");
+            await Assert.That(ledger.Skipped).IsGreaterThanOrEqualTo(1);
+        }
+    }
+
+    [Test]
+    public async Task NullsInABundlesBookAndCallouts_AreSkipped_AndALocalNullAliasListIsTolerated()
+    {
+        using Machines m = new();
+        StratOwner owner = StratTestData.Team;
+        m.There.SaveBook(new StratBook { Owner = owner, SlotDefaults = { ["r1"] = new() { ["A"] = "1" } } });
+        m.There.SaveCallouts(owner, new CalloutTable
+        {
+            Map = "de_mirage", Aliases = { new CalloutAlias { Alias = "palace", Place = "Palace" } }
+        });
+        string theirBook = Path.Combine(m.TherePath, owner.FolderName, "book.json");
+        JsonObject book = JsonNode.Parse(File.ReadAllText(theirBook))!.AsObject();
+        book["slotDefaults"]!["r2"] = null;
+        File.WriteAllText(theirBook, book.ToJsonString());
+        string theirCallouts = Path.Combine(m.TherePath, owner.FolderName, "de_mirage", "callouts.json");
+        JsonObject callouts = JsonNode.Parse(File.ReadAllText(theirCallouts))!.AsObject();
+        callouts["aliases"]!.AsArray().Add(null);
+        File.WriteAllText(theirCallouts, callouts.ToJsonString());
+        // A hand-edited local table: LoadCallouts reads it as empty, so the import must too.
+        Directory.CreateDirectory(Path.Combine(m.HerePath, owner.FolderName, "de_mirage"));
+        File.WriteAllText(Path.Combine(m.HerePath, owner.FolderName, "de_mirage", "callouts.json"),
+            "{\"schemaVersion\":1,\"map\":\"de_mirage\",\"aliases\":null}");
+
+        await Assert.That(() => m.Import()).ThrowsNothing();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(m.Here.LoadBook(owner).SlotDefaults.Keys).IsEquivalentTo(["r1"]);
+            await Assert.That(m.Here.LoadCallouts(owner, "de_mirage").Aliases.Select(a => a.Alias ?? ""))
+                .IsEquivalentTo(["palace"]);
+        }
+    }
+
+    [Test]
     public async Task ANewStrat_WhoseLogEndsInATornLine_IsStillCopied()
     {
         using Machines m = new();
