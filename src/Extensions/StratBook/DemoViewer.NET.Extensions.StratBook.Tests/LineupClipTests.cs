@@ -724,6 +724,39 @@ public class LineupClipTests
     }
 
     [Test]
+    public async Task ARepresentativeWhoseDemoIsGone_IsShownFromAThrowInADemoThatIsThere()
+    {
+        GrenadeCluster cluster = TwoLineups();
+        string clips = TempClips();
+        try
+        {
+            IReadOnlyList<LineupClipJob> jobs = LineupClipPlanner.PlanEvery([cluster], clips);
+            FileRenderer renderer = new();
+            using LineupClipService service = new(() => [cluster], PackStores.At(clips), () => true, renderer);
+            // a.dem was deleted, or sits on a drive that is unplugged; b.dem is there.
+            service.DemoExists = path => path == "/d/b.dem";
+            await Assert.That(service.Plan()).IsEqualTo(2);
+            await service.WorkerTask;
+
+            List<LineupClipJob> rendered = [.. renderer.Calls.SelectMany(c => c.Jobs)];
+            using (Assert.Multiple())
+            {
+                await Assert.That(jobs.Any(j => j.DemoPath == "/d/a.dem")).IsTrue()
+                    .Because("the representative of at least one lineup is in a.dem");
+                await Assert.That(renderer.Calls.Select(c => c.Demo)).IsEquivalentTo(["/d/b.dem"]);
+                await Assert.That(rendered.Select(j => j.Key).Order())
+                    .IsEquivalentTo(jobs.Select(j => j.Key).Order(), CollectionOrdering.Matching)
+                    .Because("the clip keeps the representative's key, so the pair is the one the card finds");
+                await Assert.That(jobs.All(j => HasPair(clips, j.Stem))).IsTrue();
+            }
+        }
+        finally
+        {
+            System.IO.Directory.Delete(clips, true);
+        }
+    }
+
+    [Test]
     public async Task AnEvictedPositionsCard_SaysSo_AndRenderClipBringsItBack()
     {
         GrenadeCluster cluster = TwoLineups();

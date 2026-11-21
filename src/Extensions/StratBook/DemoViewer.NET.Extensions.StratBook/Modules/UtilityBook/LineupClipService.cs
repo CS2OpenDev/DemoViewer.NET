@@ -388,7 +388,20 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
         }
 
         ForgetEvictionsIfTheCapRose();
-        IReadOnlyList<LineupClipJob> every = LineupClipPlanner.PlanEvery(_clusters(), _directory);
+        // One stat per demo per plan: a representative in a deleted or offline demo would fail its read every
+        // session, so its clip is shown from a throw in a demo that is there.
+        Dictionary<string, bool> present = new(StringComparer.OrdinalIgnoreCase);
+        Func<string, bool> probe = DemoExists;
+        IReadOnlyList<LineupClipJob> every = LineupClipPlanner.PlanEvery(_clusters(), _directory, null, path =>
+        {
+            if (!present.TryGetValue(path, out bool there))
+            {
+                there = probe(path);
+                present[path] = there;
+            }
+
+            return there;
+        });
         List<LineupClipJob> jobs = ChooseLocked(every, _directory);
         if (_complete())
         {
@@ -986,6 +999,12 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
         return (added, skipped);
     }
+
+    /// <summary>
+    ///     Whether a demo file is there to read: a background plan shows a clip whose representative's demo is gone
+    ///     from another throw's. <see cref="File.Exists(string)" />; a test replaces it.
+    /// </summary>
+    internal Func<string, bool> DemoExists { get; set; } = File.Exists;
 
     /// <summary>Runs inside the eviction pass, between the listing and the deletes. For a test.</summary>
     internal Action? BeforeEvictionDeletes { get; set; }
