@@ -212,6 +212,40 @@ public class PaneSetLevelRetentionTests
         await Assert.That(held.ManualOverride).IsFalse();
     }
 
+    /// <summary>
+    ///     Fit mode holds the camera (no rig re-targets it), so clearing the hidden floor's override is
+    ///     not enough: the Fit command must re-frame it, or flicking back shows the old manual pan.
+    /// </summary>
+    [Test]
+    public async Task FitAll_ReachesTheRetainedLevel_WhenItIsShownAgain()
+    {
+        MapSpace space = Three();
+        SKSize host = new(800, 600);
+        MapLevelId panned = space.Levels[0].Id;
+        SingleLayout single = new() { ActiveLevelId = panned };
+        PaneSet panes = new(single);
+        panes.Reconcile(space, LevelDisplayMode.Single, host, _extent);
+
+        LevelPane pane = panes.FindById(panned)!;
+        pane.Camera.Current = ViewportTransform.Fit(800, 600, 0, 0, 100, 100);
+        pane.Camera.ManualOverride = true;
+
+        single.ActiveLevelId = space.Levels[^1].Id;
+        panes.Reconcile(space, LevelDisplayMode.Single, host, _extent);
+
+        panes.ResetAll();
+        panes.FitAll(_extent);
+
+        single.ActiveLevelId = panned;
+        panes.Reconcile(space, LevelDisplayMode.Single, host, _extent);
+
+        ViewportTransform expected = ViewportTransform.Fit(800, 600,
+            _extent.MinX, _extent.MinY, _extent.MaxX, _extent.MaxY);
+        LevelPane shown = panes.FindById(panned)!;
+        await Assert.That(shown.Camera.Current).IsEqualTo(expected);
+        await Assert.That(shown.Camera.ManualOverride).IsFalse();
+    }
+
     [Test]
     public async Task LevelLayouts_For_ReturnsThePolicyAndRefusesTheReservedMode()
     {
