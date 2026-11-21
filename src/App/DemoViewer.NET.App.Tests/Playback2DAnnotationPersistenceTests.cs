@@ -350,6 +350,27 @@ public class Playback2DAnnotationPersistenceTests
     }
 
     /// <summary>
+    ///     A sidecar the store cannot parse opens as empty, and the status line names the file it was moved
+    ///     to, so the user can find what they had.
+    /// </summary>
+    [Test]
+    public async Task Controller_AnUnreadableSidecar_IsMovedAside_AndTheStatusLineNamesWhere()
+    {
+        using TempDemo demo = new();
+        await File.WriteAllTextAsync(demo.SidecarPath, "{ \"schemaVersion\": 1, \"elements\": [");
+
+        using AnnotationSessionController controller =
+            new(new AnnotationStore(demo.AppData), null, static () => false);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        string[] aside = Directory.GetFiles(Path.GetDirectoryName(demo.SidecarPath)!,
+            Path.GetFileName(demo.SidecarPath) + ".unreadable-*");
+
+        await Assert.That(aside.Length).IsEqualTo(1);
+        await Assert.That(File.Exists(demo.SidecarPath)).IsFalse();
+        await Assert.That(controller.StatusText).Contains("moved to " + Path.GetFileName(aside[0]));
+    }
+
+    /// <summary>
     ///     On the browser head the status line must NOT name a sidecar path. System.IO writes there land
     ///     in the WASM runtime's in-memory virtual FS, so the store finds a "writable" location, reports
     ///     it, and the user reads a filename as a promise the next reload breaks. Annotations

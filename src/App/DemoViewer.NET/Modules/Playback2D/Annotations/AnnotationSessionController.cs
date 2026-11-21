@@ -67,6 +67,11 @@ public sealed class AnnotationSessionController : IDisposable
     // parks annotations in app-data, which the store reads until the demo's folder has its own sidecar.
     private string? _loadedFrom;
 
+    // The last load found a sidecar it could not read: where the store moved it, or, when it could not be
+    // moved, that it is still in place and guarded. Both are for the status line.
+    private string? _unreadableMovedTo;
+    private bool _unreadableHeld;
+
     // The document's version when it last matched its file: at the load, and at each save that landed.
     private int _cleanVersion = -1;
     private CancellationTokenSource? _debounce;
@@ -294,6 +299,8 @@ public sealed class AnnotationSessionController : IDisposable
         _attached = true;
         ClockMismatch = false;
         DemoMismatch = false;
+        _unreadableMovedTo = null;
+        _unreadableHeld = false;
 
         // Loading is not editing. Without this the Reset below raises Changed, which schedules an
         // autosave, which drops an empty .dvann.json next to every demo the user has ever opened.
@@ -321,6 +328,8 @@ public sealed class AnnotationSessionController : IDisposable
 
             ClockMismatch = result.ClockMismatch;
             DemoMismatch = result.DemoMismatch;
+            _unreadableMovedTo = result.MovedAsidePath;
+            _unreadableHeld = result.Unreadable && result.MovedAsidePath is null;
             Session.Document.Reset(result.Elements);
             _loadedFrom = result.Path;
             _cleanVersion = Session.Document.Version;
@@ -1011,6 +1020,15 @@ public sealed class AnnotationSessionController : IDisposable
         string prefix = ClockMismatch
             ? "loaded from a different parse — time anchors may be off · "
             : "";
+        if (_unreadableMovedTo is not null)
+        {
+            prefix = "the sidecar could not be read and was moved to " + Path.GetFileName(_unreadableMovedTo) +
+                     " · ";
+        }
+        else if (_unreadableHeld)
+        {
+            prefix = "the sidecar could not be read — it will not be saved over until it can be moved aside · ";
+        }
 
         // With the toggle off nothing reaches that path at all: not on a stroke, not on a demo swap,
         // not at shutdown. Leaving "saving to <path>" standing would be a promise the setting revoked.

@@ -494,8 +494,12 @@ public class AnnotationStoreTests
         eraser.OnReleased(in over, services);
     }
 
+    /// <summary>
+    ///     A sidecar that cannot be parsed opens as empty, but it is the user's file: it is moved aside to
+    ///     <c>&lt;name&gt;.unreadable-&lt;timestamp&gt;</c> before anything can be saved over it, never deleted.
+    /// </summary>
     [Test]
-    public async Task Load_TruncatedJson_ReturnsEmpty_DoesNotThrow()
+    public async Task Load_TruncatedJson_ReturnsEmpty_AndMovesTheFileAside()
     {
         using TempTree tree = new();
         AnnotationStore store = new(tree.AppData);
@@ -503,12 +507,60 @@ public class AnnotationStoreTests
 
         string path = store.ResolvePath(tree.DemoPath)!;
         string text = await File.ReadAllTextAsync(path);
-        await File.WriteAllTextAsync(path, text[..(text.Length / 2)]);
+        string truncated = text[..(text.Length / 2)];
+        await File.WriteAllTextAsync(path, truncated);
 
         AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
+        string[] aside = Directory.GetFiles(Path.GetDirectoryName(path)!,
+            Path.GetFileName(path) + ".unreadable-*");
 
         await Assert.That(loaded.Elements).IsEmpty();
         await Assert.That(loaded.DemoMismatch).IsFalse();
+        await Assert.That(File.Exists(path)).IsFalse().Because("the next save must not land on the user's file");
+        await Assert.That(aside.Length).IsEqualTo(1);
+        await Assert.That(await File.ReadAllTextAsync(aside[0])).IsEqualTo(truncated);
+
+        await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
+        await Assert.That(await File.ReadAllTextAsync(aside[0])).IsEqualTo(truncated)
+            .Because("a save after the load writes a new sidecar and leaves the moved one alone");
+    }
+
+    /// <summary>
+    ///     A sidecar that cannot even be moved (held open elsewhere, on Windows) is not saved over: the save
+    ///     refuses until the file can be moved aside, and then goes ahead.
+    /// </summary>
+    [Test]
+    public async Task ASidecarThatCouldNotBeMovedAside_IsNotOverwritten()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return; // only Windows refuses to rename a file another handle holds without delete sharing.
+        }
+
+        using TempTree tree = new();
+        AnnotationStore store = new(tree.AppData);
+        await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
+        string path = store.ResolvePath(tree.DemoPath)!;
+        string original = await File.ReadAllTextAsync(path);
+
+        bool savedWhileHeld;
+        using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
+            await Assert.That(loaded.Elements).IsEmpty();
+            savedWhileHeld = await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, []);
+        }
+
+        string contentAfterRefusal = await File.ReadAllTextAsync(path);
+        bool savedLater = await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, []);
+        string[] aside = Directory.GetFiles(Path.GetDirectoryName(path)!,
+            Path.GetFileName(path) + ".unreadable-*");
+
+        await Assert.That(savedWhileHeld).IsFalse();
+        await Assert.That(contentAfterRefusal).IsEqualTo(original);
+        await Assert.That(savedLater).IsTrue();
+        await Assert.That(aside.Length).IsEqualTo(1);
+        await Assert.That(await File.ReadAllTextAsync(aside[0])).IsEqualTo(original);
     }
 
     [Test]

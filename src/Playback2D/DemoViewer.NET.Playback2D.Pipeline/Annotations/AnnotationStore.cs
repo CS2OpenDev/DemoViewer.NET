@@ -52,6 +52,10 @@ public sealed class AnnotationStore
     // one gate. They are touched once per demo, never per frame.
     private readonly Lock _state = new();
 
+    // Sidecars that could not be read and could not be moved aside either. A save refuses to replace one
+    // until the move succeeds: it is the user's file, and the session's document never saw its contents.
+    private readonly HashSet<string> _unreadable = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly Dictionary<string, bool> _writableByDirectory = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Creates a store.</summary>
@@ -165,7 +169,9 @@ public sealed class AnnotationStore
 
     /// <summary>
     ///     Loads a demo's sidecar. Never throws for a missing, truncated or foreign file: a corrupt
-    ///     sidecar must not stop a demo from opening.
+    ///     sidecar must not stop a demo from opening. One that exists and cannot be read or parsed is moved
+    ///     aside to <c>&lt;name&gt;.unreadable-&lt;yyyyMMddHHmmss&gt;</c> (see
+    ///     <see cref="AnnotationLoadResult.Unreadable" />), so a later save cannot replace it.
     /// </summary>
     /// <param name="demoPath">Path to the <c>.dem</c>.</param>
     /// <param name="clock">The clock the caller's parse is on.</param>
@@ -204,15 +210,15 @@ public sealed class AnnotationStore
         }
         catch (JsonException)
         {
-            return AnnotationLoadResult.Empty(location, path);
+            return Unreadable(location, path);
         }
         catch (IOException)
         {
-            return AnnotationLoadResult.Empty(location, path);
+            return Unreadable(location, path);
         }
         catch (UnauthorizedAccessException)
         {
-            return AnnotationLoadResult.Empty(location, path);
+            return Unreadable(location, path);
         }
 
         if (dto is null)
@@ -263,6 +269,7 @@ public sealed class AnnotationStore
         {
             _rootExtras[path] = dto.Extra ?? [];
             _elementExtras[path] = elementExtras;
+            _unreadable.Remove(path);
         }
 
         return new AnnotationLoadResult(elements, location, path, false, clockMismatch, dto.SchemaVersion);
@@ -288,6 +295,25 @@ public sealed class AnnotationStore
         if (path is null)
         {
             return false;
+        }
+
+        bool unreadable;
+        lock (_state)
+        {
+            unreadable = _unreadable.Contains(path);
+        }
+
+        if (unreadable)
+        {
+            if (File.Exists(path) && TryMoveAside(path) is null)
+            {
+                return false;
+            }
+
+            lock (_state)
+            {
+                _unreadable.Remove(path);
+            }
         }
 
         Dictionary<string, JsonElement>? rootExtra;
@@ -512,6 +538,76 @@ public sealed class AnnotationStore
 
         string file = AppDataFile(_appDataRoot, key);
         return File.Exists(file) ? file : null;
+    }
+
+    // A sidecar that exists and cannot be read opens as empty, so the first save would replace it with
+    // only what is drawn after. It is moved aside first, never deleted; when even that fails it stays where
+    // it is and is guarded until a save can move it.
+    private AnnotationLoadResult Unreadable(AnnotationStoreLocation location, string path)
+    {
+        Forget(path);
+        string? movedTo = TryMoveAside(path);
+        if (movedTo is null)
+        {
+            lock (_state)
+            {
+                _unreadable.Add(path);
+            }
+        }
+
+        return AnnotationLoadResult.Empty(location, path) with { Unreadable = true, MovedAsidePath = movedTo };
+    }
+
+    // "<name>.unreadable-<yyyyMMddHHmmss>", with a counter when that name is taken. The stamp is the file's
+    // own last write, not the clock: Pipeline reads no wall clock (BannedApiTests), and the time the
+    // unreadable version was written is the one that tells two of them apart.
+    private static string? TryMoveAside(string path)
+    {
+        DateTime written;
+        try
+        {
+            written = File.GetLastWriteTime(path);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+
+        string stem = path + ".unreadable-" + written.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+        for (int attempt = 0; attempt < 10; attempt++)
+        {
+            string target = attempt == 0
+                ? stem
+                : string.Create(CultureInfo.InvariantCulture, $"{stem}-{attempt}");
+            if (File.Exists(target))
+            {
+                continue;
+            }
+
+            try
+            {
+                File.Move(path, target, false);
+                return target;
+            }
+            catch (IOException) when (File.Exists(path) && File.Exists(target))
+            {
+                // Taken between the check and the move; try the next name.
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     private void Forget(string path)

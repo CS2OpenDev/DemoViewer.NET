@@ -44,6 +44,16 @@ public sealed record AnnotationLoadResult(
     bool ClockMismatch,
     int SchemaVersion)
 {
+    /// <summary>
+    ///     A sidecar was there and could not be read or parsed. The elements are empty; the file itself is in
+    ///     <see cref="MovedAsidePath" />, or, when it could not be moved, still at <see cref="Path" />, where the
+    ///     store will not save over it until it can be moved.
+    /// </summary>
+    public bool Unreadable { get; init; }
+
+    /// <summary>Where an <see cref="Unreadable" /> sidecar was moved to, or null.</summary>
+    public string? MovedAsidePath { get; init; }
+
     /// <summary>Nothing on disk, nothing wrong.</summary>
     /// <param name="location">Where the store would have looked.</param>
     /// <param name="path">Where the store would have looked, or null.</param>
