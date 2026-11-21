@@ -666,6 +666,80 @@ public class PackExportTests
         }
     }
 
+    [Test]
+    public async Task AVisitStoppedMidClip_FailsThatClip_AndAUserCancelStillCancels()
+    {
+        List<CancellationTokenSource> visits = [];
+        int released = 0;
+        using PackClipRenderer renderer = new((_, _) =>
+        {
+            CancellationTokenSource visit = new();
+            visits.Add(visit);
+            return Task.FromResult(new DemoLease(SyntheticParsedDemo.Create(Frames(0, 640), mapName: ""),
+                () => Interlocked.Increment(ref released), visit.Token));
+        }, null, loadMap: _ => null);
+        PackClip clip = new(Clip("/d/a.dem", 0, 640), 1, null, 0, null, null);
+
+        // The visit is torn down under the clip once its first frame is out.
+        Exception? failure = null;
+        try
+        {
+            await renderer.RenderAsync(clip, Settings(), new CallbackSink(() => visits[^1].Cancel()),
+                CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+
+        int releasedAfterStop = released;
+        using CancellationTokenSource user = new();
+        Exception? cancelled = null;
+        try
+        {
+            await renderer.RenderAsync(clip, Settings(), new CallbackSink(user.Cancel), user.Token);
+        }
+        catch (Exception ex)
+        {
+            cancelled = ex;
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(failure).IsNotNull().Because("the clip stops with its visit");
+            await Assert.That(failure is OperationCanceledException).IsFalse()
+                .Because("the pack treats a cancel as the user's, and this one was not");
+            await Assert.That(failure!.Message).Contains("stopped");
+            await Assert.That(releasedAfterStop).IsEqualTo(1).Because("the stopped lease is let go at once");
+            await Assert.That(cancelled is OperationCanceledException).IsTrue()
+                .Because("the user's own cancel still cancels the pack");
+        }
+
+        foreach (CancellationTokenSource visit in visits)
+        {
+            visit.Dispose();
+        }
+    }
+
+    /// <summary>A sink that runs <paramref name="onFirst" /> after its first frame.</summary>
+    private sealed class CallbackSink(Action onFirst) : IFrameSink
+    {
+        private int _frames;
+
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (++_frames == 1)
+            {
+                onFirst();
+            }
+
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     /// <summary>Progress reported on the calling thread, so a test sees every report in order.</summary>
     private sealed class InlineProgress(Action<PackProgress> report) : IProgress<PackProgress>
     {
