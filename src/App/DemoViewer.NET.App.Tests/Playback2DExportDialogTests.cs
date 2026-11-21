@@ -372,6 +372,42 @@ public class Playback2DExportDialogTests
         await Assert.That(persisted.Playback2D.ExportEncoder).IsEqualTo("av1_nvenc");
     }
 
+    // Opened while an export renders, the pane refuses; once that export ends it must stop refusing on its own,
+    // not only after the user edits a field or reopens it.
+    [Test]
+    public async Task TheRunningExportRefusal_ClearsWhenTheJobEnds()
+    {
+        string? running = null, after = "unset";
+        bool canStart = false;
+        int subscribers = -1;
+
+        // On the UI thread, where the service raises StatusChanged: once the suite's headless session is up,
+        // the pane's marshalling posts there from any other thread.
+        await HeadlessSession.RunOnUi(() =>
+        {
+            SettableExportJobService job = new();
+            job.Set(ExportPhase.Rendering);
+            Playback2DExportDialogViewModel vm = Dialog(job: job);
+            running = vm.ErrorBanner;
+
+            job.Set(ExportPhase.Completed);
+            after = vm.ErrorBanner;
+            canStart = vm.CanStart;
+
+            vm.Dispose();
+            subscribers = job.Subscribers;
+            return Task.CompletedTask;
+        });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(running).IsEqualTo("An export is already running.");
+            await Assert.That(after).IsNull();
+            await Assert.That(canStart).IsTrue();
+            await Assert.That(subscribers).IsEqualTo(0).Because("the job outlives the pane");
+        }
+    }
+
     [Test]
     public async Task Start_CarriesTheChoicesOntoTheRequest()
     {
@@ -696,6 +732,28 @@ public class Playback2DExportDialogTests
         }
 
         public void Start(Scene2DExportRequest request) => Started = request;
+
+        public Task CancelAsync() => Task.CompletedTask;
+    }
+
+    /// <summary>A job whose status the test sets, raising StatusChanged as the real service does.</summary>
+    private sealed class SettableExportJobService : IExportJobService
+    {
+        public ExportJobStatus Status { get; private set; } = ExportJobStatus.Idle;
+
+        public int Subscribers => StatusChanged?.GetInvocationList().Length ?? 0;
+
+        public event EventHandler<ExportJobStatus>? StatusChanged;
+
+        public void Set(ExportPhase phase)
+        {
+            Status = new ExportJobStatus(phase, 0, 10, 0, TimeSpan.Zero, "/out/x.mp4", null);
+            StatusChanged?.Invoke(this, Status);
+        }
+
+        public void Start(Scene2DExportRequest request)
+        {
+        }
 
         public Task CancelAsync() => Task.CompletedTask;
     }

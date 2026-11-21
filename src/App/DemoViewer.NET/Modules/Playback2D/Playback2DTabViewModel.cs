@@ -928,6 +928,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             host.MountStatusChip?.Invoke(ExportStatus);
         }
 
+        // A pane already open is replaced, and disposed so it stops listening to the job, which outlives it.
+        CloseExport();
         ExportDialog = new Playback2DExportDialogViewModel(
             BuildExportRanges(),
             exports.Settings.Playback2D,

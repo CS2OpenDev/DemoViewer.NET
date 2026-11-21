@@ -102,6 +102,8 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     private readonly Func<int, int, int, double, int> _outputFrameCount;
     private readonly Action<Action<AppSettings>>? _persistDefaults;
     private readonly ExportDialogScene _scene;
+    private bool _disposed;
+    private bool _jobWasRunning;
 
     [ObservableProperty]
     private string _customHeightText;
@@ -303,7 +305,26 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         RebuildEncoders(_selectedEncoder);
         RefreshFfmpegStatus();
         UpdateValidation();
+
+        // Validate refuses while a job runs, so the pane has to hear the job end; it can be open the whole time.
+        if (_job is not null)
+        {
+            _jobWasRunning = _job.Status.IsRunning;
+            _job.StatusChanged += OnJobStatusChanged;
+        }
     }
+
+    // Revalidates only when the job starts or stops running, not on every progress tick.
+    private void OnJobStatusChanged(object? sender, ExportJobStatus status) => OnUiThread(() =>
+    {
+        if (_disposed || status.IsRunning == _jobWasRunning)
+        {
+            return;
+        }
+
+        _jobWasRunning = status.IsRunning;
+        UpdateValidation();
+    });
 
     /// <summary>
     ///     The output size presets. All even, so no preset can trip the yuv420p rule. 720p leads because
@@ -416,6 +437,12 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     /// </summary>
     public void Dispose()
     {
+        _disposed = true;
+        if (_job is not null)
+        {
+            _job.StatusChanged -= OnJobStatusChanged;
+        }
+
         AnswerLicense(false);
         _downloadCts?.Cancel();
         _downloadCts?.Dispose();
