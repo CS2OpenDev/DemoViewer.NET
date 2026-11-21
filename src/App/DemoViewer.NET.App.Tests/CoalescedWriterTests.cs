@@ -35,6 +35,58 @@ public class CoalescedWriterTests
     }
 
     [Test]
+    public async Task AFailedWrite_StaysPending_SoAFlushRetriesIt()
+    {
+        List<string> written = [];
+        bool failNext = true;
+        CoalescedWriter<string> writer = new(s =>
+        {
+            if (failNext)
+            {
+                failNext = false;
+                throw new IOException("disk full");
+            }
+
+            written.Add(s);
+        }, _ => { });
+
+        writer.Post("a");
+        bool pendingAfterFailure = writer.HasPending;
+        bool flushed = writer.Flush();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(pendingAfterFailure).IsTrue();
+            await Assert.That(flushed).IsTrue();
+            await Assert.That(written).IsEquivalentTo(["a"], CollectionOrdering.Matching);
+            await Assert.That(writer.HasPending).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task AFailedWrite_DoesNotOverwriteANewerPost()
+    {
+        List<string> written = [];
+        CoalescedWriter<string>? writer = null;
+        writer = new CoalescedWriter<string>(s =>
+        {
+            if (s == "old")
+            {
+                writer!.Post("new");
+                throw new IOException("disk full");
+            }
+
+            written.Add(s);
+        }, _ => { }, drain => Task.CompletedTask);
+
+        writer.Post("old");
+        writer.Flush();
+        writer.Flush();
+
+        await Assert.That(written).IsEquivalentTo(["new"], CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task ADrainThatNeverRuns_DoesNotStopTheNextPost_AndFlushWritesTheNewest()
     {
         List<string> written = [];

@@ -832,7 +832,7 @@ public sealed class ReviewQueue
 
     private void QueueWrite(ReviewEntry[] snapshot) => _writer.Post(snapshot);
 
-    // A failure is dropped: the in-memory queue stands for the session and the next mutation retries.
+    // A failed write stays pending in the writer: the next mutation or the shutdown flush retries it.
     private void Write(ReviewEntry[] snapshot)
     {
         ReviewQueueFile file = new() { Entries = [.. snapshot], Extra = _fileExtra };
