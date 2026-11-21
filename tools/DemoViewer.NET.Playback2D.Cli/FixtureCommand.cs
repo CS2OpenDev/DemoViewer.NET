@@ -54,6 +54,7 @@ internal static class FixtureCommand
         string? annotationsPath = args.String("annotations");
         IReadOnlyList<string>? layers = args.List("layers");
         AssetsRoot assets = AssetsRootResolver.Resolve(args);
+        CliScenePlan.RequireAssetsRoot(assets); // a mistyped root would write the entry without its map_version pin
         args.ThrowIfUnconsumed();
 
         Scene2DFrame frame = source.FrameAt(0);
