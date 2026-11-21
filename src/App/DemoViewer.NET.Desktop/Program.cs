@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CS2DemoKit.Analysis.Diagnostics;
@@ -13,6 +14,7 @@ using DemoViewer.NET.LiveSync;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Startup;
 using DemoViewer.NET.ViewModels.Diagnostics;
+using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.Options;
 using Velopack;
 
@@ -68,6 +70,18 @@ internal static class Program
         }
 
         builder.Run();
+
+        // One instance per config root: the stores under it load once and write their whole state back, so a
+        // second process would write its stale copy over the first's changes. A second launch hands its demo
+        // (or just the request to come forward) to the running window and exits before it writes anything,
+        // the launch-state file included. A relaunch waits for the old process to let go: see SingleInstance.
+        SingleInstanceClaim claim = SingleInstance.Claim(AppPaths.ConfigRoot, SingleInstance.DemoArgument(args));
+        if (claim.HandedOff)
+        {
+            return;
+        }
+
+        using SingleInstance? instance = claim.Instance;
 
         // The extensions this build ships, each replaced by a newer copy staged
         // under <config root>/extensions/ when one is compatible and trusted. The app assembly
@@ -148,8 +162,16 @@ internal static class Program
         // on Windows (this is a WinExe) it only appears when launched from a terminal or via `dotnet run`.
         // Live / per-moment capture without any of this is available via dotnet-counters / dotnet-trace.
         using ProfilingSession? session = ProfilingSession.StartFromEnvironment();
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        // Answering starts once Avalonia is set up: a request is posted to the UI dispatcher, which must not be
+        // first reached from the listener's pool thread before the platform exists. A launch in the gap retries.
+        BuildAvaloniaApp()
+            .AfterSetup(_ => instance?.Listen(static demoPath => Dispatcher.UIThread.Post(() => Activate(demoPath, 0))))
+            .StartWithClassicDesktopLifetime(args);
         launch.MarkExited();
+
+        // Let go before the relaunch below starts, so it takes the lock at once rather than waiting out this
+        // process. Everything that writes under the config root has flushed by now.
+        instance?.Dispose();
 
         // After ShutdownRequested has saved the session and torn down live sync, reels and exports.
         // Velopack restarts the app itself after applying a staged update, so a requested restart only
@@ -193,6 +215,40 @@ internal static class Program
                 desktop.TryShutdown();
             }
         });
+    }
+
+    // A later launch's request: bring the window forward and open its demo, if it named one. One that arrives
+    // before the window is up waits for it, for a few seconds.
+    private static void Activate(string? demoPath, int attempt)
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
+            {
+                MainWindow: { IsVisible: true } window
+            })
+        {
+            if (attempt < 40)
+            {
+                DispatcherTimer.RunOnce(() => Activate(demoPath, attempt + 1), TimeSpan.FromMilliseconds(250));
+            }
+
+            return;
+        }
+
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = WindowState.Normal;
+        }
+
+        // A background process may not take the foreground on Windows; topmost for a moment brings it over
+        // the window the user launched from.
+        window.Topmost = true;
+        window.Topmost = false;
+        window.Activate();
+
+        if (demoPath is not null && window.DataContext is MainViewModel shell)
+        {
+            _ = shell.LoadDemoFromPathAsync(demoPath);
+        }
     }
 
     private static void WriteCrashLog(object exceptionObject)
