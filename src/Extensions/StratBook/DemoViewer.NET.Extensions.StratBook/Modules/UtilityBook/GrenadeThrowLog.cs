@@ -22,6 +22,12 @@ public static class GrenadeThrowLog
     private const int Version = 1;
     private static readonly byte[] _magic = [.. "DVGL"u8];
 
+    // Far above any demo's log (a long overtime game throws a few thousand grenades, a few hundred kilobytes
+    // inflated), and far below what a log made up to exhaust memory would ask for: a stored log can come from
+    // a transfer bundle, whose own cap bounds only these still-compressed bytes.
+    private const int MaxEntries = 100_000;
+    private const long MaxInflatedBytes = 64L * 1024 * 1024;
+
     [Flags]
     private enum Has : uint
     {
@@ -189,7 +195,8 @@ public static class GrenadeThrowLog
         {
             using MemoryStream input = new(bytes);
             using GZipStream gzip = new(input, CompressionMode.Decompress);
-            using BinaryReader r = new(gzip, Encoding.UTF8);
+            using CappedStream capped = new(gzip, MaxInflatedBytes);
+            using BinaryReader r = new(capped, Encoding.UTF8);
             if (!r.ReadBytes(_magic.Length).AsSpan().SequenceEqual(_magic) || r.ReadByte() != Version)
             {
                 return null;
@@ -205,9 +212,10 @@ public static class GrenadeThrowLog
             }
 
             // Neither count sizes anything: a stored log can come from a transfer bundle, and a count it made up
-            // would otherwise allocate before the stream runs out. The lists grow as the entries are read.
+            // would otherwise allocate before the stream runs out. The lists grow as the entries are read, up to
+            // MaxEntries, and the stream they are read from stops at MaxInflatedBytes.
             int stringCount = r.Read7BitEncodedInt();
-            if (stringCount < 0)
+            if (stringCount is < 0 or > MaxEntries)
             {
                 return null;
             }
@@ -219,7 +227,7 @@ public static class GrenadeThrowLog
             }
 
             int count = r.Read7BitEncodedInt();
-            if (count < 0)
+            if (count is < 0 or > MaxEntries)
             {
                 return null;
             }
@@ -352,4 +360,40 @@ public static class GrenadeThrowLog
     private static WorldPoint ReadPoint(BinaryReader r, bool raw) => raw
         ? new WorldPoint(r.ReadSingle(), r.ReadSingle(), r.ReadSingle())
         : new WorldPoint(r.ReadInt32() / 100f, r.ReadInt32() / 100f, r.ReadInt32() / 100f);
+
+    // A read-only view of a stream that throws InvalidDataException once more than the cap has been read.
+    private sealed class CappedStream(Stream inner, long cap) : Stream
+    {
+        private long _read;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+        public override int Read(Span<byte> buffer)
+        {
+            int n = inner.Read(buffer);
+            _read += n;
+            return _read > cap ? throw new InvalidDataException("the log inflates past its cap") : n;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
 }

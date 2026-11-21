@@ -127,6 +127,32 @@ public class GrenadeStoreTests
         }
     }
 
+    // The bundle's outer cap bounds the stored bytes, which are themselves gzip: a few kilobytes of all-zero rows
+    // inflate to as many rows as the stream holds, each a heap object several times its 42 encoded bytes.
+    [Test]
+    public async Task ALogOfMoreRowsThanAnyDemoThrows_IsNotALog()
+    {
+        const int Rows = 150_000;
+        const int RowBytes = 42;
+        string header = GrenadeSidecar.Serialize(new GrenadeDocument());
+        byte[] tail = new byte[3 + 3 + Rows * RowBytes];
+        tail[0] = 1; // one string,
+        tail[1] = 1; // one character long,
+        tail[2] = (byte)'x';
+        int count = Rows; // then the row count as a 7-bit integer
+        int at = 3;
+        while (count >= 0x80)
+        {
+            tail[at++] = (byte)(count | 0x80);
+            count >>= 7;
+        }
+
+        tail[at++] = (byte)count;
+        Array.Resize(ref tail, at + Rows * RowBytes);
+
+        await Assert.That(GrenadeThrowLog.TryDecode(LogWith(header, tail))).IsNull();
+    }
+
     private static GrenadeRow Smoke(string id, float x, int slot, string steam) => new()
     {
         Id = id,
