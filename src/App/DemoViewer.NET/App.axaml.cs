@@ -328,6 +328,8 @@ public class App : Application
                 ILogger log = DiagnosticsLog.CreateLogger(AppLog.ShellCategory);
                 Action[] flushes =
                 [
+                    // First, so what the active tab writes on its way out reaches the stores flushed below.
+                    () => services.GetService<MainViewModel>()?.FlushForShutdown(),
                     () => services.GetService<ReviewQueue>()?.Flush(TimeSpan.FromSeconds(5)),
 
                     // The library's metadata cache is checkpointed every 12 demos, and nothing disposes the

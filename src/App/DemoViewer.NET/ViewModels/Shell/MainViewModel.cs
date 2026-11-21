@@ -4093,6 +4093,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         await HeapCompactor.CompactAsync();
     }
 
+    /// <summary>
+    ///     Exit's flush of the active tab: deactivates it as <see cref="Dispose" /> does, which is where a tab
+    ///     writes what it has debounced (the 2D tab's annotation autosave, synchronously). Nothing disposes the
+    ///     shell on the way out, so without this the last edit before a quit was dropped. Idempotent: a
+    ///     deactivated tab is not deactivated again.
+    /// </summary>
+    internal void FlushForShutdown() => ExtensionTabs.Deactivate(SelectedTab);
+
     // ── Idle mode ─────────────────────────────────────────────────────────────
 
     /// <summary>

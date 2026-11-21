@@ -694,7 +694,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     {
         // Annotations are flushed FIRST, while the context is still attached, and SYNCHRONOUSLY: a
         // debounced autosave that had not fired yet is the difference between a stroke surviving and
-        // vanishing, and the shell calls this on its way out of MainViewModel.Dispose, where a
+        // vanishing, and the shell calls this on its way out (MainViewModel.FlushForShutdown at exit), where a
         // fire-and-forget write races the process exit.
         _annotationController.Flush();
         Surface.NotifyDeactivated(); // a panel holding the keyboard lets go, writes what it was making and flushes
