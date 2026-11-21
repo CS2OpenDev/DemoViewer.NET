@@ -214,7 +214,9 @@ public sealed class RetakesLayer() : ScoutingLayerBase("retakes", "Retakes and s
                 bool none = g.Key.CtAlive == 0 || all.All(r => r.Kind == RetakeKind.NoCtAlive);
                 return Open(
                     none ? $"{count} · no CT alive" : $"{count} · retook {retook} · saved {saved}",
-                    none ? Plural(all.Count, "round") : retook > 0 ? $"won {won} of {retook}" : $"saved {saved} of {all.Count}",
+                    // Saves over the rounds that were read, as the Saves rows count them.
+                    none ? Plural(all.Count, "round") : retook > 0 ? $"won {won} of {retook}"
+                    : unread == all.Count ? "no positions" : $"saved {saved} of {all.Count - unread}",
                     $"at the plant {count}", all, $"{prefix} · retakes at {count}") with
                 {
                     BarPercent = retook > 0 ? 100.0 * won / retook : null,

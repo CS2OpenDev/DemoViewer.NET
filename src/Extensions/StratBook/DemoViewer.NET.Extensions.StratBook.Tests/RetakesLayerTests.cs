@@ -220,6 +220,10 @@ public class RetakesLayerTests
             await Assert.That(saved.Value).IsEqualTo("1 of 1 round");
             await Assert.That(saved.BarPercent).IsEqualTo(100.0);
             await Assert.That(saved.Note).IsEqualTo("3 without positions");
+            await Assert.That(Section(result, "CTs alive at the plant").Single(r => r.Label == "4v3 · retook 0 · saved 1").Value)
+                .IsEqualTo("saved 1 of 1").Because("the man-count row counts the same read rounds as the Saves row");
+            await Assert.That(Section(RetakesLayer.Compose(Prefix, [R(1, 2, 2, RetakeKind.Unread, false)]),
+                "CTs alive at the plant").Single().Value).IsEqualTo("no positions");
             await Assert.That(RetakesLayer.Read([R(1, 4, 4, RetakeKind.Saved, false), R(2, 4, 4, RetakeKind.Unread, false)]))
                 .IsEqualTo("They save in 1 of 1 planted round. 1 planted round without positions is not counted.");
         }
