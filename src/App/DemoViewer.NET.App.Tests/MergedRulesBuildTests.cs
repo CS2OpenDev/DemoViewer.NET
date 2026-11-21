@@ -337,6 +337,34 @@ public class MergedRulesBuildTests
         }
     }
 
+    // The open re-reads the rule files on every run while the build keeps its first read. The open's harvest
+    // is stamped with the build's fingerprint, so an open run over edited files must say so, or its
+    // highlights are stored as current under a stamp that describes other rules.
+    [Test]
+    public async Task AnOpenOverEditedHighlightRules_IsNotInForce_UntilTheBuildReReads()
+    {
+        DirectoryInfo user = Directory.CreateTempSubdirectory("dv-mrb-open-read-");
+        try
+        {
+            MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName),
+                () => [StampedRuleset.Core(RoundFacts)]);
+            _ = build.Fingerprint(64);
+            await Assert.That(build.PlanOpen(build.ReadRules().Rulesets, null).HighlightsInForce).IsTrue()
+                .Because("nothing was edited");
+
+            File.Copy(Path.Combine(_fixture!, Always + ".rules.yaml"), Path.Combine(user.FullName, Always + ".rules.yaml"));
+            await Assert.That(build.PlanOpen(build.ReadRules().Rulesets, null).HighlightsInForce).IsFalse()
+                .Because("the open's read has a highlight ruleset the build's fingerprint does not cover");
+
+            build.Invalidate();
+            await Assert.That(build.PlanOpen(build.ReadRules().Rulesets, null).HighlightsInForce).IsTrue();
+        }
+        finally
+        {
+            user.Delete(true);
+        }
+    }
+
     // The identity is cached per doc: every scheduler plan asks for it, and composing it costs about a
     // millisecond. A reload that edits the ruleset must not be answered from the cache.
     [Test]

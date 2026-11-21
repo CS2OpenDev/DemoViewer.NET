@@ -630,6 +630,13 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     /// </summary>
     public event Action<AnalysisRun, ParsedDemo>? EvaluationCompleted;
 
+    /// <summary>
+    ///     Read inside <see cref="EvaluationCompleted" />: false when the run's highlights came from rule files
+    ///     edited since the background passes read theirs, so storing them under the passes' stamp would
+    ///     pair one rule set's highlights with another's identity.
+    /// </summary>
+    internal bool LastRunHighlightsInForce { get; private set; } = true;
+
     // ── Reset ─────────────────────────────────────────────────────────────────
 
     /// <summary>Reset.</summary>
@@ -1021,6 +1028,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
             // Stats and the open's highlight harvest read the core rulesets only.
             runToken.ThrowIfCancellationRequested();
+            LastRunHighlightsInForce = plan?.HighlightsInForce ?? true;
             EvaluationCompleted?.Invoke(plan?.Shown(run) ?? run, demo);
 
             if (result.Messages.Count > 0)

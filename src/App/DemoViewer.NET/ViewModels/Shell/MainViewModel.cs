@@ -1005,7 +1005,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // the run finishes: a later open sets that before the earlier run is done.
             Analysis.EvaluationCompleted += (run, demo) =>
             {
-                if (_heldDemo is { } held && ReferenceEquals(held.Parsed, demo))
+                // Not after a rule edit the background passes have not read: the harvest is stamped with
+                // their rules' fingerprint, and these highlights came from the edited files.
+                if (_heldDemo is { } held && ReferenceEquals(held.Parsed, demo) && Analysis.LastRunHighlightsInForce)
                 {
                     scanner.OnOpenDemoEvaluated(held.Path, run, demo);
                 }
