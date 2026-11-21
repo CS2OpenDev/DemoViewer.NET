@@ -419,6 +419,43 @@ public class TeamIdentityTests
     }
 
     [Test]
+    public async Task AFailedTeamsWrite_IsReported_AndTheShutdownFlushRetriesIt()
+    {
+        string root = TempRoot();
+        string file = Path.Combine(root, TeamIdentityService.TeamsFileName);
+        // A folder where teams.json goes: it reads as absent, and every write to it fails, on every OS.
+        Directory.CreateDirectory(file);
+        try
+        {
+            (DemoCacheStore cache, TeamIdentityService teams) = Fresh(root);
+            await Seed(cache, teams,
+                Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()));
+            Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+
+            teams.Rename(a, "Renamed");
+            using (Assert.Multiple())
+            {
+                await Assert.That(teams.TeamsSaveProblem).IsNotNull()
+                    .Because("the rename lives only in memory now, and the user has to be told");
+                await Assert.That(teams.TeamsFileProblem).IsNull().Because("the file is not refused");
+            }
+
+            Directory.Delete(file);
+            teams.FlushTeams();
+            using (Assert.Multiple())
+            {
+                await Assert.That(teams.TeamsSaveProblem).IsNull();
+                await Assert.That(await File.ReadAllTextAsync(file)).Contains("Renamed");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task TheHostsAccounts_AreMe_MirroredIntoTeamsJson_AndAnEditReResolvesOurSide()
     {
         string root = TempRoot();

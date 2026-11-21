@@ -188,6 +188,12 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     /// </summary>
     public string? TeamsFileProblem { get; private set; }
 
+    /// <summary>
+    ///     Why the last write of <c>teams.json</c> failed, or null once one lands. The edits stand in memory and
+    ///     every later write carries them all, but nothing keeps them past the session unless one succeeds.
+    /// </summary>
+    public string? TeamsSaveProblem { get; private set; }
+
     /// <summary>The index was missing, corrupt or behind at load: <see cref="StartAsync" /> rebuilds from the sidecars.</summary>
     public bool NeedsRebuild { get; private set; }
 
@@ -1993,6 +1999,20 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _teams = new TeamsFile();
     }
 
+    /// <summary>Writes <c>teams.json</c> again when the last write failed: shutdown's retry. Never throws for I/O.</summary>
+    public void FlushTeams()
+    {
+        if (TeamsSaveProblem is null)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            SaveTeams();
+        }
+    }
+
     private void SaveTeams()
     {
         MirrorMe();
@@ -2005,10 +2025,14 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         try
         {
             _teamsFile.Write(JsonSerializer.SerializeToUtf8Bytes(_teams, TeamsFile.JsonOptions));
+            TeamsSaveProblem = null;
         }
-        catch (Exception)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // Best effort: the in-memory truth stands for the session and the next write retries.
+            // The in-memory truth stands for the session and the next write, or the shutdown flush, retries. An
+            // edit with no write after it would be lost at exit with nothing said, so the Teams tab says it.
+            TeamsSaveProblem =
+                $"{TeamsFileName} could not be saved ({e.Message}); team edits are kept for this session only.";
         }
     }
 

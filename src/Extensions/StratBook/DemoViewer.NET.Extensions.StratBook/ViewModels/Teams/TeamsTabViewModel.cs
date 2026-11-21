@@ -163,9 +163,9 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
 
     public bool HasSelection => SelectedTeam is not null;
 
-    public string? TeamsFileProblem => _teams.TeamsFileProblem;
+    public string? TeamsFileProblem => _teams.TeamsFileProblem ?? _teams.TeamsSaveProblem;
 
-    public bool HasTeamsFileProblem => _teams.TeamsFileProblem is not null;
+    public bool HasTeamsFileProblem => TeamsFileProblem is not null;
 
     public bool HasTeams => Teams.Count > 0;
 
