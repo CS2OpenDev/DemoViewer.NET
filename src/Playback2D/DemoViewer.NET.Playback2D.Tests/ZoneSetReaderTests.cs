@@ -92,6 +92,33 @@ public class ZoneSetReaderTests
         await Assert.That(ZoneAssetPipeline.TryLoad(dir.Path, null)).IsNotNull();
     }
 
+    /// <summary>
+    ///     A JSON null inside any list is a malformed file, so the load answers "no zones" rather than
+    ///     throwing a NullReferenceException past the pipeline's filter.
+    /// </summary>
+    [Test]
+    [Arguments("\"floors\": [")]
+    [Arguments("\"places\": [")]
+    [Arguments("\"volumes\": [")]
+    [Arguments("\"hulls\": [")]
+    [Arguments("\"planes\": [")]
+    [Arguments("\"areas\": [")]
+    [Arguments("\"areaLinks\": [")]
+    [Arguments("\"adjacency\": [")]
+    public async Task NullListEntry_IsMalformed_AndLoadsAsNoZones(string list)
+    {
+        string json = ZoneFixtures.Json();
+        await Assert.That(json.Contains(list, StringComparison.Ordinal)).IsTrue();
+        json = json.Replace(list, list + " null,", StringComparison.Ordinal);
+
+        await Assert.That(() => ZoneSetReader.Read(Encoding.UTF8.GetBytes(json)))
+            .Throws<System.Text.Json.JsonException>();
+
+        using TempDir dir = new();
+        await File.WriteAllTextAsync(Path.Combine(dir.Path, ZoneAssetPipeline.FileName), json);
+        await Assert.That(ZoneAssetPipeline.TryLoad(dir.Path, null)).IsNull();
+    }
+
     [Test]
     public async Task FloorKey_IsTheQuantizedBandMinimum_OnEveryBand()
     {

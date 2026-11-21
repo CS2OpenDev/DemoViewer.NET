@@ -50,10 +50,16 @@ internal static class ZoneSetReader
         List<ZoneFloor> floors = new(dto.Floors?.Count ?? 0);
         foreach (FloorDto floor in dto.Floors ?? [])
         {
+            NotNull(floor, "floors", floors.Count);
             floors.Add(new ZoneFloor(floor.Key, floor.MinZ, floor.MaxZ));
         }
 
         List<PlaceDto> placeDtos = [.. dto.Places ?? []];
+        for (int i = 0; i < placeDtos.Count; i++)
+        {
+            NotNull(placeDtos[i], "places", i); // before the sort, whose comparer would throw first
+        }
+
         placeDtos.Sort(static (l, r) => l.Id.CompareTo(r.Id));
         List<ZonePlace> places = new(placeDtos.Count);
         for (int i = 0; i < placeDtos.Count; i++)
@@ -69,12 +75,13 @@ internal static class ZoneSetReader
         List<ZoneVolume> volumes = new(dto.Volumes?.Count ?? 0);
         foreach (VolumeDto volume in dto.Volumes ?? [])
         {
-            volumes.Add(ToVolume(volume, places.Count));
+            volumes.Add(ToVolume(NotNull(volume, "volumes", volumes.Count), places.Count));
         }
 
         List<ZoneArea> areas = new(dto.Areas?.Count ?? 0);
         foreach (AreaDto area in dto.Areas ?? [])
         {
+            NotNull(area, "areas", areas.Count);
             if (area.Place >= places.Count)
             {
                 throw new JsonException(
@@ -119,10 +126,11 @@ internal static class ZoneSetReader
         List<ZoneHull> hulls = new(dto.Hulls?.Count ?? 0);
         foreach (HullDto hull in dto.Hulls ?? [])
         {
+            NotNull(hull, "hulls", hulls.Count);
             List<ZonePlane> planes = new(hull.Planes?.Count ?? 0);
             foreach (double[] plane in hull.Planes ?? [])
             {
-                if (plane.Length != 4)
+                if (NotNull(plane, "planes", planes.Count).Length != 4)
                 {
                     throw new JsonException("zones.json planes are [nx, ny, nz, d].");
                 }
@@ -139,6 +147,12 @@ internal static class ZoneSetReader
             min, max, hulls);
     }
 
+    // A JSON null in a list deserializes to a null element. It is a malformed file, the same as the
+    // overlay reader treats it, so it is a JsonException the pipeline turns into "no zones" rather than a
+    // NullReferenceException past its filter.
+    private static T NotNull<T>(T? item, string field, int index) where T : class =>
+        item ?? throw new JsonException($"zones.json {field}[{index}] is null.");
+
     private static Vector3 ToVector(double[]? v) =>
         v is { Length: 3 } ? new Vector3((float)v[0], (float)v[1], (float)v[2]) : default;
 
@@ -147,7 +161,7 @@ internal static class ZoneSetReader
         List<(int, int)> pairs = new(raw?.Count ?? 0);
         foreach (int[] pair in raw ?? [])
         {
-            if (pair.Length != 2)
+            if (NotNull(pair, field, pairs.Count).Length != 2)
             {
                 throw new JsonException($"zones.json {field} entries are [a, b].");
             }
