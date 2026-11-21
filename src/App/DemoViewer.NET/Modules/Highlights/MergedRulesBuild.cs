@@ -217,8 +217,7 @@ public sealed class MergedRulesBuild
             throw new InvalidOperationException($"the run did not record table {table}");
         }
 
-        MetricTable projected = (run with { Build = run.Build with { Outputs = output } }).ProjectConfiguredOutputs()
-            .Single();
+        MetricTable projected = (run with { Build = run.Build with { Outputs = output } }).ProjectConfiguredOutputs()[0];
         return
         [
             .. projected.Rows.Select(r => new FactRow(
