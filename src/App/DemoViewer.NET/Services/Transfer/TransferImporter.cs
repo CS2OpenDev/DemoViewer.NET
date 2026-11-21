@@ -755,6 +755,10 @@ internal sealed partial class TransferImporter : ITransferImporter
                 // The copy was hashed in full on its way in: the library's attach settles the path with that
                 // read instead of leaving it unconfirmed, so this demo counts as here the next time round.
                 _cache.NoteContentRead(copy, demo.Sha256, null, demo.SizeBytes, File.GetLastWriteTimeUtc(copy));
+                // Listed now, while that read is still one of the store's recent ones: the rescan runs after the
+                // last copy, and the store keeps only the newest 64, so a larger bundle's first copies would
+                // otherwise attach unconfirmed and be read in full again.
+                _cache.AttachUnconfirmed(demo.Sha256, copy, demo.SizeBytes, File.GetLastWriteTime(copy).Ticks);
                 run.CopiedDems++;
                 if (!run.Items.TryGetValue(demo.Sha256, out TransferSummaryItem? item)
                     || item.Outcome == TransferOutcome.Skipped)

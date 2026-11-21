@@ -145,6 +145,53 @@ public class TransferImportLibraryTests
         }
     }
 
+    // The hash of each copy has to reach the library's attach, which runs only after the last copy. The store
+    // keeps 64 recent reads, so a bundle with more demos than that lost the hashes of its first copies to
+    // eviction, listed them unconfirmed, and left the library to read each of them in full again.
+    [Test]
+    public async Task MoreCopiedDemosThanTheStoreKeepsRecentReadsFor_AllAttachConfirmed()
+    {
+        using TempFolders temp = new();
+        string bundleRoot = temp.New();
+        string destination = Path.Combine(temp.New(), "Imported demos");
+        using Library library = new(temp.New(), new DemoCacheStore(temp.New()));
+        BundleBuilder bundle = new(bundleRoot);
+        HashSet<string> shas = new(StringComparer.Ordinal);
+        List<string> copies = [];
+        for (int i = 0; i < 70; i++)
+        {
+            byte[] bytes = new byte[4096];
+            new Random(1000 + i).NextBytes(bytes);
+            (string sha, DemoContentFingerprint fingerprint) =
+                DemoContentFingerprint.ComputeWithContentHash(new MemoryStream(bytes), library.Reader.WindowBytes);
+            bundle.Demo(sha, $"match {i}.dem", bytes.Length,
+                [bundle.Record(BundleBuilder.ParsedRecord(sha, bytes.Length, "de_imported"))], fingerprint,
+                bundle.Dem(sha, bytes));
+            shas.Add(sha);
+            copies.Add(Path.Combine(destination, $"match {i}.dem"));
+        }
+
+        bundle.Write();
+        TransferImporter importer = new(library.Store, library: library.Service);
+
+        ImportPreview preview = await importer.PreviewAsync(bundleRoot, CancellationToken.None);
+        await importer.RunAsync(new ImportRequest(bundleRoot, ConflictPolicy.KeepMine, shas, destination, true),
+            preview, null, CancellationToken.None);
+        await library.Service.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(30));
+        await WaitForAsync(() => copies.All(c => library.Store.LocationOf(c) is not null), "every copy attached");
+
+        await library.Service.Confirmed.WaitAsync(TimeSpan.FromSeconds(30));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(copies.Where(c => library.Store.LocationOf(c)?.Location.Confirmed != true)
+                    .Select(c => Path.GetFileName(c)!))
+                .IsEmpty();
+            await Assert.That(copies.Where(c => library.Reader.FullReads(c) > 0).Select(c => Path.GetFileName(c)!))
+                .IsEmpty().Because("the importer hashed every copy on its way in; reading one again is the cost avoided");
+        }
+    }
+
     // The clip was imported before the copy was listed: once the rescan has attached the copy, the clip takes
     // its path through the same lookup the importer and the library's change notice use.
     [Test]
