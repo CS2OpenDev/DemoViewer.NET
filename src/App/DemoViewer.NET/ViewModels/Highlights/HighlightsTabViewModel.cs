@@ -1088,5 +1088,5 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     }
 
     private string GroupKeyOf(HighlightKey key) =>
-        ClipTrayKeys.Group(key.FilePath, _selection.GetValueOrDefault(key)?.SteamId64);
+        ClipTrayKeys.Group(key.FilePath, _selection.GetValueOrDefault(key)?.PlayerKey);
 }

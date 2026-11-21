@@ -597,8 +597,9 @@ public sealed partial class AddClipsRowViewModel : ObservableObject
         FileName = Path.GetFileName(record.Path);
         PlayerName = DisplayText.Sanitize(Selection.RawPlayerName);
         // Falls back to the raw name for the same reason the card grid did: a demo with no steamId join
-        // would otherwise collapse every player into one filter bucket keyed "".
-        PlayerKey = string.IsNullOrEmpty(Selection.SteamId64) ? Selection.RawPlayerName : Selection.SteamId64;
+        // would otherwise collapse every player into one filter bucket keyed "". A bot's id is "0" for every
+        // bot in the library, so it takes the name too.
+        PlayerKey = Selection.SteamId64 is "" or "0" ? Selection.RawPlayerName : Selection.SteamId64;
         PlayerOverview = new PlayerOverviewEntry(
             PlayerOverviewLink.Of(Selection.SteamId64, false, false), PlayerName, playerOverviewOpener);
         TypeKey = highlight.TypeKey;

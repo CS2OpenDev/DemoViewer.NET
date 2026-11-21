@@ -193,6 +193,23 @@ public class HighlightAddClipsPickerTests
         await Assert.That(picker.HasActiveFilters).IsFalse();
     }
 
+    // Every bot's SteamID64 is "0", so keyed on the id alone all bots were one filter bucket under one name.
+    [Test]
+    public async Task PlayerFilter_KeepsBotsApart()
+    {
+        DemoCacheRecord record = Row("/d/bots.dem", "de_dust2", 1, [Ev("Mike", "0", 7, 5000, "clutch.ace")]);
+        record.Players.Add(new CachedPlayerInfo { Slot = 6, Name = "Jon", SteamId64 = "0", IsBot = true });
+        record.Highlights.Add(new CachedHighlightEvent
+        {
+            RulesetId = "clutch", HighlightId = "ace", PlayerSlot = 6, RoundNumber = 7, Tick = 5200,
+            RenderedTitle = "Jon — ace"
+        });
+
+        AddClipsPickerViewModel picker = Picker(record);
+
+        await Assert.That(picker.PlayerFilters.Select(p => p.Display)).IsEquivalentTo(["Jon", "Mike"]);
+    }
+
     [Test]
     public async Task TypeFilter_And_Search_Match_WhatTheRowDisplays()
     {

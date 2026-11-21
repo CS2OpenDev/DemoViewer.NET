@@ -642,7 +642,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
                     Path.GetFileName(record.Path), _fileExists(record.Path));
             }
 
-            string groupKey = ClipTrayKeys.Group(record.Path, sel.SteamId64);
+            string groupKey = ClipTrayKeys.Group(record.Path, sel.PlayerKey);
             if (!groupOrder.ContainsKey(groupKey))
             {
                 groupOrder[groupKey] = groupOrder.Count;
@@ -655,7 +655,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
                 record.TickCount, 0, h.ClipStartTick);
             sources.Add(new CandidateSource(
                 new ClipWindows.Candidate(
-                    record.Path, sel.SteamId64, sel.RawPlayerName, h.RoundNumber, start, end, h.RenderedTitle),
+                    record.Path, sel.PlayerKey, sel.RawPlayerName, h.RoundNumber, start, end, h.RenderedTitle),
                 sel.Key, h.Tick));
         }
 
@@ -731,6 +731,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
                 }
                 else
                 {
+                    // A bot's "slot:N" key (HighlightSelection.PlayerKey) parses to 0, the id it really has.
                     plan.Add(new ReelClip(
                         clip.DemoPath, facts.Sha256, ParseSteamId(clip.SteamId64), clip.PlayerName,
                         clip.StartTick, clip.EndTick, facts.TickRate, string.Join(" + ", clip.Titles)));
