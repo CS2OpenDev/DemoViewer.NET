@@ -2466,8 +2466,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     /// <summary>
     ///     Swaps in a new hold on the map's bundle and gives the previous one back. The registry owns the
     ///     decode, so a bundle another view still holds survives this; the radar images are Skia-backed
-    ///     unmanaged buffers (~4 MB each) and are released once the last hold ends, a dispatcher hop later
-    ///     because the render thread may still be replaying a cached SKPicture that draws one.
+    ///     unmanaged buffers (~4 MB each) and are released once the last hold ends and the render thread has
+    ///     rendered a later batch, because a draw operation queued there may still re-record from one.
     /// </summary>
     private void ReplaceMapAsset(MapBundleLease? next)
     {
