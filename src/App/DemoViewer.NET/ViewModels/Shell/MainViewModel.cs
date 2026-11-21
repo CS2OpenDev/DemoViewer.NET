@@ -322,6 +322,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // The demo close idle entry started. ResumeFromIdleAsync awaits it before reopening anything.
     private Task _idleClose = Task.CompletedTask;
 
+    // Idle's park on background processing when the user turned it off for idle; ended by ResumeFromIdleAsync.
+    private IDisposable? _idleHold;
+
     // Bumped by every UnloadDemoState: a close that resumes to a different value lost the shell to an open.
     private int _unloadGeneration;
 
@@ -4274,10 +4277,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 IdleView.SessionStateText = "No demo was open. Resume returns you to the app.";
             }
 
-            // Optionally park background processing too (transient pause; resumed on leaving idle).
-            if (_settings?.CurrentValue.Idle.KeepBackgroundProcessing == false)
+            // Optionally park background processing too, until idle ends. A hold, not Pause: the queue has one
+            // pause flag, the user's in the status strip, and idle must neither lift a pause the user set nor
+            // leave one behind when the setting changes while idle.
+            if (_settings?.CurrentValue.Idle.KeepBackgroundProcessing == false && _processingQueue is { } queue)
             {
-                _processingQueue?.Pause();
+                Interlocked.Exchange(ref _idleHold, queue.HoldBackground())?.Dispose();
             }
 
             IsIdle = true;
@@ -4311,10 +4316,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         IsIdle = false;
         _idle?.ClearIdle();
 
-        if (_settings?.CurrentValue.Idle.KeepBackgroundProcessing == false)
-        {
-            _processingQueue?.Resume();
-        }
+        // Whatever the setting reads now: idle's own hold ends with idle.
+        Interlocked.Exchange(ref _idleHold, null)?.Dispose();
 
         // After the queue resumes, which a close parked with background processing may be waiting on. A close
         // still draining the old demo would otherwise finish after the reload below, write "No demo loaded."
