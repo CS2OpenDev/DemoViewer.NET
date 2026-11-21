@@ -537,7 +537,7 @@ public class HighlightScanServiceTests
         await File.WriteAllBytesAsync(path, [1]);
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = new(gate, a => a(), _ => SyntheticDemo());
-        queue.Pause();
+        using IDisposable hold = queue.HoldBackground(); // a pause no longer holds a store save
         IDemoProcessingQueue? ambient = QueueWork.Ambient;
         QueueWork.Ambient = queue;
         try
