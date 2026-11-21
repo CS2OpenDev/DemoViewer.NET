@@ -779,7 +779,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
                          StringComparer.Ordinal))
             {
                 if (_demoCache.LocationOf(file.Path) is { Location.Confirmed: false } at
-                    && at.Location.Size == file.Size && at.Location.ModifiedTicks == file.Modified.Ticks
+                    && DemoFileStamp.Matches(at.Location.Size, at.Location.ModifiedTicks, file.Size, file.Modified.Ticks)
                     && _demoCache.TryGetByContentId(at.ContentId) is null && seen.Add(at.ContentId))
                 {
                     unconfirmed.Add(file);
@@ -1118,7 +1118,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         }
 
         if (_demoCache?.LocationOf(file.Path) is { Location.Confirmed: true } at
-            && at.Location.Size == file.Size && at.Location.ModifiedTicks == file.Modified.Ticks)
+            && DemoFileStamp.Matches(at.Location.Size, at.Location.ModifiedTicks, file.Size, file.Modified.Ticks))
         {
             if (fingerprints.FirstOrDefault(f => f.WindowBytes == ContentReader.WindowBytes) is { } current)
             {
@@ -1879,7 +1879,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             foreach (DemoLocation location in locations.Where(l => l.Confirmed))
             {
                 if (listed.TryGetValue(location.Path, out (string Path, long Size, DateTime Modified) file)
-                    && file.Size == location.Size && file.Modified.Ticks == location.ModifiedTicks)
+                    && DemoFileStamp.Matches(location.Size, location.ModifiedTicks, file.Size, file.Modified.Ticks))
                 {
                     knownToFingerprint.Add(file);
                     listedHere = true;
@@ -1933,6 +1933,11 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         {
             at = _demoCache.LocationOf(path);
         }
+        else if (at is not null)
+        {
+            // Listed a time zone shift away from these stamps: the same file, kept at the stamps it has now.
+            _demoCache!.Restamp(path, size, modified.Ticks);
+        }
 
         if (CachedSha(path, size, modified) is { } sha)
         {
@@ -1958,7 +1963,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             return null;
         }
 
-        if (row.Location.Size == size && row.Location.ModifiedTicks == modified.Ticks)
+        if (DemoFileStamp.Matches(row.Location.Size, row.Location.ModifiedTicks, size, modified.Ticks))
         {
             return (row.ContentId, row.Location.Confirmed);
         }
@@ -1977,7 +1982,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         {
             return _fingerprints.TryGetValue(path,
                     out (long Size, long Ticks, IReadOnlyList<DemoContentFingerprint> Fingerprints) read)
-                && read.Size == size && read.Ticks == modified.Ticks
+                && DemoFileStamp.Matches(read.Size, read.Ticks, size, modified.Ticks)
                     ? read.Fingerprints
                     : null;
         }
@@ -1988,7 +1993,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         lock (_cacheLock)
         {
             return _cache.TryGetValue(path, out DemoLibraryCacheEntry? c)
-                && c.Size == size && c.ModifiedTicks == modified.Ticks
+                && DemoFileStamp.Matches(c.Size, c.ModifiedTicks, size, modified.Ticks)
                     ? c.Sha256
                     : null;
         }
@@ -2006,7 +2011,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         lock (_cacheLock)
         {
             if (_cache.TryGetValue(path, out DemoLibraryCacheEntry? c)
-                && c.Size == size && c.ModifiedTicks == modified.Ticks && c.Sha256 is not null)
+                && DemoFileStamp.Matches(c.Size, c.ModifiedTicks, size, modified.Ticks) && c.Sha256 is not null)
             {
                 return (c.Sha256, null, true);
             }
@@ -2020,7 +2025,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             (sha, fingerprint) = read;
         }
         else if (_demoCache?.LocationOf(path) is { Location: { Confirmed: true } at } known
-                 && at.Size == size && at.ModifiedTicks == modified.Ticks)
+                 && DemoFileStamp.Matches(at.Size, at.ModifiedTicks, size, modified.Ticks))
         {
             (sha, cached) = (known.ContentId, true);
         }
@@ -2258,7 +2263,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     // the store last saw there.
     private (string ContentId, DemoCacheIndexEntry Row)? StoredParse(string path, long size, DateTime modified) =>
         _demoCache?.LocationOf(path) is { } at && at.Location.Size == size
-        && at.Location.ModifiedTicks == modified.Ticks
+        && DemoFileStamp.SameWriteTime(at.Location.ModifiedTicks, modified.Ticks)
         && _demoCache.TryGetIndex(path) is { ParseSchema: > 0 } row
             ? (at.ContentId, row)
             : null;
@@ -2734,16 +2739,25 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
     // A row keyed to an older size or mtime describes bytes that are gone. UpsertCache never re-keys an
     // existing row, so it must go before the file is indexed again, or the new results land on the old key.
+    // A row only a time zone shift away (DemoFileStamp) is the same file and takes the stamp it has now.
     private void DropRekeyedCacheRows(Dictionary<string, (long Size, DateTime Modified)> wanted)
     {
         lock (_cacheLock)
         {
             foreach ((string path, (long size, DateTime modified)) in wanted)
             {
-                if (_cache.TryGetValue(path, out DemoLibraryCacheEntry? c)
-                    && (c.Size != size || c.ModifiedTicks != modified.Ticks))
+                if (!_cache.TryGetValue(path, out DemoLibraryCacheEntry? c))
+                {
+                    continue;
+                }
+
+                if (!DemoFileStamp.Matches(c.Size, c.ModifiedTicks, size, modified.Ticks))
                 {
                     _cache.Remove(path);
+                }
+                else if (c.ModifiedTicks != modified.Ticks)
+                {
+                    c.ModifiedTicks = modified.Ticks;
                 }
             }
         }
@@ -2754,7 +2768,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         lock (_cacheLock)
         {
             if (_cache.TryGetValue(path, out DemoLibraryCacheEntry? c) &&
-                c.Size == size && c.ModifiedTicks == modified.Ticks)
+                DemoFileStamp.Matches(c.Size, c.ModifiedTicks, size, modified.Ticks))
             {
                 return c;
             }

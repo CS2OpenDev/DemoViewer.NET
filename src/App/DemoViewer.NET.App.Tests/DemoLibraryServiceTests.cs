@@ -7,6 +7,7 @@ using CS2DemoKit.Parser;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
+using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
@@ -756,6 +757,84 @@ public class DemoLibraryServiceTests
             catch
             {
                 /* best-effort cleanup */
+            }
+        }
+    }
+
+    /// <summary>
+    ///     A change of the machine's time zone moves every demo's local write time by the offset between the
+    ///     zones. The next launch reads that as no change: nothing is parsed again, the card stays indexed, and
+    ///     both the library and the unified cache record the stamp the file has now.
+    /// </summary>
+    [Test]
+    public async Task ATimeZoneChange_IsNoChangeToTheDemos_AndTheStampsFollowIt()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "dvlib_" + Guid.NewGuid().ToString("N"));
+        string cacheRoot = dir + "_cache";
+        Directory.CreateDirectory(dir);
+        string demo = Path.Combine(dir, "a.dem");
+        File.WriteAllBytes(demo, [1, 2, 3]);
+        DateTime written = new(2026, 3, 1, 12, 0, 0, DateTimeKind.Local);
+        File.SetLastWriteTime(demo, written);
+        string dataPath = Path.Combine(dir, "library.json");
+        try
+        {
+            int parses = 0;
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(),
+                _ =>
+                {
+                    Interlocked.Increment(ref parses);
+                    return SyntheticDemo();
+                });
+            DemoLibraryService svc = new(_inline, dataPath, null, new DemoCacheStore(cacheRoot));
+            DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
+            svc.Scheduler = coord;
+            using (svc)
+            using (coord)
+            {
+                await svc.AddFoldersAsync([dir]);
+                await WaitForAsync(() => FullyIndexedInCacheFile(dataPath) == 1,
+                    () => $"the first index to be saved; parses={Volatile.Read(ref parses)}");
+            }
+
+            // Two hours east: the file is as it was, its local write time reads two hours later.
+            DateTime shifted = written.AddHours(2);
+            File.SetLastWriteTime(demo, shifted);
+
+            DemoCacheStore store = new(cacheRoot);
+            using DemoLibraryService svc2 = new(_inline, dataPath, null, store);
+            using DemoScheduler coord2 = new([svc2], queue, svc2.Tier2Backlog);
+            svc2.Scheduler = coord2;
+            await svc2.RescanAsync();
+            await WaitForAsync(() => svc2.Entries is [{ State: DemoIndexState.Indexed }]
+                    && store.TryGetIndex(demo)?.ModifiedTicks == shifted.Ticks,
+                () => $"the rescan to settle; parses={Volatile.Read(ref parses)} " +
+                    $"states=[{string.Join(",", svc2.Entries.Select(e => e.State))}] " +
+                    $"stamp={store.TryGetIndex(demo)?.ModifiedTicks} want={shifted.Ticks}");
+            await Task.Delay(300); // let any (wrongly) submitted tier-2 run
+            svc2.Save();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Volatile.Read(ref parses)).IsEqualTo(1).Because("the demo did not change");
+                await Assert.That(svc2.Entries is [{ State: DemoIndexState.Indexed }]).IsTrue();
+                await Assert.That(store.TryGetIndex(demo)?.ModifiedTicks).IsEqualTo(shifted.Ticks);
+                await Assert.That(await File.ReadAllTextAsync(dataPath)).Contains(shifted.Ticks.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
+        finally
+        {
+            foreach (string root in new[] { dir, cacheRoot })
+            {
+                try
+                {
+                    Directory.Delete(root, true);
+                }
+                catch
+                {
+                    /* best-effort cleanup */
+                }
             }
         }
     }

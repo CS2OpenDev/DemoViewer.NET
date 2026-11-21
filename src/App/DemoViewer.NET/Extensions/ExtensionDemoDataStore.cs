@@ -488,9 +488,8 @@ internal sealed partial class ExtensionDemoDataStore : IExtensionDemoData
         try
         {
             FileInfo file = new(demoPath);
-            if (file.Exists && (file.Length != row.Size
-                    || (row.ModifiedTicks != file.LastWriteTime.Ticks
-                        && row.ModifiedTicks != file.LastWriteTimeUtc.Ticks)))
+            if (file.Exists && !DemoFileStamp.Matches(row.Size, row.ModifiedTicks, file.Length,
+                    file.LastWriteTime.Ticks))
             {
                 return null;
             }

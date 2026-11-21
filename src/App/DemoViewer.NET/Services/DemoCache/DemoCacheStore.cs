@@ -658,11 +658,9 @@ public sealed partial class DemoCacheStore
         return info.Exists ? (info.Length, info.LastWriteTime.Ticks) : (0, 0);
     }
 
-    // A write time in the library's local ticks or the scanner's UTC ticks, against one taken either way.
-    private static bool SameTicks(long recorded, long read) =>
-        recorded == read
-        || recorded == new DateTime(read, DateTimeKind.Utc).ToLocalTime().Ticks
-        || read == new DateTime(recorded, DateTimeKind.Utc).ToLocalTime().Ticks;
+    // A write time in the library's local ticks or the scanner's UTC ticks, against one taken either way, or
+    // under another time zone: see DemoFileStamp.
+    private static bool SameTicks(long recorded, long read) => DemoFileStamp.SameWriteTime(recorded, read);
 
     /// <summary>
     ///     Takes the content hash of a demo's whole file from something that read it in full anyway: a parse or
@@ -1153,6 +1151,8 @@ public sealed partial class DemoCacheStore
         // the new file, so identity drift discards everything rather than trying to salvage tiers.
         if (existing is not null && existing.MatchesFile(size, modifiedTicks))
         {
+            // Within a time zone shift of its stamps: the same file, written back under the stamps it has now.
+            existing.ModifiedTicks = modifiedTicks;
             return existing;
         }
 
@@ -1180,7 +1180,7 @@ public sealed partial class DemoCacheStore
             sha = _keyByPath.TryGetValue(path, out string? key) && !IsProvisional(_rows[key])
                 && LocationIn(_rows[key], path) is
                     { Confirmed: true } at
-                && at.Size == size && at.ModifiedTicks == modifiedTicks
+                && DemoFileStamp.Matches(at.Size, at.ModifiedTicks, size, modifiedTicks)
                     ? key
                     : null;
         }
@@ -1647,7 +1647,7 @@ public sealed partial class DemoCacheStore
             if (!_keyByPath.TryGetValue(record.Path, out string? key)
                 || !string.Equals(key, RowKeyFor(record.Path, record.Sha256), StringComparison.Ordinal)
                 || _rows[key].Locations.FirstOrDefault(l => SamePath(l.Path, record.Path)) is not { } here
-                || here.Size != record.Size || here.ModifiedTicks != record.ModifiedTicks)
+                || !DemoFileStamp.Matches(here.Size, here.ModifiedTicks, record.Size, record.ModifiedTicks))
             {
                 return false;
             }
@@ -1846,8 +1846,10 @@ public sealed partial class DemoCacheStore
                 (string key, DemoLocation was) = _rows
                     .Where(r => r.Value.IsOrphaned)
                     .SelectMany(r => (r.Value.DetachedLocations ?? []).Select(l => (r.Key, l)))
-                    .Where(x => SamePath(x.l.Path, path) && x.l.Size == size && x.l.ModifiedTicks == modifiedTicks)
-                    .OrderByDescending(x => _rows[x.Key].OrphanedSinceUtcTicks)
+                    .Where(x => SamePath(x.l.Path, path)
+                        && DemoFileStamp.Matches(x.l.Size, x.l.ModifiedTicks, size, modifiedTicks))
+                    .OrderByDescending(x => x.l.ModifiedTicks == modifiedTicks)
+                    .ThenByDescending(x => _rows[x.Key].OrphanedSinceUtcTicks)
                     .FirstOrDefault();
                 if (key is null)
                 {
@@ -1855,12 +1857,45 @@ public sealed partial class DemoCacheStore
                 }
 
                 DemoCacheIndexEntry row = _rows[key];
-                Link(key, Shape(row.Copy(), [was with { LastSeenUtcTicks = DateTime.UtcNow.Ticks }], row.SidecarKeys));
+                Link(key, Shape(row.Copy(),
+                    [was with { ModifiedTicks = modifiedTicks, LastSeenUtcTicks = DateTime.UtcNow.Ticks }],
+                    row.SidecarKeys));
             }
         }
 
         RaiseChanged(path);
         return true;
+    }
+
+    /// <summary>
+    ///     Moves the write time a row lists <paramref name="path" /> at to the one the file has now, when only a
+    ///     time zone shift lies between them (<see cref="DemoFileStamp" />): the same file, which the next look
+    ///     then finds at exactly these stamps. Does nothing otherwise.
+    /// </summary>
+    /// <param name="path">A listed demo path.</param>
+    /// <param name="size">The file's size.</param>
+    /// <param name="modifiedTicks">The file's write time, in the library's tick convention.</param>
+    internal void Restamp(string path, long size, long modifiedTicks)
+    {
+        lock (_rmwGate)
+        {
+            lock (_gate)
+            {
+                if (!_keyByPath.TryGetValue(path, out string? key) || LocationIn(_rows[key], path) is not { } here
+                    || here.ModifiedTicks == modifiedTicks
+                    || !DemoFileStamp.Matches(here.Size, here.ModifiedTicks, size, modifiedTicks))
+                {
+                    return;
+                }
+
+                DemoCacheIndexEntry row = _rows[key];
+                List<DemoLocation> locations =
+                [
+                    .. row.Locations.Select(l => SamePath(l.Path, path) ? l with { ModifiedTicks = modifiedTicks } : l)
+                ];
+                Link(key, Shape(row.Copy(), locations, row.SidecarKeys));
+            }
+        }
     }
 
     /// <summary>
