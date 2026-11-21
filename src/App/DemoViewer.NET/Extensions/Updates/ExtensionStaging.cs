@@ -120,6 +120,63 @@ public static class ExtensionStaging
     }
 
     /// <summary>
+    ///     The file under <c>extensions/&lt;id&gt;/</c> naming the last staged version that failed to load and
+    ///     the app version it failed under, one per line. A file, so the loader never sees it as a version.
+    /// </summary>
+    internal const string FailedLoadRecordName = ".failed-load";
+
+    /// <summary>
+    ///     Remembers that <paramref name="version" /> of <paramref name="id" /> failed to load under
+    ///     <paramref name="appVersion" />, so the automatic stage does not download it again. Never throws.
+    /// </summary>
+    internal static void RecordFailedLoad(string extensionsDirectory, string id, SemVersion version,
+        SemVersion? appVersion)
+    {
+        string idFolder = Path.Combine(extensionsDirectory, id);
+        if (!IsInside(extensionsDirectory, idFolder) || !Directory.Exists(idFolder))
+        {
+            return;
+        }
+
+        try
+        {
+            File.WriteAllText(Path.Combine(idFolder, FailedLoadRecordName), version + "\n" + appVersion);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Without the record the automatic stage downloads the version again, as it did before.
+        }
+    }
+
+    /// <summary>
+    ///     True when <see cref="RecordFailedLoad" /> holds exactly <paramref name="version" /> under
+    ///     <paramref name="appVersion" />: an app update may load what this one could not.
+    /// </summary>
+    internal static bool FailedToLoadBefore(string extensionsDirectory, string id, SemVersion version,
+        SemVersion? appVersion)
+    {
+        try
+        {
+            string[] lines = File.ReadAllText(Path.Combine(extensionsDirectory, id, FailedLoadRecordName)).Split('\n');
+            return lines.Length == 2 && lines[0] == version.ToString() && lines[1] == (appVersion?.ToString() ?? "");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Forgets <see cref="RecordFailedLoad" /> for <paramref name="id" />. Never throws.</summary>
+    internal static void ForgetFailedLoad(string extensionsDirectory, string id)
+    {
+        string idFolder = Path.Combine(extensionsDirectory, id);
+        if (IsInside(extensionsDirectory, idFolder))
+        {
+            TryDeleteFile(Path.Combine(idFolder, FailedLoadRecordName));
+        }
+    }
+
+    /// <summary>
     ///     Deletes every id folder under <paramref name="extensionsDirectory" /> that carries
     ///     <see cref="RemovalMarkerName" />, as <see cref="ApplyPendingRemoval" /> does for one, and every version
     ///     folder that carries it (<see cref="MarkVersionForRemoval" />). Only safe before

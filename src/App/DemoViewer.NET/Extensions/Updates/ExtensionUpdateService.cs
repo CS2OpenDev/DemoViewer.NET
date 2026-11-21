@@ -446,7 +446,11 @@ public sealed class ExtensionUpdateService
                 for (int i = 0; i < firstParty.Length; i++)
                 {
                     ExtensionUpdateState state = await CheckCore(firstParty[i], linked.Token).ConfigureAwait(false);
-                    if (state.Status == ExtensionUpdateStatus.UpdateAvailable && state.Offered is { } offered)
+                    // A version that failed to load here is not downloaded again only to fail again; a newer
+                    // one, an app update or a user's Update stages it.
+                    if (state.Status == ExtensionUpdateStatus.UpdateAvailable && state.Offered is { } offered
+                        && !ExtensionStaging.FailedToLoadBefore(_extensionsDirectory, offered.Manifest.Id,
+                            offered.Version, _host.AppVersion))
                     {
                         StageResult result = await StageLocked(offered, _installTrust, ctx, null, false,
                             linked.Token).ConfigureAwait(false);
@@ -658,6 +662,13 @@ public sealed class ExtensionUpdateService
             {
                 AppLog.ExtensionStagingRemoved(Log, directory,
                     "it failed to load: " + outcome.Detail + "; deleted at the next start");
+                // Discover lists a version only from a folder named after it.
+                if ((outcome.Version ?? (SemVersion.TryParse(Path.GetFileName(directory), out SemVersion? named)
+                        ? named
+                        : null)) is { } failed)
+                {
+                    ExtensionStaging.RecordFailedLoad(_extensionsDirectory, status.Pack.Id, failed, _host.AppVersion);
+                }
             }
         }
     }
@@ -1165,6 +1176,7 @@ public sealed class ExtensionUpdateService
             }
 
             RemoveStaging(part, extracted);
+            ExtensionStaging.ForgetFailedLoad(_extensionsDirectory, id);
             string versionText = version.ToString();
             AppLog.ExtensionUpdateStaged(Log, name, versionText, installed);
             return new StageResult(StageOutcome.Installed, installed);

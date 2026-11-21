@@ -1026,6 +1026,58 @@ public class ExtensionUpdateServiceTests
         }
     }
 
+    // A staged update that failed to load is marked by the sweep and deleted at the next start. While the feed
+    // still offers that version, the automatic stage leaves it alone instead of downloading it to fail again;
+    // a user's Update still stages it, and a newer offered version is staged as usual.
+    [Test]
+    public async Task AutoStage_SkipsAVersionThatFailedToLoad_ButNotANewerOne_OrAUsersUpdate()
+    {
+        string root = NewRoot();
+        try
+        {
+            string extensions = Path.Combine(root, "extensions");
+            string broken = StageVersion(extensions, "1.0.1");
+            PackStatus failed = Status(version: "1.0.0", source: PackSource.Bundled) with
+            {
+                Rejected = [new LoadOutcome(broken, null, LoadFailure.AssemblyLoadFailed, "it would not load")]
+            };
+            NewService(root, new FakeFeedClient(), statuses: [failed]).Cleanup();
+            ExtensionStaging.ApplyPendingRemovals(extensions);
+
+            byte[] zip101 = ExtensionZip(Id, "1.0.1");
+            FakeFeeds.Entry entry101 = new("1.0.1", zip101);
+            FakeFeedClient client = new()
+            {
+                Zips = { [entry101.Url] = zip101 }, Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry101) }
+            };
+            PackStatus running = Status(version: "1.0.0", source: PackSource.Bundled);
+            ExtensionUpdateService next = NewService(root, client, statuses: [running]);
+
+            IReadOnlyList<ExtensionUpdateState> skipped = await next.AutoStageAsync();
+            bool stagedAgain = Directory.Exists(broken);
+
+            byte[] zip102 = ExtensionZip(Id, "1.0.2");
+            FakeFeeds.Entry entry102 = new("1.0.2", zip102);
+            client.Zips[entry102.Url] = zip102;
+            client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(entry102, entry101);
+            IReadOnlyList<ExtensionUpdateState> newer = await next.AutoStageAsync();
+            StageResult userUpdate = await next.DownloadAndStageAsync(Entry(entry101));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(skipped.Single().Status).IsEqualTo(ExtensionUpdateStatus.UpdateAvailable);
+                await Assert.That(stagedAgain).IsFalse().Because("the same version would only fail to load again");
+                await Assert.That(userUpdate.Outcome).IsEqualTo(StageOutcome.Installed);
+                await Assert.That(newer.Single().Pending).IsEqualTo(SemVersion.Parse("1.0.2"));
+                await Assert.That(Directory.Exists(Path.Combine(extensions, Id, "1.0.2"))).IsTrue();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     // Safe mode leaves every shipped id without a status. The shipped list, not the statuses, is what keeps
     // such an id out of the catalogue and away from Remove, even with its folders on disk.
     [Test]

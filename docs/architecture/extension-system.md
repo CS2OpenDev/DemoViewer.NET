@@ -726,7 +726,10 @@ that then failed to load (`AssemblyLoadFailed`, `EntryTypeMissing`, `NotAPack`, 
 `ReferenceMismatch` or `ProbeFailed`): the loader would choose it again at every start and fall back to the
 bundled copy without looking at an older staged one, so the sweep writes `<id>/<version>/.remove` in it.
 `Discover` skips a marked version from then on, and `ApplyPendingRemovals` deletes it at the next start
-before anything loads, so an older staged copy loads in its place. Until it is marked, `PendingVersion`
+before anything loads, so an older staged copy loads in its place. The sweep also writes
+`<id>/.failed-load` with that version and the app version, and the automatic stage does not download that
+version again while the app version is the same; a newer offered version or a user's Update stages as
+usual, and any successful stage clears the record. Until it is marked, `PendingVersion`
 reports nothing lower as pending. Nothing outside `extensions/` is touched. A superseded installed version is
 therefore on disk until the next launch's sweep, which is the stated expectation.
 
