@@ -134,7 +134,17 @@ public class PackDataRemoverTests
         string root = TempRoot("self");
         using (Assert.Multiple())
         {
-            await Assert.That(PackDataRemover.ResolveSafe(root, relative)).IsNull();
+            if (relative.Contains('\\') && Path.DirectorySeparatorChar != '\\')
+            {
+                // Off Windows a backslash is an ordinary file-name character, so ".\" names a child of the root.
+                await Assert.That(PackDataRemover.ResolveSafe(root, relative))
+                    .IsEqualTo(Path.GetFullPath(Path.Combine(root, relative)));
+            }
+            else
+            {
+                await Assert.That(PackDataRemover.ResolveSafe(root, relative)).IsNull();
+            }
+
             await Assert.That(PackDataRemover.ResolveSafe(root, "a/b"))
                 .IsEqualTo(Path.GetFullPath(Path.Combine(root, "a", "b")));
             await Assert.That(PackDataRemover.ResolveSafe(root, "a/"))
