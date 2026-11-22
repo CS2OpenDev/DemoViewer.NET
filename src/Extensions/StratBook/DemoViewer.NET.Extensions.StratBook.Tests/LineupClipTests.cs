@@ -184,6 +184,9 @@ public class LineupClipTests
 
             // Planned for a's and b's own reads; a's read is held, so b's clips still wait.
             service.Plan();
+            // Switch only once the worker is inside a's held read: a worker that starts late would otherwise
+            // pick up the unheld renderer and render b's clips itself, leaving the visit nothing to take over.
+            await Assert.That(SpinWait.SpinUntil(() => queued.Calls.Count > 0, TimeSpan.FromSeconds(10))).IsTrue();
             current = renderer;
             int written = service.RenderOn("/d/b.dem", SyntheticParsedDemo.Create(), CancellationToken.None);
             queued.Hold!.SetResult();
