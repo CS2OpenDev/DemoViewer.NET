@@ -94,8 +94,9 @@ public class FirstPartySceneExportTests
                 dialog.OutputPath = Path.Combine(root, "scene.gif");
                 dialog.StartCommand.Execute(null);
 
-                // The capture is null, so the run is refused as soon as it is set up, on the pool.
-                for (int i = 0; i < 400 && first.IsEmpty && second.IsEmpty; i++)
+                // The capture is null, so the run is refused as soon as it is set up, on the pool. The refusal
+                // reaches the log while the job is still running, and the banner says so until it ends.
+                for (int i = 0; i < 400 && ((first.IsEmpty && second.IsEmpty) || dialog.ErrorBanner is not null); i++)
                 {
                     await Task.Delay(25);
                 }
