@@ -1082,6 +1082,10 @@ public class LineupClipTests
 
         processing.Resume();
         await service.WorkerTask.WaitAsync(TimeSpan.FromSeconds(10));
+        // The worker goes idle when the last batch's job ends; the visit holding it ends a moment later.
+        SpinWait.SpinUntil(() => processing.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing)
+            .All(i => i.State is not (DemoQueueItemState.Queued or DemoQueueItemState.Running)),
+            TimeSpan.FromSeconds(10));
 
         List<DemoQueueItemSnapshot> items =
             [.. processing.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing)];
