@@ -1178,11 +1178,15 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
             // Only a row with nothing to show gets the "being analyzed" signal at SUBMIT time. The real one is
             // posted when the parse actually starts (IndexTier2Core); DemoEntry.IsIndexing is unique, and the
-            // half-score repair enlists already-indexed rows that must not all pulse at once.
-            if (captured.State != DemoIndexState.Indexed)
+            // half-score repair enlists already-indexed rows that must not all pulse at once. Checked when the post
+            // runs: the read can end before it, and its Indexed or Failed is the card's last word.
+            _post(() =>
             {
-                _post(() => captured.State = DemoIndexState.Indexing);
-            }
+                if (captured.State is not (DemoIndexState.Indexed or DemoIndexState.Failed))
+                {
+                    captured.State = DemoIndexState.Indexing;
+                }
+            });
 
             scheduler.DemoChanged(captured.FilePath);
         }

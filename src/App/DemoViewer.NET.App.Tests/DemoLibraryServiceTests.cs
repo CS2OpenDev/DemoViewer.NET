@@ -1021,6 +1021,88 @@ public class DemoLibraryServiceTests
     }
 
     /// <summary>
+    ///     A demo whose read fails between a scan enlisting it and that scan posting its Indexing state stays
+    ///     Failed. The scan's Indexing post lands after the failure's, and nothing would read the demo again.
+    /// </summary>
+    [Test]
+    public async Task AReadFailingBeforeItsIndexingPost_LeavesTheCardFailed()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "dvlib_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        string good = Path.Combine(dir, "good.dem"), bad = Path.Combine(dir, "bad.dem");
+        await File.WriteAllBytesAsync(good, [1, 2, 3]);
+        await File.WriteAllBytesAsync(bad, [4, 5, 6, 7]);
+        // Newest first: good's Indexing post comes before bad's.
+        File.SetLastWriteTimeUtc(bad, DateTime.UtcNow.AddHours(-2));
+        File.SetLastWriteTimeUtc(good, DateTime.UtcNow.AddHours(-1));
+        try
+        {
+            int badParses = 0;
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), path =>
+            {
+                if (path.EndsWith("bad.dem", StringComparison.Ordinal))
+                {
+                    Interlocked.Increment(ref badParses);
+                    throw new InvalidDataException("corrupt");
+                }
+
+                return SyntheticDemo();
+            });
+            using DemoProcessingQueue listing = new(new HeavyJobGate(), a => a(),
+                _ => throw new InvalidOperationException("the listing queue parses nothing"));
+
+            int armed = 0;
+            DemoLibraryService? svc = null;
+            DemoScheduler? coord = null;
+
+            void Post(Action a)
+            {
+                a();
+                // good's Indexing post: bad is enlisted but not yet posted. Its read fails right here.
+                if (svc?.Entries.FirstOrDefault(e => e.FilePath == good) is { State: DemoIndexState.Indexing }
+                    && Interlocked.CompareExchange(ref armed, 1, 0) == 0)
+                {
+                    coord!.DemoChanged(bad);
+                    SpinWait.SpinUntil(
+                        () => svc.Entries.FirstOrDefault(e => e.FilePath == bad)?.State == DemoIndexState.Failed,
+                        TimeSpan.FromSeconds(10));
+                }
+            }
+
+            svc = new DemoLibraryService(Post, Path.Combine(dir, "library.json"));
+            using DemoLibraryService owned = svc;
+            svc.QueueOverride = listing;
+            coord = new DemoScheduler([svc], queue, svc.Tier2Backlog);
+            using DemoScheduler ownedCoord = coord;
+            svc.Scheduler = coord;
+
+            await svc.AddFoldersAsync([dir]);
+            await WaitForAsync(() => svc.Entries.All(e => e.State is DemoIndexState.Indexed or DemoIndexState.Failed),
+                () => "both demos indexed or failed; states were "
+                    + string.Join(", ", svc.Entries.Select(e => $"{Path.GetFileName(e.FilePath)}={e.State}"))
+                    + $", parses bad={badParses}",
+                15000);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(armed).IsEqualTo(1).Because("the read failed between the enlist and its post");
+                await Assert.That(badParses).IsEqualTo(1);
+            }
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(dir, true);
+            }
+            catch
+            {
+                /* best-effort cleanup */
+            }
+        }
+    }
+
+    /// <summary>
     ///     A rescan that reconciles after a demo's card shows Indexed, but before its tier 2 has left the
     ///     backlog, does not read the demo again once that tier 2 has finished.
     /// </summary>
