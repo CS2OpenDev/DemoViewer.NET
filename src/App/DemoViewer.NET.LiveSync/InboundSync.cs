@@ -59,7 +59,13 @@ internal sealed class InboundSync : IDisposable
         _pump.Start();
     }
 
-    public void Dispose() => _pump.Stop();
+    public void Dispose()
+    {
+        // The servo's bent speed is restored only from RunServo, which never runs again once the
+        // pump stops: without this a Disable mid-correction leaves DV playing every later demo at it.
+        RestoreServoSpeedIfEngaged();
+        _pump.Stop();
+    }
 
     // ── The 30 Hz pump ────────────────────────────────────────────────────────
 
@@ -70,15 +76,16 @@ internal sealed class InboundSync : IDisposable
             // The range playback owns CS2 — its seeks are neither drift nor user intent.
             // Reset jump tracking so the range's moves never read as user seeks afterwards.
             _lastSeenTick = null;
-            _servoEngaged = false;
+            RestoreServoSpeedIfEngaged();
             return;
         }
 
         LiveSyncState state = _serviceState();
         if (!state.IsSynced && state.Kind != LiveSyncStateKind.Degraded)
         {
+            // Faulted or suspended: nothing will correct the drift any more, so hand back the base speed.
             _lastSeenTick = null;
-            _servoEngaged = false;
+            RestoreServoSpeedIfEngaged();
             return;
         }
 
@@ -94,8 +101,10 @@ internal sealed class InboundSync : IDisposable
             // A big unexplained move is a CS2-side user seek; a v1.0 backward jump to near 0 is
             // restart-like Degraded. The disambiguation itself is InboundLogic.ClassifyTickAdvance
             // (pure, tested) — this applies it.
-            switch (InboundLogic.ClassifyTickAdvance(
-                        cs2Tick, _lastSeenTick, _engine.HasPendingSeek, _capabilities.DemoStateEvents))
+            switch (MirroredTickSignal(
+                        InboundLogic.ClassifyTickAdvance(
+                            cs2Tick, _lastSeenTick, _engine.HasPendingSeek, _capabilities.DemoStateEvents),
+                        _engine.HasRemoteDemoChange))
             {
                 case InboundLogic.TickSignal.DemoStateUnknown:
                     _engine.NoteRemoteDemoStateUnknown();
@@ -124,6 +133,15 @@ internal sealed class InboundSync : IDisposable
         RunServo(state, cs2Tick);
     }
 
+    /// <summary>
+    ///     Drops the tick-jump signal while CS2 plays a different demo (the Degraded "open it in DV"
+    ///     offer): those ticks belong to the other demo, and mirroring them would move DV's playhead
+    ///     on its own demo, which Re-sync would then push back to CS2. Jump tracking still advances.
+    /// </summary>
+    internal static InboundLogic.TickSignal MirroredTickSignal(InboundLogic.TickSignal signal,
+        bool remoteDemoChanged) =>
+        remoteDemoChanged ? InboundLogic.TickSignal.None : signal;
+
     private void RunServo(LiveSyncState state, long cs2Tick)
     {
         if (state.Kind != LiveSyncStateKind.SyncedFollowing || !_shell.Playback.IsPlaying)
@@ -138,11 +156,12 @@ internal sealed class InboundSync : IDisposable
         }
 
         long error = mapper.DvTick(cs2Tick) - _shell.Playback.CurrentTick;
-        (ServoLogic.Correction kind, double speed) = ServoLogic.Decide(error, _servoEngaged);
+        (ServoLogic.Correction kind, double speed) =
+            ServoLogic.Decide(error, _servoEngaged, _engine.DesiredTimescale);
         switch (kind)
         {
             case ServoLogic.Correction.RestoreSpeed:
-                ApplyRemote(() => _shell.Playback.Speed = 1.0);
+                ApplyRemote(() => _shell.Playback.Speed = speed);
                 _servoEngaged = false;
                 break;
 
@@ -157,7 +176,7 @@ internal sealed class InboundSync : IDisposable
                 ApplyRemote(() =>
                 {
                     _shell.Playback.SeekToFrame(mapper.FrameIndexOf(checked((int)cs2Tick)));
-                    _shell.Playback.Speed = 1.0;
+                    _shell.Playback.Speed = speed;
                     _shell.Playback.PlayCommand.Execute(null);
                     _engine.SetDesiredTick(cs2Tick);
                     _engine.SetDesiredPlaying(true);
@@ -171,7 +190,7 @@ internal sealed class InboundSync : IDisposable
     {
         if (_servoEngaged)
         {
-            ApplyRemote(() => _shell.Playback.Speed = 1.0);
+            ApplyRemote(() => _shell.Playback.Speed = _engine.DesiredTimescale);
             _servoEngaged = false;
         }
     }

@@ -4,17 +4,22 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
+using DemoViewer.NET.Services;
+using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Export;
+using DemoViewer.NET.Services.Export.Pack;
 using DemoViewer.NET.ViewModels.Playback2D;
 using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views.Playback2D;
 using SkiaSharp;
+using TUnit.Core.Exceptions;
 
 #endregion
 
@@ -272,6 +277,149 @@ public class Playback2DExportStatusSurfaceTests
             await Assert.That(shell.Chips.Contains(status.Chip)).IsTrue();
         });
 
+    /// <summary>
+    ///     An export takes minutes with no input, like a reel render, so it holds idle off the same way: idle
+    ///     closes the demo, and that must not happen under an encode. The exit path already counts it as work
+    ///     in flight. Covers the 2D tab's export and an extension's mounted export alike.
+    /// </summary>
+    [Test]
+    public async Task ARunningExport_HoldsOffIdle() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            FakeExportJob tabJob = new();
+            FakeExportJob mountedJob = new();
+            using Playback2DExportStatusViewModel tabStatus = new(tabJob);
+            using Playback2DExportStatusViewModel mountedStatus = new(mountedJob);
+            MainViewModel shell = new();
+            try
+            {
+                shell.AttachPlayback2DExportStatus(tabStatus);
+                shell.MountExportStatus("test.export", "test.feature", mountedStatus);
+                bool before = shell.IsIdleBlocked();
+
+                tabJob.Push(new ExportJobStatus(ExportPhase.Rendering, 1, 100, 0, TimeSpan.Zero, "clip.webm", null));
+                bool tabRunning = shell.IsIdleBlocked();
+                tabJob.Push(new ExportJobStatus(ExportPhase.Completed, 100, 100, 60, TimeSpan.FromMinutes(1),
+                    "clip.webm", null));
+                bool tabDone = shell.IsIdleBlocked();
+
+                mountedJob.Push(new ExportJobStatus(ExportPhase.Rendering, 1, 100, 0, TimeSpan.Zero, "s.webm", null));
+                bool mountedRunning = shell.IsIdleBlocked();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(before).IsFalse().Because("an attached but idle export is no work at all");
+                    await Assert.That(tabRunning).IsTrue();
+                    await Assert.That(tabDone).IsFalse().Because("a finished export no longer holds idle off");
+                    await Assert.That(mountedRunning).IsTrue();
+                }
+            }
+            finally
+            {
+                shell.Dispose();
+            }
+        });
+
+    /// <summary>
+    ///     A Pack Export runs as a queue job with no status chip, and exit already counts it as an export; idle has
+    ///     to as well, or a long pack render is the one export idle closes the demo under.
+    /// </summary>
+    [Test]
+    public async Task ARunningPackExport_HoldsOffIdle() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using HeavyJobGate gate = new();
+            using DemoProcessingQueue queue = new(gate, a => a());
+            MainViewModel shell = new(processingQueue: queue);
+            try
+            {
+                bool before = shell.IsIdleBlocked();
+                TaskCompletionSource running = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                using CancellationTokenSource stop = new();
+                Task<int> pack = PackExportQueue.RunAsync(queue, "Pack export", null, async (_, ct) =>
+                {
+                    running.SetResult();
+                    await Task.Delay(Timeout.Infinite, ct);
+                    return 0;
+                }, null, stop.Token);
+                await running.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                bool packRunning = shell.IsIdleBlocked();
+
+                await stop.CancelAsync();
+                try
+                {
+                    await pack.WaitAsync(TimeSpan.FromSeconds(10));
+                }
+                catch (OperationCanceledException)
+                {
+                    // The cancel is the point.
+                }
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(before).IsFalse();
+                    await Assert.That(packRunning).IsTrue();
+                    await Assert.That(shell.IsIdleBlocked()).IsFalse().Because("an ended pack no longer holds idle off");
+                }
+            }
+            finally
+            {
+                shell.Dispose();
+            }
+        });
+
+    /// <summary>
+    ///     Exit cancels every export that owns an ffmpeg child and a half-written file, not only the 2D tab's: an
+    ///     extension's mounted export and a Pack Export running on the processing queue are cancelled and waited
+    ///     for too.
+    /// </summary>
+    [Test]
+    public async Task Exit_CancelsTheTabsTheMountedAndThePackExports() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            FakeExportJob tabJob = new();
+            FakeExportJob mountedJob = new();
+            using Playback2DExportStatusViewModel tabStatus = new(tabJob);
+            using Playback2DExportStatusViewModel mountedStatus = new(mountedJob);
+            using HeavyJobGate gate = new();
+            using DemoProcessingQueue queue = new(gate, a => a());
+            MainViewModel shell = new(processingQueue: queue);
+            try
+            {
+                shell.MountExportStatus("test.export", "test.feature", mountedStatus);
+                mountedJob.Push(new ExportJobStatus(ExportPhase.Rendering, 1, 100, 0, TimeSpan.Zero, "s.webm", null));
+                bool mountedOnly = shell.HasRunningExport();
+
+                shell.AttachPlayback2DExportStatus(tabStatus);
+                tabJob.Push(new ExportJobStatus(ExportPhase.Rendering, 1, 100, 0, TimeSpan.Zero, "clip.webm", null));
+                TaskCompletionSource running = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task<int> pack = PackExportQueue.RunAsync(queue, "Pack export", null, async (_, ct) =>
+                {
+                    running.SetResult();
+                    await Task.Delay(Timeout.Infinite, ct);
+                    return 0;
+                }, null, CancellationToken.None);
+                await running.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+                await shell.CancelRunningExportsAsync(TimeSpan.FromSeconds(10));
+                DemoQueueItemSnapshot item = queue.Snapshot().Single(s => s.Kind == QueueJobKind.PackExport);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(mountedOnly).IsTrue().Because("a mounted export is work exit must tear down");
+                    await Assert.That(tabJob.Cancels).IsEqualTo(1);
+                    await Assert.That(mountedJob.Cancels).IsEqualTo(1);
+                    await Assert.That(item.State).IsEqualTo(DemoQueueItemState.Cancelled)
+                        .Because("the pack export is cancelled and waited for before the app exits");
+                    await Assert.That(pack.IsCanceled).IsTrue();
+                }
+            }
+            finally
+            {
+                shell.Dispose();
+            }
+        });
+
     private static (Window Window, Playback2DExportStatusView View) Show(
         Playback2DExportStatusViewModel status)
     {
@@ -406,4 +554,207 @@ public class Playback2DExportSetupTests
         Guid.NewGuid(), AnnotationKind.Freehand, AnnotationStyle.Default,
         new SpaceRef.World(0), TimeEnvelope.Static,
         [new InkPoint(0, 0, 0.5f), new InkPoint(50, 50, 0.5f)], null);
+}
+
+/// <summary>
+///     The export's hold on the map art. Serial with the other suites that count holds on the process-wide
+///     bundle registry, and on de_overpass, which none of them use.
+/// </summary>
+[NotInParallel]
+public class Playback2DExportMapHoldTests
+{
+    private const string Map = "de_overpass";
+
+    // The setup used to carry the tab's own bundle, unowned. Opening a demo on another map mid-export
+    // gave the tab's hold back, and as the last one that disposed the radar images the render thread
+    // was still drawing.
+    [Test]
+    public async Task TheSetupHoldsItsOwnMapArt_SoATabThatMovesToAnotherMapDoesNotReleaseIt() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            if (MapBundleLeases.Acquire(Map) is not { } probe)
+            {
+                throw new SkipTestException($"no {Map} bundle in this checkout");
+            }
+
+            probe.Dispose();
+
+            // Deltas, not absolutes: the registry is process-wide.
+            int before = MapBundleLeases.HoldersOf(Map);
+            Playback2DFakeContext ctx = new() { MapName = Map, Gate = new FakeModuleFeatureGate() };
+            ctx.AddPlayer(0, "Alpha", 2);
+            Playback2DTabViewModel vm = new();
+            vm.OnActivated(ctx);
+            await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before + 1);
+
+            Playback2DExportHost host = new(() => null, null, null, null);
+            ExportSceneSetup setup = vm.BuildExportSetup(host);
+            try
+            {
+                await Assert.That(setup.MapAssets).IsNotNull();
+
+                // The user opens a demo with no bundle while the export renders.
+                ctx.MapName = null;
+                ctx.RaiseDemoReset();
+
+                await Assert.That(vm.MapAsset).IsNull();
+                await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before + 1)
+                    .Because("the run still draws this map, whatever the tab now shows");
+                await Assert.That(setup.Owned).IsNotNull()
+                    .Because("the runner releases the hold through Owned when the run ends");
+            }
+            finally
+            {
+                setup.Owned?.Dispose();
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+
+            await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before);
+        });
+
+    // The hold is taken before the rest of the setup is read off the host and the tab. A setup that never
+    // came to be has no runner to release it, so the bundle stayed in memory for the life of the process.
+    [Test]
+    public async Task ASetupThatFailsToBuild_GivesItsHoldBack() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            if (MapBundleLeases.Acquire(Map) is not { } probe)
+            {
+                throw new SkipTestException($"no {Map} bundle in this checkout");
+            }
+
+            probe.Dispose();
+
+            int before = MapBundleLeases.HoldersOf(Map);
+            Playback2DFakeContext ctx = new() { MapName = Map, Gate = new FakeModuleFeatureGate() };
+            ctx.AddPlayer(0, "Alpha", 2);
+            Playback2DTabViewModel vm = new();
+            vm.OnActivated(ctx);
+            try
+            {
+                Playback2DExportHost host = new(() => throw new InvalidOperationException("no frames"), null, null,
+                    null);
+                bool threw = false;
+                try
+                {
+                    vm.BuildExportSetup(host);
+                }
+                catch (InvalidOperationException)
+                {
+                    threw = true;
+                }
+
+                await Assert.That(threw).IsTrue();
+                await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before + 1)
+                    .Because("only the tab's own hold is left");
+            }
+            finally
+            {
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+
+            await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before);
+        });
+}
+
+/// <summary>
+///     The export pane's lifetime against the tab's. Its ranges are frame indices of the demo open when
+///     it was built, and it owns the ffmpeg download it started.
+/// </summary>
+[NotInParallel]
+public class Playback2DExportDialogLifetimeTests
+{
+    private static readonly HeavyJobGate _gate = new();
+
+    // Opened on one demo and started after another was loaded, the pane applied the first demo's round
+    // boundaries to the second demo's frames and wrote a video of an arbitrary span of it.
+    [Test]
+    public async Task ANewDemo_ClosesThePane_WhoseRangesBelongToTheOldOne() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Activate("a.dem");
+            try
+            {
+                vm.OpenExportCommand.Execute(null);
+                await Assert.That(vm.ExportDialog).IsNotNull();
+
+                ctx.DemoPath = "b.dem";
+                ctx.RaiseDemoReset();
+
+                await Assert.That(vm.ExportDialog).IsNull();
+            }
+            finally
+            {
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+        });
+
+    // The swap that happened while the tab was away has no reset signal; the next activation sees it.
+    [Test]
+    public async Task ADemoSwappedWhileDeactivated_ClosesThePaneOnReturn() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Activate("a.dem");
+            try
+            {
+                vm.OpenExportCommand.Execute(null);
+                vm.OnDeactivated();
+                await Assert.That(vm.ExportDialog).IsNotNull().Because("a tab switch alone keeps the pane");
+
+                ctx.DemoPath = "b.dem";
+                vm.OnActivated(ctx);
+
+                await Assert.That(vm.ExportDialog).IsNull();
+            }
+            finally
+            {
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+        });
+
+    // The toolbar button stays visible while the pane is open. A second click replaced the dialog without
+    // closing it, so its ffmpeg download kept running unanswered and its Start still closed the new pane.
+    [Test]
+    public async Task OpeningTheExportAgain_ClosesTheDialogItReplaces() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext _) = Activate("a.dem");
+            try
+            {
+                vm.OpenExportCommand.Execute(null);
+                Playback2DExportDialogViewModel first = vm.ExportDialog!;
+
+                vm.OpenExportCommand.Execute(null);
+
+                await Assert.That(vm.ExportDialog).IsNotSameReferenceAs(first);
+                await Assert.That(StartRequestedHandlers(first)).IsEqualTo(0)
+                    .Because("CloseExport unhooks and disposes the dialog it lets go of");
+            }
+            finally
+            {
+                vm.OnDeactivated();
+                vm.Dispose();
+            }
+        });
+
+    private static (Playback2DTabViewModel, Playback2DFakeContext) Activate(string demo)
+    {
+        Playback2DFakeContext ctx = new() { DemoPath = demo };
+        ctx.SetService(new Playback2DExportHost(() => null, new FirstPartyExports(_gate, null!), null, null));
+        ctx.AddPlayer(0, "Alpha", 2);
+        Playback2DTabViewModel vm = new();
+        vm.OnActivated(ctx);
+        return (vm, ctx);
+    }
+
+    // The field-like event's backing field: the dialog's only observable trace of having been let go.
+    private static int StartRequestedHandlers(Playback2DExportDialogViewModel dialog) =>
+        (typeof(Playback2DExportDialogViewModel)
+            .GetField(nameof(Playback2DExportDialogViewModel.StartRequested),
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(dialog) as Delegate)?.GetInvocationList().Length ?? 0;
 }

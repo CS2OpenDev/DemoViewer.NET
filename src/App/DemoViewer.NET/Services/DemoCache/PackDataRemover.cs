@@ -127,11 +127,22 @@ public sealed class PackDataRemover
     private async Task<T> RunSerial<T>(string title, string ownerTag, Func<T> work, T fallback)
     {
         bool ran = false;
+        Exception? failure = null;
         T result = fallback;
         Task task = _run(title, ownerTag, () =>
         {
-            result = work();
-            ran = true;
+            try
+            {
+                result = work();
+                ran = true;
+            }
+            catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
+            {
+                // The queue records a throwing job as failed and still completes its task, so the failure is
+                // kept here: a failed removal is not the "did not run" a drop answers.
+                failure = ex;
+                throw;
+            }
         });
         try
         {
@@ -139,6 +150,11 @@ public sealed class PackDataRemover
         }
         catch (OperationCanceledException)
         {
+        }
+
+        if (!ran && failure is not null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
 
         return ran ? result : fallback;
@@ -230,9 +246,17 @@ public sealed class PackDataRemover
             return;
         }
 
-        foreach (string child in Directory.EnumerateFileSystemEntries(path))
+        try
         {
-            MeasureAndDeletePath(child, actuallyDelete, tally);
+            foreach (string child in Directory.EnumerateFileSystemEntries(path))
+            {
+                MeasureAndDeletePath(child, actuallyDelete, tally);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A folder that cannot be listed is skipped, as a file that will not delete is.
+            Skip(path, "list", ex, tally);
         }
 
         if (actuallyDelete)
@@ -261,16 +285,23 @@ public sealed class PackDataRemover
             return;
         }
 
-        foreach (string file in Directory.EnumerateFiles(dir))
+        try
         {
-            string name = Path.GetFileName(file);
-            if (!name.EndsWith(suffix, StringComparison.Ordinal)
-                || name.EndsWith(".dem", StringComparison.OrdinalIgnoreCase))
+            foreach (string file in Directory.EnumerateFiles(dir))
             {
-                continue;
-            }
+                string name = Path.GetFileName(file);
+                if (!name.EndsWith(suffix, StringComparison.Ordinal)
+                    || name.EndsWith(".dem", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
 
-            MeasureAndDeletePath(file, actuallyDelete, tally);
+                MeasureAndDeletePath(file, actuallyDelete, tally);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Skip(dir, "list", ex, tally);
         }
     }
 
@@ -364,7 +395,12 @@ public sealed class PackDataRemover
         string rootWithSeparator = rootFull.EndsWith(Path.DirectorySeparatorChar)
             ? rootFull
             : rootFull + Path.DirectorySeparatorChar;
-        return candidate.StartsWith(rootWithSeparator, StringComparison.Ordinal) ? candidate : null;
+        // The full path keeps a trailing separator, so "./" comes out as the root with one: it starts with
+        // the root and is still the root.
+        return candidate.StartsWith(rootWithSeparator, StringComparison.Ordinal)
+               && candidate.Length > rootWithSeparator.Length
+            ? candidate
+            : null;
     }
 
     // Strips packId's payload and every stamp whose id is in facetIds from every record that has one, listed or

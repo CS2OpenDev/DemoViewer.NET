@@ -95,6 +95,12 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
     public ScoutingBuy Buy { get; private set; } = ScoutingBuy.All;
 
+    /// <summary>
+    ///     The player the stage's Setups show alone, or null; every stage build from here on carries it in its
+    ///     context. The tab sets it and rebuilds the layer.
+    /// </summary>
+    public string? Isolated { get; set; }
+
     /// <summary>"Mirage · CT · Full buy · 6 maps", appended by the tab.</summary>
     public string ScopeSuffix { get; set; } = "";
 
@@ -184,7 +190,8 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
             builds.Add(build.ContinueWith(t => _post(() =>
             {
-                if (generation == Volatile.Read(ref _generation))
+                // A rebuild of the layer since (its stamp) read newer sources: this build must not land over it.
+                if (generation == Volatile.Read(ref _generation) && !_rebuilds.ContainsKey(chip.Id))
                 {
                     chip.Apply(Landed(t), context);
                     Redraw();
@@ -241,7 +248,10 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
     // The scope for one layer: a windowed layer's context carries its window, so its stars file under it.
     private ScoutingLayerContext ContextFor(IScoutingLayer layer, ScoutingReportData data) =>
-        new(data, Map, Side, Buy, layer is IScoutingWindowedLayer windowed ? windowed.Window : "");
+        new(data, Map, Side, Buy, layer is IScoutingWindowedLayer windowed ? windowed.Window : "")
+        {
+            Isolated = Isolated
+        };
 
     /// <summary>Sets a windowed layer's window and rebuilds that layer alone; another window or layer is ignored.</summary>
     /// <param name="chip">The layer.</param>

@@ -66,6 +66,49 @@ public class ZoneOverlayTests
     }
 
     [Test]
+    public async Task LowerFloorZone_WithTheDefaultBand_StaysOffTheFloorAbove()
+    {
+        // No minZ/maxZ, so the prism takes the lower band and its top is exactly the upper band's
+        // bottom (-528). Touching that boundary is not being on the upper floor.
+        double[] tunnels = [0, 0, 100, 0, 100, 100, 0, 100];
+        ZoneOverlayResult result = Apply(Overlay(
+            zones: [new ZoneOverlayZone("Vents", ZoneFixtures.Lower, tunnels, null, null, false)]));
+        PlaceResolver resolver = new(result.Effective);
+
+        await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
+        await Assert.That(resolver.ResolveOnFloor(50, 50, ZoneFixtures.Lower).Name).IsEqualTo("Vents");
+        await Assert.That(resolver.ResolveOnFloor(50, 50, ZoneFixtures.Upper).Name).IsEqualTo("Ramp");
+        await Assert.That(resolver.OutlinesFor(ZoneFixtures.Lower).Any(o => o.Name == "Vents")).IsTrue();
+        await Assert.That(resolver.OutlinesFor(ZoneFixtures.Upper).Any(o => o.Name == "Vents")).IsFalse();
+    }
+
+    [Test]
+    public async Task ConcavePolygon_CoversItsArms_AndNotItsNotch()
+    {
+        // An L over Hut's box: the notch [240, 300] x [40, 100] is outside it. Both windings, because
+        // the prism's edge normals depend on the winding.
+        double[] ccw = [200, 0, 300, 0, 300, 40, 240, 40, 240, 100, 200, 100];
+        double[] cw = [200, 100, 240, 100, 240, 40, 300, 40, 300, 0, 200, 0];
+
+        foreach (double[] polygon in new[] { ccw, cw })
+        {
+            ZoneOverlayResult result = Apply(Overlay(
+                zones: [new ZoneOverlayZone("L", ZoneFixtures.Upper, polygon, null, null, false)]));
+            PlaceResolver resolver = new(result.Effective);
+
+            await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
+
+            // Both arms reach past the reflex corner at (240, 40).
+            await Assert.That(resolver.Resolve(new Vector3(220, 80, -400)).Name).IsEqualTo("L");
+            await Assert.That(resolver.Resolve(new Vector3(280, 20, -400)).Name).IsEqualTo("L");
+            await Assert.That(resolver.Resolve(new Vector3(220, 20, -400)).Name).IsEqualTo("L");
+
+            // The notch is still the baked Hut volume.
+            await Assert.That(resolver.Resolve(new Vector3(280, 80, -400)).Name).IsEqualTo("Hut");
+        }
+    }
+
+    [Test]
     public async Task Hidden_RefloodsItsAreasFromNeighbours_AndDropsItsVolume()
     {
         ZoneOverlayResult result = Apply(Overlay(hidden: ["Hut"]));
@@ -134,6 +177,24 @@ public class ZoneOverlayTests
         await Assert.That(partialResolver.Resolve(new Vector3(150, 50, -400)).Name).IsEqualTo("Ramp");
     }
 
+    // A place name is written into the round index's place:count|place:count tokens, so neither separator can
+    // be part of one: the entry is refused here, where the user reads why, and not at the first indexed demo.
+    [Test]
+    public async Task ANameHoldingATokenSeparator_IsSkippedWithADiagnostic()
+    {
+        ZoneOverlayResult result = Apply(Overlay(
+            zones: [new ZoneOverlayZone("Short|Cat", ZoneFixtures.Upper, _hutPolygon, null, null, false)],
+            merges: [new ZoneOverlayMerge("A: Ramp", ["Ramp"])]));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(result.Diagnostics.Select(d => d.Code))
+                .IsEquivalentTo(["zones.overlay.bad-name", "zones.overlay.bad-name"]);
+            await Assert.That([.. result.Effective.Places.Select(p => p.Name)])
+                .IsEquivalentTo(Names("Ramp", "Outside", "Hut", "Tunnels"));
+        }
+    }
+
     [Test]
     public async Task MalformedEntry_IsSkippedWithADiagnostic_AndTheRestApplies()
     {
@@ -172,6 +233,23 @@ public class ZoneOverlayTests
         await Assert.That(resolver.Resolve(new Vector3(250, 50, -400)).Name).IsEqualTo("E-box");
         await Assert.That([.. result.Effective.Places.Select(p => p.Name)])
             .IsEquivalentTo(Names("Ramp", "Hut", "Outside", "Tunnels", "E-box"), CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task PolygonBeyondTheMap_IsSkippedWithADiagnostic()
+    {
+        // The resolver grids every volume's box at 128 units a cell, so a polygon this size would hang
+        // the map load; NaN would slip past the simplicity test.
+        ZoneOverlayResult result = Apply(Overlay(
+            zones:
+            [
+                new ZoneOverlayZone("Huge", ZoneFixtures.Upper, [0, 0, 1e9, 0, 0, 1e9], null, null, false),
+                new ZoneOverlayZone("NaN", ZoneFixtures.Upper, [0, 0, double.NaN, 0, 0, 100], null, null, false)
+            ]));
+
+        await Assert.That(result.Diagnostics.Count(d => d.Code == "zones.overlay.bad-polygon")).IsEqualTo(2);
+        await Assert.That(result.Effective.Places.Any(p => p.Name is "Huge" or "NaN")).IsFalse();
+        await Assert.That(result.Effective.Volumes.Any(v => v.Origin == PlaceOrigin.Custom)).IsFalse();
     }
 
     [Test]
@@ -268,6 +346,23 @@ public class ZoneOverlayTests
         await Assert.That(doc.Merges[0].Into).IsEqualTo("Site");
         await Assert.That(doc.Merges[0].From.Count).IsEqualTo(3);
         await Assert.That([.. doc.Hidden]).IsEquivalentTo(Names("Scaffolding"), CollectionOrdering.Matching);
+    }
+
+    /// <summary>
+    ///     A <c>null</c> where an entry belongs is a malformed overlay, and has to fail as one: the loader
+    ///     turns a <see cref="System.Text.Json.JsonException" /> into the malformed-overlay diagnostic and
+    ///     keeps the baked set, and anything else escapes on every read of the map's zones.
+    /// </summary>
+    [Test]
+    [Arguments("""{ "schemaVersion": 1, "zones": [null] }""")]
+    [Arguments("""{ "schemaVersion": 1, "zones": [ { "name": "A", "floor": 0, "polygon": [0, 0, 1, 0, 1, 1] }, null, ] }""")]
+    [Arguments("""{ "schemaVersion": 1, "merges": [null] }""")]
+    [Arguments("""{ "schemaVersion": 1, "merges": [ { "into": "Site", "from": ["A", null] } ] }""")]
+    [Arguments("""{ "schemaVersion": 1, "hidden": [null] }""")]
+    public async Task Reader_RefusesANullEntry_AsAMalformedOverlay(string json)
+    {
+        await Assert.That(() => ZoneOverlayReader.Read(Encoding.UTF8.GetBytes(json)))
+            .Throws<System.Text.Json.JsonException>();
     }
 
     // Through a call rather than an inline array so the analyzer's constant-array rule stays quiet.

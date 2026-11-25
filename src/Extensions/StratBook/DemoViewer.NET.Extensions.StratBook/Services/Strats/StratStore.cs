@@ -294,9 +294,30 @@ public sealed class StratStore
                 return StratSaveResult.Failed(moveFailure, issues);
             }
 
+            bool relocated = oldPath is not null && newPath is not null
+                && !string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase);
             if (!AppendHistory(committed, entry))
             {
+                if (relocated)
+                {
+                    MoveLogBack(oldPath!, newPath!);
+                }
+
                 return StratSaveResult.Failed("the history line could not be written", issues);
+            }
+
+            // Only now: until the log has the commit the strat still lives at its old path, where a failed
+            // commit leaves it whole. Best-effort, as the new file is the one the store reads from here on.
+            if (relocated)
+            {
+                try
+                {
+                    _folder!.Delete(oldPath!);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    // Stays behind; the listing takes the path with the log.
+                }
             }
 
             lock (_gate)
@@ -394,23 +415,23 @@ public sealed class StratStore
     {
         lock (_rmwGate)
         {
-            bool removed;
+            bool removed = false;
             string? path;
             lock (_gate)
             {
-                removed = _index.Remove(id) | _memoryStrats.Remove(id) | _memoryHistory.Remove(id);
                 path = _paths.GetValueOrDefault(id);
-                _logHeads.Remove(id);
-                _notes.Remove(id);
-                _unresolved.Remove(id);
             }
 
+            // The files first, the rows after: a move that fails puts back what already moved and leaves the
+            // strat listed, so false means it is still there. Half a delete (the strat in the trash, its log
+            // beside where it was) would be rebuilt from that log at the next start.
             if (path is not null)
             {
                 string folder = Path.GetDirectoryName(path)!;
                 string trash = Path.Combine(folder, TrashFolderName);
                 string stamp =
                     _utcNow().ToString("yyyyMMddTHHmmssZ", System.Globalization.CultureInfo.InvariantCulture);
+                List<(string From, string To)> moved = [];
                 try
                 {
                     foreach (string file in new[] { path, HistoryPathBeside(path) }.Where(_folder!.FileExists)
@@ -425,20 +446,25 @@ public sealed class StratStore
                         }
 
                         _folder.Move(file, target, false);
+                        moved.Add((file, target));
                     }
                 }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                 {
-                    return false;
-                }
+                    if (!MoveBack(moved))
+                    {
+                        // The strat file is in the trash to stay: the strat is gone from here, whatever the
+                        // answer below says about the rest.
+                        Forget(id);
+                    }
 
-                lock (_gate)
-                {
-                    _paths.Remove(id);
+                    return false;
                 }
 
                 removed = true;
             }
+
+            removed |= Forget(id);
 
             if (!removed)
             {
@@ -449,6 +475,37 @@ public sealed class StratStore
         RaiseChanged(id);
         Deleted?.Invoke(id);
         return true;
+    }
+
+    // Under _rmwGate. A delete's moves undone, the last first; false when one would not go back.
+    private bool MoveBack(List<(string From, string To)> moved)
+    {
+        bool all = true;
+        for (int i = moved.Count - 1; i >= 0; i--)
+        {
+            try
+            {
+                _folder!.Move(moved[i].To, moved[i].From, false);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                all = false;
+            }
+        }
+
+        return all;
+    }
+
+    // Everything the store holds in memory about a strat; true when it held any of it.
+    private bool Forget(Guid id)
+    {
+        lock (_gate)
+        {
+            _logHeads.Remove(id);
+            _notes.Remove(id);
+            _unresolved.Remove(id);
+            return _index.Remove(id) | _memoryStrats.Remove(id) | _memoryHistory.Remove(id) | _paths.Remove(id);
+        }
     }
 
     /// <summary>
@@ -634,6 +691,12 @@ public sealed class StratStore
     }
 
     /// <summary>
+    ///     Holds off every write through the store while a session loads a strat and checks it out, so an import's
+    ///     "is it open" test never falls between the two and replaces the file the session has just read.
+    /// </summary>
+    internal Lock.Scope EnterOpen() => _rmwGate.EnterScope();
+
+    /// <summary>
     ///     The session holding a strat, or null. A writer outside the Strat Book (Create Strat From Round, an
     ///     import) applies its ops through it while it is there instead of saving past it.
     /// </summary>
@@ -689,7 +752,7 @@ public sealed class StratStore
     {
         ArgumentNullException.ThrowIfNull(owner);
         string? json = ReadSmallFile(owner.FolderName,
-            _folder is null ? null : Path.Combine(owner.FolderName, BookFileName), _memoryBooks);
+            _folder is null ? null : Path.Combine(owner.FolderName, BookFileName), _memoryBooks, out bool ioFailed);
         StratBook? book;
         try
         {
@@ -700,7 +763,7 @@ public sealed class StratStore
             book = null;
         }
 
-        return book ?? new StratBook { Owner = owner.Clone() };
+        return book ?? new StratBook { Owner = owner.Clone(), StandsInForUnreadable = ioFailed || json is not null };
     }
 
     /// <summary>Writes an owner's book atomically. False on a failed write; never throws for I/O.</summary>
@@ -713,9 +776,20 @@ public sealed class StratStore
             return false;
         }
 
+        string? path = _folder is null ? null : Path.Combine(book.Owner.FolderName, BookFileName);
+        if (StoredIsUnreadable(path, StratJsonContext.Default.StratBook, book.StandsInForUnreadable))
+        {
+            return false;
+        }
+
         string json = JsonSerializer.Serialize(book, StratJsonContext.Default.StratBook);
-        return WriteSmallFile(book.Owner.FolderName,
-            _folder is null ? null : Path.Combine(book.Owner.FolderName, BookFileName), json, _memoryBooks);
+        if (!WriteSmallFile(book.Owner.FolderName, path, json, _memoryBooks))
+        {
+            return false;
+        }
+
+        book.StandsInForUnreadable = false;
+        return true;
     }
 
     /// <summary>An owner's callouts for a map, or an empty table when none is stored or it cannot be read.</summary>
@@ -727,7 +801,7 @@ public sealed class StratStore
         ArgumentException.ThrowIfNullOrEmpty(map);
         string key = owner.FolderName + "/" + map.ToLowerInvariant();
         string? json = ReadSmallFile(key, _folder is null ? null : Path.Combine(FolderIn(owner, map), CalloutsFileName),
-            _memoryCallouts);
+            _memoryCallouts, out bool ioFailed);
         CalloutTable? table;
         try
         {
@@ -738,7 +812,18 @@ public sealed class StratStore
             table = null;
         }
 
-        return table ?? new CalloutTable { Map = map.ToLowerInvariant() };
+        // A hand-edited file can say "aliases": null or list a null entry; no reader of the table expects either.
+        if (table is not null)
+        {
+            table.Aliases = [.. (table.Aliases ?? []).Where(a => a is not null)];
+            if (table.Canonical is { } canonical)
+            {
+                canonical.Names = [.. (canonical.Names ?? []).Where(n => n is not null)];
+            }
+        }
+
+        return table
+            ?? new CalloutTable { Map = map.ToLowerInvariant(), StandsInForUnreadable = ioFailed || json is not null };
     }
 
     /// <summary>
@@ -761,10 +846,104 @@ public sealed class StratStore
 
         table.Map = table.Map.ToLowerInvariant();
         string key = owner.FolderName + "/" + table.Map;
+        string? path = _folder is null ? null : Path.Combine(FolderIn(owner, table.Map), CalloutsFileName);
+        if (StoredIsUnreadable(path, StratJsonContext.Default.CalloutTable, table.StandsInForUnreadable))
+        {
+            return false;
+        }
+
         string json = JsonSerializer.Serialize(table, StratJsonContext.Default.CalloutTable);
-        return WriteSmallFile(key, _folder is null ? null : Path.Combine(FolderIn(owner, table.Map), CalloutsFileName),
-            json,
-            _memoryCallouts);
+        if (!WriteSmallFile(key, path, json, _memoryCallouts))
+        {
+            return false;
+        }
+
+        table.StandsInForUnreadable = false;
+        return true;
+    }
+
+    /// <summary>
+    ///     Moves a merged team's book onto the team that took its id over, since every read here is by the exact
+    ///     owner and nothing lists a tombstoned team again. Each strat moves by an ordinary commit of its owner, so
+    ///     the file and its log relocate together; one open in the Strat Book moves through its session, the single
+    ///     writer. Slot defaults and callouts fold in by the import's rule, the team merged into keeping its own
+    ///     where both have one, as it keeps its own Scouting Report summary; the merged team's file goes once it is
+    ///     folded in cleanly. Cheap when nothing is filed under <paramref name="from" />. UI thread.
+    /// </summary>
+    /// <param name="from">The merged team's id.</param>
+    /// <param name="into">The team that took it over.</param>
+    internal void Rekey(Guid from, Guid into)
+    {
+        StratOwner source = StratOwner.Team(from);
+        StratOwner target = StratOwner.Team(into);
+        foreach (StratIndexEntry entry in Query(source, null, null, null))
+        {
+            PatchOp op = PatchOp.ReplaceOp("/owner/teamId", JsonValue.Create(from.ToString("D")),
+                JsonValue.Create(into.ToString("D")));
+            if (SessionFor(entry.Id) is { } holder)
+            {
+                holder.ApplyUnrecorded(op);
+                holder.Commit("moved with its team's merge");
+                continue;
+            }
+
+            lock (_rmwGate)
+            {
+                if (TryLoad(entry.Id) is not { } loaded)
+                {
+                    continue;
+                }
+
+                // A working copy nobody has open: its edits go into this commit with the move, as SetStatus does.
+                List<PatchOp> ops = [.. PendingOps(loaded)];
+                StratDocument document = WithPending(loaded, false);
+                document.Owner = target.Clone();
+                ops.Add(op);
+                Save(document, ops, "moved with its team's merge");
+            }
+        }
+
+        // In memory the books and callouts are the session's alone, and the import's readers are folder readers.
+        if (_folder is null)
+        {
+            return;
+        }
+
+        string book = Path.Combine(source.FolderName, BookFileName);
+        if (_folder.FileExists(book))
+        {
+            FoldIn(book, ledger => ImportBook(_folder, book, target, ledger));
+        }
+
+        foreach (string mapDir in SafeDirectories(_folder, source.FolderName))
+        {
+            string callouts = Path.Combine(mapDir, CalloutsFileName);
+            if (!Path.GetFileName(mapDir).StartsWith('.') && _folder.FileExists(callouts))
+            {
+                FoldIn(callouts, ledger => ImportCallouts(_folder, callouts, target, ledger));
+            }
+        }
+    }
+
+    // Folds one of a merged team's files in, then deletes it unless the fold reported anything (an unreadable
+    // file on either side, a failed write), which leaves it where it was for the next try.
+    private void FoldIn(string path, Action<ImportLedger> fold)
+    {
+        bool clean = true;
+        fold(new ImportLedger(ImportConflictPolicy.KeepMine, _ => clean = false));
+        if (!clean)
+        {
+            return;
+        }
+
+        try
+        {
+            _folder!.Delete(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Folded in already, and a second fold adds nothing.
+        }
     }
 
     /// <summary>Index rows matching every non-null filter, by name.</summary>
@@ -953,6 +1132,15 @@ public sealed class StratStore
         }
 
         List<HistoryEntry> log = ParseHistory(logBytes is null ? [] : DecodeLines(logBytes));
+        // The log is read as a local one is, which lets a JSON null through where a list or a path is expected.
+        // Every step below walks the ops, so a bundle carrying one leaves its strat out instead of ending the import.
+        if (log.Any(e => e.Ops is null || e.Ops.Any(o => o is null || o.Path is null)))
+        {
+            ledger.Report($"'{incoming.Name}' in the bundle has a history that does not replay; it was left out");
+            ledger.CountSkipped();
+            return;
+        }
+
         if (incoming.Owner.IsTeam && teams.IsDropped(incoming.Owner.TeamId!.Value))
         {
             ledger.Report($"'{incoming.Name}' in the bundle was left out: its team was deleted on this machine");
@@ -1150,6 +1338,20 @@ public sealed class StratStore
             ledger.Report($"'{incoming.Name}' was not fully updated ({e.Message}); the next load re-applies its history");
         }
 
+        // The log has moved, so the strat lives at the target whether or not the lines above landed. A copy left
+        // on the old map has no log beside it, and the next start would list it next to the real one.
+        if (oldPath is not null && !string.Equals(oldPath, target, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                _folder!.Delete(oldPath);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // Stays behind, as in Save.
+            }
+        }
+
         lock (_gate)
         {
             _logHeads.Remove(incoming.Id);
@@ -1321,12 +1523,13 @@ public sealed class StratStore
             return;
         }
 
-        string? json = ReadSmallFile(owner.FolderName, Path.Combine(owner.FolderName, BookFileName), _memoryBooks);
+        string? json = ReadSmallFile(owner.FolderName, Path.Combine(owner.FolderName, BookFileName), _memoryBooks,
+            out bool ioFailed);
         StratBook local;
         try
         {
             local = json is null
-                ? new StratBook { Owner = owner.Clone() }
+                ? ioFailed ? throw new JsonException() : new StratBook { Owner = owner.Clone() }
                 : JsonSerializer.Deserialize(json, StratJsonContext.Default.StratBook) ?? throw new JsonException();
         }
         catch (JsonException)
@@ -1338,9 +1541,16 @@ public sealed class StratStore
 
         bool take = ledger.Policy == ImportConflictPolicy.TakeImported;
         bool changed = false;
-        foreach ((string epoch, Dictionary<string, string> slots) in incoming.SlotDefaults)
+        // A strict read still lets a null dictionary value through, and the local file is read leniently.
+        local.SlotDefaults ??= [];
+        foreach ((string epoch, Dictionary<string, string>? slots) in incoming.SlotDefaults)
         {
-            if (!local.SlotDefaults.TryGetValue(epoch, out Dictionary<string, string>? mine))
+            if (slots is null)
+            {
+                continue;
+            }
+
+            if (!local.SlotDefaults.TryGetValue(epoch, out Dictionary<string, string>? mine) || mine is null)
             {
                 local.SlotDefaults[epoch] = new Dictionary<string, string>(slots, StringComparer.Ordinal);
                 changed = true;
@@ -1388,12 +1598,12 @@ public sealed class StratStore
 
         string map = incoming.Map.ToLowerInvariant();
         string? json = ReadSmallFile(owner.FolderName + "/" + map,
-            Path.Combine(FolderIn(owner, map), CalloutsFileName), _memoryCallouts);
+            Path.Combine(FolderIn(owner, map), CalloutsFileName), _memoryCallouts, out bool ioFailed);
         CalloutTable local;
         try
         {
             local = json is null
-                ? new CalloutTable { Map = map }
+                ? ioFailed ? throw new JsonException() : new CalloutTable { Map = map }
                 : JsonSerializer.Deserialize(json, StratJsonContext.Default.CalloutTable) ?? throw new JsonException();
         }
         catch (JsonException)
@@ -1403,8 +1613,12 @@ public sealed class StratStore
             return;
         }
 
+        // A strict read still lets a null element through a list, and a hand-edited local table can say
+        // "aliases": null; LoadCallouts reads both as nothing, and so does the merge.
+        local.Aliases = [.. (local.Aliases ?? []).Where(a => a is not null)];
         bool changed = false;
-        foreach (CalloutAlias alias in incoming.Aliases.Where(a => !string.IsNullOrWhiteSpace(a.Alias)))
+        foreach (CalloutAlias alias in incoming.Aliases.Where(a =>
+                     a is not null && !string.IsNullOrWhiteSpace(a.Alias)))
         {
             // The validator's own key, case and separators folded, so the merged table never holds an alias twice.
             string key = CalloutResolver.Fold(alias.Alias!);
@@ -1871,6 +2085,13 @@ public sealed class StratStore
                 continue;
             }
 
+            // A delete that moved the strat and could not move its log: deleted, not half-committed.
+            if (_folder.FileExists(Path.Combine(Path.GetDirectoryName(log)!, TrashFolderName,
+                    id.ToString("D") + StratExtension)))
+            {
+                continue;
+            }
+
             List<HistoryEntry> entries;
             try
             {
@@ -1933,18 +2154,37 @@ public sealed class StratStore
                 }
             }
 
+            // The strat file is not touched here: Save and FastForward delete the old one once the log is settled.
             string oldLog = HistoryPathBeside(oldPath);
             if (_folder!.FileExists(oldLog))
             {
                 _folder.Move(oldLog, HistoryPathBeside(newPath), false);
             }
 
-            _folder.Delete(oldPath);
             return null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             return "the strat could not be moved to its new book or map";
+        }
+    }
+
+    // A relocating commit whose history line did not land: the log returns beside the strat file, which never
+    // left, so the strat is where the store still says it is. Best-effort; a log that will not move back is
+    // found at the next start, which rebuilds the strat from it.
+    private void MoveLogBack(string oldPath, string newPath)
+    {
+        try
+        {
+            string newLog = HistoryPathBeside(newPath);
+            if (_folder!.FileExists(newLog) && !_folder.FileExists(HistoryPathBeside(oldPath)))
+            {
+                _folder.Move(newLog, HistoryPathBeside(oldPath), false);
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Stays in the new folder.
         }
     }
 
@@ -2039,8 +2279,10 @@ public sealed class StratStore
         }
     }
 
-    private string? ReadSmallFile(string key, string? path, Dictionary<string, string> memory)
+    // ioFailed: the file may be there and was not read, which null alone would pass off as no file.
+    private string? ReadSmallFile(string key, string? path, Dictionary<string, string> memory, out bool ioFailed)
     {
+        ioFailed = false;
         if (path is null)
         {
             lock (_gate)
@@ -2055,7 +2297,31 @@ public sealed class StratStore
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
+            ioFailed = true;
             return null;
+        }
+    }
+
+    // The loads above answer a fresh book or table for a file that is there and cannot be read, and every caller
+    // changes what it loaded and saves it back. Saving then would replace the stored file with that one change,
+    // so the save is refused while the file is held by another process or does not parse, as it is for a strat.
+    // standIn: what is being saved is such a fresh object. The file may read by now (a sync client let go of
+    // it), and the object still holds none of it, so it is refused for as long as there is a file at all.
+    private bool StoredIsUnreadable<T>(string? path, JsonTypeInfo<T> type, bool standIn) where T : class
+    {
+        if (path is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return FolderText.Read(_folder!, path) is { } json
+                && (standIn || JsonSerializer.Deserialize(json, type) is null);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return true;
         }
     }
 
@@ -2110,11 +2376,16 @@ public sealed class StratStore
             ? "the map is not a folder name"
             : null;
 
+    // Strict, as an imported file is read: a hand-edited "steps": null would otherwise come back as a document
+    // with a null where every reader expects a list, and throw far from here. It reads as unreadable instead.
     private static StratDocument? Parse(string json)
     {
         try
         {
-            return JsonSerializer.Deserialize(json, StratJsonContext.Default.StratDocument);
+            return JsonSerializer.Deserialize(json, ImportLedger.Strict(StratJsonContext.Default.StratDocument))
+                is { } document && !HasNullElement(document)
+                    ? document
+                    : null;
         }
         catch (JsonException)
         {
@@ -2126,13 +2397,30 @@ public sealed class StratStore
     {
         try
         {
-            return JsonSerializer.Deserialize(json, ImportLedger.Strict(StratJsonContext.Default.StratDocument));
+            return JsonSerializer.Deserialize(json, ImportLedger.Strict(StratJsonContext.Default.StratDocument))
+                is { } document && !HasNullElement(document)
+                    ? document
+                    : null;
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    // The strict read stops at the property: "steps": [null] still comes back as a list holding a null, and the
+    // validator, the editor and the exporters walk every one of these lists without a null check. A stroke is
+    // checked no deeper: it is an opaque object this store never looks into.
+    private static bool HasNullElement(StratDocument document) =>
+        HasNull(document.Tags) || HasNull(document.Slots) || HasNull(document.Steps) || HasNull(document.Branches)
+        || HasNull(document.Start?.Positions)
+        || document.Steps.Exists(static step => HasNull(step.Via) || HasNull(step.ViaPoints)
+            || HasNull(step.Positions) || HasNull(step.Strokes) || HasNull(step.Assignments)
+            || HasNull(step.Lurk?.Areas) || HasNull(step.Lurk?.AreaPoints)
+            || (step.Assignments?.Exists(static line => HasNull(line.Via) || HasNull(line.ViaPoints)
+                || HasNull(line.Watch?.Places) || HasNull(line.Watch?.Points)) ?? false));
+
+    private static bool HasNull<T>(List<T>? list) where T : class => list?.Contains(null!) ?? false;
 
     private static List<HistoryEntry> ParseHistory(IEnumerable<string> lines)
     {

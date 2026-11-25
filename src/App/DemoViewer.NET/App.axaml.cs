@@ -21,6 +21,7 @@ using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Modules.Playback2D.Annotations;
 using DemoViewer.NET.Modules.RuleWorkbench;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
@@ -319,7 +320,7 @@ public class App : Application
 
             // Runs only on the request that really exits, after any CSVG or export teardown: a store that
             // throws or hangs here must never cost the machine its restored CS2 install.
-            static void FlushStores(ServiceProvider services)
+            static void FlushStores(ServiceProvider services, MainViewModel shell)
             {
                 // Shutdown is a strat commit trigger; the user-truth stores defer their
                 // index to it. The Review Queue is core (Reels uses it too), so its flush stays unconditional
@@ -328,6 +329,10 @@ public class App : Application
                 ILogger log = DiagnosticsLog.CreateLogger(AppLog.ShellCategory);
                 Action[] flushes =
                 [
+                    // First, so what the active tab writes on its way out reaches the stores flushed below.
+                    () => services.GetService<MainViewModel>()?.FlushForShutdown(),
+                    // The 2D tab's annotations: its own shutdown flush, which nothing else reaches on exit.
+                    shell.ClosePlayback2DForShutdown,
                     () => services.GetService<ReviewQueue>()?.Flush(TimeSpan.FromSeconds(5)),
 
                     // The library's metadata cache is checkpointed every 12 demos, and nothing disposes the
@@ -388,12 +393,13 @@ public class App : Application
                 // A running 2D export owns an ffmpeg subprocess and a half-written video file. Exiting
                 // without cancelling orphaned the process and left the partial output on disk looking
                 // like a finished export. The reel path had this teardown from day one, and the export,
-                // whose Cancel had no production caller at all, had none.
-                bool exportRunning = viewModel.Playback2DExportStatus is { IsRunning: true };
+                // whose Cancel had no production caller at all, had none. An extension's mounted export
+                // and a Pack Export on the queue own the same ffmpeg child, so they count too.
+                bool exportRunning = viewModel.HasRunningExport();
 
                 if (csvgTornDown || liveSync is null && !reelRunning && !exportRunning)
                 {
-                    FlushStores(services);
+                    FlushStores(services, viewModel);
                     return;
                 }
 
@@ -423,15 +429,11 @@ public class App : Application
 
                     try
                     {
-                        // Then the 2D export: its CancelAsync awaits the job's own finally, which
-                        // disposes the sink. That is what kills ffmpeg and deletes the partial file.
-                        // Shorter budget than the reel's: nothing here touches a CS2 install, so the
-                        // worst case is a stuck pipe rather than a machine left patched.
-                        if (viewModel.Playback2DExportStatus is { IsRunning: true } runningExport)
-                        {
-                            await runningExport.CancelCommand.ExecuteAsync(null)
-                                .WaitAsync(TimeSpan.FromSeconds(15));
-                        }
+                        // Then the exports: each cancel awaits the job's own finally, which disposes
+                        // the sink. That is what kills ffmpeg and deletes the partial file. Shorter
+                        // budget than the reel's: nothing here touches a CS2 install, so the worst case
+                        // is a stuck pipe rather than a machine left patched.
+                        await viewModel.CancelRunningExportsAsync(TimeSpan.FromSeconds(15));
                     }
                     catch
                     {
@@ -452,7 +454,17 @@ public class App : Application
                     finally
                     {
                         csvgTornDown = true;
-                        desktop.Shutdown();
+
+                        // The forced Shutdown raises no second ShutdownRequested, so the flush the handler
+                        // does on the request that really exits has to happen here.
+                        try
+                        {
+                            FlushStores(services, viewModel);
+                        }
+                        finally
+                        {
+                            desktop.Shutdown();
+                        }
                     }
                 });
             };
@@ -483,6 +495,8 @@ public class App : Application
                             Dispatcher.UIThread.Post(viewModel.StartWalkthrough);
                         }
                     };
+                    // Closed unanswered: the packs waiting on the wizard start for this session instead.
+                    wizardVm.Dismissed += (_, _) => services.GetRequiredService<PackSwitch>().FirstRunDismissed();
                     Dispatcher.UIThread.Post(() => windowService.ShowFirstRunWizard(wizardVm));
                 }
 
@@ -688,8 +702,10 @@ public class App : Application
         registry.Reloaded += (_, _) => RepaintForThemeReload(registry, monitor.CurrentValue.Theme);
     }
 
+    // Any settings write fires OnChange, not only a theme change, so the editor's app-wide preview wins while
+    // it is up. Re-applying the saved theme here snapped the app off it until the next edit.
     private static void ApplyTheme(ThemeRegistry registry, string? theme) =>
-        Current!.RequestedThemeVariant = registry.VariantFor(theme);
+        Current!.RequestedThemeVariant = registry.AppPreviewVariant ?? registry.VariantFor(theme);
 
     // Points the whole app at `variant` and repaints it, the same bounce RepaintForThemeReload uses, so the
     // code-drawn surfaces re-read their colours. The theme editor's preview and its restore both go through here.
@@ -745,7 +761,7 @@ public class App : Application
         }
 
         WorkbenchYamlHighlighting.ClearCache();
-        ThemeVariant active = registry.VariantFor(activeThemeId);
+        ThemeVariant active = registry.AppPreviewVariant ?? registry.VariantFor(activeThemeId);
         Current.RequestedThemeVariant = ThemeVariant.Default;
         Current.RequestedThemeVariant = active;
     }
@@ -949,8 +965,16 @@ public class App : Application
                 {
                     ActiveThemeId = () => monitor.CurrentValue.Theme,
                     UseTheme = id => sp.GetRequiredService<SettingsService>().Write(s => s.Theme = id),
-                    ShowAppIn = ShowAppIn,
-                    RestoreApp = () => ShowAppIn(registry.VariantFor(monitor.CurrentValue.Theme))
+                    ShowAppIn = variant =>
+                    {
+                        registry.AppPreviewVariant = variant;
+                        ShowAppIn(variant);
+                    },
+                    RestoreApp = () =>
+                    {
+                        registry.AppPreviewVariant = null;
+                        ShowAppIn(registry.VariantFor(monitor.CurrentValue.Theme));
+                    }
                 });
         });
         // Library transfer: the Settings Export… and Import… wizards. The exporter and importer are looked up
@@ -1025,7 +1049,9 @@ public class App : Application
 
         // The extension updater: checks each extension's feed, stages a
         // newer version under <config root>/extensions/ for the loader to take at the next start. Judged by
-        // the same trust policy the loader runs in Main. Desktop only: the browser has no config root.
+        // the same trust policy the loader runs in Main, over the setting as the next launch will read it, so
+        // the updater never stages a copy that launch would refuse. Read at each judgement: the user can turn
+        // the setting off after this singleton is built. Desktop only: the browser has no config root.
         if (AppPaths.ConfigRoot is { } extensionsConfigRoot)
         {
             // Only the extensions this app ships update from its feed; a third-party one is the user's to replace.
@@ -1033,7 +1059,7 @@ public class App : Application
                 extensionsConfigRoot,
                 [.. FeaturePacks.Statuses.Where(st => st.Source is not PackSource.External)],
                 ExtensionHost.Current,
-                TrustPolicy.Default,
+                TrustPolicy.ForLaunch(() => ExtensionStartup.ReadAllowUnverified(AppPaths.SettingsFile)),
                 HttpExtensionFeedClient.Shared,
                 id => ExtensionFeedSource.Resolve(
                     sp.GetRequiredService<IOptionsMonitor<AppSettings>>().CurrentValue.Extensions.FeedUrl, id),
@@ -1119,7 +1145,7 @@ public class App : Application
             // A parse of a demo with no confirmed hash hashes the bytes it reads, so the library and the cache
             // never read the file again for it. Resolved at the first read, never while the queue is built.
             DemoFileRead fileRead = new(TimeProvider.System,
-                path => sp.GetRequiredService<DemoCacheStore>().TryGetIndex(path)?.Sha256 is null,
+                path => sp.GetRequiredService<DemoCacheStore>().WantsContentHash(path),
                 read => sp.GetRequiredService<DemoCacheStore>().NoteContentRead(read.Path, read.Sha256,
                     read.Fingerprint,
                     read.Stat.Length, read.Stat.LastWriteUtc.UtcDateTime));
@@ -1337,9 +1363,14 @@ public class App : Application
             sp.GetRequiredService<ReviewQueue>(),
             sp.GetRequiredService<DemoLibraryService>(),
             sp.GetRequiredService<IDemoProcessingQueue>(),
-            id => sp.GetService<PackContributionSet>()?.Packs
-                .FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.Ordinal))?.Context.Data
-                as ExtensionDemoDataStore,
+            // Whatever the case: the importer refuses an id that is a loaded one's but for its case, and has
+            // to be handed that extension's store to see it. The exact id first: a case-sensitive file system
+            // can hold two packs a case apart, and each one's data is its own.
+            id => sp.GetService<PackContributionSet>()?.Packs is { } loaded
+                ? (loaded.FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.Ordinal))
+                    ?? loaded.FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.OrdinalIgnoreCase)))
+                ?.Context.Data as ExtensionDemoDataStore
+                : null,
             AppPaths.DemoCacheDir is { } cacheDir ? Path.Combine(cacheDir, ExtensionFolders.DataDirectoryName) : null,
             () => TransferEnvironment.Local(sp.GetRequiredService<MergedRulesBuild>(), packs),
             new DemoImportCurrency(
@@ -1362,7 +1393,11 @@ public class App : Application
             extensions: new TransferExtensionHost(
                 () => sp.GetService<PackContributionSet>()?.DataTransfers ?? [],
                 featureId => sp.GetRequiredService<IFeatureGate>().IsEnabled(featureId),
-                AppPaths.ConfigRoot, AppPaths.DemoCacheDir)));
+                AppPaths.ConfigRoot, AppPaths.DemoCacheDir),
+            annotationSessions: sp.GetRequiredService<AnnotationWriteCoordinator>()));
+        // The open 2D tabs' annotation sessions, so an import writing a demo's annotations can save, hold and
+        // reload the tab that has that demo open.
+        services.AddSingleton<AnnotationWriteCoordinator>();
         // The "one parse, many evaluators" scheduler: the single submitter that asks the registered passes
         // about a demo and submits them together as ONE visit, so the demo is read once. Library,
         // Highlights and Round Facts are core, always on the visit; a pack's passes come from a PassRegistry built over its
@@ -1456,6 +1491,8 @@ public class App : Application
 
                 foreach (PackContributions contributions in pending)
                 {
+                    // Whatever of its ids the registry holds is the core's or another extension's pass.
+                    contributions.PassIdsOfOthers = [.. contributions.Passes.Select(c => c.Id).Where(registry.Has)];
                     contributions.Guard.Faults.FailStartup(contributions.Guard.Scope, "passes",
                         new InvalidOperationException(refused[contributions]));
                 }
@@ -1570,6 +1607,7 @@ public class App : Application
         // throws partway leaves nothing half-registered: the extension does not start this session and the
         // rest of the app does. The copy holds the host's registrations, so TryAdd sees them, and only what
         // the pack added comes back: a Replace or RemoveAll in Register never reaches the host's own.
+        Dictionary<ServiceDescriptor, IExtension> packOwned = new(ReferenceEqualityComparer.Instance);
         foreach (IExtension pack in packs)
         {
             ServiceCollection scratch = new();
@@ -1598,6 +1636,7 @@ public class App : Application
             foreach (ServiceDescriptor descriptor in added)
             {
                 ((IServiceCollection)services).Add(descriptor);
+                packOwned[descriptor] = pack;
             }
         }
 
@@ -1628,7 +1667,70 @@ public class App : Application
         // handed in so the shell FILTERS the workspace tab strip per user category (and reconciles live on
         // IFeatureGate.Changed). A null gate (the designer / unit-test path) fails open: no tab filtering.
         services.AddSingleton(BuildShell);
+        DropPacksThatDoNotValidate(services, packs, packOwned, faults);
         return services;
+    }
+
+    // BuildServices validates every descriptor's constructor call site, the extensions' included, so one pack's
+    // type-based registration the container cannot satisfy (a parameter nobody registers) failed the whole
+    // provider at launch, with no extension frame on the stack for the launch guard to blame. Run at the end of
+    // ComposeServices, when every host registration is in. When the whole set validates (the normal launch) that
+    // is all; otherwise each pack is tried in registration order against the host and the packs already
+    // accepted, and one that does not validate fails its start, as a Register that throws does, and its
+    // registrations go. A host that does not validate on its own is left to fail loudly in BuildServices.
+    // Validation constructs nothing.
+    private static void DropPacksThatDoNotValidate(ServiceCollection services, IReadOnlyList<IExtension> packs,
+        Dictionary<ServiceDescriptor, IExtension> packOwned, ExtensionFaults faults)
+    {
+        if (packOwned.Count == 0 || ValidationFailure(services) is null
+                                 || ValidationFailure(services.Where(d => !packOwned.ContainsKey(d))) is not null)
+        {
+            return;
+        }
+
+        HashSet<IExtension> accepted = new(ReferenceEqualityComparer.Instance);
+        foreach (IExtension pack in packs)
+        {
+            if (ValidationFailure(services.Where(d =>
+                    !packOwned.TryGetValue(d, out IExtension? owner)
+                    || ReferenceEquals(owner, pack)
+                    || accepted.Contains(owner))) is { } failure)
+            {
+                faults.FailStartup(faults.GuardFor(pack).Scope, "register", failure);
+            }
+            else
+            {
+                accepted.Add(pack);
+            }
+        }
+
+        for (int i = services.Count - 1; i >= 0; i--)
+        {
+            if (packOwned.TryGetValue(services[i], out IExtension? owner) && !accepted.Contains(owner))
+            {
+                services.RemoveAt(i);
+            }
+        }
+    }
+
+    private static AggregateException? ValidationFailure(IEnumerable<ServiceDescriptor> descriptors)
+    {
+        ServiceCollection probe = new();
+        foreach (ServiceDescriptor descriptor in descriptors)
+        {
+            ((IServiceCollection)probe).Add(descriptor);
+        }
+
+        try
+        {
+            using ServiceProvider validated =
+                probe.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
+            return null;
+        }
+        catch (AggregateException ex)
+        {
+            return ex;
+        }
     }
 
     /// <summary>

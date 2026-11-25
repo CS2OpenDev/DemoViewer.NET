@@ -85,20 +85,22 @@ public class CameraRigTests
     }
 
     /// <summary>
-    ///     Parity behaviour, not an optimisation: a single-band render frames every player regardless of
+    ///     Parity behaviour, not an optimisation: a single-level map frames every player regardless of
     ///     Z (the pre-v2 <c>_cameras.Length &gt; 1</c> guard at line 762). Split the same roster over two
-    ///     panes and each pane frames only its own floor.
+    ///     levels and each pane frames only its own floor.
     /// </summary>
     [Test]
-    public async Task FitAliveRig_FiltersByLevel_OnlyWhenThereIsMoreThanOnePane()
+    public async Task FitAliveRig_FiltersByLevel_OnlyWhenTheMapHasMoreThanOneLevel()
     {
         Scene2DFrame frame = new() { Markers = [Marker(0, 2, -300, -200, -400), Marker(1, 3, 400, 500, 100)] };
 
+        MapSpace flat = new();
+        flat.Rebuild([new FloorSlice(-448, 192)]);
         MapSpace space = new();
         space.Rebuild([new FloorSlice(-448, -352), new FloorSlice(0, 192)]);
 
         LevelPane single = Pane();
-        single.Space = space;
+        single.Space = flat;
         single.PaneCount = 1;
         ViewportTransform both = FitAliveRig.Instance.ComputeTarget(single, frame)!.Value;
 
@@ -110,6 +112,30 @@ public class CameraRigTests
 
         await Assert.That(both.CenterX).IsEqualTo(50d).Within(1e-9); // midpoint of -300 and 400
         await Assert.That(onlyLower.CenterX).IsEqualTo(-300d).Within(1e-9);
+    }
+
+    /// <summary>
+    ///     SingleLayout arranges one pane over a two-floor map, and the compositor draws only that
+    ///     floor's players into it, so the rig frames only them; with nobody alive on the shown floor
+    ///     it holds rather than framing players the pane does not draw.
+    /// </summary>
+    [Test]
+    public async Task FitAliveRig_UnderSingleLayout_FramesOnlyTheShownFloor()
+    {
+        MapSpace space = new();
+        space.Rebuild([new FloorSlice(-448, -352), new FloorSlice(0, 192)]);
+
+        LevelPane upper = Pane();
+        upper.Space = space;
+        upper.PaneCount = 1;
+        upper.LevelIndex = 1;
+
+        Scene2DFrame frame = new() { Markers = [Marker(0, 2, -300, -200, -400), Marker(1, 3, 400, 500, 100)] };
+        ViewportTransform onlyUpper = FitAliveRig.Instance.ComputeTarget(upper, frame)!.Value;
+        await Assert.That(onlyUpper.CenterX).IsEqualTo(400d).Within(1e-9);
+
+        Scene2DFrame allBelow = new() { Markers = [Marker(0, 2, -300, -200, -400)] };
+        await Assert.That(FitAliveRig.Instance.ComputeTarget(upper, allBelow)).IsNull();
     }
 
     [Test]

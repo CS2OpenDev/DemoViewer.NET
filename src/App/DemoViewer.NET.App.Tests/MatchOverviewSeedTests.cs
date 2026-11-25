@@ -191,7 +191,7 @@ public class MatchOverviewSeedTests
         await Assert.That(vm.HighlightGroups.Count).IsEqualTo(0);
 
         // The pipeline finishes. The harvest is still running.
-        vm.SetAnalysis(Demo, null, null, 24);
+        vm.SetAnalysis(Demo, null, 24);
 
         using (Assert.Multiple())
         {
@@ -230,7 +230,7 @@ public class MatchOverviewSeedTests
         MatchOverviewTabViewModel vm = new();
         vm.BeginOpening("seed.dem", null, null, Demo);
         vm.SeedFromCache(Demo, Indexed(false));
-        vm.SetAnalysis(Demo, null, null, 24);
+        vm.SetAnalysis(Demo, null, 24);
 
         // The scoreboard lands first: stamped analysis tier, real rows, but the scan has NOT run.
         DemoCacheRecord scoreboardOnly = Indexed(false, true);

@@ -101,6 +101,10 @@ public sealed class GraphBreakpointStore
         WriteIndented = true, Converters = { new JsonStringEnumConverter() }
     };
 
+    // Held across each read-merge-write of the file. Static, because the Analysis tab's store and a transfer
+    // import's are two instances over the one file, and a merge that read before the other wrote drops it.
+    private static readonly Lock _writeGate = new();
+
     private readonly string? _path;
 
     /// <summary>
@@ -161,15 +165,31 @@ public sealed class GraphBreakpointStore
             return;
         }
 
+        Dictionary<string, List<LegacyGraphBreakpoint>>? legacyByDemo;
         try
         {
-            Dictionary<string, List<LegacyGraphBreakpoint>>? legacyByDemo =
-                JsonSerializer.Deserialize<Dictionary<string, List<LegacyGraphBreakpoint>>>(
-                    File.ReadAllText(legacy), _options);
+            legacyByDemo = JsonSerializer.Deserialize<Dictionary<string, List<LegacyGraphBreakpoint>>>(
+                File.ReadAllText(legacy), _options);
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            // A legacy file that cannot be parsed cannot be carried. Fall through to the delete: the
+            // alternative is re-attempting a failing parse on every launch, forever.
+            legacyByDemo = null;
+        }
+        catch
+        {
+            // The file is there and was not read this time (in use, access denied). It is the only copy
+            // of what it holds, so it stays for the next launch.
+            return;
+        }
 
-            if (legacyByDemo is { Count: > 0 })
+        if (legacyByDemo is { Count: > 0 })
+        {
+            try
             {
-                Dictionary<string, List<PersistedGraphBreakpoint>> merged = ReadAllFrom(current);
+                using Lock.Scope gate = _writeGate.EnterScope();
+                bool readable = TryReadAllFrom(current, out Dictionary<string, List<PersistedGraphBreakpoint>> merged);
                 foreach ((string demoKey, List<LegacyGraphBreakpoint> records) in legacyByDemo)
                 {
                     if (merged.ContainsKey(demoKey))
@@ -184,14 +204,15 @@ public sealed class GraphBreakpointStore
                     }
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(current)!);
-                File.WriteAllText(current, JsonSerializer.Serialize(merged, _options));
+                Write(current, readable, JsonSerializer.SerializeToUtf8Bytes(merged, _options));
             }
-        }
-        catch
-        {
-            // A legacy file that cannot be read cannot be carried. Fall through to the delete: the
-            // alternative is re-attempting a failing parse on every launch, forever.
+            catch
+            {
+                // Nothing was carried: the disk is full, the new file is in use, or one that does not
+                // read could not be moved aside. Deleting the legacy file now would destroy the
+                // breakpoints this method exists to keep, so it stays and the next launch tries again.
+                return;
+            }
         }
 
         try
@@ -223,18 +244,34 @@ public sealed class GraphBreakpointStore
             return;
         }
 
-        Dictionary<string, List<PersistedGraphBreakpoint>> merged = Merge(
-            ReadAll(), demoKey, [.. breakpoints.Select(PersistedGraphBreakpoint.From)]);
-
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            File.WriteAllText(_path, JsonSerializer.Serialize(merged, _options));
+            lock (_writeGate)
+            {
+                bool readable = TryReadAllFrom(_path, out Dictionary<string, List<PersistedGraphBreakpoint>> all);
+                Dictionary<string, List<PersistedGraphBreakpoint>> merged = Merge(
+                    all, demoKey, [.. breakpoints.Select(PersistedGraphBreakpoint.From)]);
+                Write(_path, readable, JsonSerializer.SerializeToUtf8Bytes(merged, _options));
+            }
         }
         catch
         {
             // Persistence is best-effort; never crash the app on a write failure.
         }
+    }
+
+    // Caller holds the write gate. A file that is there but did not read is moved aside before anything is
+    // written: it was merged as empty, so writing over it would replace every demo's breakpoints with the one
+    // set in hand. Throws when it cannot be moved, and then nothing is written.
+    private static void Write(string path, bool readable, byte[] content)
+    {
+        if (!readable)
+        {
+            File.Move(path, $"{path}.unreadable-{DateTime.UtcNow.Ticks}");
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        AtomicFile.WriteAllBytes(path, content);
     }
 
     /// <summary>
@@ -272,8 +309,8 @@ public sealed class GraphBreakpointStore
     /// <param name="json">The file's bytes.</param>
     /// <exception cref="JsonException">The bytes are not a breakpoints map.</exception>
     public static Dictionary<string, List<PersistedGraphBreakpoint>> Parse(ReadOnlySpan<byte> json) =>
-        new(JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(json, _options)
-            ?? throw new JsonException("Empty breakpoints file."), StringComparer.Ordinal);
+        WithoutNulls(JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(json, _options)
+            ?? throw new JsonException("Empty breakpoints file."));
 
     /// <summary>A breakpoints map as this store writes its file.</summary>
     /// <param name="byDemo">The map.</param>
@@ -298,10 +335,13 @@ public sealed class GraphBreakpointStore
             return [];
         }
 
-        Dictionary<string, List<PersistedGraphBreakpoint>> all = new(ReadAll(), StringComparer.Ordinal);
+        using Lock.Scope gate = _writeGate.EnterScope();
+        bool readable = TryReadAllFrom(_path, out Dictionary<string, List<PersistedGraphBreakpoint>> read);
+        Dictionary<string, List<PersistedGraphBreakpoint>> all = new(read, StringComparer.Ordinal);
         List<string> changed = [];
-        foreach ((string demoKey, List<PersistedGraphBreakpoint> theirs) in imported)
+        foreach ((string demoKey, List<PersistedGraphBreakpoint>? list) in imported)
         {
+            List<PersistedGraphBreakpoint> theirs = [.. (list ?? []).Where(b => b is not null)];
             if (theirs.Count == 0)
             {
                 continue;
@@ -325,8 +365,7 @@ public sealed class GraphBreakpointStore
 
         if (changed.Count > 0)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllBytes(_path, Serialize(all));
+            Write(_path, readable, Serialize(all));
         }
 
         return changed;
@@ -345,23 +384,49 @@ public sealed class GraphBreakpointStore
 
     private Dictionary<string, List<PersistedGraphBreakpoint>> ReadAll() => ReadAllFrom(_path);
 
+    // The serializer lets a JSON null through for a demo's list and for its items. Neither is a breakpoint, and
+    // every reader and the merge expect none, so a file from a bundle or an older write loses them here.
+    private static Dictionary<string, List<PersistedGraphBreakpoint>> WithoutNulls(
+        Dictionary<string, List<PersistedGraphBreakpoint>> byDemo)
+    {
+        Dictionary<string, List<PersistedGraphBreakpoint>> clean = new(StringComparer.Ordinal);
+        foreach ((string demoKey, List<PersistedGraphBreakpoint>? list) in byDemo)
+        {
+            if (list is not null)
+            {
+                clean[demoKey] = [.. list.Where(b => b is not null)];
+            }
+        }
+
+        return clean;
+    }
+
     private static Dictionary<string, List<PersistedGraphBreakpoint>> ReadAllFrom(string? path)
     {
+        TryReadAllFrom(path, out Dictionary<string, List<PersistedGraphBreakpoint>> all);
+        return all;
+    }
+
+    // False when the file is there but does not read, which a writer has to tell apart from a file that is
+    // absent or empty. The map is empty then, as it is for a reader.
+    private static bool TryReadAllFrom(string? path, out Dictionary<string, List<PersistedGraphBreakpoint>> all)
+    {
+        all = new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal);
         if (path is null || !File.Exists(path))
         {
-            return new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal);
+            return true;
         }
 
         try
         {
-            return JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(
+            all = WithoutNulls(JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(
                     File.ReadAllText(path), _options)
-                ?? new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal);
+                ?? all);
+            return true;
         }
         catch
         {
-            return new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer
-                .Ordinal); // best-effort restore
+            return false; // best-effort restore
         }
     }
 }

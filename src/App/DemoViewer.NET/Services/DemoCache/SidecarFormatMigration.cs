@@ -164,4 +164,12 @@ internal static partial class SidecarFormatLog
 
     [LoggerMessage(EventId = 5, Level = LogLevel.Warning, Message = "sidecar format pass stopped")]
     public static partial void PassFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 6, Level = LogLevel.Warning,
+        Message = "{fileName}: the record does not parse; kept aside as {asideName} before a new one is written")]
+    public static partial void RecordSetAside(ILogger logger, string fileName, string asideName);
+
+    [LoggerMessage(EventId = 7, Level = LogLevel.Warning,
+        Message = "{demoName}: the record file could not be read; this write is left for a later pass")]
+    public static partial void RecordHeld(ILogger logger, string demoName);
 }

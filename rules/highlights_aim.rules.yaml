@@ -10,7 +10,7 @@ summary: Mechanical single-kill feats — no-scopes, jumpshots, wallbangs, smoke
 for: each_player
 
 params:
-  min_distance: { type: int, default: 2500 }   # distance units uncertain — tune here if firing seems off
+  min_distance: { type: int, default: 40 }   # meters: player_death.distance is in meters, not world units
 
 stats:
   # ── No-scope AWP/scout kill ──
@@ -66,7 +66,7 @@ stats:
     while: round.active
     label: SmokeKill
 
-  # ── Long-range kill (distance units uncertain — gate on params.min_distance) ──
+  # ── Long-range kill (player_death.distance is meters; the longest AWP lines on dust2 and mirage are 50-60) ──
   long_range_kills:
     count: kill
     match: { enemy: true }

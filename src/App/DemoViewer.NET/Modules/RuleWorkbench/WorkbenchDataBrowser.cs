@@ -39,10 +39,45 @@ public sealed record RulesetFileRef(
     string FileName,
     string Display,
     bool IsShipped,
-    string? Extension = null)
+    string? Extension = null) : System.ComponentModel.INotifyPropertyChanged
 {
+    private bool _hasUnsavedEdits;
+
     /// <summary>True for a ruleset an extension contributed.</summary>
     public bool IsExtension => Extension is not null;
+
+    /// <summary>
+    ///     True while the Workbench holds edits to this file that are not on disk (the open buffer, or one
+    ///     stashed when another ruleset was picked). The dropdown tags the entry with it.
+    /// </summary>
+    public bool HasUnsavedEdits
+    {
+        get => _hasUnsavedEdits;
+        set
+        {
+            if (_hasUnsavedEdits == value)
+            {
+                return;
+            }
+
+            _hasUnsavedEdits = value;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(HasUnsavedEdits)));
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Label)));
+        }
+    }
+
+    /// <summary>The dropdown text: <see cref="Display" />, starred while there are unsaved edits.</summary>
+    public string Label => _hasUnsavedEdits ? $"{Display} *" : Display;
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
+    // Written out so the mutable flag above does not take part: a ref is the same ruleset whether or not
+    // it is starred, and the ComboBox keeps its selection by equality.
+    public bool Equals(RulesetFileRef? other) =>
+        other is not null && FullPath == other.FullPath && FileName == other.FileName && Display == other.Display
+        && IsShipped == other.IsShipped && Extension == other.Extension;
+
+    public override int GetHashCode() => HashCode.Combine(FullPath, FileName, Display, IsShipped, Extension);
 }
 
 /// <summary>Builds the data-browser vocabulary tree from the flat catalog paths.</summary>

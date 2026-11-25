@@ -1,6 +1,7 @@
 #region
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Avalonia.Controls;
 using CS2DemoKit.Analysis;
 using CS2DemoKit.Parser;
@@ -469,6 +470,30 @@ public class HighlightsTabViewModelTests
         HighlightsTabViewModel garbage = Vm(store, scanner);
         garbage.RestoreState(JsonSerializer.SerializeToElement(new { StagedClips = "not-an-array" }));
         await Assert.That(garbage.StagedCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Restore_Drops_NullClipEntries_And_Keeps_TheValidOnes()
+    {
+        // A hand-edited or corrupt session file can carry a null element, or a clip whose path is null. Both
+        // bind without a JsonException, so they reach the restore loop: each must count as dropped, not throw
+        // and lose the whole tray.
+        DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
+        (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
+        HighlightsTabViewModel vm = Vm(store, scanner);
+        StageAll(vm, a);
+
+        JsonNode blob = JsonSerializer.SerializeToNode(vm.SnapshotState())!;
+        JsonArray clips = blob["StagedClips"]!.AsArray();
+        clips.Add(null);
+        clips.Add(new JsonObject { ["FilePath"] = null });
+
+        HighlightsTabViewModel restored = Vm(store, scanner);
+        restored.RestoreState(JsonSerializer.SerializeToElement(blob));
+        await Assert.That(restored.StagedCount).IsEqualTo(1);
+        await Assert.That(restored.StagedSelections[0].Record.Path).IsEqualTo("/d/a.dem");
+        await Assert.That(restored.StatusMessage).Contains("2 staged clips could not be restored");
     }
 
     [Test]

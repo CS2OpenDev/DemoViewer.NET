@@ -224,7 +224,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
         if (reload)
         {
-            Load();
+            Reload();
         }
 
         _strats.Deleted += OnStratDeleted;
@@ -391,6 +391,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     {
         IReadOnlyList<RoundSignature> signatures = [];
         IReadOnlyList<MinedPattern> patterns = [];
+        bool mined = false;
         try
         {
             RoundSignatureBuilder.BuildSession? session = null;
@@ -422,6 +423,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
                 {
                     signatures = Signatures.Finish(session);
                     patterns = StratMiner.Mine(signatures);
+                    mined = true;
                     Save(patterns);
                 }).ConfigureAwait(false))
             {
@@ -430,7 +432,13 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            // A file mid-write: the next mine reads it.
+            // A file mid-write: the next mine reads it. A pass that failed before it had patterns has none to
+            // publish, and publishing its empty list would clear the inbox; one that only failed to save them
+            // still shows them.
+            if (!mined)
+            {
+                return;
+            }
         }
 
         Published(signatures, patterns, user);
@@ -462,18 +470,20 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         {
             IReadOnlyList<RoundSignature> signatures = [];
             IReadOnlyList<MinedPattern> patterns = [];
+            bool mined = false;
             try
             {
                 signatures = Signatures.Build();
                 patterns = StratMiner.Mine(signatures);
+                mined = true;
                 Save(patterns);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
-                // A file mid-write: the next mine reads it.
+                // A file mid-write: the next mine reads it. See MineQueuedAsync for what is published.
             }
 
-            if (!Completed(signatures, patterns, user))
+            if (!Completed(signatures, patterns, user, mined))
             {
                 return;
             }
@@ -518,10 +528,15 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         return next.Count(p => p.State == GeneratedState.New && !known.Contains(p.Pattern.Key));
     }
 
-    // Publishes a pass; true when another pass was asked for while it ran.
-    private bool Completed(IReadOnlyList<RoundSignature> signatures, IReadOnlyList<MinedPattern> patterns, bool user)
+    // Publishes a pass that has patterns; true when another pass was asked for while it ran.
+    private bool Completed(IReadOnlyList<RoundSignature> signatures, IReadOnlyList<MinedPattern> patterns, bool user,
+        bool mined)
     {
-        Published(signatures, patterns, user);
+        if (mined)
+        {
+            Published(signatures, patterns, user);
+        }
+
         lock (_gate)
         {
             if (!_rerun)
@@ -642,20 +657,29 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
     /// <summary>
     ///     <see cref="Promote(string, StratOwner, DateTime?)" /> with the build read on the processing queue, for a
-    ///     caller on the UI thread. The save runs back on the caller's context.
+    ///     caller on the UI thread. The save runs back on the caller's context. A mine can publish while the build
+    ///     is read, so the pattern is checked again after it, as a preview is: refused with
+    ///     <see cref="PromoteResult.PatternChanged" /> when the key is gone or no longer has the medoid and rounds
+    ///     the build was of.
     /// </summary>
     /// <param name="key"><see cref="MinedPattern.Key" />.</param>
     /// <param name="owner">The book.</param>
-    public async Task<StratDocument?> PromoteAsync(string key, StratOwner owner)
+    public async Task<PromoteResult> PromoteAsync(string key, StratOwner owner)
     {
         ArgumentNullException.ThrowIfNull(owner);
         if (Patterns.FirstOrDefault(p => p.Pattern.Key == key)?.Pattern is not { } pattern
             || await PreviewAsync(pattern, owner, DateTime.UtcNow) is not { } doc)
         {
-            return null;
+            return new PromoteResult(null, false);
         }
 
-        return Commit(pattern, doc);
+        if (Patterns.FirstOrDefault(p => p.Pattern.Key == key)?.Pattern is not { } current
+            || !SameRounds(pattern, current))
+        {
+            return new PromoteResult(null, true);
+        }
+
+        return new PromoteResult(Commit(current, doc), false);
     }
 
     /// <summary>
@@ -1055,17 +1079,21 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
     private void Publish(IReadOnlyList<MinedPattern> patterns)
     {
-        MiningState state;
+        // The flags are read under the gate: an import changes the dismissed and promoted sets in place from its
+        // own thread, and holding the reference alone does not keep a lookup off a set being resized. The raise
+        // stays outside, since a handler rebuilds bound rows.
+        IReadOnlyList<DetectedPattern> detected;
         lock (_gate)
         {
-            state = _state;
+            MiningState state = _state;
+            detected =
+            [
+                .. patterns.Select(p => new DetectedPattern(p, state.Dismissed.Contains(p.Key),
+                    state.Promoted.TryGetValue(p.Key, out Guid id) ? id : null))
+            ];
         }
 
-        Patterns =
-        [
-            .. patterns.Select(p => new DetectedPattern(p, state.Dismissed.Contains(p.Key),
-                state.Promoted.TryGetValue(p.Key, out Guid id) ? id : null))
-        ];
+        Patterns = detected;
         Changed?.Invoke();
     }
 
@@ -1087,9 +1115,11 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
             }
         }
 
+        // Posted, as every other raise of Changed is: an import gets here off the UI thread, and the inbox
+        // rebuilds its bound rows in the handler.
         if (publish)
         {
-            Publish([.. Patterns.Select(p => p.Pattern)]);
+            _post(() => Publish([.. Patterns.Select(p => p.Pattern)]));
         }
     }
 
@@ -1102,22 +1132,52 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         }
     }
 
+    // The constructor's read: nothing is subscribed yet, so the patterns are published where it runs.
     private void Load()
     {
         LoadState();
-        try
+        if (ReadDetected() is { } file)
         {
-            if (_detected?.Read() is { } bytes
-                && JsonSerializer.Deserialize<DetectedFile>(bytes, _jsonOptions) is
-                    { SchemaVersion: CurrentSchemaVersion } file)
+            MinedUtc = file.MinedUtc;
+            Publish(file.Patterns);
+        }
+    }
+
+    // The read after a release. The pack re-attaches its residents inside a queue job, so the files are read
+    // there and the patterns handed to the UI thread like every other raise of Changed: the inbox rebuilds its
+    // bound rows in the handler. Posted behind the release's own clear, so a quick off and on ends with the
+    // patterns and not without them.
+    private void Reload()
+    {
+        lock (_gate)
+        {
+            LoadState();
+        }
+
+        if (ReadDetected() is { } file)
+        {
+            _post(() =>
             {
                 MinedUtc = file.MinedUtc;
                 Publish(file.Patterns);
-            }
+            });
+        }
+    }
+
+    private DetectedFile? ReadDetected()
+    {
+        try
+        {
+            return _detected?.Read() is { } bytes
+                && JsonSerializer.Deserialize<DetectedFile>(bytes, _jsonOptions) is
+                    { SchemaVersion: CurrentSchemaVersion } file
+                    ? file
+                    : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             // An unreadable detected file is rebuilt by the next mine.
+            return null;
         }
     }
 

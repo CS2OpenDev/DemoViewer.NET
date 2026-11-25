@@ -117,6 +117,28 @@ public class FocusPlayerTests
         return vm;
     }
 
+    // In the app the Stats tab never sees library_coaches: the run it is handed has every stamped table cut. The
+    // shell names the coaches through the seam instead, and a coach named there opens no account.
+    [Test]
+    public async Task ACoachTheShellNames_OpensNoAccount_WithoutTheCoachesTable()
+    {
+        StatsTabViewModel vm = new(null, () => "/demos/match.dem")
+        {
+            PlayerOverviewOpener = (_, _) => { },
+            CoachSlotsSource = _ => new HashSet<int> { 4 }
+        };
+        (EvaluationResult result, ParsedDemo demo, _) = BuildScenario();
+
+        vm.Update(result, demo);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.GameRows.Single(r => r.PlayerName == "Coach").SteamId64).IsEqualTo(0UL);
+            await Assert.That(vm.AccountsBySlot.ContainsKey(4)).IsFalse();
+            await Assert.That(vm.AccountsBySlot.GetValueOrDefault(0)).IsEqualTo(Alice);
+        }
+    }
+
     [Test]
     public async Task Rows_CarryTheAccount_OnlyForAHumanWithASteamId()
     {

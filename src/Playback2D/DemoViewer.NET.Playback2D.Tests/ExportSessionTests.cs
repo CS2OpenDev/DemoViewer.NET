@@ -86,6 +86,22 @@ public class ExportRequestValidationTests
         await Assert.That(Refusal(request)).IsNotNull();
     }
 
+    // 1920×1080 RGBA is 8,294,400 bytes a frame, so 2 GiB holds 258 of them. 1750 frames is 70 s at
+    // 25 fps: under the frame cap and the width cap, and about 13.5 GB buffered in either GIF encoder.
+    [Test]
+    public async Task AGifWhoseBufferedFramesOutgrowTheMemoryBudget_IsRefused_WithTheWayOut()
+    {
+        string? refusal = Refusal(ExportFixtures.Request(1750, ExportFormats.Gif, new SKSizeI(1920, 1080), fps: 25));
+
+        await Assert.That(refusal).IsNotNull();
+        await Assert.That(refusal!).Contains("258").Because("the refusal names the most frames that fit");
+        await Assert.That(refusal).Contains("MP4");
+        await Assert.That(Refusal(ExportFixtures.Request(258, ExportFormats.Gif, new SKSizeI(1920, 1080), fps: 25)))
+            .IsNull().Because("a GIF under the budget is unchanged");
+        await Assert.That(Refusal(ExportFixtures.Request(SceneExportSession.GifMaxFrames, ExportFormats.Gif,
+            new SKSizeI(640, 360), fps: 20))).IsNull().Because("640×360 fits the whole frame cap");
+    }
+
     private static string? Refusal(ExportRequest request)
     {
         try

@@ -2,6 +2,7 @@
 
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
+using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
@@ -68,6 +69,36 @@ public class OverlayViewTests
             }
         ]
     };
+
+    [Test]
+    public async Task AnOverlayRemovedFromTheQueueBeforeItRan_TakesTheBuildOff()
+    {
+        using Harness h = new();
+        h.Cache.Upsert(ParsedRecord(DemoA));
+        h.Sidecars.WritePositions(DemoA, Positions(h.Sources.FingerprintFor("de_nuke")));
+
+        // The queue completes a removed item's task without running its work.
+        ResultCardsViewModel vm = new(h.Cache.Library(), h.Sidecars, h.Sources, () => null,
+            new SituationThumbnailCache(), () => new SituationThumbnailRenderer(_ => null), a => a(), _ => null,
+            new OverlayDocument(), run: part => part == "overlay" ? _ => Task.CompletedTask : Task.Run);
+        vm.Load([Hit(DemoA, 3, 1000, 1128, 1256)]);
+        await vm.BatchTask;
+
+        vm.OverlayAllCommand.Execute(null);
+        await vm.OverlayTask;
+        for (int i = 0; i < 200 && vm.IsOverlayBuilding; i++)
+        {
+            await Task.Delay(25);
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.IsOverlayBuilding).IsFalse();
+            await Assert.That(vm.OverlayLine).IsEqualTo(ResultCardsViewModel.OverlayStoppedNote);
+            await Assert.That(vm.OverlayAllCommand.CanExecute(null)).IsTrue()
+                .Because("nothing else takes the build off, and the button would stay disabled");
+        }
+    }
 
     [Test]
     public async Task OverlayAll_StacksEveryStepBetweenTheFirstAndLastMatch_WithSidesFromTheCtSlots()
@@ -187,6 +218,71 @@ public class OverlayViewTests
 
         h.Vm.Clear();
         await Assert.That(h.Vm.CanOverlay).IsFalse().Because("no result set to stack");
+    }
+
+    [Test]
+    public async Task AStoppedOverlayBuild_GivesTheButtonBack_AndTheQueueStillSeesTheStop()
+    {
+        using Harness h = new();
+        h.Cache.Upsert(ParsedRecord(DemoA));
+        h.Sidecars.WritePositions(DemoA, Positions(h.Sources.FingerprintFor("de_nuke")));
+        h.Vm.Load([Hit(DemoA, 3, 1000, 1128, 1256)]);
+        await h.Vm.BatchTask;
+
+        // The queue stops the job: its token is cancelled by the time the worker reaches the first hit.
+        using CancellationTokenSource stop = new();
+        await stop.CancelAsync();
+        using (JobScope.Enter(stop.Token))
+        {
+            h.Vm.OverlayAllCommand.Execute(null);
+        }
+
+        bool stopped = false;
+        try
+        {
+            await h.Vm.OverlayTask;
+        }
+        catch (OperationCanceledException)
+        {
+            stopped = true;
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(stopped).IsTrue().Because("the stop is let through to the queue");
+            await Assert.That(h.Vm.IsOverlayBuilding).IsFalse();
+            await Assert.That(h.Vm.CanOverlay).IsTrue().Because("a stopped build is not a build in flight");
+            await Assert.That(h.Vm.OverlayLine).IsNotEqualTo("stacking the rounds");
+            await Assert.That(h.Vm.IsOverlayShown).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task ClearingTheOverlay_MidBuild_DiscardsThatBuildsAnswer()
+    {
+        using Harness h = new();
+        h.Cache.Upsert(ParsedRecord(DemoA));
+        h.Sidecars.WritePositions(DemoA, Positions(h.Sources.FingerprintFor("de_nuke")));
+
+        h.Vm.Load([Hit(DemoA, 3, 1000, 1128, 1256)]);
+        h.Vm.OverlayAllCommand.Execute(null);
+        await h.Vm.OverlayTask;
+        await Assert.That(h.Vm.IsOverlayShown).IsTrue();
+
+        // Overlay all again, and Clear overlay before the worker's answer is posted back.
+        h.Post.Hold = true;
+        h.Vm.OverlayAllCommand.Execute(null);
+        await h.Vm.OverlayTask;
+        h.Vm.ClearOverlayCommand.Execute(null);
+        h.Post.Release();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(h.Vm.IsOverlayShown).IsFalse().Because("the user cleared it after asking");
+            await Assert.That(h.Vm.OverlayLine).IsEqualTo("");
+            await Assert.That(h.Vm.IsOverlayBuilding).IsFalse();
+            await Assert.That(h.Vm.Count).IsEqualTo(1).Because("the cards stay");
+        }
     }
 
     [Test]

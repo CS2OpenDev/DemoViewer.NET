@@ -67,6 +67,25 @@ public class SidecarFormatTests
         return record;
     }
 
+    /// <summary>
+    ///     A gzip stream says nothing trustworthy about how far it inflates, and a bundle's records come from
+    ///     whoever made the bundle. One that inflates past the limit is refused before the whole of it is held
+    ///     and parsed.
+    /// </summary>
+    [Test]
+    public async Task AGzippedRecord_ThatInflatesPastTheLimit_IsRefused()
+    {
+        byte[] json = Encoding.UTF8.GetBytes("{\"Players\":[" + string.Join(",", Enumerable.Repeat("{}", 20_000)) + "]}");
+        byte[] bomb = SidecarJson.Gzip(json);
+
+        DemoCacheRecord? whole = SidecarJson.DeserializeWithin<DemoCacheRecord>(bomb, null, json.Length);
+        await Assert.That(whole!.Players.Count).IsEqualTo(20_000).Because("a stream that ends at the limit is within it");
+        await Assert.That(() => SidecarJson.DeserializeWithin<DemoCacheRecord>(bomb, null, json.Length - 1))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => SidecarJson.DeserializeWithin<DemoCacheRecord>(bomb, null, 1024))
+            .Throws<InvalidDataException>();
+    }
+
     private static bool IsGzipFile(string file)
     {
         byte[] head = File.ReadAllBytes(file);
@@ -186,6 +205,84 @@ public class SidecarFormatTests
             File.Delete(legacy);
             await File.WriteAllTextAsync(file, JsonSerializer.Serialize(BigRecord(Demo)));
             await Assert.That(new DemoCacheStore(root).TryLoadRecord(Demo)).IsNotNull();
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    ///     A pre-gzip record that is there but cannot be opened is not "no record". A write that took it for
+    ///     one would put a fresh record under the new name, which is read first from then on: the old file's
+    ///     tiers, error report and match date would still be on disk and never seen again.
+    /// </summary>
+    [Test]
+    public async Task AWrite_LeavesAHeldLegacyRecordAlone_RatherThanShadowingIt()
+    {
+        string root = TempRoot();
+        try
+        {
+            DemoCacheStore seed = new(root);
+            seed.Upsert(BigRecord(Demo));
+            seed.SaveIndex();
+            string file = seed.SidecarPathFor(Demo)!;
+            string legacy = seed.LegacySidecarPathFor(Demo)!;
+            await File.WriteAllTextAsync(legacy, JsonSerializer.Serialize(seed.TryLoadRecord(Demo)!, _indented));
+            File.Delete(file);
+
+            DemoCacheStore store = new(root);
+            await using (new FileStream(legacy, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                store.UpdateExisting(Demo, r => r.Map = "de_inferno");
+                await Assert.That(File.Exists(file)).IsFalse().Because("nothing is written over a record that did not read");
+                Assert.Throws<IOException>(() => store.UpdateExistingOrThrow(Demo, r => r.Map = "de_inferno"));
+            }
+
+            DemoCacheRecord? after = new DemoCacheStore(root).TryLoadRecord(Demo);
+            using (Assert.Multiple())
+            {
+                await Assert.That(File.Exists(file)).IsFalse();
+                await Assert.That(after).IsNotNull();
+                await Assert.That(after!.Highlights.Count).IsEqualTo(200);
+                await Assert.That(after.Map).IsEqualTo("de_nuke");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    ///     ...and one that opens but does not parse is moved aside before the fresh record is written, the same
+    ///     as a damaged file under the new name, instead of being deleted as "replaced".
+    /// </summary>
+    [Test]
+    public async Task AWrite_SetsADamagedLegacyRecordAside_RatherThanDeletingIt()
+    {
+        string root = TempRoot();
+        try
+        {
+            DemoCacheStore seed = new(root);
+            seed.Upsert(BigRecord(Demo));
+            seed.SaveIndex();
+            string file = seed.SidecarPathFor(Demo)!;
+            string legacy = seed.LegacySidecarPathFor(Demo)!;
+            const string Damaged = "{ \"Path\": \"/d/format.dem\", \"Highlights\": [ cut short";
+            await File.WriteAllTextAsync(legacy, Damaged);
+            File.Delete(file);
+
+            new DemoCacheStore(root).UpdateExisting(Demo, r => r.Map = "de_inferno");
+
+            string[] aside = Directory.GetFiles(Path.GetDirectoryName(legacy)!, "unreadable-*");
+            using (Assert.Multiple())
+            {
+                await Assert.That(aside.Length).IsEqualTo(1);
+                await Assert.That(aside.Length == 1 ? await File.ReadAllTextAsync(aside[0]) : "").IsEqualTo(Damaged);
+                await Assert.That(File.Exists(legacy)).IsFalse();
+                await Assert.That(new DemoCacheStore(root).TryLoadRecord(Demo)!.Map).IsEqualTo("de_inferno");
+            }
         }
         finally
         {

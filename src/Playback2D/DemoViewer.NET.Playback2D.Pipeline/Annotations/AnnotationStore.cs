@@ -52,6 +52,10 @@ public sealed class AnnotationStore
     // one gate. They are touched once per demo, never per frame.
     private readonly Lock _state = new();
 
+    // Sidecars that could not be read and could not be moved aside either. A save refuses to replace one
+    // until the move succeeds: it is the user's file, and the session's document never saw its contents.
+    private readonly HashSet<string> _unreadable = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly Dictionary<string, bool> _writableByDirectory = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Creates a store.</summary>
@@ -164,14 +168,32 @@ public sealed class AnnotationStore
     };
 
     /// <summary>
-    ///     Loads a demo's sidecar. Never throws for a missing, truncated or foreign file: a corrupt
-    ///     sidecar must not stop a demo from opening.
+    ///     Loads a demo's sidecar for a reader that never saves it (a pack export's ink, a committed fixture).
+    ///     Never throws for a missing, truncated or foreign file: a corrupt sidecar must not stop a demo from
+    ///     opening. One that exists and cannot be read or parsed loads as empty with
+    ///     <see cref="AnnotationLoadResult.Unreadable" /> set, and is left where it is.
     /// </summary>
     /// <param name="demoPath">Path to the <c>.dem</c>.</param>
     /// <param name="clock">The clock the caller's parse is on.</param>
     /// <param name="ct">Cancellation.</param>
-    public async Task<AnnotationLoadResult> LoadAsync(string demoPath, ClockIdentity clock,
-        CancellationToken ct = default)
+    public Task<AnnotationLoadResult> LoadAsync(string demoPath, ClockIdentity clock,
+        CancellationToken ct = default) =>
+        LoadCoreAsync(demoPath, clock, false, ct);
+
+    /// <summary>
+    ///     <see cref="LoadAsync" /> for the editor that saves the document back. A sidecar that exists and
+    ///     cannot be read or parsed is moved aside to <c>&lt;name&gt;.unreadable-&lt;yyyyMMddHHmmss&gt;</c>
+    ///     (<see cref="AnnotationLoadResult.MovedAsidePath" />), so a later save cannot replace it.
+    /// </summary>
+    /// <param name="demoPath">Path to the <c>.dem</c>.</param>
+    /// <param name="clock">The clock the caller's parse is on.</param>
+    /// <param name="ct">Cancellation.</param>
+    public Task<AnnotationLoadResult> LoadForEditingAsync(string demoPath, ClockIdentity clock,
+        CancellationToken ct = default) =>
+        LoadCoreAsync(demoPath, clock, true, ct);
+
+    private async Task<AnnotationLoadResult> LoadCoreAsync(string demoPath, ClockIdentity clock, bool editing,
+        CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(clock);
 
@@ -204,15 +226,15 @@ public sealed class AnnotationStore
         }
         catch (JsonException)
         {
-            return AnnotationLoadResult.Empty(location, path);
+            return Unreadable(location, path, editing);
         }
         catch (IOException)
         {
-            return AnnotationLoadResult.Empty(location, path);
+            return Unreadable(location, path, editing);
         }
         catch (UnauthorizedAccessException)
         {
-            return AnnotationLoadResult.Empty(location, path);
+            return Unreadable(location, path, editing);
         }
 
         if (dto is null)
@@ -263,6 +285,7 @@ public sealed class AnnotationStore
         {
             _rootExtras[path] = dto.Extra ?? [];
             _elementExtras[path] = elementExtras;
+            _unreadable.Remove(path);
         }
 
         return new AnnotationLoadResult(elements, location, path, false, clockMismatch, dto.SchemaVersion);
@@ -288,6 +311,25 @@ public sealed class AnnotationStore
         if (path is null)
         {
             return false;
+        }
+
+        bool unreadable;
+        lock (_state)
+        {
+            unreadable = _unreadable.Contains(path);
+        }
+
+        if (unreadable)
+        {
+            if (File.Exists(path) && TryMoveAside(path) is null)
+            {
+                return false;
+            }
+
+            lock (_state)
+            {
+                _unreadable.Remove(path);
+            }
         }
 
         Dictionary<string, JsonElement>? rootExtra;
@@ -343,10 +385,21 @@ public sealed class AnnotationStore
                 await JsonSerializer
                     .SerializeAsync(stream, dto, AnnotationJsonContext.Default.AnnotationDocumentDto, ct)
                     .ConfigureAwait(false);
+
+                // On disk before the rename: a rename can reach the disk before the data it points at,
+                // and after a power loss that is a sidecar of the right length with nothing in it.
+                await stream.FlushAsync(ct).ConfigureAwait(false);
+                stream.Flush(true);
             }
 
             File.Move(temp, path, true);
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            // Not a failed save, so it is not turned into false; but the half-written temp is still ours.
+            TryDelete(temp);
+            throw;
         }
         catch (IOException)
         {
@@ -430,6 +483,31 @@ public sealed class AnnotationStore
     }
 
     /// <summary>
+    ///     Reads the clock a sidecar was authored against. False when the bytes are not a sidecar; true with a
+    ///     null clock for one that records none.
+    /// </summary>
+    /// <param name="json">The sidecar's bytes.</param>
+    /// <param name="clock">The clock it records, or null.</param>
+    public static bool TryReadClock(ReadOnlySpan<byte> json, out ClockIdentity? clock)
+    {
+        clock = null;
+        try
+        {
+            if (JsonSerializer.Deserialize(json, AnnotationJsonContext.Default.AnnotationDocumentDto) is not { } dto)
+            {
+                return false;
+            }
+
+            clock = ToClock(dto.Clock);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     ///     One sidecar holding both documents' elements: <paramref name="mine" /> as it is, then each element of
     ///     <paramref name="theirs" /> whose id it lacks. The header and clock stay mine.
     /// </summary>
@@ -445,9 +523,18 @@ public sealed class AnnotationStore
             JsonSerializer.Deserialize(theirs, AnnotationJsonContext.Default.AnnotationDocumentDto)
             ?? throw new JsonException("Empty annotation document.");
         into.Elements ??= [];
+
+        // A JSON null deserializes to a null entry. It is nobody's annotation, so it is left out of the
+        // merged document rather than failing the merge and costing the elements beside it.
+        into.Elements.RemoveAll(static e => e is null);
         HashSet<string> ids = new(into.Elements.Select(e => e.Id).OfType<string>(), StringComparer.OrdinalIgnoreCase);
-        foreach (AnnotationElementDto element in from.Elements ?? [])
+        foreach (AnnotationElementDto? element in from.Elements ?? [])
         {
+            if (element is null)
+            {
+                continue;
+            }
+
             if (element.Id is null || ids.Add(element.Id))
             {
                 into.Elements.Add(element);
@@ -467,6 +554,82 @@ public sealed class AnnotationStore
 
         string file = AppDataFile(_appDataRoot, key);
         return File.Exists(file) ? file : null;
+    }
+
+    // A sidecar that exists and cannot be read opens as empty, so the first save would replace it with
+    // only what is drawn after. It is moved aside first, never deleted; when even that fails it stays where
+    // it is and is guarded until a save can move it. A reader that never saves leaves the file and the store's
+    // memory of it alone: an editor sharing the store keeps what it preserved.
+    private AnnotationLoadResult Unreadable(AnnotationStoreLocation location, string path, bool editing)
+    {
+        if (!editing)
+        {
+            return AnnotationLoadResult.Empty(location, path) with { Unreadable = true };
+        }
+
+        Forget(path);
+        string? movedTo = TryMoveAside(path);
+        if (movedTo is null)
+        {
+            lock (_state)
+            {
+                _unreadable.Add(path);
+            }
+        }
+
+        return AnnotationLoadResult.Empty(location, path) with { Unreadable = true, MovedAsidePath = movedTo };
+    }
+
+    // "<name>.unreadable-<yyyyMMddHHmmss>", with a counter when that name is taken. The stamp is the file's
+    // own last write, not the clock: Pipeline reads no wall clock (BannedApiTests), and the time the
+    // unreadable version was written is the one that tells two of them apart.
+    private static string? TryMoveAside(string path)
+    {
+        DateTime written;
+        try
+        {
+            written = File.GetLastWriteTime(path);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+
+        string stem = path + ".unreadable-" + written.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+        for (int attempt = 0; attempt < 10; attempt++)
+        {
+            string target = attempt == 0
+                ? stem
+                : string.Create(CultureInfo.InvariantCulture, $"{stem}-{attempt}");
+            if (File.Exists(target))
+            {
+                continue;
+            }
+
+            try
+            {
+                File.Move(path, target, false);
+                return target;
+            }
+            catch (IOException) when (File.Exists(path) && File.Exists(target))
+            {
+                // Taken between the check and the move; try the next name.
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     private void Forget(string path)

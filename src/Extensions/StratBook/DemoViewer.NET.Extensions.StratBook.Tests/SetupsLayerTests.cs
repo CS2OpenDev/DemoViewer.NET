@@ -528,6 +528,38 @@ public class SetupsLayerTests
         }
     }
 
+    [Test]
+    public async Task AnIsolatedPlayer_FadesTheStage_ButNotTheOnePagersBuyPictures()
+    {
+        using Harness h = await Harness.Create();
+        QueuedPost posted = new();
+        using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
+            h.Service, null, _ => true, () => new SetupHeatmapRenderer(_ => null), posted.Post);
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == h.TeamB);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        await ScoutingReportTestKit.Inspect(vm, posted, "de_mirage", ScoutingSide.Ct, "setups");
+        PlayerRowViewModel p7 = vm.Players.Single(p => p.Name == "p7");
+        p7.IsolateCommand!.Execute(p7);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        ScoutingLayerChipViewModel setups = vm.Layers.Find("setups")!;
+        bool fadedOnStage = setups.Marks.Marks.Any(m => m.Opacity <= SetupsLayer.IsolatedFade);
+
+        IReadOnlyList<ScoutingReportBuyStage> stages = await vm.BuyStagesAsync([]);
+        List<ScoutingMapMark> players =
+        [
+            .. stages.Where(s => s.Side == "CT").SelectMany(s => s.Marks)
+                .Where(m => m.Color is >= ScoutingColor.Player1 and <= ScoutingColor.Player5)
+        ];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(fadedOnStage).IsTrue();
+            await Assert.That(players.Count).IsGreaterThan(0);
+            await Assert.That(players.All(m => m.Opacity > SetupsLayer.IsolatedFade)).IsTrue()
+                .Because("the export draws every player, whoever is isolated on screen");
+        }
+    }
+
     private static List<List<RoundPosition>> Steps(int count, Func<int, IEnumerable<RoundPosition>> at) =>
         [.. Enumerable.Range(0, count).Select(step => at(step).ToList())];
 

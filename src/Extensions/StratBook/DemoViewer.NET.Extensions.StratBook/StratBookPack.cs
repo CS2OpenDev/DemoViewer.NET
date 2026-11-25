@@ -335,6 +335,11 @@ public sealed class StratBookPack : IExtension
             notes.Changed += Report;
             vetoes.Changed += Report;
             ranks.Changed += Report;
+            // A merge tombstones the merged team's id, and these stores look a team up by its exact id:
+            // what they hold under the tombstone moves onto the team that took it over. Team Identity raises on
+            // the UI thread, where the stores mutate, and it raises once its file is read, which catches up a
+            // merge made before the stores followed one.
+            teams.Changed += () => MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks, strats);
             return teams;
         });
         // Demo Provenance Labels: the override from teams.json else the heuristic over the cache row and
@@ -702,6 +707,14 @@ public sealed class StratBookPack : IExtension
                 jobs: Host(sp).Jobs,
                 storedLineups: index.StoredLineupIds);
             index.Changed += () => clips.PlanSoon();
+            // A raised folder limit clears the evictions on the next plan, so plan now, not at the next index change.
+            settings.Changed += key =>
+            {
+                if (key == StratBookSettings.LineupClipsMaxMegabytesKey)
+                {
+                    _ = clips.PlanSoon();
+                }
+            };
             sp.GetRequiredService<StratBookPackInstances>().Record(clips);
             return clips;
         });
@@ -1073,7 +1086,8 @@ public sealed class StratBookPack : IExtension
                 new JobOptions(Key: lockedMap is null ? "section:utility" : "section:lineup-picker",
                     Preemptible: true)),
             post: Host(sp).Post,
-            lockedMap: lockedMap);
+            lockedMap: lockedMap,
+            clips: sp.GetRequiredService<LineupClipService>());
     }
 
     // Undoes an event subscription when disposed.

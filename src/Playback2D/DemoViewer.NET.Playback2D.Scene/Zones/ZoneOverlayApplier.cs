@@ -24,6 +24,9 @@ internal sealed record ZoneOverlayResult(ZoneSet Effective, IReadOnlyList<ZoneDi
 /// </summary>
 internal static class ZoneOverlayApplier
 {
+    // Twice the Source 2 world half-extent, so no real corner is ever turned away.
+    private const double MaxCoordinate = 32768;
+
     /// <summary>Applies the overlay.</summary>
     /// <param name="baked">The baked set.</param>
     /// <param name="overlay">The parsed overlay.</param>
@@ -83,12 +86,24 @@ internal static class ZoneOverlayApplier
         return new ZoneOverlayResult(state.Compact(effective, overlayPath), diagnostics);
     }
 
+    // The Strat Book's round index writes places into place:count|place:count tokens, and its encoder throws
+    // on a name holding either separator: one such zone failed the index of every demo on the map, with nothing
+    // pointing back at the overlay. The name is refused here instead, where the diagnostic says which entry.
+    private static bool HoldsTokenSeparator(string name) => name.Contains(':') || name.Contains('|');
+
     private static void ApplyMerge(State state, ZoneOverlayMerge merge, List<ZoneDiagnostic> diagnostics)
     {
         if (string.IsNullOrWhiteSpace(merge.Into))
         {
             diagnostics.Add(new ZoneDiagnostic("zones.overlay.empty-name",
                 "a merge has no 'into' name; expected the name of the place the sources become"));
+            return;
+        }
+
+        if (HoldsTokenSeparator(merge.Into))
+        {
+            diagnostics.Add(new ZoneDiagnostic("zones.overlay.bad-name",
+                $"merge '{merge.Into}' has ':' or '|' in its 'into' name; a place name can hold neither", merge.Into));
             return;
         }
 
@@ -142,6 +157,13 @@ internal static class ZoneOverlayApplier
             return;
         }
 
+        if (HoldsTokenSeparator(zone.Name))
+        {
+            diagnostics.Add(new ZoneDiagnostic("zones.overlay.bad-name",
+                $"zone '{zone.Name}' has ':' or '|' in its name; a place name can hold neither", zone.Name));
+            return;
+        }
+
         ZoneFloor? band = null;
         foreach (ZoneFloor floor in state.Baked.Floors)
         {
@@ -159,6 +181,16 @@ internal static class ZoneOverlayApplier
             diagnostics.Add(new ZoneDiagnostic("zones.overlay.unknown-floor",
                 $"zone '{zone.Name}' names floor {zone.Floor.ToString(CultureInfo.InvariantCulture)}; " +
                 $"this map's floor keys are {keys}", zone.Name));
+            return;
+        }
+
+        // Range first: the resolver grids every volume's box cell by cell, so a corner at 1e9 hangs the
+        // map load, and NaN fails every comparison IsSimple makes and so passes it.
+        if (zone.Polygon.Any(v => !double.IsFinite(v) || Math.Abs(v) > MaxCoordinate))
+        {
+            diagnostics.Add(new ZoneDiagnostic("zones.overlay.bad-polygon",
+                $"zone '{zone.Name}' has a corner outside the map; expected every x and y within " +
+                $"±{MaxCoordinate.ToString(CultureInfo.InvariantCulture)}", zone.Name));
             return;
         }
 
@@ -231,26 +263,110 @@ internal static class ZoneOverlayApplier
         }
     }
 
-    // A vertical prism as planes, the same shape as a baked hull so the resolver has one code path.
-    // Edge normals point outward whichever way the polygon winds; the top and bottom close the band.
+    // Vertical prisms as planes, the same shape as a baked hull so the resolver has one code path.
+    // A hull is convex and a user polygon need not be, so the polygon is ear-clipped into triangles
+    // and each becomes one hull; one hull over every edge would be the polygon's kernel, which
+    // drops the arms of an L. Edge normals point outward whichever way the polygon winds; the top
+    // and bottom close the band.
     private static ZoneVolume BuildPrism(IReadOnlyList<double> polygon, double minZ, double maxZ, int placeId)
     {
         int n = polygon.Count / 2;
         bool ccw = ZoneGeometry.SignedArea(polygon) > 0;
-        List<ZonePlane> planes = new(n + 2);
 
         double minX = double.PositiveInfinity, minY = double.PositiveInfinity;
         double maxX = double.NegativeInfinity, maxY = double.NegativeInfinity;
+        for (int i = 0; i < n; i++)
+        {
+            minX = Math.Min(minX, polygon[2 * i]);
+            minY = Math.Min(minY, polygon[2 * i + 1]);
+            maxX = Math.Max(maxX, polygon[2 * i]);
+            maxY = Math.Max(maxY, polygon[2 * i + 1]);
+        }
 
+        List<ZoneHull> hulls = [];
+        List<int> ring = [.. Enumerable.Range(0, n)];
+        while (ring.Count > 3)
+        {
+            int ear = FindEar(polygon, ring, ccw);
+            if (ear < 0)
+            {
+                break;
+            }
+
+            int a = ring[(ear + ring.Count - 1) % ring.Count], b = ring[ear], c = ring[(ear + 1) % ring.Count];
+            if (Math.Abs(Cross(polygon, a, b, c)) > 1e-9)
+            {
+                hulls.Add(Prism(polygon, [a, b, c], ccw, minZ, maxZ));
+            }
+
+            ring.RemoveAt(ear);
+        }
+
+        // Three corners left, or a ring no ear could be cut from (only a non-simple polygon, which
+        // IsSimple already turned away): the rest as one convex hull, as before. A last triangle with
+        // no area is what a collinear corner leaves behind, and its edges have no normal.
+        if (ring.Count > 3 || hulls.Count == 0 || Math.Abs(Cross(polygon, ring[0], ring[1], ring[2])) > 1e-9)
+        {
+            hulls.Add(Prism(polygon, ring, ccw, minZ, maxZ));
+        }
+
+        return new ZoneVolume(ZoneVolumeKind.Place, placeId, null, null, null,
+            new Vector3((float)minX, (float)minY, (float)minZ), new Vector3((float)maxX, (float)maxY, (float)maxZ),
+            hulls, PlaceOrigin.Custom, polygon);
+    }
+
+    // The ring index of a corner whose triangle with its neighbours turns the polygon's way and holds
+    // no other remaining corner, or -1. A collinear corner counts as an ear so it is dropped.
+    private static int FindEar(IReadOnlyList<double> polygon, List<int> ring, bool ccw)
+    {
+        int count = ring.Count;
+        for (int i = 0; i < count; i++)
+        {
+            int a = ring[(i + count - 1) % count], b = ring[i], c = ring[(i + 1) % count];
+            double turn = ccw ? Cross(polygon, a, b, c) : -Cross(polygon, a, b, c);
+            if (turn < -1e-9)
+            {
+                continue;
+            }
+
+            bool empty = true;
+            for (int k = 0; k < count && empty && turn > 1e-9; k++)
+            {
+                int p = ring[k];
+                if (p == a || p == b || p == c)
+                {
+                    continue;
+                }
+
+                double s = ccw ? 1 : -1;
+                empty = !(s * Cross(polygon, a, b, p) >= 0 && s * Cross(polygon, b, c, p) >= 0
+                          && s * Cross(polygon, c, a, p) >= 0);
+            }
+
+            if (empty)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    // (b - a) x (c - a) over corner indices: positive when a, b, c turn counter-clockwise.
+    private static double Cross(IReadOnlyList<double> polygon, int a, int b, int c) =>
+        (polygon[2 * b] - polygon[2 * a]) * (polygon[2 * c + 1] - polygon[2 * a + 1])
+        - (polygon[2 * b + 1] - polygon[2 * a + 1]) * (polygon[2 * c] - polygon[2 * a]);
+
+    private static ZoneHull Prism(IReadOnlyList<double> polygon, List<int> corners, bool ccw,
+        double minZ, double maxZ)
+    {
+        int n = corners.Count;
+        List<ZonePlane> planes = new(n + 2);
         for (int i = 0; i < n; i++)
         {
             int j = (i + 1) % n;
-            double ax = polygon[2 * i], ay = polygon[2 * i + 1];
-            double bx = polygon[2 * j], by = polygon[2 * j + 1];
-            minX = Math.Min(minX, ax);
-            minY = Math.Min(minY, ay);
-            maxX = Math.Max(maxX, ax);
-            maxY = Math.Max(maxY, ay);
+            double ax = polygon[2 * corners[i]], ay = polygon[2 * corners[i] + 1];
+            double bx = polygon[2 * corners[j]], by = polygon[2 * corners[j] + 1];
 
             double ex = bx - ax, ey = by - ay;
             double len = Math.Sqrt(ex * ex + ey * ey);
@@ -261,10 +377,7 @@ internal static class ZoneOverlayApplier
 
         planes.Add(new ZonePlane(0, 0, -1, -minZ));
         planes.Add(new ZonePlane(0, 0, 1, maxZ));
-
-        return new ZoneVolume(ZoneVolumeKind.Place, placeId, null, null, null,
-            new Vector3((float)minX, (float)minY, (float)minZ), new Vector3((float)maxX, (float)maxY, (float)maxZ),
-            [new ZoneHull(planes)], PlaceOrigin.Custom, polygon);
+        return new ZoneHull(planes);
     }
 
     /// <summary>The mutable working copy of one application.</summary>

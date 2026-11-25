@@ -58,6 +58,16 @@ public static class Icons
         pak.Read(pakPath);
 
         Dictionary<string, PackageEntry> wanted = Select(pak);
+
+        // The one lookup that can still throw after the per-icon PNGs are on disk. Checked first so a
+        // moved emblem leaves the committed icons and icons.json as they were.
+        foreach (string emblem in new[] { IconSet.PremierEmblem, IconSet.PremierEmblemUnranked })
+        {
+            _ = pak.FindEntry(emblem + ".vsvg_c")
+                ?? throw new InvalidOperationException(
+                    $"{emblem} is not in this CS2 build — the Premier emblem moved.");
+        }
+
         Directory.CreateDirectory(outDir);
 
         SortedDictionary<string, IconEntry> manifest = new(StringComparer.Ordinal);

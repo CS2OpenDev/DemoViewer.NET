@@ -222,6 +222,31 @@ public class SyncEngineTests
     }
 
     [Test]
+    public async Task LoadFailure_AfterTheUserMovedOn_KeepsTheNewerDemoAndLoadsIt()
+    {
+        FakeSyncClient client = new();
+        TaskCompletionSource heldA = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.HeldLoadPath = "/demos/a.dem";
+        client.HeldLoad = heldA;
+        SyncEngine engine = new(client, _fast, LiveSyncCapabilities.None);
+        StatusProbe probe = new();
+        probe.Attach(engine);
+        await using (engine)
+        {
+            engine.SetDesiredDemo("/demos/a.dem", 0, false);
+            await WaitForAsync(() => client.Count("load:/demos/a.dem") == 1, "load of A in flight");
+
+            // The user opens B while CS2 is still loading A; the reconciler defers behind the load.
+            engine.SetDesiredDemo("/demos/b.dem", 0, false);
+            await Task.Delay(_fast.Settle * 2);
+
+            heldA.SetException(new InvalidOperationException("unplayable"));
+            await WaitForAsync(() => client.Count("load:/demos/b.dem") == 1, "load of B after A failed");
+            await Assert.That(probe.Current.Reason ?? "").DoesNotContain("could not load");
+        }
+    }
+
+    [Test]
     public async Task WhilePlaying_NoPositionPushes()
     {
         (SyncEngine engine, FakeSyncClient client, StatusProbe probe) = await SyncedHoldingAsync();
@@ -441,6 +466,8 @@ public class SyncEngineTests
         {
             int loadsBefore = client.Count("load:");
             engine.NoteRemoteDemoChanged("/cs2/replays/user_pick.dem");
+            await Assert.That(engine.HasRemoteDemoChange).IsTrue()
+                .Because("the inbound pump stops mirroring the other demo's ticks");
 
             await WaitForAsync(
                 () => probe.Current is
@@ -457,6 +484,7 @@ public class SyncEngineTests
             // only the position fixup flows.
             engine.SetDesiredDemo("/cs2/replays/user_pick.dem", 0, false);
             await WaitForAsync(() => probe.Current.RemoteDemoPath is null, "offer cleared");
+            await Assert.That(engine.HasRemoteDemoChange).IsFalse();
             await WaitForAsync(() => client.Snapshot().Contains("seek:0"), "position fixup seek");
             await Assert.That(client.Count("load:")).IsEqualTo(loadsBefore);
 
@@ -506,10 +534,19 @@ public class SyncEngineTests
         /// <summary>The interactive-demo-UI flag of the most recent load (v1.1 assertion seam).</summary>
         public volatile bool LastLoadInteractiveUi;
 
-        public Task LoadDemoAsync(string demoPath, bool interactiveDemoUi, CancellationToken cancellationToken)
+        /// <summary>When set, a load of <see cref="HeldLoadPath" /> is recorded and then awaits this.</summary>
+        public volatile TaskCompletionSource? HeldLoad;
+
+        public volatile string? HeldLoadPath;
+
+        public async Task LoadDemoAsync(string demoPath, bool interactiveDemoUi, CancellationToken cancellationToken)
         {
             LastLoadInteractiveUi = interactiveDemoUi;
-            return Record($"load:{demoPath}");
+            await Record($"load:{demoPath}");
+            if (HeldLoad is { } held && demoPath == HeldLoadPath)
+            {
+                await held.Task;
+            }
         }
 
         public Task CloseDemoAsync(CancellationToken cancellationToken) => Record("close");

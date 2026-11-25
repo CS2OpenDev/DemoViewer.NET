@@ -209,6 +209,33 @@ public class PlayerStatsTests
     }
 
     [Test]
+    public async Task ARosterPlayerOnTheOtherSideOfADemo_IsNotCountedForTheTeam()
+    {
+        // Team B is the CT five (Id 11 to 15) in both demos. Id 1 is in its roster now but played demo one and
+        // demo two for the T side, against it.
+        DemoCacheStore cache = Cache();
+        FakeFacts facts = new(cache.RoundFacts());
+        facts.Set(DemoOne, FactStatus.Current,
+            Table(Row(Id(11), 20, 1.20, 1600, 75, 18, 12, 0), Row(Id(1), 20, 1.50, 2400, 80, 25, 10, 9, 2)));
+        string[] key = [Id(11), Id(12), Id(13), Id(14), Id(15)];
+        TeamDemoFacts[] demos =
+        [
+            new(DemoOne, "de_mirage", 2, true, null, Players: key),
+            new(DemoTwo, "de_mirage", 1, true, null, Players: key)
+        ];
+
+        PlayerStatsSet set = PlayerStatsService.Build(cache.Library(), facts, cache.RoundFacts(), demos, [Id(11), Id(1)]);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(set.For("de_mirage", Id(1))).IsNull()
+                .Because("every number of Id 1 here was earned playing against the team");
+            await Assert.That(set.TeamAwpKills("de_mirage")).IsEqualTo(0);
+            await Assert.That(set.For("de_mirage", Id(11))!.Openings.Count).IsEqualTo(2);
+        }
+    }
+
+    [Test]
     public async Task OpeningsAndClutchAttempts_ComeFromRoundFacts_WithTheirRounds()
     {
         DemoCacheStore cache = Cache();
@@ -502,6 +529,35 @@ public class PlayerStatsTests
         teams.Dispose();
     }
 
+    [Test]
+    public async Task AFailedRead_SaysSo_InsteadOfLoadingForever()
+    {
+        DemoCacheStore cache = Cache();
+        TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
+        await teams.StartAsync();
+        cache.Upsert(Record(DemoOne, 0, RowsOne()));
+        await teams.Idle;
+        Guid teamB = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(11)) == true)).Id;
+        FakeFacts facts = new(cache.RoundFacts()) { ReadFails = true };
+        facts.Set(DemoOne, FactStatus.Current, Table(Row(Id(11), 20, 1.20, 1600, 75, 18, 12, 10)));
+        QueuedPost posted = new();
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), false,
+            null, null, _ => true, () => new SetupHeatmapRenderer(_ => null), posted.Post,
+            runSection: _ => _inline, roundFacts: cache.RoundFacts(), analysisFacts: facts);
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamB);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        PlayerRowViewModel p5 = vm.Players.Single(p => p.Name == "p5");
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(p5.Rating.IsLoading).IsFalse().Because("the read is over; it failed");
+            await Assert.That(p5.Rating.Label).IsEqualTo("—");
+            await Assert.That(vm.PlayersStatusLine).Contains("could not be read");
+        }
+
+        teams.Dispose();
+    }
+
     internal sealed class FakeFacts(IRoundFacts roundFacts) : IAnalysisFacts
     {
         private readonly Dictionary<string, (FactStatus Status, FactTable? Table)> _demos =
@@ -527,8 +583,16 @@ public class PlayerStatsTests
 
         public bool IsCurrent(string demoPath, FactKey key) => Status(demoPath, key) == FactStatus.Current;
 
+        /// <summary>Set: every read throws, as a facts file another process holds locked would.</summary>
+        public bool ReadFails { get; set; }
+
         public FactTable? TryGet(string demoPath, FactKey key)
         {
+            if (ReadFails)
+            {
+                throw new IOException("the facts file is locked");
+            }
+
             lock (_demos)
             {
                 return _demos.TryGetValue(demoPath, out (FactStatus Status, FactTable? Table) d) ? d.Table : null;

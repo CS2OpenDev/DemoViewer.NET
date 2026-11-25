@@ -407,9 +407,14 @@ public sealed class ReviewQueue
             {
                 Id = Guid.NewGuid(), Sha256 = sha, DemoPath = localPathOf?.Invoke(sha) ?? ""
             };
-            int at = List.FindIndex(e => e.Kind == ReviewEntryKind.Clip && e.FromTick == clip.FromTick
+            bool Counterpart(ReviewEntry e) => e.Kind == ReviewEntryKind.Clip && e.FromTick == clip.FromTick
                 && e.ToTick == clip.ToTick && Equals(e.Highlight, clip.Highlight)
-                && string.Equals(e.Sha256 ?? shaOfPath?.Invoke(e.DemoPath), sha, StringComparison.OrdinalIgnoreCase));
+                && string.Equals(e.Sha256 ?? shaOfPath?.Invoke(e.DemoPath), sha, StringComparison.OrdinalIgnoreCase);
+
+            bool SameWords(ReviewEntry e) => string.Equals(e.Note, clip.Note, StringComparison.Ordinal)
+                && string.Equals(e.Question, clip.Question, StringComparison.Ordinal);
+
+            int at = List.FindIndex(Counterpart);
             if (at < 0 && appended.Any(a => SameClip.Instance.Equals(a.Clip, clip)))
             {
                 kept++;
@@ -424,8 +429,10 @@ public sealed class ReviewQueue
                 List[at] = clip with { Id = List[at].Id, DemoPath = List[at].DemoPath };
                 replaced++;
             }
-            else if (policy == ConflictPolicy.KeepBoth && (!string.Equals(List[at].Note, clip.Note, StringComparison.Ordinal)
-                         || !string.Equals(List[at].Question, clip.Question, StringComparison.Ordinal)))
+            // Every counterpart is looked at, not the first: the copy an earlier import appended sits after the
+            // user's own clip, and a second import of the same bundle must find it and add nothing.
+            else if (policy == ConflictPolicy.KeepBoth && !List.Any(e => Counterpart(e) && SameWords(e))
+                     && !appended.Any(a => SameClip.Instance.Equals(a.Clip, clip) && SameWords(a.Clip)))
             {
                 appended.Add((section, clip));
                 added++;
@@ -825,7 +832,7 @@ public sealed class ReviewQueue
 
     private void QueueWrite(ReviewEntry[] snapshot) => _writer.Post(snapshot);
 
-    // A failure is dropped: the in-memory queue stands for the session and the next mutation retries.
+    // A failed write stays pending in the writer: the next mutation or the shutdown flush retries it.
     private void Write(ReviewEntry[] snapshot)
     {
         ReviewQueueFile file = new() { Entries = [.. snapshot], Extra = _fileExtra };

@@ -60,6 +60,12 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// <summary>The overlay line when no hit in the set had a positions file to stack.</summary>
     public const string NoOverlayNote = "no positions for these rounds; rebuild the index";
 
+    /// <summary>The overlay line when the queue stopped the build before it finished.</summary>
+    public const string OverlayStoppedNote = "overlay stopped before it finished";
+
+    /// <summary>The overlay line when the build failed on a read.</summary>
+    public const string OverlayFailedNote = "overlay failed; the rounds could not be read";
+
     /// <summary>How far past the last matched tick a clip sent to the Review Queue runs.</summary>
     public const int ReviewTailSeconds = 5;
 
@@ -78,6 +84,10 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     // Bumped per Load; a worker whose generation is behind posts nothing, so a search issued while the
     // last batch is still rendering cannot land old pictures on new cards.
     private int _generation;
+
+    // Bumped per overlay build and per drop, apart from the set's generation: clearing the overlay must not
+    // stop the cards' fill, and an older build's answer must not land over a newer one or over a clear.
+    private int _overlayGeneration;
 
     /// <summary>True while the overlay worker is reading and stacking; the button is disabled meanwhile.</summary>
     [ObservableProperty]
@@ -465,13 +475,33 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     private void OverlayAll()
     {
         int generation = Volatile.Read(ref _generation);
+        int overlay = Interlocked.Increment(ref _overlayGeneration);
         List<SituationHit> hits = [.. Cards.Select(c => c.Hit)];
         IsOverlayBuilding = true;
         OverlayLine = "stacking the rounds";
         using (JobScope.UserAction())
         {
-            OverlayTask = _run("overlay")(() => BuildOverlay(generation, hits));
+            OverlayTask = _run("overlay")(() => BuildOverlay(generation, overlay, hits));
         }
+
+        // An item removed from the queue while it waits completes without the build ever running, so neither
+        // its answer nor its catch takes the build off. A build that did run posted first, and this finds
+        // nothing left to do.
+        _ = OverlayTask.ContinueWith(task =>
+        {
+            _ = task.Exception;
+            _post(() =>
+            {
+                if (generation != Volatile.Read(ref _generation) || overlay != Volatile.Read(ref _overlayGeneration)
+                    || !IsOverlayBuilding)
+                {
+                    return;
+                }
+
+                IsOverlayBuilding = false;
+                OverlayLine = OverlayStoppedNote;
+            });
+        }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
     }
 
     /// <summary>Takes the heatmap off the canvas. The cards stay.</summary>
@@ -481,9 +511,10 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     private void OnOverlayChanged() => OnPropertyChanged(nameof(IsOverlayShown));
 
     // A new set, an emptied set or the clear action: the overlay described the old hits and goes with
-    // them, and a build still in flight for them posts nothing because the generation moved.
+    // them, and a build still in flight for them posts nothing because the overlay generation moved.
     private void DropOverlay()
     {
+        Interlocked.Increment(ref _overlayGeneration);
         IsOverlayBuilding = false;
         OverlayLine = "";
         Overlay.Clear();
@@ -493,7 +524,33 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     // the last, alive tuples only, with the side from the round's CT slots. The record is read for its
     // hash, so a positions file another copy of the demo left behind is refused the way the cards
     // refuse it.
-    private void BuildOverlay(int generation, List<SituationHit> hits)
+    private void BuildOverlay(int generation, int overlay, List<SituationHit> hits)
+    {
+        try
+        {
+            StackOverlay(generation, overlay, hits);
+        }
+        catch (Exception ex)
+        {
+            // A stop from the queue or a read that threw: the answer below is never posted, and nothing else takes
+            // the build off, so Overlay all would stay disabled under "stacking the rounds". Rethrown either way,
+            // so the queue still sees the stop or the failure.
+            string note = ex is OperationCanceledException ? OverlayStoppedNote : OverlayFailedNote;
+            _post(() =>
+            {
+                if (generation != Volatile.Read(ref _generation) || overlay != Volatile.Read(ref _overlayGeneration))
+                {
+                    return;
+                }
+
+                IsOverlayBuilding = false;
+                OverlayLine = note;
+            });
+            throw;
+        }
+    }
+
+    private void StackOverlay(int generation, int overlay, List<SituationHit> hits)
     {
         List<OverlayPoint> points = [];
         int states = 0;
@@ -503,7 +560,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
 
         foreach (SituationHit hit in hits)
         {
-            if (generation != Volatile.Read(ref _generation))
+            if (generation != Volatile.Read(ref _generation) || overlay != Volatile.Read(ref _overlayGeneration))
             {
                 return;
             }
@@ -553,7 +610,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         string map = hits.Count > 0 ? hits[0].Map : "";
         _post(() =>
         {
-            if (generation != Volatile.Read(ref _generation))
+            if (generation != Volatile.Read(ref _generation) || overlay != Volatile.Read(ref _overlayGeneration))
             {
                 return;
             }

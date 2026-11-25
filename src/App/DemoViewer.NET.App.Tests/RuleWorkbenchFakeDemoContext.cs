@@ -28,6 +28,10 @@ internal sealed class FakeDemoContext(ParsedDemo demo) : IModuleContext, ICurren
         remove { }
     }
 
+    public event Action? DemoReset;
+
+    public void RaiseDemoReset() => DemoReset?.Invoke();
+
     public bool HasDemo => true;
     public string? DemoPath => null;
     public int TickRate => 64;

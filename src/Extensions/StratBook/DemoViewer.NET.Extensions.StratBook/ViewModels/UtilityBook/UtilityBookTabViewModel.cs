@@ -97,6 +97,7 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     private string _statusLine = "";
 
     private readonly string? _clipDirectory;
+    private readonly LineupClipService? _clips;
     private readonly string? _lockedMap;
     private (Guid Id, string? Technique)? _pendingReveal;
     private IReadOnlySet<GrenadeKind>? _queryKinds;
@@ -115,11 +116,13 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     ///     Shows this map and no other, even when it has no grenades: the Strat Book's lineup picker. Null for the
     ///     tab, which falls back to the first indexed map.
     /// </param>
+    /// <param name="clips">What a position card's Render clip asks; the card offers none when null.</param>
     public UtilityBookTabViewModel(GrenadeIndex index, ISituationPlayback? playback = null, bool? isBrowser = null,
         Func<string, IMapAssetLease?>? loadMapAsset = null, Func<string, DateTime?>? demoDate = null,
         string? clipDirectory = null, Action<Action>? background = null,
-        Action<Action>? post = null, string? lockedMap = null)
+        Action<Action>? post = null, string? lockedMap = null, LineupClipService? clips = null)
     {
+        _clips = clips;
         _lockedMap = lockedMap;
         _selectedMap = lockedMap;
         _background = background ?? (work => work());
@@ -615,7 +618,7 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
         Detail = selected is null
             ? null
             : new LineupDetail(focused!, selected.Lineup, _demoDate, WatchAsync, CopyAsync, selected.Technique,
-                _clipDirectory);
+                _clipDirectory, _clips);
         OnPropertyChanged(nameof(FocusedGroup));
         OnPropertyChanged(nameof(HasFocus));
     }
@@ -686,19 +689,16 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
         await _playback.SeekAsync(grenade.Demo.Path, Math.Max(0, grenade.Row.ReleaseTick - WatchLeadTicks));
     }
 
+    // Throws when nothing reached the clipboard (no view has supplied one, or the write threw), so the card can say
+    // which happened.
     private async Task CopyAsync(string text)
     {
-        if (Clipboard is { } clipboard)
+        if (Clipboard is not { } clipboard)
         {
-            try
-            {
-                await clipboard(text);
-            }
-            catch (Exception)
-            {
-                // Clipboard writes are gated on some hosts; the line stays selectable in the card.
-            }
+            throw new InvalidOperationException("no clipboard");
         }
+
+        await clipboard(text);
     }
 
     // Replaces a collection's contents only when they differ, so a bound picker keeps its selection.
@@ -762,7 +762,24 @@ public sealed class LandingGroup
 /// <summary>The details card of one throw position: counts, the console line, and every throw from there.</summary>
 public sealed partial class LineupDetail : ObservableObject
 {
+    /// <summary>What the card says while the position's clip is evicted to keep the clips folder under its limit.</summary>
+    public const string EvictedClipLine = "Evicted to stay under the clip folder limit";
+
+    private const string QueuedClipLine = "clip not rendered yet: it renders in the processing queue";
+
+    private readonly LineupClipService? _clips;
+    private readonly string? _clipTechnique;
     private readonly Func<string, Task> _copy;
+
+    /// <summary>Why there is no clip, or empty.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasClipLine))]
+    private string _clipLine = "";
+
+    /// <summary>The position has no clip and one can be asked for: Render clip is offered.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RenderClipCommand))]
+    private bool _canRenderClip;
 
     [ObservableProperty]
     private string _copyStatus = "";
@@ -771,16 +788,18 @@ public sealed partial class LineupDetail : ObservableObject
     /// <param name="lineup">The throw position.</param>
     /// <param name="demoDate">A demo's date, or null.</param>
     /// <param name="watch">Opens one throw in 2D Playback.</param>
-    /// <param name="copy">Writes the console line to the clipboard.</param>
+    /// <param name="copy">Writes the console line to the clipboard; throws when it could not.</param>
     /// <param name="technique">The position clicked, or null for the lineup as a whole.</param>
     /// <param name="clipDirectory">Where the position's clip pair lives; no clip when null.</param>
+    /// <param name="clips">Renders the clip on request (Render clip); none offered when null.</param>
     public LineupDetail(LandingGroup group, GrenadeLineup lineup, Func<string, DateTime?> demoDate,
         Func<IndexedGrenade, Task> watch, Func<string, Task> copy, LineupTechnique? technique = null,
-        string? clipDirectory = null)
+        string? clipDirectory = null, LineupClipService? clips = null)
     {
         Lineup = lineup;
         Technique = technique;
         _copy = copy;
+        _clips = clips;
         IndexedGrenade first = technique?.Representative ?? lineup.Representative;
         IReadOnlyList<IndexedGrenade> throws = technique?.Throws ?? lineup.Throws;
         string how = technique?.Label ?? (lineup.JumpThrow ? "jump-throw" : "standard throw");
@@ -798,11 +817,17 @@ public sealed partial class LineupDetail : ObservableObject
         {
             LineupTechnique? shown = technique ?? (lineup.Techniques.Count > 0 ? lineup.Techniques[0] : null);
             ClipPath = LineupClipPlanner.FinishedGif(clipDirectory, first.Map, first.Kind, lineup.Id, shown?.Key);
+            LineupClipJob? planned = ClipPath is null ? LineupClipPlanner.Plan(lineup, shown, Title, clipDirectory) : null;
+            // An evicted pair is planned again only when asked for, so the card says so and offers Render clip.
             ClipLine = ClipPath is not null
                 ? ""
-                : LineupClipPlanner.Plan(lineup, shown, Title, clipDirectory) is null
+                : planned is null
                     ? "no clip: a position gets one once it is thrown twice"
-                    : "clip not rendered yet: it renders in the processing queue";
+                    : clips?.IsEvicted(planned) == true
+                        ? EvictedClipLine
+                        : QueuedClipLine;
+            CanRenderClip = planned is not null && clips is not null;
+            _clipTechnique = shown?.Key;
         }
 
         ConsoleText = GrenadeConsole.Format(first.Row) ?? UtilityBookTabViewModel.NoConsoleText;
@@ -844,13 +869,40 @@ public sealed partial class LineupDetail : ObservableObject
 
     public bool HasClip => ClipPath is not null;
 
-    /// <summary>Why there is no clip, or empty.</summary>
-    public string ClipLine { get; } = "";
-
     public bool HasClipLine => ClipLine.Length > 0;
 
     /// <summary>Every throw from this position, newest demo first.</summary>
     public ObservableCollection<LineupInstanceRow> Instances { get; } = [];
+
+    /// <summary>
+    ///     Asks for the position's clip now: an evicted pair is un-evicted, and the clip is planned ahead of the rest
+    ///     (it may evict a lower-ranked pair to stay under the folder limit).
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRenderClip))]
+    private async Task RenderClip()
+    {
+        if (_clips is not { } clips || !CanRenderClip)
+        {
+            return;
+        }
+
+        CanRenderClip = false;
+        Guid id = Lineup.Id;
+        string? technique = _clipTechnique;
+        try
+        {
+            // The request plans every lineup and lists the folder, so it stays off the UI thread.
+            int planned = await Task.Run(() => clips.Request(id, technique));
+            ClipLine = planned > 0 || clips.Renders
+                ? QueuedClipLine
+                : "no clip: lineup clips are off in the Grenade Index settings";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            ClipLine = $"could not ask for the clip: {ex.Message}";
+            CanRenderClip = true;
+        }
+    }
 
     [RelayCommand]
     private async Task CopyConsole()
@@ -860,8 +912,16 @@ public sealed partial class LineupDetail : ObservableObject
             return;
         }
 
-        await _copy(ConsoleText);
-        CopyStatus = "copied";
+        try
+        {
+            await _copy(ConsoleText);
+            CopyStatus = "copied";
+        }
+        catch (Exception)
+        {
+            // Clipboard writes are gated on some hosts; the line stays selectable in the card.
+            CopyStatus = "copy blocked: select the line";
+        }
     }
 }
 

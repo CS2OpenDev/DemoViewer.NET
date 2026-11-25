@@ -362,12 +362,116 @@ public class LiveSyncStatusViewModelTests
         await Assert.That(svc.EnableCount).IsEqualTo(2);
     }
 
+    // The remote demo path arrives over the unauthenticated localhost gRPC stream, so any local process can
+    // name it. Opening a share or device path would authenticate to a host the sender chose.
+    [Test]
+    [Arguments(@"\\attacker\share\x.dem")]
+    [Arguments(@"\\?\UNC\attacker\share\x.dem")]
+    [Arguments(@"\\.\pipe\x.dem")]
+    [Arguments("//attacker/share/x.dem")]
+    [Arguments(@"/\attacker\share\x.dem")]
+    [Arguments(@"\/attacker/share/x.dem")]
+    [Arguments(@"/\?\UNC\attacker\share\x.dem")]
+    [Arguments(@"\??\UNC\attacker\share\x.dem")]
+    public async Task OpenRemoteDemo_RefusesNetworkAndDevicePaths(string path)
+    {
+        FakeLiveSync svc = new();
+        List<string> opened = [];
+        LiveSyncStatusViewModel vm = new(svc, null, new PlaybackController(), () => { },
+            p =>
+            {
+                opened.Add(p);
+                return Task.CompletedTask;
+            });
+        svc.Raise(new LiveSyncState(LiveSyncStateKind.Degraded, "CS2 is now playing a different demo (x.dem).",
+            RemoteDemoPath: path));
+
+        await vm.OpenRemoteDemoCommand.ExecuteAsync(null);
+
+        await Assert.That(opened).IsEmpty();
+        await Assert.That(vm.ReasonText).Contains("local drive");
+    }
+
+    [Test]
+    public async Task OpenRemoteDemo_OpensALocalPath()
+    {
+        // A full path on whichever OS runs the test: C:\ is not one on Linux.
+        string full = Path.Combine(Path.GetTempPath(), "cs2", "replays", "x.dem");
+        LiveSyncStatusViewModel vm = Degraded(full, null, out List<string> opened);
+
+        await vm.OpenRemoteDemoCommand.ExecuteAsync(null);
+
+        await Assert.That(opened).IsEquivalentTo([full]);
+    }
+
+    // The engine may report the demo relative to game/csgo. File.Exists would read that against DemoViewer's
+    // own working directory, so it is joined to the CS2 install first.
+    [Test]
+    public async Task OpenRemoteDemo_ResolvesAnInstallRelativePath_AgainstGameCsgo()
+    {
+        string csgo = Path.Combine(Path.GetTempPath(), "cs2", "game", "csgo");
+        LiveSyncStatusViewModel vm = Degraded("replays/match730_x.dem", csgo, out List<string> opened);
+
+        await vm.OpenRemoteDemoCommand.ExecuteAsync(null);
+
+        await Assert.That(opened).IsEquivalentTo([Path.GetFullPath(Path.Combine(csgo, "replays", "match730_x.dem"))]);
+    }
+
+    [Test]
+    public async Task OpenRemoteDemo_RefusesAnInstallRelativePath_WhenTheInstallIsUnknown()
+    {
+        LiveSyncStatusViewModel vm = Degraded("replays/match730_x.dem", null, out List<string> opened);
+
+        await vm.OpenRemoteDemoCommand.ExecuteAsync(null);
+
+        await Assert.That(opened).IsEmpty();
+        await Assert.That(vm.ReasonText).Contains("could not find the CS2 install");
+    }
+
+    // Conservative: a name the engine gave without .dem is not guessed at.
+    [Test]
+    [Arguments("replays/match730_x")]
+    [Arguments("ABSOLUTE")]
+    public async Task OpenRemoteDemo_RefusesAPathThatIsNotADemFile(string path)
+    {
+        string csgo = Path.Combine(Path.GetTempPath(), "cs2", "game", "csgo");
+        string remote = path == "ABSOLUTE" ? Path.Combine(Path.GetTempPath(), "cs2", "replays", "x.txt") : path;
+        LiveSyncStatusViewModel vm = Degraded(remote, csgo, out List<string> opened);
+
+        await vm.OpenRemoteDemoCommand.ExecuteAsync(null);
+
+        await Assert.That(opened).IsEmpty();
+        await Assert.That(vm.ReasonText).Contains(".dem");
+    }
+
+    private static LiveSyncStatusViewModel Degraded(string remotePath, string? csgoDirectory, out List<string> opened)
+    {
+        FakeLiveSync svc = new() { Cs2GameDirectory = csgoDirectory };
+        List<string> sink = [];
+        opened = sink;
+        LiveSyncStatusViewModel vm = new(svc, null, new PlaybackController(), () => { },
+            p =>
+            {
+                sink.Add(p);
+                return Task.CompletedTask;
+            });
+        svc.Raise(new LiveSyncState(LiveSyncStateKind.Degraded, "CS2 is now playing a different demo.",
+            RemoteDemoPath: remotePath));
+        return vm;
+    }
+
     // Fake App-side engine: a mutable current state + an inline StateChanged raise (real event → the VM's
     // handler runs, and there is no CS0067). Matches the FIXED ILiveSyncService contract surface.
     private sealed class FakeLiveSync : ILiveSyncService
     {
         /// <summary>Set true to exercise the Off-flyout offered-restore affordance.</summary>
         public bool LeftoverModifications { get; set; }
+
+        /// <summary>The CS2 install's game/csgo directory the engine reports, or null for none found.</summary>
+        public string? Cs2GameDirectory { get; init; }
+
+        public Task<string?> GetCs2GameDirectoryAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(Cs2GameDirectory);
 
         public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
         public long? LastCs2DemoTick { get; set; }

@@ -294,6 +294,10 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
         {
             CancelModes();
             Select(null, false);
+
+            // After CancelModes, which keeps the open editor's draft: a proposal id names no demo, so a draft
+            // left here would open on the next demo's proposal of the same id with this demo's ticks.
+            _drafts.Clear();
         }
 
         Reload();
@@ -435,7 +439,7 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
 
         TagInstanceEdit edit = new(draft.FromTick, draft.ToTick, draft.Labels, draft.Note,
             draft.Code, draft.Positions.Count > 0 ? draft.Positions : null);
-        string? next = NextIdAfter(row);
+        string? next = NextIdAfter(row.Proposal.Id);
         if (!_service.Accept(path, row.Proposal.Id, edit, _sha256))
         {
             return false;
@@ -572,7 +576,7 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
             return true;
         }
 
-        string? next = NextIdAfter(row);
+        string? next = NextIdAfter(row.Proposal.Id);
         bool written = accept
             ? _service.Accept(path, row.Proposal.Id, null, _sha256)
             : _service.Reject(path, row.Proposal.Id, _sha256);
@@ -595,10 +599,18 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
         Select(next ?? Rows.LastOrDefault(), true);
     }
 
-    private string? NextIdAfter(SuggestionRowViewModel row)
+    // By id: a reload replaces every row object, and the editor's save holds the one it was opened on.
+    private string? NextIdAfter(string id)
     {
-        int index = Rows.IndexOf(row);
-        return index >= 0 && index + 1 < Rows.Count ? Rows[index + 1].Proposal.Id : null;
+        for (int i = 0; i + 1 < Rows.Count; i++)
+        {
+            if (Rows[i].Proposal.Id == id)
+            {
+                return Rows[i + 1].Proposal.Id;
+            }
+        }
+
+        return null;
     }
 
     private void Select(SuggestionRowViewModel? row, bool seek)

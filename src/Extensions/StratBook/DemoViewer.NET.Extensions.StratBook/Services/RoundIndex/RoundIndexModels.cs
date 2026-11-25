@@ -84,16 +84,25 @@ public sealed class RoundIndexDocument
         ArgumentNullException.ThrowIfNull(round);
         foreach (RoundIndexRun run in round.Runs)
         {
-            for (int step = run.FromStep; step <= run.ToStep; step++)
+            // Counted in long: a run that ends at int.MaxValue would wrap an int counter and never end.
+            for (long step = run.FromStep; step <= run.ToStep; step++)
             {
-                yield return new RoundIndexRow(step, round.FreezeEndTick + step * CadenceTicks, run.Ct, run.T);
+                yield return new RoundIndexRow((int)step, round.FreezeEndTick + (int)step * CadenceTicks, run.Ct,
+                    run.T);
             }
         }
     }
 
     /// <summary>Rows across every round. Derived, so not written.</summary>
     [JsonIgnore]
-    public int RowCount => Rounds.Sum(r => r.Runs.Sum(run => run.ToStep - run.FromStep + 1));
+    public int RowCount => (int)Math.Clamp(
+        Rounds.Sum(r => r.Runs.Sum(run => Math.Max(0, (long)run.ToStep - run.FromStep + 1))), 0, int.MaxValue);
+
+    /// <summary>
+    ///     The most rows a read document may expand to. Rows are seconds of live round, so a real demo has a few
+    ///     thousand; a sidecar that claims more than this is corrupt or hostile and reads as unparseable.
+    /// </summary>
+    internal const int MaxRows = 1_000_000;
 
     /// <summary>The compact JSON text of this document.</summary>
     public string Serialize() => JsonSerializer.Serialize(this, JsonOptions);
@@ -104,12 +113,62 @@ public sealed class RoundIndexDocument
     {
         try
         {
-            return JsonSerializer.Deserialize<RoundIndexDocument>(json, JsonOptions);
+            return JsonSerializer.Deserialize<RoundIndexDocument>(json, JsonOptions) is { } document
+                && IsWellFormed(document)
+                && HasSaneRuns(document)
+                    ? document
+                    : null;
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    // JSON null lands in a property, in a list and as a dictionary value as it is, and the situations index reads
+    // the clock, the demo, the map, the place sums and the transitions of every sidecar it loads without a null
+    // check: one such sidecar would end the load for every demo after it.
+    private static bool IsWellFormed(RoundIndexDocument document) =>
+        document is { Demo: not null, Clock.Kind: not null, Map: not null, Places: not null, Transitions: not null }
+        && !document.Transitions.Contains(null!)
+        && document.Places.Values.All(static summary => summary?.Buckets is { } buckets && !buckets.Contains(null!));
+
+    // A sidecar can come from someone else's bundle, and every consumer expands the runs without a bound of its
+    // own: runs in step order, none past the tick clock, and no more rows than a demo can hold.
+    private static bool HasSaneRuns(RoundIndexDocument document)
+    {
+        if (document.CadenceTicks < 0 || document.Rounds is null)
+        {
+            return false;
+        }
+
+        long rows = 0;
+        foreach (RoundIndexRound? round in document.Rounds)
+        {
+            if (round?.Runs is null)
+            {
+                return false;
+            }
+
+            long next = 0;
+            foreach (RoundIndexRun? run in round.Runs)
+            {
+                if (run is null || run.FromStep < next || run.ToStep < run.FromStep
+                    || round.FreezeEndTick + (long)run.ToStep * document.CadenceTicks > int.MaxValue)
+                {
+                    return false;
+                }
+
+                next = (long)run.ToStep + 1;
+                rows += next - run.FromStep;
+                if (rows > MaxRows)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }
 

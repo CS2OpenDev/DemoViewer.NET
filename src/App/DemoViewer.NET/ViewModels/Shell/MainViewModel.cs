@@ -274,6 +274,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private readonly ConcurrentBag<UnknownMessageInfo> _unknownAccumulator = [];
 
+    // The event is process-global: library scans and highlight passes raise it too. Only an open's own parse
+    // feeds the census, so the handler keeps occurrences from the open's parse until its census is built and
+    // drops the rest, which would otherwise pile up in the bag for as long as the app runs.
+    private volatile bool _collectingUnknowns;
+
     /// <summary>
     ///     Window-spawning abstraction. Desktop opens a real
     ///     <c>ParseChainWindow</c>; browser no-ops. Null only when constructed parameterless by the
@@ -313,6 +318,15 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // The transient session state captured when the app entered idle (which demo was closed + where it
     // resumes + the active tab), consumed once by ResumeFromIdle. Null when not idle, or when nothing was open.
     private IdleResumeState? _idleResume;
+
+    // The demo close idle entry started. ResumeFromIdleAsync awaits it before reopening anything.
+    private Task _idleClose = Task.CompletedTask;
+
+    // Idle's park on background processing when the user turned it off for idle; ended by ResumeFromIdleAsync.
+    private IDisposable? _idleHold;
+
+    // Bumped by every UnloadDemoState: a close that resumes to a different value lost the shell to an open.
+    private int _unloadGeneration;
 
     /// <summary>Toolbar toggle: show/hide the right-side debugger panel.</summary>
     [ObservableProperty]
@@ -374,8 +388,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     ///     Loaded-but-not-yet-applied session snapshot. We can't restore frame selection until a demo
-    ///     is loaded, so the payload is stashed in the ctor and consumed once <see cref="HasFile" />
-    ///     flips true after the next file load. Cleared after a one-shot restore.
+    ///     is loaded, so the payload is stashed by RestoreSession and consumed at the end of the next
+    ///     load that leaves a demo open. Cleared after a one-shot restore.
     /// </summary>
     private SessionPayload? _pendingRestore;
 
@@ -389,6 +403,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     // The hub rail states loaded at startup, carried through for hubs not contributed this session.
     private Dictionary<string, HubSessionState>? _loadedHubSessions;
+
+    // The module-tab blobs loaded at startup, carried through for tabs whose VM was never built this session.
+    private Dictionary<string, JsonElement>? _loadedModuleTabs;
 
     /// <summary>
     ///     Pack ids <c>RestorePackState</c> has been called for this session, at startup or on a live
@@ -619,7 +636,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         // Stats tab: the user-facing scoreboard. Subscribes to the engine's
         // EvaluationCompleted and projects the MetricTables itself; reads (never owns) analysis state.
-        StatsTab = new StatsTabViewModel(Analysis, () => LoadedDemoPath);
+        StatsTab = new StatsTabViewModel(Analysis, () => LoadedDemoPath) { CoachSlotsSource = CoachSlotsOf };
 
         // Match Overview: the demo landing page shown the instant a demo is opened (before the parse), so a
         // double-click has an immediate visible effect. The shell drives it through the load pipeline; its CTAs
@@ -755,7 +772,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         Output = new OutputPanelViewModel(Navigation);
         // Accumulate on the parse threads (thread-safe, allocation-light); the grouped Output rows
         // and the per-frame census are built once after parse (see BuildUnknownMessageCensus).
-        _onUnknownMessageType = info => _unknownAccumulator.Add(info);
+        _onUnknownMessageType = info =>
+        {
+            if (_collectingUnknowns)
+            {
+                _unknownAccumulator.Add(info);
+            }
+        };
         DemoParser.OnUnknownMessageType += _onUnknownMessageType;
 
         DebuggerPanel = new DebuggerViewModel(Debugger);
@@ -978,8 +1001,17 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 library.Changed += scanner.RefreshStaleness;
             }
 
+            // Filed under the path of the parse the run evaluated, not whatever LoadedDemoPath says by the time
+            // the run finishes: a later open sets that before the earlier run is done.
             Analysis.EvaluationCompleted += (run, demo) =>
-                scanner.OnOpenDemoEvaluated(LoadedDemoPath, run, demo);
+            {
+                // Not after a rule edit the background passes have not read: the harvest is stamped with
+                // their rules' fingerprint, and these highlights came from the edited files.
+                if (_heldDemo is { } held && ReferenceEquals(held.Parsed, demo) && Analysis.LastRunHighlightsInForce)
+                {
+                    scanner.OnOpenDemoEvaluated(held.Path, run, demo);
+                }
+            };
             scanner.RefreshStaleness();
 
             // Enabling the background-scan opt-in in Settings must actually start the scan:
@@ -1687,6 +1719,28 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     // WriteUInt32LE moved to ParserTab in 3.5a.
 
+    /// <summary>
+    ///     Shutdown: deactivates the 2D tab, then disposes it, which is its last annotation flush. In that
+    ///     order because the view's teardown edits the document after the deactivation flush (an open text
+    ///     label is rolled back or committed), and only the debounce would otherwise carry that to disk,
+    ///     which does not outlive the process. Nothing disposes the shell on exit, so the app calls this
+    ///     from its shutdown handler. Runs once.
+    /// </summary>
+    public void ClosePlayback2DForShutdown()
+    {
+        if (_playback2DClosed
+            || Tabs.FirstOrDefault(t => t.TabId == HostIds.Playback2DTab) is not { } descriptor)
+        {
+            return;
+        }
+
+        _playback2DClosed = true;
+        ExtensionTabs.Deactivate(descriptor);
+        (descriptor.TabViewModel as Playback2DTabViewModel)?.Dispose();
+    }
+
+    private bool _playback2DClosed;
+
     /// <summary>Dispose.</summary>
     public void Dispose()
     {
@@ -1753,6 +1807,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _perfTimer?.Stop();
         _library.Dispose();
         ExtensionTabs.Deactivate(SelectedTab);
+        ClosePlayback2DForShutdown();
         if (_extensionFaults is not null)
         {
             _extensionFaults.Changed -= OnExtensionFaultsChanged;
@@ -1843,7 +1898,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         bool firstRun = _settingsService.NeedsFirstRun;
-        _settingsService.Write(s => s.LastSeenVersion = version);
+        // A window that cannot be recorded as seen would show on every launch, so it waits for a launch that can.
+        if (!_settingsService.TryWrite(s => s.LastSeenVersion = version))
+        {
+            return;
+        }
+
         if (firstRun || !AutomaticChecksAllowed)
         {
             return;
@@ -1922,6 +1982,40 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             MatchOverviewTab.RefreshHighlightsFromCache(path, record);
         }
+    }
+
+    /// <summary>
+    ///     The coaches of <paramref name="demo" /> for the Stats tab, which is handed a run with library_coaches
+    ///     cut: the uncut run's table when it built one, else the coaches the library's record of the open demo
+    ///     names (the ruleset is not rebuilt on an open while its stamp is current), checked against the file as
+    ///     the seed below checks it. Null when neither says.
+    /// </summary>
+    private IReadOnlySet<int>? CoachSlotsOf(ParsedDemo demo)
+    {
+        if (Analysis.LastRunCoachSlots is { } fromRun)
+        {
+            return fromRun;
+        }
+
+        if (_demoCache is null || _heldDemo is not { } held || !ReferenceEquals(held.Parsed, demo))
+        {
+            return null;
+        }
+
+        DemoCacheRecord? record = _demoCache.TryLoadRecord(held.Path);
+        if (record is null)
+        {
+            return null;
+        }
+
+        DemoEntry? entry = _library.Entries
+            .FirstOrDefault(e => string.Equals(e.FilePath, held.Path, StringComparison.OrdinalIgnoreCase));
+        if (entry is not null && !record.MatchesFile(entry.FileSizeBytes, entry.Modified.Ticks))
+        {
+            return null;
+        }
+
+        return record.Players.Where(p => p.IsCoach).Select(p => p.Slot).ToHashSet();
     }
 
     /// <summary>
@@ -2137,7 +2231,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (StatsTab.GameTable is not null)
         {
             MatchOverviewTab.BeginAnalysis(path);
-            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.TeamScoresBySort,
+            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable,
                 StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
             MatchOverviewTab.SetTeamScores(path,
                 StatsTab.TeamScoresBySort.GetValueOrDefault(0),
@@ -2155,11 +2249,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         LiveSync = liveSync;
 
         // Built before the chip so the chip's offer can mirror it, and probed now so leftovers from a crash
-        // surface at startup whichever profile is active (the chip is hidden for most of them). Faulted does
-        // not own CS2: the probe still reports a CS2 left running, and a guard that faulted the launch needs
-        // the banner to send the user somewhere.
+        // surface at startup whichever profile is active (the chip is hidden for most of them). Faulted alone
+        // does not own CS2: a guard that faulted the launch needs the banner to send the user somewhere. A
+        // session that faulted after CS2 started (CS2 quit) does, until Reconnect or Disable stops it.
         Cs2InstallRecovery = new Cs2InstallRecoveryViewModel(liveSync,
-            () => liveSync.State.IsSessionActive || ReelJob?.Status.IsRunning == true);
+            () => liveSync.State.IsSessionActive || liveSync.OwnsStartedSession
+                || ReelJob?.Status.IsRunning == true);
         _ = Cs2InstallRecovery.CheckAsync();
 
         _liveSyncStatus = new LiveSyncStatusViewModel(liveSync, _moduleContext, Playback, OpenSettings,
@@ -2201,10 +2296,29 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         else if (!shouldShow && present)
         {
             Chips.Remove(_liveSyncStatus.Chip);
+
+            // The chip's flyout is the only place Disable lives, so a session (or a Faulted one still holding
+            // CS2 and the patched install) stops with the switch rather than run on with no control left.
+            if (LiveSync is { State.Kind: not LiveSyncStateKind.Disconnected } liveSync)
+            {
+                _ = DisableLiveSyncAsync(liveSync);
+            }
         }
 
         // The gate feeds the 2D indicator's visibility too: re-raise so an active 2D tab reflows.
         _liveSyncStatus.NotifyHudGateChanged();
+    }
+
+    private async Task DisableLiveSyncAsync(ILiveSyncService liveSync)
+    {
+        try
+        {
+            await liveSync.DisableAsync();
+        }
+        catch (Exception ex)
+        {
+            AppLog.OperationFailed(DiagLog, "stop Live Sync after it was turned off", ex);
+        }
     }
 
     internal void AttachReelJob(IReelJobService reelJob)
@@ -2940,9 +3054,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         UnloadDemoState();
+        int shellGeneration = _unloadGeneration;
 
         IsLoading = true;
         StatusText = $"Auto-loading {Path.GetFileName(path)}…";
+        string loadingStatus = StatusText;
         // Match Overview parity with the interactive funnel: show the landing immediately (CLI/debug auto-load).
         MatchOverviewTab.BeginOpening(Path.GetFileName(path), null, null, path, path);
         MatchOverviewTab.IsSampleClip = IsTourSample(path);
@@ -2959,10 +3075,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             Task<string> demoKeyTask = Task.Run(() => HashAndConfirm(path, rawBytes));
             // The same open item as the interactive funnel. During a reel render the parse throws
             // ReelInProgressException, which the failure handling below surfaces.
+            _collectingUnknowns = true;
             ParsedDemo parsed = await open.ParseAsync(rawBytes);
 
             string demoKey = await demoKeyTask;
             open.CancellationToken.ThrowIfCancellationRequested();
+            ThrowIfShellTaken(shellGeneration);
             open.Report(0.5, "Building the views");
             MatchOverviewTab.SetSummary(path, parsed);
             MatchOverviewTab.SetParseHealth(path, parsed.Health, parsed.Warnings); // damaged-demo banner
@@ -2995,6 +3113,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _moduleContext?.SetGameEvents(parsed.AllGameEvents); // pre-decoded timeline for event-driven modules
             _moduleContext?.SetMapName(parsed.MapName); // data-driven map identity for asset selection
             _moduleContext?.SetDemoSha256(demoKey); // the persisted-store join key, hashed once above
+            Bookmarks.SetDemo(demoKey); // a bookmark is a frame index: only this demo's are shown
             _moduleContext?.SetDemo(parsed); // expose the loaded demo to the first-party Workbench
             _heldDemo = new HeldDemo(path, parsed);
             BuildUnknownMessageCensus(parsed);
@@ -3020,7 +3139,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             open.Report(0.6, "Analysing");
             await Analysis.RunOpenAsync(parsed, demoKey, path, clock);
             ThrowIfSuperseded(open);
-            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.TeamScoresBySort, StatsTab.Rounds.Count,
+            ThrowIfShellTaken(shellGeneration);
+            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.Rounds.Count,
                 StatsTab.AccountsBySlot);
             // Per-team round wins from the same evaluation: each team's total across BOTH halves.
             MatchOverviewTab.SetTeamScores(
@@ -3038,20 +3158,36 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _openPassesTask = RunOpenVisitAsync(open, path, parsed);
         }
         catch (Exception ex) when (open.IsSuperseded
+                                   || shellGeneration != _unloadGeneration
                                    || (ex is OperationCanceledException
                                        && open.CancellationToken.IsCancellationRequested))
         {
-            superseded = open.IsSuperseded;
+            // See LoadDemoFromBytesCoreAsync: only an unload since this open's own means the shell is not its.
+            superseded = shellGeneration != _unloadGeneration;
             open.Dispose();
             if (!superseded)
             {
-                StatusText = $"Auto-load of {Path.GetFileName(path)} was cancelled";
+                // No census will be built to end the collecting. A superseding open has set the flag for
+                // its own parse, so only an open that still owns the shell clears it.
+                _collectingUnknowns = false;
+                AbandonOpen();
+                if (!open.IsSuperseded || StatusText == loadingStatus)
+                {
+                    StatusText = $"Auto-load of {Path.GetFileName(path)} was cancelled";
+                }
+
                 MatchOverviewTab.Fail(path, StatusText);
             }
         }
         catch (Exception ex)
         {
+            _collectingUnknowns = false;
             open.Fail(ex);
+            if (!HasFile)
+            {
+                AbandonOpen();
+            }
+
             StatusText = $"Auto-load failed: {ex.Message}";
             MatchOverviewTab.Fail(path, ex.Message);
         }
@@ -3061,6 +3197,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             {
                 IsLoading = false;
             }
+        }
+
+        if (!superseded)
+        {
+            ApplyPendingSessionRestore();
         }
     }
 
@@ -3075,6 +3216,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void BuildUnknownMessageCensus(ParsedDemo parsed)
     {
+        _collectingUnknowns = false;
         if (_unknownAccumulator.IsEmpty)
         {
             ParserTab.UnknownByFrame = null;
@@ -3161,14 +3303,17 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void BookmarkCurrentFrame()
     {
-        if (_selectedFrameIndex < 0 || _selectedFrameIndex >= Frames.Count)
+        // The playhead, not _selectedFrameIndex: the play loop moves only the controller and defers the
+        // selected-frame fan-out to Pause, so mid-play the selection is still the frame Play started on.
+        int idx = Playback.CurrentFrameIndex >= 0 ? Playback.CurrentFrameIndex : _selectedFrameIndex;
+        if (idx < 0 || idx >= Frames.Count)
         {
             return;
         }
 
-        DemoFrame frame = Frames[_selectedFrameIndex];
+        DemoFrame frame = Frames[idx];
         int tick = frame.GameTick ?? frame.ServerTick;
-        Bookmarks.Add(_selectedFrameIndex, tick, $"{frame.Command} · tick {tick}");
+        Bookmarks.Add(idx, tick, $"{frame.Command} · tick {tick}");
     }
 
     /// <summary>
@@ -3261,7 +3406,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // Pass the tracker's currently-iterating frame index so the debugger can later
             // "Jump to" the frame containing the bad packet. We capture it here rather than
             // having the debugger reach into EntityTracker, so the parser stays UI-agnostic.
-            Debugger.CheckParserState(packetCount, hasNewDecodeError, deltaUnknownDelta, tracker.CurrentFrameIndex);
+            // The replay runs on the seek's pool thread: match there against the debugger's snapshot,
+            // record on the UI thread, where the panel's bindings and breakpoint list live.
+            if (Debugger.MatchParserState(packetCount, hasNewDecodeError, deltaUnknownDelta) is { } hit)
+            {
+                int frameIndex = tracker.CurrentFrameIndex;
+                Dispatcher.UIThread.Post(() => Debugger.RecordParserHit(hit, frameIndex));
+            }
         };
 
         // Surface per-packet decode failures in the Output panel's "Decode errors"
@@ -3487,11 +3638,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         NotifyDebuggerCommandsCanExecute();
         NotifyNavCommandsCanExecute();
+    }
 
-        // One-shot session restore once a demo is loaded. Re-select the persisted frame
-        // (which rebuilds the parser payload tree) then push the within-frame Parser + Entity
-        // selection. Best-effort: out-of-range / missing targets are silently skipped.
-        if (value && _pendingRestore is { } restore)
+    // One-shot session restore once a demo is loaded. Re-select the persisted frame (which rebuilds the parser
+    // payload tree) then push the within-frame Parser + Entity selection. Best-effort: out-of-range / missing
+    // targets are silently skipped. Called at the END of a load that kept the shell, not when HasFile flips: at
+    // that point the frame list and the playback controller are not handed over yet, so the frame resolved to
+    // none, and the analysis run's landing seek that follows would move the selection anyway.
+    private void ApplyPendingSessionRestore()
+    {
+        if (HasFile && _pendingRestore is { } restore)
         {
             _pendingRestore = null;
 
@@ -3515,9 +3671,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             {
                 AnalysisTab.RestoreState(analysis);
             }
-
-            // Module tabs: parked on their descriptors, applied when each VM is first built (they are lazy).
-            RestoreModuleTabs(restore.ModuleTabs);
         }
     }
 
@@ -3621,6 +3774,40 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             throw new OperationCanceledException(open.CancellationToken);
         }
+    }
+
+    // A load core captures _unloadGeneration right after its own UnloadDemoState. A later bump is a Close Demo
+    // (which nothing tells the load about) or a newer open that has taken the shell: either way this load no
+    // longer owns it. The queue's Superseded flag is not that: it is set when a newer open BEGINS, and a newer
+    // open whose read fails, or that is removed while reading, never takes the shell.
+    private void ThrowIfShellTaken(int shellGeneration)
+    {
+        if (shellGeneration != _unloadGeneration)
+        {
+            throw new OperationCanceledException();
+        }
+    }
+
+    /// <summary>
+    ///     An open that ended without its demo while it still owned the shell. Its own
+    ///     <see cref="UnloadDemoState" /> dropped the previous demo without telling modules, so they are told
+    ///     here (extensions read it as <c>CurrentDemoChanged</c>), and what the open had set up goes: a demo
+    ///     that reached the shell is unloaded whole, otherwise the path and the buffer.
+    /// </summary>
+    private void AbandonOpen()
+    {
+        if (HasFile)
+        {
+            UnloadDemoState();
+        }
+        else
+        {
+            _demoBytes = null;
+            LoadedDemoPath = null;
+            StatsTab.NotifyDemoChanged();
+        }
+
+        _moduleContext?.RaiseDemoReset();
     }
 
     // Every open is one queue item at the front.
@@ -3830,7 +4017,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void UnloadDemoState()
     {
+        _unloadGeneration++;
         _demoBytes = null;
+        // A breakpoint command's suppression is lifted by the end of the seek it started; one the unload
+        // cancels before it gets that far would leave every breakpoint off for the next demo.
+        Debugger.Suppress = false;
         // Drop our handle to the previous open's visit (it may still be running on a reload: that is
         // fine and pre-existing; it holds only the OLD demo, which is being replaced anyway). CloseDemoAsync
         // captures the handle before calling this, so the explicit-close await is unaffected.
@@ -3854,6 +4045,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         HasEntities = false;
         EntityStatusText = "";
         Output.ClearAll();
+        _collectingUnknowns = false;
         _unknownAccumulator.Clear();
         Playback.Unload();
         Navigator.Reset();
@@ -3862,6 +4054,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _moduleContext?.SetGameClock(0);
         _moduleContext?.SetMapName(null);
         _moduleContext?.SetDemoSha256(null);
+        Bookmarks.SetDemo(null);
         _moduleContext?.SetDemo(null);
         // ClearAndTrim, not Clear: these grow to one slot per frame (~131k on a long demo) and
         // Clear() does not shrink the backing array, so a closed demo left 1 MB of nulls in each.
@@ -3919,6 +4112,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         UnloadDemoState();
         _moduleContext?.RaiseDemoReset();
+        int generation = _unloadGeneration;
+        // A close can land while an open is still analysing (HasFile is already true then). That load sees the
+        // generation move and stands down without touching the shell, the spinner included, so it is the
+        // close's to clear.
+        IsLoading = false;
 
         if (passes is { IsCompleted: false })
         {
@@ -3953,11 +4151,27 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             }
         }
 
+        // Nothing stops an open while the close drains (only the idle resume waits for it), and the holds
+        // counter is shared, so the drain can even outlast a newer demo's whole load. That demo owns the
+        // status line now, and a compacting collection in the middle of its load is a stall, not a reclaim.
+        if (generation != _unloadGeneration || HasFile || IsLoading)
+        {
+            return;
+        }
+
         StatusText = "No demo loaded.";
         AppLog.DemoClosed(DiagLog);
 
         await HeapCompactor.CompactAsync();
     }
+
+    /// <summary>
+    ///     Exit's flush of the active tab: deactivates it as <see cref="Dispose" /> does, which is where a tab
+    ///     writes what it has debounced (the 2D tab's annotation autosave, synchronously). Nothing disposes the
+    ///     shell on the way out, so without this the last edit before a quit was dropped. Idempotent: a
+    ///     deactivated tab is not deactivated again.
+    /// </summary>
+    internal void FlushForShutdown() => ExtensionTabs.Deactivate(SelectedTab);
 
     // ── Idle mode ─────────────────────────────────────────────────────────────
 
@@ -4045,14 +4259,82 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     // What must NOT be interrupted by idle. Playback is the primary signal (paused / ended both read false),
-    // but a running reel render or an ACTIVE live-sync session are long-running operations with no per-frame
-    // input either: closing the demo under them would break work in flight, so they block idle too. Evaluated
-    // fresh each poll tick (ReelJob / LiveSync are attached after the ctor by the desktop host).
-    private bool IsIdleBlocked() =>
+    // but a running reel render, a running export or an ACTIVE live-sync session are long-running operations
+    // with no per-frame input either: closing the demo under them would break work in flight, so they block
+    // idle too. Evaluated fresh each poll tick (ReelJob / LiveSync / the export status are attached after the
+    // ctor). The exports are the ones exit tears down: the 2D tab's, a mounted one and a Pack Export on the queue.
+    internal bool IsIdleBlocked() =>
         Playback.IsPlaying
         || _tutorial.IsActive
         || ReelJob is { Status.IsRunning: true }
-        || LiveSync is { State.IsSessionActive: true };
+        || LiveSync is { State.IsSessionActive: true }
+        || HasRunningExport();
+
+    /// <summary>
+    ///     True while an export that owns an ffmpeg child and a half-written file runs: the 2D tab's, a mounted
+    ///     extension export, or a Pack Export on the processing queue. Exit tears these down first.
+    /// </summary>
+    internal bool HasRunningExport() =>
+        RunningExportStatuses().Count > 0 || ActivePackExports().Count > 0;
+
+    /// <summary>
+    ///     Cancels every export <see cref="HasRunningExport" /> counts, together, and waits for them up to
+    ///     <paramref name="budget" /> in all: each one's teardown kills ffmpeg and removes the partial file.
+    ///     Best effort; never throws.
+    /// </summary>
+    internal async Task CancelRunningExportsAsync(TimeSpan budget)
+    {
+        using CancellationTokenSource timeout = new(budget);
+        List<Task> pending = [.. RunningExportStatuses().Select(s => s.CancelCommand.ExecuteAsync(null))];
+        if (_processingQueue is { } queue && ActivePackExports() is { Count: > 0 } packs)
+        {
+            foreach (Guid id in packs)
+            {
+                queue.RemoveByUser(id);
+            }
+
+            pending.Add(WaitForQueueItemsAsync(queue, packs, timeout.Token));
+        }
+
+        try
+        {
+            await Task.WhenAll(pending).WaitAsync(timeout.Token);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // A partial file is better than a hung exit.
+        }
+    }
+
+    private List<Playback2DExportStatusViewModel> RunningExportStatuses() =>
+    [
+        .. new[] { Playback2DExportStatus }
+            .Concat(_shellChips.OfType<ExportChipSlot>().Select(slot => slot.Status))
+            .OfType<Playback2DExportStatusViewModel>()
+            .Where(status => status.IsRunning)
+            .Distinct()
+    ];
+
+    private List<Guid> ActivePackExports() =>
+        _processingQueue is null
+            ? []
+            :
+            [
+                .. _processingQueue.Snapshot()
+                    .Where(item => item.Kind == QueueJobKind.PackExport
+                        && item.State is DemoQueueItemState.Queued or DemoQueueItemState.Running)
+                    .Select(item => item.Id)
+            ];
+
+    private static async Task WaitForQueueItemsAsync(IDemoProcessingQueue queue, IReadOnlyList<Guid> ids,
+        CancellationToken ct)
+    {
+        while (queue.Snapshot().Any(item => ids.Contains(item.Id)
+                   && item.State is DemoQueueItemState.Queued or DemoQueueItemState.Running))
+        {
+            await Task.Delay(50, ct);
+        }
+    }
 
     /// <summary>
     ///     Enters idle mode: captures where to resume, shows the idle overlay, optionally parks background
@@ -4084,19 +4366,23 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 IdleView.SessionStateText = "No demo was open. Resume returns you to the app.";
             }
 
-            // Optionally park background processing too (transient pause; resumed on leaving idle).
-            if (_settings?.CurrentValue.Idle.KeepBackgroundProcessing == false)
+            // Optionally park background processing too, until idle ends. A hold, not Pause: the queue has one
+            // pause flag, the user's in the status strip, and idle must neither lift a pause the user set nor
+            // leave one behind when the setting changes while idle.
+            if (_settings?.CurrentValue.Idle.KeepBackgroundProcessing == false && _processingQueue is { } queue)
             {
-                _processingQueue?.Pause();
+                Interlocked.Exchange(ref _idleHold, queue.HoldBackground())?.Dispose();
             }
 
             IsIdle = true;
 
             // Drop resource usage: the deterministic close (awaits the library fan-out, then an aggressive
-            // compacting reclaim). Guarded so an idle with nothing open pays nothing.
+            // compacting reclaim). Guarded so an idle with nothing open pays nothing. Kept so a Resume pressed
+            // while it still drains waits for it rather than reloading under it.
             if (HasFile)
             {
-                await CloseDemoAsync();
+                _idleClose = CloseDemoAsync();
+                await _idleClose;
             }
         }
         catch (Exception ex)
@@ -4119,9 +4405,20 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         IsIdle = false;
         _idle?.ClearIdle();
 
-        if (_settings?.CurrentValue.Idle.KeepBackgroundProcessing == false)
+        // Whatever the setting reads now: idle's own hold ends with idle.
+        Interlocked.Exchange(ref _idleHold, null)?.Dispose();
+
+        // After the queue resumes, which a close parked with background processing may be waiting on. A close
+        // still draining the old demo would otherwise finish after the reload below, write "No demo loaded."
+        // over it and run its compacting collection with the new demo live; its holds wait would even pick up
+        // the new demo's holds, the counter being shared.
+        try
         {
-            _processingQueue?.Resume();
+            await _idleClose;
+        }
+        catch
+        {
+            // EnterIdleModeAsync already logged it; the resume goes ahead.
         }
 
         if (_idleResume is not { } resume)
@@ -4238,9 +4535,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         UnloadDemoState();
+        int shellGeneration = _unloadGeneration;
 
         IsLoading = true;
         StatusText = $"Parsing {fileName}…";
+        string loadingStatus = StatusText;
         AppLog.DemoLoadStarted(DiagLog, fileName, rawBytes.Length);
 
         // Match Overview landing (responsiveness): surface the demo the INSTANT the open begins, before the
@@ -4298,6 +4597,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // annotation, breakpoint and tag stores join on it; hashing here costs no wall time on the load,
             // and hashing once here is what lets every module read the value instead of hashing again.
             Task<string> demoKeyTask = Task.Run(() => HashAndConfirm(localPath, rawBytes));
+            _collectingUnknowns = true;
             ParsedDemo parsed = await open.ParseAsync(rawBytes);
 
             // Fill the Match Overview quick facts + rosters from the parsed result and advance its stage strip
@@ -4306,6 +4606,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             string demoKey = await demoKeyTask;
             // Last point where stopping is safe: past it the shell holds this demo.
             open.CancellationToken.ThrowIfCancellationRequested();
+            ThrowIfShellTaken(shellGeneration);
             open.Report(0.5, "Building the views");
             MatchOverviewTab.SetSummary(subjectKey, parsed);
             MatchOverviewTab.SetParseHealth(subjectKey, parsed.Health, parsed.Warnings); // damaged-demo banner
@@ -4350,6 +4651,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _moduleContext?.SetGameEvents(parsed.AllGameEvents); // pre-decoded timeline for event-driven modules
             _moduleContext?.SetMapName(parsed.MapName); // data-driven map identity for asset selection
             _moduleContext?.SetDemoSha256(demoKey); // the persisted-store join key, hashed once above
+            Bookmarks.SetDemo(demoKey); // a bookmark is a frame index: only this demo's are shown
             _moduleContext?.SetDemo(parsed); // expose the loaded demo to the first-party Workbench
             _heldDemo = localPath is null ? null : new HeldDemo(localPath, parsed);
             BuildUnknownMessageCensus(parsed);
@@ -4382,11 +4684,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             open.Report(0.6, "Analysing");
             await Analysis.RunOpenAsync(parsed, demoKey, localPath, clock);
             ThrowIfSuperseded(open);
+            ThrowIfShellTaken(shellGeneration);
             // StatsTab is fed by AnalysisViewModel.EvaluationCompleted, which is raised SYNCHRONOUSLY inside
             // RunAsync (AnalysisViewModel.cs), so its tables are already built by the time this await
             // returns. Reading them here rather than subscribing keeps the Match Overview's score and
             // scoreboard byte-identical to the Stats tab's with no handler-order dependency.
-            MatchOverviewTab.SetAnalysis(subjectKey, StatsTab.GameTable, StatsTab.TeamScoresBySort,
+            MatchOverviewTab.SetAnalysis(subjectKey, StatsTab.GameTable,
                 StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
             // Per-team round wins from the same evaluation: each team's total across BOTH halves.
             MatchOverviewTab.SetTeamScores(
@@ -4442,20 +4745,40 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _tutorial.NotifyDemoLoaded();
         }
         catch (Exception ex) when (open.IsSuperseded
+                                   || shellGeneration != _unloadGeneration
                                    || (ex is OperationCanceledException
                                        && open.CancellationToken.IsCancellationRequested))
         {
-            superseded = open.IsSuperseded;
+            // Superseded in the queue is not replaced in the shell: only a close or an open that ran
+            // UnloadDemoState since this one did owns the spinner, the status line and the tick groups. A
+            // replacing open that ended before that point leaves this open to clean up after itself.
+            superseded = shellGeneration != _unloadGeneration;
             open.Dispose();
             if (!superseded)
             {
-                StatusText = $"Opening {fileName} was cancelled";
+                // No census will be built to end the collecting. A superseding open has set the flag for
+                // its own parse, so only an open that still owns the shell clears it.
+                _collectingUnknowns = false;
+                AbandonOpen();
+                // A replacing open whose read failed has put its own error on the status line; keep it.
+                if (!open.IsSuperseded || StatusText == loadingStatus)
+                {
+                    StatusText = $"Opening {fileName} was cancelled";
+                }
+
                 MatchOverviewTab.Fail(subjectKey, StatusText);
             }
         }
         catch (Exception ex)
         {
+            _collectingUnknowns = false;
             open.Fail(ex);
+            // A demo that reached the shell stays, loaded with errors; one that did not is not open.
+            if (!HasFile)
+            {
+                AbandonOpen();
+            }
+
             // Clean text on the user surfaces (v0.6.0, a corrupt .dem used to surface as raw CLR
             // text like "Index was outside the bounds of the array"); the full exception goes to
             // the Diagnostics tab + file.
@@ -4490,6 +4813,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             ReplayTab.BuildTickGroups();
         }
+
+        ApplyPendingSessionRestore();
     }
 
     /// <summary>
@@ -4736,8 +5061,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     ///     Commits the nav-strip frame box (Enter / LostFocus from the control). Parses
-    ///     <see cref="NavFrameText" />, clamps into [0, TotalFrames-1], and seeks via the controller;
-    ///     reverts to the last valid frame on bad input. Frame-index movement, per the locked decision.
+    ///     <see cref="NavFrameText" />, clamps into [0, TotalFrames-1], and seeks via the controller unless
+    ///     that is the frame already current; reverts to the last valid frame on bad input. Frame-index movement, per the locked decision.
     /// </summary>
     public void CommitNavFrameText()
     {
@@ -4747,7 +5072,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             int clamped = Math.Clamp(parsed, 0, max);
             _navLastValidFrame = clamped;
             NavFrameText = clamped.ToString(CultureInfo.InvariantCulture);
-            Playback.SeekToFrame(clamped);
+            // The box mirrors the live frame, so a blur with nothing typed commits the frame already shown.
+            // Seeking to it anyway re-ran the whole fan-out and, during play, stopped the loop.
+            if (clamped != Playback.CurrentFrameIndex)
+            {
+                Playback.SeekToFrame(clamped);
+            }
         }
         else
         {
@@ -4867,9 +5197,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         _loadedPackSessions = p.Packs;
         _loadedHubSessions = p.Hubs;
+        _loadedModuleTabs = p.ModuleTabs;
         RestoreHubRails(p.Hubs);
         RestorePackSessions(p.Packs);
 
+        // Module-tab state needs no demo, and must land before RestoreActiveTab builds the restored tab.
+        RestoreModuleTabs(p.ModuleTabs);
         RestoreActiveTab(p);
         // Never restore an owned panel OPEN when its chrome is gated off for the current
         // category: otherwise a drawer/rail a developer left open would return open at startup with its
@@ -5088,16 +5421,32 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     <para>
     ///         Only tabs whose VM ALREADY EXISTS are asked. <c>TabViewModel</c> is null until first
     ///         activation, and building every module VM at shutdown purely to ask it for state would pay each
-    ///         module's construction cost on every exit, for tabs the user never opened.
+    ///         module's construction cost on every exit, for tabs the user never opened. Such a tab keeps the
+    ///         blob it was loaded with, as <see cref="SnapshotPackSessions" /> does for a pack, so not opening
+    ///         a tab for a session does not reset it.
     ///     </para>
     /// </summary>
     private Dictionary<string, JsonElement>? SnapshotModuleTabs()
     {
-        Dictionary<string, JsonElement> states = [];
-        foreach (WorkspaceTabDescriptor tab in TabsAndSections())
+        Dictionary<string, JsonElement> states = _loadedModuleTabs is { } loaded
+            ? new(loaded, StringComparer.Ordinal)
+            : new(StringComparer.Ordinal);
+        foreach (WorkspaceTabDescriptor tab in AllDescriptors())
         {
+            if (tab.TabViewModel is null)
+            {
+                continue;
+            }
+
+            // A built VM speaks for its tab, under the current id: an entry saved under an old id goes.
+            foreach (string previous in tab.PreviousTabIds)
+            {
+                states.Remove(previous);
+            }
+
             if (ExtensionTabs.Snapshot(tab) is not { } state)
             {
+                states.Remove(tab.TabId);
                 continue;
             }
 
@@ -5107,7 +5456,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             }
             catch (Exception ex) when (ex is JsonException or NotSupportedException)
             {
-                // A module returned something unserializable. That module's state is lost; the SESSION is
+                // A module returned something unserializable. That module's new state is lost; the SESSION is
                 // not. One badly-behaved tab must never cost the user their whole restored layout.
                 AppLog.DemoLoadFailed(DiagLog, tab.TabId, ex.Message);
             }
@@ -5120,6 +5469,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     Hands each module tab its persisted blob. Parked on the descriptor rather than applied here:
     ///     module VMs are built lazily on first activation, so at restore time most of them do not exist yet:
     ///     <c>WorkspaceTabDescriptor.Activate</c> applies the state the moment it builds one, exactly once.
+    ///     A tab whose VM already exists (the first tab, selected and built by the constructor) is handed its
+    ///     state directly, since Activate would never apply a parked one. Walks every descriptor, gated or
+    ///     not, so a tab turned on later in the session still finds its state.
     /// </summary>
     private void RestoreModuleTabs(IReadOnlyDictionary<string, JsonElement>? states)
     {
@@ -5128,12 +5480,21 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        foreach (WorkspaceTabDescriptor tab in TabsAndSections())
+        foreach (WorkspaceTabDescriptor tab in AllDescriptors())
         {
             // A renamed tab finds the state saved under its old id; the next save writes it under the new one.
-            if (TabIdAliases.TryGetState(tab, states, out JsonElement state))
+            if (!TabIdAliases.TryGetState(tab, states, out JsonElement state))
+            {
+                continue;
+            }
+
+            if (tab.TabViewModel is null)
             {
                 tab.PendingRestoreState = state;
+            }
+            else
+            {
+                ExtensionTabs.Restore(tab, state);
             }
         }
     }

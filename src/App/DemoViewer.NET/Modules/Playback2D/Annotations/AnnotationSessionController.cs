@@ -6,6 +6,7 @@ using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
+using DemoViewer.NET.Services;
 
 #endregion
 
@@ -59,12 +60,36 @@ public sealed class AnnotationSessionController : IDisposable
 
     private readonly Lock _styleGate = new();
 
+    private int _attachGeneration;
     private bool _attached;
+    private bool _awaitingSidecar;
+
+    // The file the attached demo's document was read from, or null. Not always the save target: an import
+    // parks annotations in app-data, which the store reads until the demo's folder has its own sidecar.
+    private string? _loadedFrom;
+
+    // The last load found a sidecar it could not read: where the store moved it, or, when it could not be
+    // moved, that it is still in place and guarded. Both are for the status line.
+    private string? _unreadableMovedTo;
+    private bool _unreadableHeld;
+
+    // The document's version when it last matched its file: at the load, and at each save that landed.
+    private int _cleanVersion = -1;
     private CancellationTokenSource? _debounce;
     private DemoIdentity? _demo;
     private string? _demoPath;
     private bool _disposed;
     private IModuleFeatureGate? _features;
+
+    // While someone else writes this demo's file (a transfer import), no save may land: one would put the
+    // document from before the write back over it. Counted, so overlapping holds end together.
+    private int _externalHolds;
+
+    // The element ids when the first hold began, if its flush left nothing unsaved: what was drawn during the
+    // hold is what is not among them. Null when the flush could not save, and then all of it may be unsaved.
+    private HashSet<Guid>? _heldIds;
+    private int _heldGeneration;
+    private bool _heldWritten;
 
     private int _lastElementCount;
     private int _lastSavedVersion = -1;
@@ -245,47 +270,185 @@ public sealed class AnnotationSessionController : IDisposable
 
         string? normalized = string.IsNullOrWhiteSpace(demoPath) ? null : demoPath;
         if (!force && _attached
-            && string.Equals(_demoPath, normalized, StringComparison.OrdinalIgnoreCase))
+            && string.Equals(_demoPath, normalized, PathComparer.Comparison))
         {
             return;
         }
 
-        await FlushAsync().ConfigureAwait(false);
+        // Both awaits here come BACK to the caller's context, unlike every other await in this type.
+        // Everything after them edits the document, and the document's Changed runs the timeline's
+        // rebuild of collections the view is bound to: started on the UI thread, this method has to finish
+        // there, and a write or a read completed by a pool thread would otherwise carry it off. The
+        // blocking Flush() does not come through here, so there is still no context for it to wait on.
+        //
+        // Attaches are started fire-and-forget, so a second one can begin while this one is parked at
+        // either await. The newest owns the controller: an older one stands down where it resumes rather
+        // than point the controller back at its demo, or put that demo's ink into a document that is by
+        // then the next demo's and will be saved under the next demo's name.
+        int generation = ++_attachGeneration;
+
+        await FlushAsync();
+        if (generation != _attachGeneration)
+        {
+            return;
+        }
 
         _demoPath = normalized;
         Clock = clock;
         _demo = null;
+        _loadedFrom = null;
         _attached = true;
         ClockMismatch = false;
         DemoMismatch = false;
+        _unreadableMovedTo = null;
+        _unreadableHeld = false;
 
         // Loading is not editing. Without this the Reset below raises Changed, which schedules an
         // autosave, which drops an empty .dvann.json next to every demo the user has ever opened.
         _loading = true;
+        _awaitingSidecar = true;
         try
         {
             Session.Document.Reset([]);
+            _cleanVersion = Session.Document.Version;
             ApplySettings();
 
             if (_demoPath is null || _store is null || !IsEnabled)
             {
+                _awaitingSidecar = false;
                 StatusText = DescribeLocation();
                 StateChanged?.Invoke();
                 return;
             }
 
-            AnnotationLoadResult result =
-                await _store.LoadAsync(_demoPath, clock).ConfigureAwait(false);
+            AnnotationLoadResult result = await _store.LoadForEditingAsync(_demoPath, clock);
+            if (generation != _attachGeneration)
+            {
+                return;
+            }
 
             ClockMismatch = result.ClockMismatch;
             DemoMismatch = result.DemoMismatch;
+            _unreadableMovedTo = result.MovedAsidePath;
+            _unreadableHeld = result.Unreadable && result.MovedAsidePath is null;
             Session.Document.Reset(result.Elements);
+            _loadedFrom = result.Path;
+            _cleanVersion = Session.Document.Version;
+            _awaitingSidecar = false;
             StatusText = DescribeLocation();
             StateChanged?.Invoke();
         }
+        catch (Exception) when (generation == _attachGeneration)
+        {
+            // _awaitingSidecar stays set, so no save writes the placeholder over a sidecar that was never
+            // read. Nothing drawn from here on reaches a file, and the line must not keep naming one.
+            StatusText = "annotations could not be loaded — session only";
+            StateChanged?.Invoke();
+            throw;
+        }
         finally
         {
-            _loading = false;
+            // The flag is the newest attach's; one that was overtaken leaves it alone.
+            if (generation == _attachGeneration)
+            {
+                _loading = false;
+            }
+        }
+    }
+
+    /// <summary>The demo the controller is attached to, or null.</summary>
+    internal string? AttachedDemoPath => _attached ? _demoPath : null;
+
+    /// <summary>
+    ///     Before someone else writes this demo's annotation file: saves what is unsaved, so the writer merges
+    ///     with it, then holds every save until <see cref="EndExternalWriteAsync" />. Call on the UI thread.
+    /// </summary>
+    internal async Task BeginExternalWriteAsync()
+    {
+        try
+        {
+            await FlushAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Not saved: the end of the hold puts every stroke the file lacks back.
+        }
+
+        if (_externalHolds++ == 0)
+        {
+            _heldGeneration = _attachGeneration;
+            _heldIds = Session.Document.Version == Volatile.Read(ref _cleanVersion)
+                ? [.. Session.Document.Elements.Select(e => e.Id)]
+                : null;
+        }
+    }
+
+    /// <summary>
+    ///     After someone else wrote this demo's annotation file: when <paramref name="written" />, reloads it and
+    ///     puts back the strokes it lacks that were not saved before the write (drawn during the hold, or never
+    ///     saved at all), which then save as usual. Call on the UI thread.
+    /// </summary>
+    /// <param name="written">Whether the file was changed.</param>
+    internal async Task EndExternalWriteAsync(bool written)
+    {
+        if (_externalHolds == 0)
+        {
+            return;
+        }
+
+        _heldWritten |= written;
+        if (_externalHolds > 1)
+        {
+            _externalHolds--; // the last hold to end reloads for all of them
+            return;
+        }
+
+        HashSet<Guid>? heldIds = _heldIds;
+        AnnotationElement[] mine = [.. Session.Document.Elements];
+        bool dirty = Session.Document.Version != Volatile.Read(ref _cleanVersion);
+        // A demo attached since the hold began is another document; its file was not the one written.
+        bool reload = _heldWritten && _heldGeneration == _attachGeneration && _demoPath is not null;
+        try
+        {
+            if (reload)
+            {
+                // Still held: the attach's own flush must not write the document from before the write.
+                await AttachDemoAsync(_demoPath, Clock);
+            }
+        }
+        catch (Exception)
+        {
+            // The attach has said so on the status line; the strokes below are still put back.
+        }
+        finally
+        {
+            _externalHolds = 0;
+            _heldIds = null;
+            _heldWritten = false;
+        }
+
+        if (!dirty)
+        {
+            return;
+        }
+
+        if (!reload)
+        {
+            // Nothing reloaded: the document is as it was, and the saves the hold refused are due now.
+            if (!_disposed && AutoSave && _demoPath is not null)
+            {
+                ScheduleSave();
+            }
+
+            return;
+        }
+
+        foreach (AnnotationElement element in mine)
+        {
+            if (Session.Document.IndexOf(element.Id) < 0 && (heldIds is null || !heldIds.Contains(element.Id)))
+            {
+                Session.Document.ApplyMigration(new DocDelta.Add(element, int.MaxValue));
+            }
         }
     }
 
@@ -306,13 +469,26 @@ public sealed class AnnotationSessionController : IDisposable
     ///     <para>
     ///         Deliberately synchronous. A fire-and-forget flush at shutdown races the process exit, and
     ///         losing the stroke someone drew ten seconds before quitting is exactly the failure the
-    ///         autosave exists to prevent. Every await inside is <c>ConfigureAwait(false)</c>, so there is
-    ///         no context to deadlock on, and the payload is a small JSON file, the same trade
+    ///         autosave exists to prevent. The save always resumes on the pool, so there is no context to
+    ///         deadlock on, and the payload is a small JSON file, the same trade
     ///         <c>SettingsService.SaveSession</c> already makes on this thread.
+    ///     </para>
+    ///     <para>
+    ///         Except on the browser head, which has one thread: the pool continuation can only run once
+    ///         this thread returns to the event loop, so blocking on it throws or never returns. There the
+    ///         flush is started and not waited for; it only reaches the tab's in-memory file system anyway.
+    ///         One started just before <see cref="Dispose" /> writes nothing: the save looks at the disposed
+    ///         flag once it resumes, and by then it is set. The flush at tab deactivation still lands.
     ///     </para>
     /// </summary>
     public void Flush()
     {
+        if (_isBrowser())
+        {
+            _ = FlushWithoutWaitingAsync();
+            return;
+        }
+
         try
         {
             FlushAsync().GetAwaiter().GetResult();
@@ -321,6 +497,21 @@ public sealed class AnnotationSessionController : IDisposable
         {
             // Best-effort by contract: a failed write is a status line, never an exception thrown out
             // of a tab switch.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    // The browser's Flush: the same best-effort contract, with nobody waiting to see the exception.
+    private async Task FlushWithoutWaitingAsync()
+    {
+        try
+        {
+            await FlushAsync().ConfigureAwait(false);
+        }
+        catch (IOException)
+        {
         }
         catch (UnauthorizedAccessException)
         {
@@ -627,7 +818,9 @@ public sealed class AnnotationSessionController : IDisposable
     {
         try
         {
-            await Task.Delay(AutoSaveDelay, ct).ConfigureAwait(false);
+            // Back to the context the change was made on: SaveNowAsync opens by copying the element list,
+            // and a copy taken on a pool thread races the stroke being drawn on the UI thread.
+            await Task.Delay(AutoSaveDelay, ct);
         }
         catch (OperationCanceledException)
         {
@@ -640,6 +833,16 @@ public sealed class AnnotationSessionController : IDisposable
     private async Task SaveNowAsync(CancellationToken ct)
     {
         if (_disposed || _demoPath is null || _store is null || !IsEnabled || DemoMismatch)
+        {
+            return;
+        }
+
+        // Between an attach emptying the document and that demo's sidecar arriving, the document is a
+        // placeholder for a file not read yet. Further down, an empty document over an existing sidecar
+        // means "the user erased everything" and is written; a flush in this window (the next attach's, a
+        // tab switch, shutdown) would erase the very file being waited for. Left set by a load that threw,
+        // so that placeholder is never written either.
+        if (_awaitingSidecar || Volatile.Read(ref _externalHolds) > 0)
         {
             return;
         }
@@ -660,11 +863,16 @@ public sealed class AnnotationSessionController : IDisposable
         AnnotationElement[] elements = [.. Session.Document.Elements];
         int version = Session.Document.Version;
         string demoPath = _demoPath;
+        string? loadedFrom = _loadedFrom;
         ClockIdentity clock = Clock;
 
         try
         {
-            await _saveSerializer.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            // Always onto the pool from here, even when the serializer is free: the snapshot above is the
+            // only part that belongs to the caller's thread, and what follows stats the sidecar, may hash
+            // the demo and serializes the document.
+            await _saveSerializer.WaitAsync(CancellationToken.None)
+                .ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
         }
         catch (ObjectDisposedException)
         {
@@ -678,11 +886,29 @@ public sealed class AnnotationSessionController : IDisposable
                 return; // a newer snapshot already reached the disk; this one would undo it
             }
 
+            // A save that passed the check above before a hold began, then waited here.
+            if (Volatile.Read(ref _externalHolds) > 0)
+            {
+                return;
+            }
+
+            // Nothing was drawn or erased since the load or the last save, so the document is a copy of the
+            // file as it was then. Writing it says nothing new, and it replaces whatever was written there
+            // since: a transfer import merges into this file while the demo is open, and a tab switch
+            // would put the copy from before it back, or an empty one over a file the import created.
+            if (version == Volatile.Read(ref _cleanVersion))
+            {
+                return;
+            }
+
             // Nothing to say, and nothing already on disk to correct: opening a demo must not litter a
             // .dvann.json beside it. An EXISTING sidecar is still rewritten when the last stroke is
-            // erased: that is the user clearing their annotations, and it has to stick.
+            // erased: that is the user clearing their annotations, and it has to stick. So is the file the
+            // document was loaded from when that is not the target: an import's app-data copy is read until
+            // an empty sidecar beside the demo takes over, so clearing it has to write one.
             string? target = _store.ResolvePath(demoPath);
-            if (elements.Length == 0 && (target is null || !File.Exists(target)))
+            if (elements.Length == 0
+                && (target is null || (!File.Exists(target) && (loadedFrom is null || !File.Exists(loadedFrom)))))
             {
                 return;
             }
@@ -704,6 +930,7 @@ public sealed class AnnotationSessionController : IDisposable
             if (saved)
             {
                 _lastSavedVersion = version;
+                Volatile.Write(ref _cleanVersion, version);
             }
 
             SaveCount++;
@@ -794,6 +1021,15 @@ public sealed class AnnotationSessionController : IDisposable
         string prefix = ClockMismatch
             ? "loaded from a different parse — time anchors may be off · "
             : "";
+        if (_unreadableMovedTo is not null)
+        {
+            prefix = "the sidecar could not be read and was moved to " + Path.GetFileName(_unreadableMovedTo) +
+                     " · ";
+        }
+        else if (_unreadableHeld)
+        {
+            prefix = "the sidecar could not be read — it will not be saved over until it can be moved aside · ";
+        }
 
         // With the toggle off nothing reaches that path at all: not on a stroke, not on a demo swap,
         // not at shutdown. Leaving "saving to <path>" standing would be a promise the setting revoked.

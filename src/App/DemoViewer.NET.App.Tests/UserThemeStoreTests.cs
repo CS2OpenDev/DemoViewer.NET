@@ -129,4 +129,38 @@ public class UserThemeStoreTests
         await Assert.That(saved.MissingTokens.Count).IsEqualTo(ThemeTokens.All.Count - 2);
         await Assert.That(registry.PaletteFor("partial")!.Colors["PanelBg"]).IsEqualTo(Color.Parse("#0A0B0C"));
     }
+
+    // A drop-in file may carry a line break in its name. The name also heads the file as a // comment, and a
+    // raw line break there pushes the rest of the name out of the comment, so the saved file stopped parsing.
+    [Test]
+    public async Task Saving_ANameWithALineBreak_StillWritesAFileThatLoads()
+    {
+        using TempThemesFolder folder = new();
+        string path = folder.Write("neon.json",
+            """{ "id": "neon", "name": "Neon\nNights\u2028Out", "tokens": { "ShellBg": "#010203" } }""");
+        ThemeRegistry registry = new();
+        registry.Reload();
+        UserThemeStore store = new(registry);
+
+        Theme saved = store.Save("neon", registry.PaletteFor("neon")!);
+
+        await Assert.That(saved).IsNotNull();
+        await Assert.That(registry.Contains("neon")).IsTrue();
+        await Assert.That(ThemeJson.Parse(File.ReadAllText(path)).Definition).IsNotNull();
+    }
+
+    // An offset past double range is not a usable stop. It must read as a bad value, not as Infinity (which a
+    // save would write back as a bare token) and not as an exception out of the parse.
+    [Test]
+    public async Task AGradientOffsetOutOfRange_IsABadValue()
+    {
+        ThemeParseResult result = ThemeJson.Parse("""
+            { "id": "g", "name": "G", "tokens": { "LibraryCardScrim": { "start": "0%,0%", "end": "100%,0%",
+              "stops": [ { "offset": 0, "color": "#FF000000" }, { "offset": 1e999, "color": "#FFFFFFFF" } ] } } }
+            """);
+
+        await Assert.That(result.Definition).IsNotNull();
+        await Assert.That(result.Definition!.Gradients).IsEmpty();
+        await Assert.That(result.BadValues).Contains("LibraryCardScrim");
+    }
 }

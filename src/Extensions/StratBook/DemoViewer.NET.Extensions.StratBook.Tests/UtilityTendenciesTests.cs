@@ -77,8 +77,26 @@ public class UtilityTendenciesTests
 
         await Assert.That(t.Rounds).IsEqualTo(3);
         await Assert.That(t.Clusters.Select(c => $"{c.Letter} {c.Place} {c.Throws}/{c.Rounds.Count}"))
-            .IsEquivalentTo(["S A Ramp 3/2", "M Heaven 2/2", "F unplaced 1/1"]);
+            .IsEquivalentTo(["S A Ramp 3/2", "M Heaven 2/2", "F (0, 0, 0) 1/1"]);
         await Assert.That(t.Clusters.Any(c => c.Place == "CT Spawn")).IsFalse();
+    }
+
+    [Test]
+    public async Task ThrowsWithoutAPlace_ClusterByWhereTheyLanded_NotIntoOneCloudAtTheirMean()
+    {
+        UtilityBlock t = UtilityTendencies.Build([
+            Demo(Nade(GrenadeKind.Smoke, 1, 2, At(1000, 10), null, -2000),
+                Nade(GrenadeKind.Smoke, 1, 2, At(1000, 12), null, -1990),
+                Nade(GrenadeKind.Smoke, 2, 2, At(10000, 10), null, 2000))
+        ], 2, null);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(t.Clusters.Select(c => $"{c.Letter} {c.Place} {c.Throws}/{c.Rounds.Count}"))
+                .IsEquivalentTo(["S (-1995, 0, 0) 2/1", "S (2000, 0, 0) 1/1"]);
+            await Assert.That(t.Clusters.Any(c => c.Landing.X == 0f)).IsFalse()
+                .Because("no smoke landed at the midpoint of the two ends of the map");
+        }
     }
 
     [Test]

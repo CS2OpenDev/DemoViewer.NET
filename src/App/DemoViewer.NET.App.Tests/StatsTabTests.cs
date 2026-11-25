@@ -10,6 +10,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Abstractions;
+using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.ViewModels.Stats;
 using DemoViewer.NET.Views.Stats;
@@ -199,6 +200,49 @@ public class StatsTabTests
         finally
         {
             Directory.Delete(dir, true);
+        }
+    }
+
+    /// <summary>
+    ///     A configured output's table name is the raw YAML key of someone's rule file. A rooted name, or one
+    ///     climbing out with "..", used to land the file wherever the rule author chose, and a name equal to a
+    ///     built-in table's overwrote that table's file in the same export.
+    /// </summary>
+    [Test]
+    public async Task ExportTo_KeepsRuleAuthoredTableNamesInsideTheChosenFolder()
+    {
+        string root = Directory.CreateTempSubdirectory("demoviewer-stats-export-").FullName;
+        string dir = Path.Combine(root, "out");
+        string elsewhere = Path.Combine(root, "elsewhere");
+        Directory.CreateDirectory(dir);
+        Directory.CreateDirectory(elsewhere);
+        try
+        {
+            StatsTabViewModel vm = new(null, () => "/demos/match.dem");
+            (EvaluationResult result, ParsedDemo demo) = BuildScenario();
+            MetricTable Named(string name) => new(name, ["k"], ["v"], []);
+            vm.Update(result, demo,
+            [
+                Named(Path.Combine("..", "escaped")),
+                Named(Path.Combine(elsewhere, "rooted")),
+                Named("player_game_stats")
+            ]);
+
+            string message = vm.ExportTo(dir, "csv");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(message).Contains("Exported 6 table(s)");
+                await Assert.That(File.Exists(Path.Combine(root, "escaped.csv"))).IsFalse();
+                await Assert.That(Directory.GetFiles(elsewhere)).IsEmpty();
+                await Assert.That(Directory.GetFiles(root)).IsEmpty();
+                await Assert.That(Directory.GetFiles(dir).Length).IsEqualTo(6)
+                    .Because("every table gets its own file, the built-in one included");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
         }
     }
 

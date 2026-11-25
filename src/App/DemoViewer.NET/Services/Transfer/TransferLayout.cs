@@ -131,6 +131,38 @@ public static class TransferLayout
         return candidate;
     }
 
+    /// <summary>
+    ///     The bundle folder an export to <paramref name="destination" /> writes: the destination itself when it is
+    ///     an existing folder named like a bundle, else <see cref="NewBundleFolder" /> inside it. The exporter and
+    ///     the wizard's preview both use it, so the wizard names the folder the export really writes.
+    /// </summary>
+    public static string ExportBundleFolder(string destination, DateTime localTime)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(destination);
+        string folder = Path.TrimEndingDirectorySeparator(destination);
+        return Path.GetFileName(folder).StartsWith(BundleNamePrefix, StringComparison.Ordinal)
+               && Directory.Exists(folder)
+            ? folder
+            : NewBundleFolder(folder, localTime);
+    }
+
+    /// <summary>
+    ///     True when <paramref name="bundleFolder" /> exists and holds anything at all, a bundle or any other file.
+    ///     An export never deletes, so it refuses such a folder; one that cannot be listed counts as not empty.
+    /// </summary>
+    public static bool HoldsAnything(string bundleFolder)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(bundleFolder);
+        try
+        {
+            return Directory.Exists(bundleFolder) && Directory.EnumerateFileSystemEntries(bundleFolder).Any();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
     /// <summary>True for a lowercase-hex SHA-256, the only form a demo folder may be named by.</summary>
     public static bool IsSha256(string? value)
     {

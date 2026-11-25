@@ -100,6 +100,76 @@ public class SuggestedTagsProfileStoreTests
     }
 
     [Test]
+    [Arguments("{\"schemaVersion\":99,\"profileId\":\"team\"}")]
+    [Arguments("{\"schemaVersion\":1,}")]
+    public async Task AFileThatDoesNotParse_IsKeptWhenTheDefaultsAreSavedOverIt(string theirs)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "dv-stp-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            IExtensionFolder folder = PackStores.Folder(root, StratBookStores.SuggestedTags);
+            Directory.CreateDirectory(folder.Path);
+            string file = Path.Combine(folder.Path, "profile.json");
+            await File.WriteAllTextAsync(file, theirs);
+
+            ProfileStore store = new(folder);
+            DetectorProfile current = store.Current;
+            store.Save(current.With("opener", "K", 5));
+
+            string[] others = [.. Directory.GetFiles(folder.Path).Where(f => f != file)];
+            using (Assert.Multiple())
+            {
+                await Assert.That(current.ToJson()).IsEqualTo(DetectorProfile.Default.ToJson());
+                await Assert.That(others.Length).IsEqualTo(1);
+                await Assert.That(others.Length == 1 ? await File.ReadAllTextAsync(others[0]) : null)
+                    .IsEqualTo(theirs)
+                    .Because("a profile this build could not read is someone's tuning, not rubbish");
+                await Assert.That(new ProfileStore(folder).Current.Get("opener", "K")).IsEqualTo(5.0);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task AFileThatCouldNotBeRead_IsNotSeededOver()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "dv-stp-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            IExtensionFolder folder = PackStores.Folder(root, StratBookStores.SuggestedTags);
+            new ProfileStore(folder).Save(DetectorProfile.Default.With("opener", "K", 5));
+
+            // Another process holds the file for the first read only.
+            ProfileStore store = new(new GrenadeStoreTests.LockedOnceFolder(folder));
+            DetectorProfile current = store.Current;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(current.ToJson()).IsEqualTo(DetectorProfile.Default.ToJson());
+                await Assert.That(new ProfileStore(folder).Current.Get("opener", "K")).IsEqualTo(5.0)
+                    .Because("a read that failed is not a missing file, and nothing was seeded over it");
+            }
+
+            store.Reload();
+            await Assert.That(store.Current.Get("opener", "K")).IsEqualTo(5.0)
+                .Because("a reload reads the file once it can be read");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
+    [Test]
     public async Task ABadHandEditedFile_FallsBackToTheShippedDefault()
     {
         string root = Path.Combine(Path.GetTempPath(), "dv-stp-" + Guid.NewGuid().ToString("N"));

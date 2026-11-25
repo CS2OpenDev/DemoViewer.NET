@@ -138,6 +138,7 @@ while the rest applies.
 | `mapName` names another map | `zones.overlay.map-mismatch` | applied anyway; a warning |
 | `basedOn` is not the loaded bake's `zonesVersion` | `zones.overlay.based-on` | applied anyway; polygons are world geometry and still hold |
 | a zone with no `name`, or a merge with no `into` | `zones.overlay.empty-name` | the entry is skipped |
+| a zone `name` or a merge `into` with `:` or `\|` in it (the separators of the round index's place tokens) | `zones.overlay.bad-name` | the entry is skipped |
 | `floor` is not one of the baked floor keys | `zones.overlay.unknown-floor` | the zone is skipped |
 | `polygon` is not simple (fewer than three distinct corners, an odd count, a crossing edge, zero area) | `zones.overlay.bad-polygon` | the zone is skipped |
 | `minZ` is not below `maxZ` | `zones.overlay.bad-band` | the zone is skipped |

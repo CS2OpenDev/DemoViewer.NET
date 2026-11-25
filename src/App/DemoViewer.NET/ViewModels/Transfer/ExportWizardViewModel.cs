@@ -206,10 +206,13 @@ public sealed partial class ExportWizardViewModel : TransferWizardViewModel
         ? $"Extension library data: about {Bytes(plan.LibraryBytes)}."
         : "";
 
-    /// <summary>The bundle folder a run would create, for the Destination step.</summary>
+    /// <summary>
+    ///     The bundle folder a run would write, for the Destination step: a new subfolder, or the destination itself
+    ///     when it is a folder named like a bundle, as the exporter picks it.
+    /// </summary>
     public string BundleFolderPreview => string.IsNullOrWhiteSpace(DestinationFolder)
         ? ""
-        : Path.Combine(DestinationFolder.Trim(), TransferLayout.BundleFolderName(_now()));
+        : TransferLayout.ExportBundleFolder(DestinationFolder.Trim(), _now());
 
     // ── Steps ────────────────────────────────────────────────────────────────────────────────────
 

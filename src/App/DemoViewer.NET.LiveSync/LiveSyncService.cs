@@ -56,7 +56,14 @@ public sealed class LiveSyncService : ILiveSyncService
     // Outbound pipeline: alive only while a session is up.
     private SyncEngine? _engine;
 
+    // The subscription of _engine, kept to unsubscribe: it carries its engine, so a status is applied only
+    // while the engine that published it is still the session's.
+    private Action<LiveSyncState>? _onEngineStatus;
+
     private CsvgWebHost? _host;
+
+    // Set just before a CS2 launch, cleared once that session has been stopped: see OwnsStartedSession.
+    private volatile bool _ownsStartedSession;
 
     // Inbound pipeline: the 30 Hz Cs2EventPump + servo + mirroring.
     private InboundSync? _inbound;
@@ -75,7 +82,15 @@ public sealed class LiveSyncService : ILiveSyncService
     private Action<string, long>? _onTickUpdated;
 
     private CsvgVideoSession? _subscribedSession;
+
+    // Set under the lifecycle gate when a reel suspends sync, cleared when the suspension ends. Read
+    // under the gate instead of State, which may be stale off the UI thread.
+    private volatile bool _suspendedForReel;
     private bool _tearingDown;
+
+    // 1 while a VerifyMomentAsync owns CS2. The engine's verification flag is a single bool and one
+    // CSVG session plays one range at a time, so a second verification is refused, not overlapped.
+    private int _verifying;
 
     /// <summary>
     ///     Creates the engine against the shell. Settings resolve from the app's composition root
@@ -104,6 +119,9 @@ public sealed class LiveSyncService : ILiveSyncService
     internal bool OwnsSessionResources => _host is not null;
 
     /// <inheritdoc />
+    public bool OwnsStartedSession => _ownsStartedSession;
+
+    /// <inheritdoc />
     public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
 
     /// <inheritdoc />
@@ -128,7 +146,14 @@ public sealed class LiveSyncService : ILiveSyncService
     /// <inheritdoc />
     public async Task EnableAsync(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_disposed)
+        {
+            // Shutdown sets _disposed and then spends seconds stopping CS2 with the window still up:
+            // a flyout click in that window is a no-op, never an ObjectDisposedException out of a
+            // relay command that would crash the process mid-restore.
+            return;
+        }
+
         CancellationTokenSource enableCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _enableCts = enableCts;
         try
@@ -152,7 +177,7 @@ public sealed class LiveSyncService : ILiveSyncService
             }
 
             CancellationToken ct = enableCts.Token;
-            if (State.IsSessionActive || State.Kind == LiveSyncStateKind.SuspendedForReel)
+            if (State.IsSessionActive || _suspendedForReel || State.Kind == LiveSyncStateKind.SuspendedForReel)
             {
                 // Interlock: while a reel owns CS2, sync Enable/Reconnect are excluded.
                 return;
@@ -195,9 +220,13 @@ public sealed class LiveSyncService : ILiveSyncService
                 {
                     await session.StopAsync(CancellationToken.None);
                     stoppedFaulted = true;
+                    _ownsStartedSession = false;
                 }
                 catch (Exception ex)
                 {
+                    // CSVG's StopAsync ends Disconnected even when it throws, as StopSessionCoreAsync relies on:
+                    // whatever the session left is leftovers now, which the banner may restore.
+                    _ownsStartedSession = false;
                     SetState(new LiveSyncState(LiveSyncStateKind.Faulted,
                         $"Could not clean up the previous session — {ex.Message}"));
                     return;
@@ -233,6 +262,8 @@ public sealed class LiveSyncService : ILiveSyncService
                 settings.UsesMock()
                     ? "Launching mock CS2"
                     : "Launching CS2 (up to ~2 min)"));
+            // From here CSVG patches the install, and only its StopAsync restores it, Faulted or not.
+            _ownsStartedSession = true;
             try
             {
                 await session.StartWatchAsync(
@@ -267,7 +298,8 @@ public sealed class LiveSyncService : ILiveSyncService
             // Session is up: attach the outbound pipeline. The engine is Avalonia-free;
             // the observer subscribes shell events and must therefore attach on the UI thread.
             SyncEngine engine = new(new CsvgSyncClientAdapter(session), SyncTimings.Default, Capabilities);
-            engine.StatusChanged += OnEngineStatus;
+            _onEngineStatus = status => OnEngineStatus(engine, status);
+            engine.StatusChanged += _onEngineStatus;
             _engine = engine;
             int tickOffset = settings.TickOffset;
             if (Dispatcher.UIThread.CheckAccess())
@@ -290,13 +322,20 @@ public sealed class LiveSyncService : ILiveSyncService
     /// <inheritdoc />
     public async Task DisableAsync(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_disposed)
+        {
+            // The teardown already stops the session (see EnableAsync).
+            return;
+        }
+
         CancelInFlightEnable();
         await _lifecycleGate.WaitAsync(cancellationToken);
         try
         {
-            if (_disposed)
+            if (_disposed || _suspendedForReel)
             {
+                // A Disable (or Reconnect) clicked while a reel was suspending queued behind it: the
+                // session is already stopped, and overwriting SuspendedForReel would offer Enable mid-reel.
                 return;
             }
 
@@ -315,15 +354,21 @@ public sealed class LiveSyncService : ILiveSyncService
         int postRollTicks = VerificationRunner.DefaultPostRollTicks,
         string? spectateName = null, CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_engine is not { } engine || _subscribedSession is not { } session || !State.IsSynced)
+        if (_disposed || _engine is not { } engine || _subscribedSession is not { } session || !State.IsSynced)
         {
             // Not synced for the current demo: the UI owns the enable/sync prompt.
             return false;
         }
 
-        if (_observer?.Mapper is not { } mapper)
+        if (_observer is not { Mapper: { } mapper, MappedDemo: { } demo })
         {
+            return false;
+        }
+
+        if (Interlocked.CompareExchange(ref _verifying, 1, 0) != 0)
+        {
+            // Another surface's verification is still playing its range: the first one to finish
+            // would end verification mode and seek DV under this one.
             return false;
         }
 
@@ -332,31 +377,51 @@ public sealed class LiveSyncService : ILiveSyncService
         {
             VerificationRunner.Outcome outcome = await VerificationRunner.RunAsync(
                 session, mapper, frameClockTick, preRollTicks, postRollTicks, spectateName, cancellationToken);
-            if (outcome.Success)
+            if (!outcome.Success)
             {
-                // Remote-apply DV's playhead to the trigger frame under the loop
-                // breaker, desired state aligned so the observer sees no diff.
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    ApplyingRemote = true;
-                    try
-                    {
-                        _shell.Playback.SeekToFrame(outcome.TargetFrameIndex);
-                        engine.SetDesiredTick(outcome.TargetCs2Tick);
-                        engine.SetDesiredPlaying(false);
-                    }
-                    finally
-                    {
-                        ApplyingRemote = false;
-                    }
-                });
+                return false;
             }
 
-            return outcome.Success;
+            // Remote-apply DV's playhead to the trigger frame under the loop
+            // breaker, desired state aligned so the observer sees no diff.
+            return await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                // Checked here, on the UI thread, so no DemoReset can land between it and the apply:
+                // another demo opened (or sync restarted) during the range owns the playhead now, and
+                // the old demo's frame index and tick would put both sides somewhere unrelated. The demo, not
+                // the mapper: a Re-sync rebuilds the mapper from the same demo, and its frames still hold.
+                if (_observer?.Mapper is null || !ReferenceEquals(_observer.MappedDemo, demo)
+                    || !ReferenceEquals(_engine, engine)
+                    || !ReferenceEquals(_subscribedSession, session))
+                {
+                    return false;
+                }
+
+                ApplyingRemote = true;
+                try
+                {
+                    _shell.Playback.SeekToFrame(outcome.TargetFrameIndex);
+                    engine.SetDesiredTick(outcome.TargetCs2Tick);
+                    engine.SetDesiredPlaying(false);
+                }
+                finally
+                {
+                    ApplyingRemote = false;
+                }
+
+                return true;
+            });
         }
         finally
         {
-            engine.EndVerification();
+            try
+            {
+                engine.EndVerification();
+            }
+            finally
+            {
+                Volatile.Write(ref _verifying, 0);
+            }
         }
     }
 
@@ -370,8 +435,13 @@ public sealed class LiveSyncService : ILiveSyncService
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<string?> GetCs2GameDirectoryAsync(CancellationToken cancellationToken = default) =>
+        Task.Run(() => InstallRecovery.FindCsgoDirectory(CurrentSettings()), cancellationToken);
+
+    /// <inheritdoc />
     public Task RestoreInstallAsync(CancellationToken cancellationToken = default) =>
-        Task.Run(() => InstallRecovery.Restore(CurrentSettings(), PostRecoveryLine), cancellationToken);
+        Task.Run(() => InstallRecovery.Restore(CurrentSettings(), PostRecoveryLine, null, () => _ownsStartedSession),
+            cancellationToken);
 
     private void PostRecoveryLine(string line) => Dispatcher.UIThread.Post(() =>
     {
@@ -382,8 +452,7 @@ public sealed class LiveSyncService : ILiveSyncService
     /// <inheritdoc />
     public Task ResyncAsync(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_observer is null)
+        if (_disposed || _observer is null)
         {
             return Task.CompletedTask;
         }
@@ -476,12 +545,24 @@ public sealed class LiveSyncService : ILiveSyncService
             applying => ApplyingRemote = applying);
     }
 
-    /// <summary>Engine status → service state (any thread; SetState marshals + dedups).</summary>
-    private void OnEngineStatus(LiveSyncState status)
+    /// <summary>Engine status → service state (any thread; applied on the UI thread, SetState dedups).</summary>
+    private void OnEngineStatus(SyncEngine engine, LiveSyncState status)
     {
-        if (_tearingDown || _disposed || State.Kind == LiveSyncStateKind.Faulted)
+        if (!Dispatcher.UIThread.CheckAccess())
         {
-            // A dead session's terminal copy (CS2 quit / launch failure) outranks pipeline chatter.
+            // Checked where it is applied, not where it was published: CSVG's Faulted is itself
+            // only posted, so a status published between that post and its apply would read the
+            // pre-Faulted state here and land after Faulted. Always a Post: PublishStatus calls
+            // this under the engine's publish gate.
+            Dispatcher.UIThread.Post(() => OnEngineStatus(engine, status));
+            return;
+        }
+
+        if (_tearingDown || _disposed || !ReferenceEquals(_engine, engine)
+            || State.Kind == LiveSyncStateKind.Faulted)
+        {
+            // A dead session's terminal copy (CS2 quit / launch failure) outranks pipeline chatter. So does a
+            // newer session: a status its torn-down predecessor had already posted is not this engine's.
             return;
         }
 
@@ -497,6 +578,7 @@ public sealed class LiveSyncService : ILiveSyncService
         try
         {
             _disposed = true;
+            _suspendedForReel = false;
             _settingsChangeSub?.Dispose();
             await StopSessionCoreAsync();
             SetState(LiveSyncState.Disconnected);
@@ -534,6 +616,7 @@ public sealed class LiveSyncService : ILiveSyncService
             }
 
             await StopSessionCoreAsync();
+            _suspendedForReel = true;
             // COMMIT the state on the UI thread before returning: the reel job's fast-fail
             // paths call EndReelSuspension right after this returns, and a merely-POSTED
             // SuspendedForReel would land after that check, parking the chip at "Paused for
@@ -566,6 +649,7 @@ public sealed class LiveSyncService : ILiveSyncService
 
     private void EndReelSuspensionCore()
     {
+        _suspendedForReel = false;
         if (!_disposed && State.Kind == LiveSyncStateKind.SuspendedForReel)
         {
             SetState(LiveSyncState.Disconnected);
@@ -619,7 +703,8 @@ public sealed class LiveSyncService : ILiveSyncService
             // must not leave a half-disposed host behind for the next EnableAsync's `??=` to reuse.
             if (_engine is { } engine)
             {
-                engine.StatusChanged -= OnEngineStatus;
+                engine.StatusChanged -= _onEngineStatus;
+                _onEngineStatus = null;
                 _engine = null;
                 try
                 {
@@ -643,6 +728,9 @@ public sealed class LiveSyncService : ILiveSyncService
                     // Best-effort: CSVG's StopAsync is itself the recovery path; a failure
                     // here leaves `csvg restore` / doctor as the manual fallback (the crash-recovery offer surfaces it).
                 }
+
+                // The session is gone either way: whatever it left is now leftovers the banner may restore.
+                _ownsStartedSession = false;
 
                 Unsubscribe();
                 try

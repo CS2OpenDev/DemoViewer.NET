@@ -950,7 +950,7 @@ public sealed class StratSceneProjection
             {
                 // Nowhere to leave from: the token starts at its destination.
                 Place(entries, e, shape, target with { YawDegrees = watched });
-                ChainAreas(plan, queue, i, slot, target, e.Tick + shape.HoldTicks, entries, places, stays);
+                ChainAreas(plan, queue, i, slot, target, TickSum(e.Tick, shape.HoldTicks), entries, places, stays);
                 continue;
             }
 
@@ -972,7 +972,8 @@ public sealed class StratSceneProjection
                     Place(entries, e, shape, PlacementOf(at) with { YawDegrees = watched ?? at.YawDegrees });
                 }
 
-                ChainAreas(plan, queue, i, slot, PlacementOf(at), e.Tick + shape.HoldTicks, entries, places, stays);
+                ChainAreas(plan, queue, i, slot, PlacementOf(at), TickSum(e.Tick, shape.HoldTicks), entries, places,
+                    stays);
                 continue;
             }
 
@@ -1000,8 +1001,18 @@ public sealed class StratSceneProjection
             : Math.Sqrt((target.X - start.X) * (double)(target.X - start.X)
                 + (target.Y - start.Y) * (double)(target.Y - start.Y));
         double speed = e.Walk ? WalkUnitsPerSecond : RunUnitsPerSecond;
-        int arrive = tick + shape.HoldTicks
+
+        // A hold clamped to the last tick, or a point absurdly far away, has no arrival the tick clock can hold, and
+        // summed in int it wrapped to a tick before the round. Such a run is not walked: the token stays where it
+        // stands, which is how TokenTrack reads the same hold.
+        long arrival = (long)tick + shape.HoldTicks
             + Math.Max(1, (int)Math.Ceiling(distance / speed * StepSchedule.TicksPerSecond));
+        if (arrival >= int.MaxValue)
+        {
+            return null;
+        }
+
+        int arrive = (int)arrival;
         float leaveYaw = route is not null && Heading(route, 0) is { } first ? first : runYaw;
         float arriveYaw = watched ?? (route is not null && Heading(route, route.Count - 2) is { } last ? last : runYaw);
 
@@ -1094,7 +1105,7 @@ public sealed class StratSceneProjection
             stays?.Add(new ChainStay(planned, area, tick, tick + 1));
             int at = queue.FindIndex(index + 1, x => x.Tick > tick);
             queue.Insert(at < 0 ? queue.Count : at, leg with { Tick = tick });
-            (tick, area) = (tick + ticks, k);
+            (tick, area) = (TickSum(tick, ticks), k);
         }
 
         if (tick < limit)
@@ -1102,6 +1113,9 @@ public sealed class StratSceneProjection
             stays?.Add(new ChainStay(planned, area, tick, limit));
         }
     }
+
+    // A tick sum that stops at the last tick instead of wrapping to one before the round.
+    private static int TickSum(int tick, int ticks) => (int)Math.Min(int.MaxValue, (long)tick + ticks);
 
     // The run's route from where the token stands through each via in order to the target. A leg with no route is
     // straight; null when no leg routes and there is no via to go through.
@@ -2104,9 +2118,8 @@ public static class StratStrokes
         uint color = Number(stroke["colorArgb"]) is { } argb and >= 0 and <= uint.MaxValue
             ? (uint)argb
             : ParseHex(String(stroke["color"])) ?? AnnotationStyle.Default.ColorArgb;
-        float width = (float)(Number(stroke["widthWorld"])
-            ?? Number(stroke["width"]) ?? AnnotationStyle.Default.WidthWorld);
-        float opacity = (float)(Number(stroke["opacity"]) ?? 1);
+        float width = Float(stroke["widthWorld"]) ?? Float(stroke["width"]) ?? AnnotationStyle.Default.WidthWorld;
+        float opacity = Float(stroke["opacity"]) ?? 1;
         bool reveal = stroke["revealOnFadeIn"] is JsonValue r && r.TryGetValue(out bool b) && b;
 
         return new AnnotationElement(id, kind, new AnnotationStyle(color, width, opacity, reveal),
@@ -2183,9 +2196,9 @@ public static class StratStrokes
             List<InkPoint> nested = new(array.Count);
             foreach (JsonNode? item in array)
             {
-                if (item is JsonArray { Count: >= 2 } xy && Number(xy[0]) is { } x && Number(xy[1]) is { } y)
+                if (item is JsonArray { Count: >= 2 } xy && Float(xy[0]) is { } x && Float(xy[1]) is { } y)
                 {
-                    nested.Add(new InkPoint((float)x, (float)y, (float)(xy.Count > 2 ? Number(xy[2]) ?? 0.5 : 0.5)));
+                    nested.Add(new InkPoint(x, y, xy.Count > 2 ? Float(xy[2]) ?? 0.5f : 0.5f));
                 }
             }
 
@@ -2196,8 +2209,8 @@ public static class StratStrokes
         InkPoint[] flat = new InkPoint[count];
         for (int i = 0; i < count; i++)
         {
-            flat[i] = new InkPoint((float)(Number(array[i * 3]) ?? 0), (float)(Number(array[i * 3 + 1]) ?? 0),
-                (float)(Number(array[i * 3 + 2]) ?? 0.5));
+            flat[i] = new InkPoint(Float(array[i * 3]) ?? 0, Float(array[i * 3 + 1]) ?? 0,
+                Float(array[i * 3 + 2]) ?? 0.5f);
         }
 
         return flat;
@@ -2264,4 +2277,9 @@ public static class StratStrokes
 
         return double.IsFinite(number) ? number : null;
     }
+
+    // A stored number past float's range casts to an infinity, which draws nowhere and cannot be written back as
+    // JSON when the stroke is edited; it reads as no number at all.
+    private static float? Float(JsonNode? node) =>
+        Number(node) is { } number && float.IsFinite((float)number) ? (float)number : null;
 }

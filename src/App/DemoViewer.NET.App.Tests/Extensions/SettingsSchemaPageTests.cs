@@ -70,6 +70,33 @@ public class SettingsSchemaPageTests
         await Assert.That(settings.Get<string?>("out", "none")).IsEqualTo("none").Because("clearing forgets the key");
     }
 
+    // An infinite bound is the natural "no limit" through SettingDescriptor.Number's doubles, and a stored value
+    // can sit outside decimal's range. Both threw OverflowException from a double-to-decimal cast: the page did
+    // not build, or an edit was dropped before it reached the store.
+    [Test]
+    public async Task ANumberRow_TakesAnInfiniteBound_AndAStoredValuePastDecimalRange()
+    {
+        ExtensionSettingsStore settings = new("dev.example.page", null, a => a());
+        SettingsSchema schema = new("dev.example.page", "EXAMPLE",
+        [
+            SettingDescriptor.Number("limit", "Limit", 10, 0, double.PositiveInfinity),
+            SettingDescriptor.Number("huge", "Huge", 1, double.NegativeInfinity, double.MaxValue)
+        ]);
+        settings.Set("huge", 1e30);
+
+        SchemaSettingsPageViewModel? page = null;
+        await Assert.That(() => page = new SchemaSettingsPageViewModel(schema, settings)).ThrowsNothing();
+        using SchemaSettingsPageViewModel built = page!;
+        NumberSettingRow limit = (NumberSettingRow)built.Rows[0];
+        NumberSettingRow huge = (NumberSettingRow)built.Rows[1];
+
+        await Assert.That(() => limit.Maximum).ThrowsNothing();
+        await Assert.That(() => huge.Minimum).ThrowsNothing();
+        await Assert.That(() => limit.Value = 5m).ThrowsNothing();
+        await Assert.That(settings.Get("limit", 0)).IsEqualTo(5);
+        await Assert.That(huge.Value).IsEqualTo(decimal.MaxValue);
+    }
+
     [Test]
     public async Task TheContributedSchema_IsASettingsPage_ThatRendersAControlPerKind()
     {

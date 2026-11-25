@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Library;
+using DemoViewer.NET.Modules.Playback2D.Annotations;
+using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
@@ -28,6 +30,7 @@ internal sealed partial class TransferImporter : ITransferImporter
     private const string LegacyRecordSuffix = ".json";
 
     private readonly string? _annotationsRoot;
+    private readonly AnnotationWriteCoordinator? _annotationSessions;
     private readonly GraphBreakpointStore? _breakpoints;
     private readonly DemoCacheStore _cache;
     private readonly DemoImportCurrency? _currency;
@@ -57,16 +60,21 @@ internal sealed partial class TransferImporter : ITransferImporter
     /// <param name="onUi">Runs UI-thread work (the review queue, the library's folders); inline when null.</param>
     /// <param name="target">The destination checks for the <c>.dem</c> copies.</param>
     /// <param name="extensions">The extensions whose stores an import merges into; null skips every store.</param>
+    /// <param name="annotationSessions">
+    ///     The open 2D tabs' annotation sessions, which save and hold around a write of their demo's annotations
+    ///     and reload after it; null when none can be open.
+    /// </param>
     public TransferImporter(DemoCacheStore cache, string? annotationsRoot = null,
         GraphBreakpointStore? breakpoints = null, ReviewQueue? review = null, DemoLibraryService? library = null,
         IDemoProcessingQueue? queue = null, Func<string, ExtensionDemoDataStore?>? extensionData = null,
         string? extensionDataRoot = null, Func<TransferEnvironment>? environment = null,
         DemoImportCurrency? currency = null, Func<Func<Task>, Task>? onUi = null, TransferTarget? target = null,
-        TransferExtensionHost? extensions = null)
+        TransferExtensionHost? extensions = null, AnnotationWriteCoordinator? annotationSessions = null)
     {
         ArgumentNullException.ThrowIfNull(cache);
         _cache = cache;
         _annotationsRoot = annotationsRoot;
+        _annotationSessions = annotationSessions;
         _breakpoints = breakpoints;
         _review = review;
         _library = library;
@@ -307,7 +315,22 @@ internal sealed partial class TransferImporter : ITransferImporter
 
                     progress?.Report(new TransferProgress(done, manifest.Demos.Count, run.BytesDone, bytesTotal,
                         demo.OriginalFileName));
-                    run.Items[demo.Sha256] = ImportDemo(run, demo, staleShas.Contains(demo.Sha256));
+                    // An open 2D tab on the demo saves its strokes first, so the merge below keeps them, and
+                    // reloads after, so its next save does not put the file from before the merge back.
+                    AnnotationWriteCoordinator.Hold? hold = await HoldAnnotationsAsync(demo).ConfigureAwait(false);
+                    try
+                    {
+                        run.Items[demo.Sha256] = ImportDemo(run, demo, staleShas.Contains(demo.Sha256));
+                    }
+                    finally
+                    {
+                        if (hold is not null)
+                        {
+                            bool written = run.AnnotationsWritten.Contains(demo.Sha256);
+                            await _onUi(() => hold.EndAsync(written)).ConfigureAwait(false);
+                        }
+                    }
+
                     done++;
                 }
             }
@@ -332,6 +355,26 @@ internal sealed partial class TransferImporter : ITransferImporter
         }
 
         progress?.Report(new TransferProgress(done, manifest.Demos.Count, run.BytesDone, bytesTotal, null));
+    }
+
+    // Holds the open 2D tabs on the demo when the bundle carries its annotations and they can be written here.
+    private async Task<AnnotationWriteCoordinator.Hold?> HoldAnnotationsAsync(TransferDemo demo)
+    {
+        if (_annotationSessions is not { } sessions || _annotationsRoot is null
+                                                    || !demo.Files.Any(f => IsAnnotations(demo, f)))
+        {
+            return null;
+        }
+
+        string[] paths = [.. _cache.PathsOfContent(demo.Sha256)];
+        if (paths.Length == 0)
+        {
+            return null;
+        }
+
+        AnnotationWriteCoordinator.Hold? hold = null;
+        await _onUi(async () => hold = await sessions.HoldAsync(paths)).ConfigureAwait(false);
+        return hold;
     }
 
     private TransferSummaryItem ImportDemo(Run run, TransferDemo demo, bool stale)
@@ -434,7 +477,11 @@ internal sealed partial class TransferImporter : ITransferImporter
             {
                 try
                 {
-                    merged |= ImportAnnotations(run, sha, annotations, notes);
+                    if (ImportAnnotations(run, sha, annotations, notes))
+                    {
+                        merged = true;
+                        run.AnnotationsWritten.Add(sha);
+                    }
                 }
                 catch (Exception ex) when (IsStepFailure(ex))
                 {
@@ -479,10 +526,17 @@ internal sealed partial class TransferImporter : ITransferImporter
     {
         if (_extensionData?.Invoke(extensionId) is { } live)
         {
-            return live;
+            // The loaded extension is looked up whatever the case, and only its own id is its own: data under
+            // the id in another case is some other extension's, and is not merged into this one's store.
+            return string.Equals(live.ExtensionId, extensionId, StringComparison.Ordinal) ? live : null;
         }
 
-        if (_extensionDataRoot is null || !ExtensionFolders.IsSafeName(extensionId))
+        // The folder is named by the id. Windows drops a trailing dot and, like macOS, ignores case: an id that
+        // is another extension's but for that would open a second store over that extension's folder, with its
+        // own index beside the one the extension holds.
+        if (_extensionDataRoot is null || !ExtensionFolders.IsSafeName(extensionId)
+                                       || !TransferLayout.IsPortableSegment(extensionId)
+                                       || ExtensionFolders.CaseVariantIn(_extensionDataRoot, extensionId) is not null)
         {
             return null;
         }
@@ -544,9 +598,19 @@ internal sealed partial class TransferImporter : ITransferImporter
             return false;
         }
 
-        byte[] next = policy == ConflictPolicy.TakeImported
-            ? bytes
-            : AnnotationStore.MergeDocuments(File.ReadAllBytes(mine.Path), bytes);
+        byte[] local = policy == ConflictPolicy.TakeImported ? [] : File.ReadAllBytes(mine.Path);
+        // Merging keeps this machine's clock, so strokes anchored to another parse's ticks would load as if they
+        // were this one's and the load-time clock check could never flag them.
+        if (policy == ConflictPolicy.KeepBoth
+            && AnnotationStore.TryReadClock(local, out ClockIdentity? mineClock)
+            && AnnotationStore.TryReadClock(bytes, out ClockIdentity? theirClock)
+            && mineClock is not null && !mineClock.Matches(theirClock))
+        {
+            notes.Add("your annotations were kept; the imported ones were drawn against a different parse of the demo");
+            return false;
+        }
+
+        byte[] next = policy == ConflictPolicy.TakeImported ? bytes : AnnotationStore.MergeDocuments(local, bytes);
         Write(mine.Path, next);
         return true;
     }
@@ -622,10 +686,11 @@ internal sealed partial class TransferImporter : ITransferImporter
                 ?? throw new JsonException("Empty review queue file.");
             HashSet<string> imported = new(run.Items.Values.Where(i => i.Outcome != TransferOutcome.Failed)
                 .Select(i => i.Sha256).OfType<string>(), StringComparer.Ordinal);
+            // The serializer lets a JSON null through for the list and for its items; neither is a clip.
             entries =
             [
-                .. parsed.Entries.Where(e => e.Kind == ReviewEntryKind.Section
-                    || (e.Sha256 is { } sha && imported.Contains(sha.ToLowerInvariant())))
+                .. (parsed.Entries ?? []).Where(e => e is not null && (e.Kind == ReviewEntryKind.Section
+                    || (e.Sha256 is { } sha && imported.Contains(sha.ToLowerInvariant()))))
             ];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
@@ -731,7 +796,15 @@ internal sealed partial class TransferImporter : ITransferImporter
             string name = names.Claim(WithDemExtension(demo.OriginalFileName));
             try
             {
-                CopyDem(run, demo, Path.Combine(destination, name), progress, bytesTotal, ct);
+                string copy = Path.Combine(destination, name);
+                CopyDem(run, demo, copy, progress, bytesTotal, ct);
+                // The copy was hashed in full on its way in: the library's attach settles the path with that
+                // read instead of leaving it unconfirmed, so this demo counts as here the next time round.
+                _cache.NoteContentRead(copy, demo.Sha256, null, demo.SizeBytes, File.GetLastWriteTimeUtc(copy));
+                // Listed now, while that read is still one of the store's recent ones: the rescan runs after the
+                // last copy, and the store keeps only the newest 64, so a larger bundle's first copies would
+                // otherwise attach unconfirmed and be read in full again.
+                _cache.AttachUnconfirmed(demo.Sha256, copy, demo.SizeBytes, File.GetLastWriteTime(copy).Ticks);
                 run.CopiedDems++;
                 if (!run.Items.TryGetValue(demo.Sha256, out TransferSummaryItem? item)
                     || item.Outcome == TransferOutcome.Skipped)
@@ -913,6 +986,9 @@ internal sealed partial class TransferImporter : ITransferImporter
         public int CopiedDems { get; set; }
         public string? Destination { get; set; }
         public bool Cancelled { get; set; }
+
+        // The demos whose annotation file the import wrote, for the open 2D tabs to reload.
+        public HashSet<string> AnnotationsWritten { get; } = new(StringComparer.Ordinal);
 
         // One line per extension whose stores the bundle carries.
         public List<TransferSummaryItem> ExtensionItems { get; } = [];

@@ -44,10 +44,9 @@ on:
         type: boolean
         default: false
 
+# Read-only by default. Only publish, which uploads the release assets, gets contents: write.
 permissions:
-  contents: write   # upload release assets when cut from a tag
-  actions: read     # verify-ci lists ci.yml runs; declaring this block makes every omitted
-                    # scope `none`, so without it that call 403s (it did, on the v0.5.2 tag)
+  contents: read
 
 jobs:
   # Gate: this tag's commit must already have a GREEN `ci` run. Publishing now feeds an in-app
@@ -64,6 +63,9 @@ jobs:
   # branch counts, which is how release-sdk and release-extension expect a dry run to clear this gate.
   verify-ci:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read     # lists ci.yml runs; declaring a block makes every omitted scope `none`,
+                        # so without it that call 403s (it did, on the v0.5.2 tag)
     steps:
       - name: Require a successful ci run for ${{ github.sha }}
         env:
@@ -100,10 +102,15 @@ jobs:
   # cannot carry the override; to use it, dispatch against the tag with publish and allow_sdk_drift on.
   verify-sdk:
     runs-on: ubuntu-latest
+    # Only reads: nbgv reads local history and the check curls nuget.org. It still runs restored
+    # tool code, so it gets no write token and nothing in .git/config.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # nbgv, for the SDK version the failure message names
+          fetch-depth: 0              # nbgv, for the SDK version the failure message names
+          persist-credentials: false  # no step here talks to the remote
 
       - uses: ./.github/actions/dotnet-sdk
 
@@ -343,6 +350,8 @@ jobs:
       attestations: write   # and stores the attestations on the repository
     steps:
       - uses: actions/checkout@v4   # for .config/dotnet-tools.json (vpk)
+        with:
+          persist-credentials: false  # vpk and gh take the token from GH_TOKEN, not from .git/config
 
       - uses: ./.github/actions/dotnet-sdk
 
@@ -357,10 +366,11 @@ jobs:
       - name: Publish GitHub Release (Velopack, all channels)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           repo="${{ github.server_url }}/${{ github.repository }}"
-          tag="${{ github.ref_name }}"
+          tag="$REF_NAME"
           case "$tag" in
             *-beta*) pre=true ;;
             *)       pre=false ;;
@@ -396,9 +406,10 @@ jobs:
         id: assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          tag="${{ github.ref_name }}"
+          tag="$REF_NAME"
           dir="$RUNNER_TEMP/release-assets"
           rm -rf "$dir" && mkdir -p "$dir"
           gh release download "$tag" --repo "${{ github.repository }}" --dir "$dir"
@@ -418,9 +429,10 @@ jobs:
       - name: Set release notes (guide users to the right installer)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          tag="${{ github.ref_name }}"
+          tag="$REF_NAME"
           notes=.github/release-body.md
           case "$tag" in
             *-beta*)

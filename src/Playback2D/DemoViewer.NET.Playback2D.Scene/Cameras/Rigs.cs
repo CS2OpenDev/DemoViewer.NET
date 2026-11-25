@@ -98,8 +98,11 @@ internal sealed class FitAliveRig : ICameraRig
                 continue;
             }
 
-            // Single-band renders frame every player regardless of Z (pre-v2 `_cameras.Length > 1`).
-            if (pane is { PaneCount: > 1, Space: { } space } &&
+            // A map with one level frames every player regardless of Z (pre-v2 `_cameras.Length > 1`).
+            // The gate is the map's level count, not the pane count: SingleLayout shows one pane over a
+            // multi-level map, the compositor draws only that floor's players into it, and framing the
+            // others would zoom out to players the pane does not show.
+            if (pane is { Space: { Levels.Count: > 1 } space } &&
                 space.LevelIndexFor(m.WorldZ) != pane.LevelIndex)
             {
                 continue;

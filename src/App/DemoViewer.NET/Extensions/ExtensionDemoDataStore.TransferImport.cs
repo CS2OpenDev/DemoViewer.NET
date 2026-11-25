@@ -2,6 +2,7 @@
 
 using System.IO.Compression;
 using System.Text.Json;
+using DemoViewer.NET.Services.Transfer;
 using DemoViewer.NET.ViewModels.Diagnostics;
 
 #endregion
@@ -10,6 +11,9 @@ namespace DemoViewer.NET.Extensions;
 
 internal sealed partial class ExtensionDemoDataStore
 {
+    // The most one imported file may inflate to, header included.
+    private const int MaxImportedFileBytes = 256 * 1024 * 1024;
+
     /// <summary>
     ///     Brings one demo's files of one facet in from a transfer bundle: the main payload
     ///     (<c>&lt;sha&gt;.json.gz</c>) and its parts (<c>&lt;sha&gt;.&lt;part&gt;.json.gz</c>). The headers are
@@ -33,6 +37,20 @@ internal sealed partial class ExtensionDemoDataStore
         }
 
         ExtensionFolders.SafeName(facet);
+
+        // The merge rule below compares the import with the local facet of this exact name. Windows drops a
+        // trailing dot and, like macOS, ignores case, so "facet." or "Facet" would be written into the folder
+        // of "facet" without ever being compared with it, and the sweep would delete that facet's parts.
+        if (!TransferLayout.IsPortableSegment(facet))
+        {
+            throw new ArgumentException($"'{facet}' is not a portable facet name.", nameof(facet));
+        }
+
+        if (ExtensionFolders.CaseVariantIn(Root, facet) is { } local)
+        {
+            throw new InvalidDataException($"'{facet}' differs only by case from the {local} data here.");
+        }
+
         List<(string? Part, Header Header, byte[] Content)> parsed = [];
         foreach ((string name, byte[] bytes) in files)
         {
@@ -66,11 +84,19 @@ internal sealed partial class ExtensionDemoDataStore
 
         // The path is this machine's: the content's listed path when it has one, else none until a folder lists it.
         string demoPath = _library.TryGetByContentId(sha256)?.Path ?? _library.PathOfAnyLocation(sha256) ?? "";
+        // The stamp is the bundle's, off another machine's clock, and readers order a demo's writes by it. One
+        // ahead of this clock would outrank every write made here until the clock caught up, so it is taken no
+        // later than the import itself.
+        long now = DateTime.UtcNow.Ticks;
         HashSet<string> written = new(StringComparer.Ordinal);
         foreach ((string? part, Header header, byte[] content) in parsed)
         {
             string file = FileFor(facet, sha256, part);
-            WriteFile(file, header with { Sha256 = sha256, DemoPath = demoPath }, content);
+            WriteFile(file,
+                header with
+                {
+                    Sha256 = sha256, DemoPath = demoPath, WrittenAtTicks = Math.Min(header.WrittenAtTicks, now)
+                }, content);
             written.Add(file);
         }
 
@@ -91,7 +117,7 @@ internal sealed partial class ExtensionDemoDataStore
         lock (_gate)
         {
             Entries()[(sha256, facet)] = new Entry(sha256, facet, demoPath, sha256, main.Schema, main.Fingerprint,
-                DemoDataState.Written, main.WrittenAtTicks, Math.Max(0, count));
+                DemoDataState.Written, Math.Min(main.WrittenAtTicks, now), Math.Max(0, count));
             save = Snapshot();
         }
 
@@ -140,17 +166,31 @@ internal sealed partial class ExtensionDemoDataStore
             using MemoryStream source = new(bytes);
             using GZipStream gzip = new(source, CompressionMode.Decompress);
             using MemoryStream all = new();
-            gzip.CopyTo(all);
-            byte[] plain = all.ToArray();
-            int newline = Array.IndexOf(plain, (byte)'\n');
+            // A bundle's file is someone else's, and a few MB of deflate can claim gigabytes: the inflate stops at
+            // the ceiling instead of running the machine out of memory part-way through an import.
+            byte[] chunk = new byte[1 << 16];
+            int read;
+            while ((read = gzip.Read(chunk, 0, chunk.Length)) > 0)
+            {
+                if (all.Length + read > MaxImportedFileBytes)
+                {
+                    throw new InvalidDataException(
+                        $"The file inflates past {MaxImportedFileBytes / (1024 * 1024)} MB.");
+                }
+
+                all.Write(chunk, 0, read);
+            }
+
+            ReadOnlySpan<byte> plain = all.GetBuffer().AsSpan(0, (int)all.Length);
+            int newline = plain.IndexOf((byte)'\n');
             if (newline < 0)
             {
                 throw new InvalidDataException("No header line.");
             }
 
-            Header header = JsonSerializer.Deserialize<Header>(plain.AsSpan(0, newline), _jsonOptions)
+            Header header = JsonSerializer.Deserialize<Header>(plain[..newline], _jsonOptions)
                 ?? throw new InvalidDataException("Empty header.");
-            return (header, plain[(newline + 1)..]);
+            return (header, plain[(newline + 1)..].ToArray());
         }
         catch (JsonException ex)
         {

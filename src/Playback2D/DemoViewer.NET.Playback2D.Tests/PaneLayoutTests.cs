@@ -224,6 +224,23 @@ public class PaneLayoutTests
         await Assert.That(pane.CameraEpoch).IsEqualTo(start + 2);
     }
 
+    [Test]
+    public async Task CameraEpoch_BumpsOnASmallZoomThatMovesThePaneEdgeByPixels()
+    {
+        PaneSet panes = Build(2, 800, 600);
+        LevelPane pane = panes.Panes[0];
+        pane.SyncCameraEpoch();
+        int start = pane.CameraEpoch;
+
+        // 0.4% about the pane centre: no pan, and a scale change under the camera's settle tolerance,
+        // but the pane's corners move by over a pixel, so a radar replayed from the old epoch sits off
+        // the markers.
+        ViewportTransform before = pane.Camera.Current;
+        pane.Camera.Current = before.ZoomAbout(before.ViewWidth / 2, before.ViewHeight / 2, 1.004);
+        await Assert.That(pane.SyncCameraEpoch()).IsTrue();
+        await Assert.That(pane.CameraEpoch).IsEqualTo(start + 1);
+    }
+
     private static FloorSlice[] Bands(int count)
     {
         FloorSlice[] bands = new FloorSlice[count];

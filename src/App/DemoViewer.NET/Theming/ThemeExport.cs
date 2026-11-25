@@ -98,7 +98,7 @@ public static class ThemeExport
         string baseName = ThemeJson.BaseName(palette.BaseVariant);
 
         StringBuilder sb = new();
-        sb.Append("// ").Append(title ?? name).Append(", written out in full.\n");
+        sb.Append("// ").Append(OneLine(title ?? name)).Append(", written out in full.\n");
         sb.Append("//\n");
         sb.Append("// A complete user theme: every colour token the app reads, with the value this theme\n");
         sb.Append("// resolves to. Copy it, change the id and name, and edit what you like. Delete a line and\n");
@@ -246,4 +246,12 @@ public static class ThemeExport
     };
 
     private static string Quote(string s) => JsonSerializer.Serialize(s, _quote);
+
+    // The header is a // comment, so a line break in a name (a drop-in file can carry one) would end the comment
+    // and leave the rest of the name as bare text, and the file would no longer parse.
+    private static string OneLine(string s) =>
+        string.Concat(s.Select(c => char.IsControl(c) || char.GetUnicodeCategory(c) is UnicodeCategory.LineSeparator
+            or UnicodeCategory.ParagraphSeparator
+            ? ' '
+            : c));
 }

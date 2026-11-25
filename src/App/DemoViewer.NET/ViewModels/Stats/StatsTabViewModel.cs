@@ -14,6 +14,7 @@ using DemoViewer.NET.Controls.Stats;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Diagnostics;
+using DemoViewer.NET.Services.Transfer;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.PlayerOverview;
 using Microsoft.Extensions.Logging;
@@ -141,6 +142,13 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
     /// <summary>The account each slot of the shown demo opens in the Player Overview; a slot with none is absent.</summary>
     internal IReadOnlyDictionary<int, ulong> AccountsBySlot => _steamIdBySlot;
+
+    /// <summary>
+    ///     The coach slots of a demo, for an update whose tables do not carry <c>library_coaches</c>: the shell
+    ///     sets it, since the run it hands this tab has every stamped table cut. Null, or a null answer, marks no
+    ///     coach.
+    /// </summary>
+    internal Func<ParsedDemo, IReadOnlySet<int>?>? CoachSlotsSource { get; set; }
 
     // A FocusPlayer that arrived before the tables did; the next evaluation takes it, a demo unload drops it.
     private ulong? _pendingFocus;
@@ -752,7 +760,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
         ResetVisibilityForNewEvaluation(demo);
         SetExtraTables(extraTables ?? []);
-        _steamIdBySlot = SteamIdsBySlot(demo, extraTables);
+        _steamIdBySlot = SteamIdsBySlot(demo, extraTables, CoachSlotsSource);
 
         GameTable = new PlayerGameStatsProjector { MatchId = matchId }.Project(result, demo).Single();
         RoundTable = new PlayerRoundStatsProjector { MatchId = matchId }.Project(result, demo).Single();
@@ -1081,7 +1089,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         if (teamSort is not (0 or 1)
             || scoreBySort.GetValueOrDefault(0) is not { } ct
             || scoreBySort.GetValueOrDefault(1) is not { } t
-            || !IsFinalScore(Math.Max(ct, t)))
+            || !IsFinalScore(ct, t))
         {
             return TeamOutcome.None;
         }
@@ -1099,21 +1107,26 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     private const int OvertimeHalf = 3;
 
     /// <summary>
-    ///     Whether the leading half of a scoreline is a total a match can actually END on. Regulation is
-    ///     first to 13; every overtime after a 12-12 tie is MR3, six rounds with four of them taking it,
-    ///     so each overtime moves the winning total up by three (16, 19, 22) and leaves a drawn one
-    ///     sitting on 15, 18 or 21 while the next is played.
+    ///     Whether a scoreline is one a match can actually END on. Regulation is first to 13; every
+    ///     overtime after a 12-12 tie is MR3, six rounds with four of them taking it, so each overtime
+    ///     moves the winning total up by three (16, 19, 22) and leaves a drawn one sitting on 15, 18 or
+    ///     21 while the next is played.
     ///     <para>
     ///         Derived rather than listed. The list this replaces was 13, 15 or 16, which is regulation
     ///         and exactly ONE overtime: a match that went to a second finished 19-17 and fell outside
     ///         it, losing the win/loss pill on the matches most worth having one.
     ///     </para>
+    ///     <para>
+    ///         The loser counts as much as the winner. Checking the leader alone let 15-14 through, which
+    ///         is the buzzer-cut 15-15 draw the gate exists for, and 13-12 or 16-15 from a demo that
+    ///         stopped mid-overtime; a win needs <see cref="LibraryFinalScore.IsResult" />, a draw an
+    ///         overtime's drawn total on both sides.
+    ///     </para>
     /// </summary>
-    private static bool IsFinalScore(int best) =>
-        best == RegulationWin
-        || (best > RegulationWin
-            && ((best - RegulationWin) % OvertimeHalf == 0
-                || (best - RegulationWin + 1) % OvertimeHalf == 0));
+    private static bool IsFinalScore(int ct, int t) =>
+        ct == t
+            ? ct > RegulationWin && (ct - RegulationWin + 1) % OvertimeHalf == 0
+            : LibraryFinalScore.IsResult(Math.Max(ct, t), Math.Min(ct, t));
 
     /// <summary>Per-team round-win score from the full game table's CTW+TW values (unanimous or null).</summary>
     private static Dictionary<int, int?> ComputeTeamScores(MetricTable gameTable)
@@ -1210,6 +1223,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     Writes every backing table to <paramref name="directoryPath" /> in the given format
     ///     (file per table, named by table id: the same output <c>AnalysisBench --export</c>
     ///     produces). Returns a user-facing result message.
+    ///     <para>
+    ///         A configured output's id is the raw YAML key of whoever wrote the rule file, so each name is
+    ///         made a portable leaf (separators, <c>:</c> and the rest become <c>_</c>) and unique within the
+    ///         export. A sane id is unchanged; one that is not no longer matches the bench's file name.
+    ///     </para>
     /// </summary>
     public string ExportTo(string directoryPath, string formatId)
     {
@@ -1227,14 +1245,19 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
         try
         {
+            // Unique within this export only: a file left by an earlier export is still overwritten.
+            PortableNameSet names = new([]);
             foreach (MetricTable table in tables)
             {
-                formatter.WriteToFile(table, Path.Combine(directoryPath, $"{table.Name}.{formatter.FileExtension}"));
+                string fileName = names.Claim($"{table.Name}.{formatter.FileExtension}",
+                    $"table.{formatter.FileExtension}");
+                formatter.WriteToFile(table, Path.Combine(directoryPath, fileName));
             }
 
             return $"Exported {tables.Count} table(s) to {directoryPath}";
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                                       or NotSupportedException)
         {
             AppLog.OperationFailed(DiagLog, "export the stats tables", ex);
             return UserFacingError.Describe("export the stats tables", ex);
@@ -1723,13 +1746,17 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         OffersPlayerOverview = PlayerOverviewOpener is not null
     };
 
-    // Every slot's account from the final userinfo table, less the GOTV proxy, bots and the coaches the run's
-    // library_coaches table names. A run without that table marks no coach, the matchmaking truth.
-    private static Dictionary<int, ulong> SteamIdsBySlot(ParsedDemo demo, IReadOnlyList<MetricTable>? extraTables)
+    // Every slot's account from the final userinfo table, less the GOTV proxy, bots and the coaches: those the
+    // tables' library_coaches names, or without it those the shell's source names. Neither marks no coach, the
+    // matchmaking truth.
+    private static Dictionary<int, ulong> SteamIdsBySlot(ParsedDemo demo, IReadOnlyList<MetricTable>? extraTables,
+        Func<ParsedDemo, IReadOnlySet<int>?>? coachSlotsSource)
     {
         MetricTable? coaches = extraTables?.FirstOrDefault(t =>
             string.Equals(t.Name, LibraryTeamTables.CoachesTable, StringComparison.Ordinal));
-        HashSet<int> coachSlots = LibraryTeamTables.CoachSlots(coaches, demo.Players.Values);
+        IReadOnlySet<int> coachSlots = coaches is not null
+            ? LibraryTeamTables.CoachSlots(coaches, demo.Players.Values)
+            : coachSlotsSource?.Invoke(demo) ?? new HashSet<int>();
         Dictionary<int, ulong> bySlot = [];
         foreach (PlayerInfo p in demo.Players.Values)
         {

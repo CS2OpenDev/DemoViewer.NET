@@ -76,6 +76,8 @@ public sealed class TagStore
     // an Update and an autosave of one document cannot interleave their replace.
     private readonly Lock _rmwGate = new();
 
+    private static readonly TimeSpan _rowSlack = TimeSpan.FromSeconds(5);
+
     private readonly IExtensionFolder? _folder;
 
     private int _batchDepth; // under _gate
@@ -313,7 +315,10 @@ public sealed class TagStore
     /// </summary>
     /// <param name="sha256">Lowercase-hex SHA-256 of the demo.</param>
     /// <param name="mutate">The change.</param>
-    /// <returns>False when the write failed or there was no document; a posted change reports true.</returns>
+    /// <returns>
+    ///     False when the write failed or there was no document; a posted change reports true. A post that finds
+    ///     the session no longer holding that demo is written through the store instead.
+    /// </returns>
     public bool Update(string sha256, Action<TagDocument> mutate)
     {
         ArgumentException.ThrowIfNullOrEmpty(sha256);
@@ -321,27 +326,31 @@ public sealed class TagStore
 
         string key = Normalize(sha256);
         TagSession? holder;
-        lock (_gate)
-        {
-            holder = _checkedOut.GetValueOrDefault(key);
-        }
 
-        if (holder is not null)
-        {
-            _post(() => holder.ApplyExternal(mutate));
-            return true;
-        }
-
+        // The holder is read under the gate the write runs under, the one LoadAndCheckOut holds: read before it,
+        // a session could load the document and take it between "nobody holds it" and this write, and its next
+        // save would replace the file without the change.
         lock (_rmwGate)
         {
-            if (TryLoad(key) is not { } document)
+            lock (_gate)
             {
-                return false;
+                holder = _checkedOut.GetValueOrDefault(key);
             }
 
-            mutate(document);
-            return Save(document);
+            if (holder is null)
+            {
+                if (TryLoad(key) is not { } document)
+                {
+                    return false;
+                }
+
+                mutate(document);
+                return Save(document);
+            }
         }
+
+        _post(() => ApplyRouted(key, holder, mutate, null));
+        return true;
     }
 
     /// <summary>
@@ -349,7 +358,8 @@ public sealed class TagStore
     ///     Suggested Tags accept path, which writes from outside any session. When a session holds the
     ///     document the instance is posted to it (outside its undo history, then autosaved), the
     ///     <see cref="Update" /> rule; otherwise it is a read-modify-write here. False when the write
-    ///     failed or the hash is refused; a posted add reports true, the session owning the save.
+    ///     failed or the hash is refused; a posted add reports true, the session owning the save. A post that
+    ///     finds the session no longer holding that demo is written through the store instead.
     /// </summary>
     /// <param name="demo">The demo's identity; names the document.</param>
     /// <param name="clock">The clock the instance's ticks are on; stamped on a fresh document.</param>
@@ -363,22 +373,58 @@ public sealed class TagStore
         string key = Normalize(demo.Sha256);
         TagInstance copy = instance.Clone();
         TagSession? holder;
-        lock (_gate)
+
+        // As Update: the holder read and the write are one step against a session's load and check-out.
+        lock (_rmwGate)
         {
-            holder = _checkedOut.GetValueOrDefault(key);
+            lock (_gate)
+            {
+                holder = _checkedOut.GetValueOrDefault(key);
+            }
+
+            if (holder is null)
+            {
+                TagDocument document = LoadOrCreate(demo, clock);
+                document.Instances.Add(copy);
+                return Save(document);
+            }
         }
 
-        if (holder is not null)
+        _post(() => ApplyRouted(key, holder, document => document.Instances.Add(copy.Clone()),
+            () => LoadOrCreate(demo, clock)));
+        return true;
+    }
+
+    // On the thread the sessions live on. The holder was read when the change was routed; by the time the post
+    // runs it may have let that demo go, or attached another, and the document it holds is then not the one the
+    // change was made for. A session that took the demo since gets the change; with none, the demo's document
+    // was flushed and released, so this is the read-modify-write the caller would have run itself. Without
+    // create a hash with no document is left alone, the Update rule.
+    private void ApplyRouted(string key, TagSession holder, Action<TagDocument> mutate, Func<TagDocument>? create)
+    {
+        if (holder.TryApplyExternal(key, mutate))
         {
-            _post(() => holder.ApplyExternal(document => document.Instances.Add(copy.Clone())));
-            return true;
+            return;
+        }
+
+        TagSession? current;
+        lock (_gate)
+        {
+            current = _checkedOut.GetValueOrDefault(key);
+        }
+
+        if (current is not null && current.TryApplyExternal(key, mutate))
+        {
+            return;
         }
 
         lock (_rmwGate)
         {
-            TagDocument document = LoadOrCreate(demo, clock);
-            document.Instances.Add(copy);
-            return Save(document);
+            if ((create is null ? TryLoad(key) : create()) is { } document)
+            {
+                mutate(document);
+                Save(document);
+            }
         }
     }
 
@@ -428,6 +474,7 @@ public sealed class TagStore
                 JsonSerializer.Deserialize(json, TagJsonContext.Default.SuggestionVerdictDocument);
             return document?.Demo is { Sha256.Length: > 0 } demo
                 && string.Equals(Normalize(demo.Sha256), key, StringComparison.Ordinal)
+                && IsWellFormed(document)
                     ? document
                     : null;
         }
@@ -709,7 +756,7 @@ public sealed class TagStore
             imported = null;
         }
 
-        if (imported?.Demo is not { Sha256.Length: > 0 } demo)
+        if (imported?.Demo is not { Sha256.Length: > 0 } demo || !IsWellFormed(imported))
         {
             notes.Add($"verdicts for {key}: the imported file could not be read");
             return TagImportOutcome.Refused;
@@ -955,6 +1002,26 @@ public sealed class TagStore
         return new CheckOutScope(this, key, session);
     }
 
+    /// <summary>
+    ///     <see cref="Load" /> and <see cref="CheckOut" /> as one step: what a session attaches with. Under the gate
+    ///     every write through the store takes, so a write either lands before the read and is in what the session
+    ///     loads, or finds the session holding the document and is routed to it.
+    /// </summary>
+    /// <param name="sha256">Lowercase-hex SHA-256 of the demo.</param>
+    /// <param name="current">The clock the session's parse is on.</param>
+    /// <param name="session">The session taking the document.</param>
+    /// <param name="checkOut">The handle <see cref="CheckOut" /> returns.</param>
+    internal TagLoadResult LoadAndCheckOut(string sha256, ClockIdentity current, TagSession session,
+        out IDisposable checkOut)
+    {
+        lock (_rmwGate)
+        {
+            TagLoadResult result = Load(sha256, current);
+            checkOut = CheckOut(sha256, session);
+            return result;
+        }
+    }
+
     private static string Normalize(string sha256) => sha256.ToLowerInvariant();
 
     private static TagDocument? Parse(string json)
@@ -965,13 +1032,35 @@ public sealed class TagStore
 
             // A document without a demo header cannot be matched to anything, so it is as unreadable as
             // a truncated one.
-            return document?.Demo is { Sha256.Length: > 0 } ? document : null;
+            return document?.Demo is { Sha256.Length: > 0 } && IsWellFormed(document) ? document : null;
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    // A sidecar can come from someone else's bundle, and JSON null lands in a property or in a list as it
+    // is, whatever the annotations say. Every reader walks these without a null check, the index projection
+    // in this class's constructor among them, so a document carrying one is unreadable, not half-loaded.
+    private static bool IsWellFormed(TagDocument document) =>
+        document.Clock is { Kind: not null }
+        && document.Instances is { } instances
+        && instances.TrueForAll(static i => i is { Code: not null, Source: not null }
+            && HasLabels(i.Labels)
+            && HasLabels(i.Facts)
+            && i.Positions is { } positions && !positions.Contains(null!)
+            && i.Movements is { } movements
+            && movements.TrueForAll(static m => m is { From: not null, To: not null }));
+
+    // As IsWellFormed above, for a verdicts file: a JSON null as the map or as a verdict deserializes, survives a
+    // rewrite (WhenWritingNull does not reach dictionary values), and throws in every reader after.
+    private static bool IsWellFormed(SuggestionVerdictDocument document) =>
+        document.Verdicts is { } verdicts
+        && verdicts.Values.All(static v => v is { Verdict: not null, Detector: not null });
+
+    private static bool HasLabels(List<TagLabel>? labels) =>
+        labels is not null && labels.TrueForAll(static l => l is { Group: not null, Value: not null });
 
     // Materialized here: the listing is lazy, and a folder that vanishes mid-walk must read as empty
     // rather than throw out of the caller's loop.
@@ -1053,14 +1142,15 @@ public sealed class TagStore
 
         lock (_gate)
         {
-            foreach (TagIndexEntry entry in file.Entries.Where(e => !string.IsNullOrEmpty(e.Sha256)))
+            foreach (TagIndexEntry entry in file.Entries.Where(e => !string.IsNullOrEmpty(e?.Sha256)))
             {
                 _index[Normalize(entry.Sha256)] = entry;
             }
         }
 
-        // Reconcile against the listing, which costs no reads: a sidecar the index does not name (a crash
-        // after its write and before SaveIndex) is read and added, and a row whose file is gone is dropped.
+        // Reconcile against the listing, which costs no reads: a sidecar the index does not name, or one
+        // written since its row was (a crash after its write and before SaveIndex either way), is read and
+        // its row replaced, and a row whose file is gone is dropped.
         HashSet<string> onDisk = new(StringComparer.Ordinal);
         bool changed = false;
         foreach (string sidecar in EnumerateSidecars(_folder))
@@ -1068,13 +1158,13 @@ public sealed class TagStore
             string name = Path.GetFileName(sidecar);
             string key = Normalize(name[..^SidecarExtension.Length]);
             onDisk.Add(key);
-            bool known;
+            TagIndexEntry? row;
             lock (_gate)
             {
-                known = _index.ContainsKey(key);
+                row = _index.GetValueOrDefault(key);
             }
 
-            if (!known)
+            if (row is null || WrittenAfter(sidecar, row))
             {
                 IndexFile(sidecar);
                 changed = true;
@@ -1093,6 +1183,23 @@ public sealed class TagStore
         if (changed)
         {
             SaveIndex();
+        }
+    }
+
+    // index.json is written on detach and at shutdown only, so a killed process leaves a row behind its file,
+    // with the codes and strat links of the save before. Save stamps the row within milliseconds of writing the
+    // file; a file much newer than that was written since.
+    private bool WrittenAfter(string sidecar, TagIndexEntry row)
+    {
+        try
+        {
+            // A file that is not there answers no time at all, which is never after the row.
+            return (_folder!.LastWriteTimeUtc(sidecar) ?? DateTime.MinValue)
+                > row.ModifiedUtc.ToUniversalTime() + _rowSlack;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return true;
         }
     }
 

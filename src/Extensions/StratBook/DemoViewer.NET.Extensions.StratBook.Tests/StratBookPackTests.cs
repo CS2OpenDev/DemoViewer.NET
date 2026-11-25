@@ -78,6 +78,7 @@ public class StratBookPackTests
         "DemoViewer.NET.Services.DemoProcessing.IDemoProcessingQueue",
         "DemoViewer.NET.Services.DemoCache.DemoCacheStore",
         "DemoViewer.NET.Modules.Library.DemoLibraryService",
+        "DemoViewer.NET.Modules.Playback2D.Annotations.AnnotationWriteCoordinator",
         "DemoViewer.NET.Modules.Highlights.IHighlightHarvester",
         "DemoViewer.NET.ViewModels.Highlights.HighlightsTabViewModel",
         "DemoViewer.NET.ViewModels.Highlights.HighlightBacklogViewModel",

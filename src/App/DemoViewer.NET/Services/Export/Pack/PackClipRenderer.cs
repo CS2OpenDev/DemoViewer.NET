@@ -81,9 +81,10 @@ public sealed class PackClipRenderer : IPackClipRenderer, IDisposable
 
         Scene2DExportRequest request;
         ExportSceneSetup setup;
+        Loaded demo;
         try
         {
-            Loaded demo = await LoadAsync(clip.Entry.DemoPath, ct).ConfigureAwait(false);
+            demo = await LoadAsync(clip.Entry.DemoPath, ct).ConfigureAwait(false);
             request = PackPlanner.BuildClipRequest(clip, settings, demo.Parsed.Frames, demo.Parsed.TickRate)
                 ?? throw new ExportValidationException("the clip's range lies outside its demo");
             setup = new ExportSceneSetup(demo.Parsed.Frames, demo.Parsed.TickRate, demo.Parsed.MapName,
@@ -97,14 +98,38 @@ public sealed class PackClipRenderer : IPackClipRenderer, IDisposable
             throw;
         }
 
+        // The render stops with the lease's visit as well as with the pack: a stopped visit has given its
+        // slot away, so its parse is not used past that point.
+        using CancellationTokenSource? linked = demo.Lease is { } lease
+            ? CancellationTokenSource.CreateLinkedTokenSource(ct, lease.Stopped)
+            : null;
         using IRenderSurfaceProvider surfaces = _surfaces();
-        await SceneExportRunner.RenderSceneAsync(request, setup, sink, surfaces, null, ct, clip.MaxFrames)
-            .ConfigureAwait(false);
+        try
+        {
+            await SceneExportRunner.RenderSceneAsync(request, setup, sink, surfaces, null, linked?.Token ?? ct,
+                clip.MaxFrames).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested
+                                                    && demo.Lease?.Stopped.IsCancellationRequested == true)
+        {
+            throw VisitStopped(ex);
+        }
+    }
+
+    // Not an OperationCanceledException: the pack reads one of those as the user cancelling it all, and
+    // the visit going away (its queue row removed, the app shutting down) fails this clip only.
+    private InvalidOperationException VisitStopped(Exception inner)
+    {
+        Dispose();
+        return new InvalidOperationException("the demo's visit was stopped before the clip finished", inner);
     }
 
     private async Task<Loaded> LoadAsync(string path, CancellationToken ct)
     {
-        if (_current is { } held && string.Equals(held.Path, path, StringComparison.OrdinalIgnoreCase))
+        // A lease whose visit was stopped no longer holds the slot: another demo may be read beside its parse.
+        // It is let go and the demo's visit joined again.
+        if (_current is { } held && string.Equals(held.Path, path, StringComparison.OrdinalIgnoreCase)
+            && held.Lease?.Stopped.IsCancellationRequested != true)
         {
             return held;
         }
@@ -118,10 +143,19 @@ public sealed class PackClipRenderer : IPackClipRenderer, IDisposable
         }
         else
         {
-            lease = await (_lease
-                    ?? throw new InvalidOperationException(
-                        "A pack renders on a demo's visit, and none was given."))
-                (path, ct).ConfigureAwait(false);
+            try
+            {
+                lease = await (_lease
+                        ?? throw new InvalidOperationException(
+                            "A pack renders on a demo's visit, and none was given."))
+                    (path, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                // The visit ended before it handed its parse over: not the pack's cancel.
+                throw VisitStopped(ex);
+            }
+
             parsed = lease.Parsed;
         }
 

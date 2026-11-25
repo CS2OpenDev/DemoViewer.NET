@@ -203,15 +203,13 @@ internal sealed class ExtensionSceneExport : IExtensionSceneExport, IDisposable
     public ISceneExportPane OpenPane(SceneExportPaneRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        _nothingToExport = request.NothingToExport;
-        _paneLog = request.Log;
-
         if (_exports is null || _guard is null)
         {
             throw new InvalidOperationException("This export renders clips only; it has no pane.");
         }
 
         ExportJobService job = Job(_exports);
+        TakeRunFor(job, request);
         Func<SceneExportScene?> capture = _guard.Wrap("export capture", request.Capture, null);
         Playback2DExportDialogViewModel dialog = FirstPartySceneExport.NewDialog(
             _exports,
@@ -222,10 +220,30 @@ internal sealed class ExtensionSceneExport : IExtensionSceneExport, IDisposable
             job,
             (start, end, fps, speed) => request.OutputFrameCount(start, end, fps, speed),
             _shell is null ? null : () => _shell.IsLiveSyncSessionActive,
-            () => Key(capture()),
+            () =>
+            {
+                // Start reads the capture, so this is where a run becomes this pane's, whichever pane was
+                // opened last.
+                TakeRunFor(job, request);
+                return Key(capture());
+            },
             new ExportDialogScene(request.Title, request.FileStem, Sizes(request.Sizes), Layers(request.Layers)));
 
         return new Pane(dialog);
+    }
+
+    // The log sink and the refusal copy are read while a run goes, so they follow a pane only between runs:
+    // the pane just opened, then the pane whose Start begins the next one. A pane opened beside a running
+    // export, or a Start the job refuses as busy, takes neither from the run that has them.
+    private void TakeRunFor(ExportJobService job, SceneExportPaneRequest request)
+    {
+        if (job.Status.IsRunning)
+        {
+            return;
+        }
+
+        _nothingToExport = request.NothingToExport;
+        _paneLog = request.Log;
     }
 
     /// <inheritdoc />

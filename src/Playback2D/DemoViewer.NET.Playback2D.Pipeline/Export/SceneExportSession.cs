@@ -41,6 +41,14 @@ public sealed class SceneExportSession
     /// <summary>The width ceiling for a GIF. Wider is technically legal and practically unusable.</summary>
     public const int GifMaxWidth = 1920;
 
+    /// <summary>
+    ///     The memory a GIF may buffer, counted as RGBA (4 bytes a pixel) over every frame. Both GIF
+    ///     encoders hold the whole animation until the palette is built: the managed sink keeps every
+    ///     frame, and ffmpeg's split/palettegen/paletteuse chain queues every frame until EOF. The frame
+    ///     and width caps alone still let a 1080p GIF buffer over 10 GB; this is what bounds it.
+    /// </summary>
+    public const long GifMaxBufferedBytes = 2L * 1024 * 1024 * 1024;
+
     /// <summary>fps values every video format accepts.</summary>
     private static readonly int[] _videoFps = [24, 25, 30, 50, 60, 64];
 
@@ -200,6 +208,14 @@ public sealed class SceneExportSession
             renderer.Palette = Palette;
             renderer.DisplayMode = DisplayMode;
             renderer.Purpose = RenderPurpose.Export;
+
+            // The renderer is born stacked, and DisplayMode alone does not re-lay it out. Single mode
+            // shows the one floor the camera script names (a Single-mode capture holds exactly one
+            // pane); a script that names no single floor keeps every floor, as before.
+            if (DisplayMode == LevelDisplayMode.Single && SingleLevelOf(req.Camera) is { } shown)
+            {
+                renderer.Panes.Policy = new SingleLayout { ActiveLevelId = shown };
+            }
             renderer.CameraPolicy = resolver;
 
             // The offscreen twin of the host's one-shot fit. An export's panes are born fitted to
@@ -287,13 +303,37 @@ public sealed class SceneExportSession
         // And a throw out of a finally would escape before the terminal report was made, leaving a
         // caller that drives a progress bar off Phase with Rendering as the last thing it ever saw.
         // Exactly one terminal report, on every path, is the contract.
+        // A cancel that landed after the last frame was written threw nowhere: the loop reads the token
+        // at the top of a frame and inside the write, and there is no next frame. The sinks do see it (a
+        // GIF is not written, ffmpeg is killed), so without this the run closes with no file and is
+        // reported Completed. It is a cancelled run like any other. A cancel later still, during
+        // ffmpeg's drain, is the sink's to report: FfmpegFrameSink throws it from DisposeAsync below.
+        if (failure is null && ct.IsCancellationRequested)
+        {
+            failure = new OperationCanceledException(ct);
+        }
+
         try
         {
+            // A sink closed after a failed or cancelled run would otherwise finalise what it has: a
+            // shorter file that plays, at the path of a job that is about to be reported Failed.
+            if (failure is not null && sink is IAbortableFrameSink abortable)
+            {
+                abortable.Abort();
+            }
+
             await sink.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             failure ??= ex;
+        }
+
+        // A cancel between the check above and the close: both sinks close quietly on a token already
+        // cancelled, and with no file.
+        if (failure is null && ct.IsCancellationRequested)
+        {
+            failure = new OperationCanceledException(ct);
         }
 
         ExportPhase terminal = failure switch
@@ -310,6 +350,23 @@ public sealed class SceneExportSession
             // status, and a repackaged exception would lose where the encode actually died.
             ExceptionDispatchInfo.Capture(failure).Throw();
         }
+    }
+
+    private static MapLevelId? SingleLevelOf(CameraScript camera) => camera switch
+    {
+        CameraScript.MirrorLiveView { Panes.Length: 1 } mirror => mirror.Panes[0].LevelId,
+        CameraScript.Fixed { PaneTransforms.Count: 1 } pinned => OnlyKey(pinned.PaneTransforms),
+        _ => null
+    };
+
+    private static MapLevelId OnlyKey(IReadOnlyDictionary<MapLevelId, ViewportTransform> transforms)
+    {
+        foreach (MapLevelId key in transforms.Keys)
+        {
+            return key;
+        }
+
+        return default;
     }
 
     /// <summary>
@@ -377,7 +434,34 @@ public sealed class SceneExportSession
             throw new ExportValidationException(string.Create(CultureInfo.InvariantCulture,
                 $"A GIF is capped at {GifMaxWidth} px wide; this export is {req.Size.Width}. Export WebM instead."));
         }
+
+        int fits = GifMaxFramesFor(req.Size.Width, req.Size.Height);
+        if (req.FrameCount > fits)
+        {
+            throw new ExportValidationException(string.Create(CultureInfo.InvariantCulture,
+                $"A {req.Size.Width}×{req.Size.Height} GIF of {req.FrameCount} frames would hold about " +
+                $"{GifBufferedBytes(req.Size.Width, req.Size.Height, req.FrameCount) / (1024.0 * 1024 * 1024):0.0} GB " +
+                $"in memory while it encodes; the limit is 2 GB, which fits {fits} frames at this size. " +
+                $"Shorten the range, choose a smaller size, or export MP4."));
+        }
     }
+
+    /// <summary>
+    ///     The most frames a GIF of this size may hold: <see cref="GifMaxFrames" />, or fewer when that many
+    ///     frames at this size would outgrow <see cref="GifMaxBufferedBytes" />. Never below one.
+    /// </summary>
+    /// <param name="width">Frame width in pixels.</param>
+    /// <param name="height">Frame height in pixels.</param>
+    public static int GifMaxFramesFor(int width, int height)
+    {
+        long frameBytes = GifBufferedBytes(width, height, 1);
+        return frameBytes <= 0
+            ? GifMaxFrames
+            : (int)Math.Clamp(GifMaxBufferedBytes / frameBytes, 1, GifMaxFrames);
+    }
+
+    private static long GifBufferedBytes(int width, int height, int frames) =>
+        (long)Math.Max(0, width) * Math.Max(0, height) * 4 * Math.Max(0, frames);
 
     /// <summary>
     ///     The frame rates a format supports. GIF gets its own list (<see cref="_gifFps" />); an unknown format id gets

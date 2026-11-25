@@ -1,5 +1,6 @@
 #region
 
+using CS2DemoKit.Analysis.Output;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -110,6 +111,81 @@ public class MatchOverviewFacetScoreboardTests
             await Assert.That(vm.TSideWinsDisplay).IsEqualTo("10");
             await Assert.That(vm.RoundCountDisplay).IsEqualTo("22");
         }
+    }
+
+    // The facet has a row for every slot: the ghost a reconnect leaves on the old slot (team 0, nothing done)
+    // and a spectator (team 1). Neither is a T player; a slot left with real stats on it still counts.
+    [Test]
+    public async Task GhostAndSpectatorRows_AreNotDrawnAsTPlayers()
+    {
+        DemoCacheRecord record = Scanned();
+        record.Players.Add(new CachedPlayerInfo { Slot = 10, Name = "s1mple", SteamId64 = "76561198000000000" });
+        record.Players.Add(new CachedPlayerInfo { Slot = 11, Name = "caster", Team = 1 });
+        record.Players.Add(new CachedPlayerInfo { Slot = 12, Name = "leaver", SteamId64 = "76561198000000012" });
+
+        static FactRow Idle(int slot, int team) => new(
+            new Dictionary<string, FactValue>
+            {
+                ["player_slot"] = FactValue.Of(slot),
+                ["steam_id"] = FactValue.Of("7656119800000000" + slot),
+                ["team"] = FactValue.Of(team)
+            },
+            new Dictionary<string, FactValue>
+            {
+                ["rounds"] = FactValue.Of(22L),
+                ["TotalK"] = FactValue.Of(0L),
+                ["TotalD"] = FactValue.Of(0L),
+                ["TotalA"] = FactValue.Of(0L),
+                ["EnemyDmg"] = FactValue.Of(0L),
+                ["HLTV"] = FactValue.Of(0.5),
+                ["CTW"] = FactValue.Of(0L),
+                ["TW"] = FactValue.Of(0L)
+            });
+
+        FactTable facet = Facet(
+        [
+            .. Match().Rows,
+            Idle(10, 0),
+            Idle(11, 1),
+            Row(12, 0, 3, 300, 0.4, 0, 0)
+        ]);
+        MatchOverviewTabViewModel vm = new();
+        vm.SetCachedRecord(record, facet);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.PlayerStats.Count).IsEqualTo(11);
+            await Assert.That(vm.PlayerStats.Count(r => r.Name == "s1mple")).IsEqualTo(1);
+            await Assert.That(vm.PlayerStats.Any(r => r.Name == "caster")).IsFalse();
+            await Assert.That(vm.PlayerStats.Any(r => r.Name == "leaver")).IsTrue();
+        }
+    }
+
+    // The live game table formats a missing value as the placeholder and a NaN as "NaN", and a slot that played
+    // no round has no ADR to give. Neither is a number above zero, so the row is as idle as one that says 0.
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ASpectatorRowWithNoAdr_FromTheLiveTable_IsNotDrawnAsATPlayer(bool nan)
+    {
+        static MetricRow Row(string name, int team, int kills, object? adr) => new(
+            new Dictionary<string, object?> { ["player_name"] = name, ["team"] = team },
+            new Dictionary<string, object?>
+            {
+                ["TotalK"] = kills, ["TotalD"] = 0, ["TotalA"] = 0, ["ADR"] = adr, ["HLTV"] = 1.0
+            });
+
+        MetricTable table = new("player_game", ["player_name", "team"], ["TotalK", "TotalD", "TotalA", "ADR", "HLTV"],
+        [
+            Row("ct", 3, 10, 80.0),
+            Row("t", 2, 9, 70.0),
+            Row("caster", 1, 0, nan ? double.NaN : null)
+        ]);
+        MatchOverviewTabViewModel vm = new();
+        vm.BeginOpening("a.dem", "Mirage", "Server", "/demos/a.dem");
+        vm.SetAnalysis("/demos/a.dem", table, 22);
+
+        await Assert.That(vm.PlayerStats.Select(r => r.Name)).IsEquivalentTo(["ct", "t"]);
     }
 
     [Test]

@@ -1,6 +1,5 @@
 #region
 
-using System.Buffers;
 using System.Net.Http.Headers;
 using System.Text;
 
@@ -59,30 +58,24 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
         using HttpResponseMessage response = await SendForHeaders(url, ct).ConfigureAwait(false);
         await using Stream stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         using StreamReader reader = new(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-        char[] buffer = ArrayPool<char>.Shared.Rent(16 * 1024);
-        try
+        // Not pooled: a stalled read is abandoned, not cancelled, and may still write into its buffer.
+        char[] buffer = new char[16 * 1024];
+        StringBuilder text = new();
+        while (true)
         {
-            StringBuilder text = new();
-            while (true)
+            int read = await ReadWithStallTimeout(reader.ReadAsync(buffer, ct).AsTask(), ct)
+                .ConfigureAwait(false);
+            if (read == 0)
             {
-                int read = await ReadWithStallTimeout(reader.ReadAsync(buffer, ct).AsTask(), ct)
-                    .ConfigureAwait(false);
-                if (read == 0)
-                {
-                    return text.ToString();
-                }
-
-                if (text.Length + read > ExtensionFeed.MaxLength)
-                {
-                    throw new ExtensionDownloadException("the feed is too large");
-                }
-
-                text.Append(buffer, 0, read);
+                return text.ToString();
             }
-        }
-        finally
-        {
-            ArrayPool<char>.Shared.Return(buffer);
+
+            if (text.Length + read > ExtensionFeed.MaxLength)
+            {
+                throw new ExtensionDownloadException("the feed is too large");
+            }
+
+            text.Append(buffer, 0, read);
         }
     }
 
@@ -99,33 +92,27 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
         }
 
         await using Stream stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(80 * 1024);
-        try
+        // Not pooled, for the reason GetFeedAsync's is not.
+        byte[] buffer = new byte[80 * 1024];
+        long total = 0;
+        while (true)
         {
-            long total = 0;
-            while (true)
+            int read = await ReadWithStallTimeout(stream.ReadAsync(buffer, ct).AsTask(), ct)
+                .ConfigureAwait(false);
+            if (read == 0)
             {
-                int read = await ReadWithStallTimeout(stream.ReadAsync(buffer, ct).AsTask(), ct)
-                    .ConfigureAwait(false);
-                if (read == 0)
-                {
-                    return;
-                }
-
-                total += read;
-                if (total > maxBytes)
-                {
-                    throw new ExtensionDownloadException(
-                        $"the download is larger than the {maxBytes} bytes the feed said");
-                }
-
-                await destination.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
-                progress?.Report(total);
+                return;
             }
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
+
+            total += read;
+            if (total > maxBytes)
+            {
+                throw new ExtensionDownloadException(
+                    $"the download is larger than the {maxBytes} bytes the feed said");
+            }
+
+            await destination.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+            progress?.Report(total);
         }
     }
 

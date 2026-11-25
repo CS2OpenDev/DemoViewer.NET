@@ -27,7 +27,6 @@ namespace DemoViewer.NET.Extensions.StratBook.Views.StratBook;
 /// </summary>
 public partial class StratBookTabView : UserControl
 {
-    private StratEditorViewModel? _editor;
 
     private StratBookTabViewModel? _bound;
 
@@ -162,6 +161,7 @@ public partial class StratBookTabView : UserControl
         {
             _bound.StepSelection.Changed += OnSelectionChanged;
             _bound.MapChoiceRequested += OnMapChoiceRequested;
+            _bound.Editor.StepFocusRequested += OnStepFocusRequested;
         }
     }
 
@@ -171,6 +171,7 @@ public partial class StratBookTabView : UserControl
         {
             _bound.StepSelection.Changed -= OnSelectionChanged;
             _bound.MapChoiceRequested -= OnMapChoiceRequested;
+            _bound.Editor.StepFocusRequested -= OnStepFocusRequested;
             _bound = null;
         }
     }
@@ -304,16 +305,8 @@ public partial class StratBookTabView : UserControl
             Hook();
         }
 
-        if (_editor is not null)
-        {
-            _editor.StepFocusRequested -= OnStepFocusRequested;
-            _editor = null;
-        }
-
         if (DataContext is StratBookTabViewModel vm)
         {
-            _editor = vm.Editor;
-            _editor.StepFocusRequested += OnStepFocusRequested;
             FillTemplateMenu(NewStratButton.Flyout, StratTemplates.Templates, vm.NewStratCommand, true);
             FillTemplateMenu(ApplyTemplateButton.Flyout, StratTemplates.Templates, vm.ApplyTemplateCommand, false);
         }

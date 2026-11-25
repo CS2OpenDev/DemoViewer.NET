@@ -179,6 +179,48 @@ public class GoldenCommandTests
         await Assert.That(((JsonObject)run.Json()["counts"]!)["missing"]!.GetValue<int>()).IsEqualTo(1);
     }
 
+    /// <summary>
+    ///     A live entry whose scene file is gone is a broken corpus, not a skip. Counted as skipped it
+    ///     left the gate green with nothing compared, which is the one outcome a gate must not have.
+    /// </summary>
+    [Test]
+    public async Task Verify_MissingSceneOnALiveEntry_ExitsFour()
+    {
+        using CorpusCopy copy = new();
+        File.Delete(Path.Combine(copy.Path, "scenes", "synthetic-tenplayers.scene.json"));
+
+        CliRun run = Dv2d.InProcess("golden", "verify", "--corpus", copy.Path, "--name",
+            "synthetic-tenplayers", "--json");
+
+        await Assert.That(run.ExitCode).IsEqualTo(4);
+        JsonObject payload = run.Json();
+        await Assert.That(payload["ok"]!.GetValue<bool>()).IsFalse();
+        JsonNode row = ((JsonArray)payload["results"]!).Single()!;
+        await Assert.That(row["status"]!.GetValue<string>()).IsEqualTo("missing");
+        await Assert.That(row["reason"]!.GetValue<string>()).Contains("no scene");
+    }
+
+    /// <summary>
+    ///     The whole <c>scenes/</c> directory missing (a partial checkout) fails every live entry, and
+    ///     still skips the pending ones: pending is the only licence to have no scene.
+    /// </summary>
+    [Test]
+    public async Task Verify_NoScenesAtAll_FailsTheLiveEntries_AndStillSkipsThePendingOnes()
+    {
+        using CorpusCopy copy = new();
+        Directory.Delete(Path.Combine(copy.Path, "scenes"), true);
+        int pending = GoldenCorpus.Load(copy.Path).Entries.Count(e => e.Pending);
+
+        CliRun run = Dv2d.InProcess("golden", "verify", "--corpus", copy.Path, "--json");
+
+        await Assert.That(run.ExitCode).IsEqualTo(4);
+        JsonObject counts = (JsonObject)run.Json()["counts"]!;
+        await Assert.That(counts["matched"]!.GetValue<int>()).IsEqualTo(0);
+        await Assert.That(counts["skipped"]!.GetValue<int>()).IsEqualTo(pending);
+        await Assert.That(counts["missing"]!.GetValue<int>())
+            .IsEqualTo(counts["total"]!.GetValue<int>() - pending);
+    }
+
     [Test]
     public async Task Verify_StaleMapVersion_IsRefused_RatherThanDiffed()
     {
@@ -193,6 +235,51 @@ public class GoldenCommandTests
         bool sawStale = results.Any(r => r!["status"]!.GetValue<string>() == "stale-assets");
         await Assert.That(sawStale).IsTrue();
     }
+
+    /// <summary>
+    ///     A missing explicit asset root is the same exit-2 environment answer on every command that
+    ///     renders map art, never a radar-less render. Under <c>update</c> the corpus must stay as it was.
+    /// </summary>
+    [Test]
+    [Arguments("verify")]
+    [Arguments("update")]
+    public async Task MissingAssetRoot_IsExitTwo_AndLeavesTheGoldensAlone(string action)
+    {
+        using CorpusCopy copy = new();
+        // A rewrite of a deterministic render would be byte-identical, so corrupt one golden first:
+        // an update that ran would visibly repair it.
+        copy.CorruptGolden("fitmap-mirage-eco");
+        string before = Snapshot(copy.Path);
+
+        CliRun run = Dv2d.InProcess("golden", action, "--corpus", copy.Path, "--name", "fitmap-mirage-eco",
+            "--assets", Path.Combine(Path.GetTempPath(), "dv2d-no-such-root"), "--json");
+
+        await Assert.That(run.ExitCode).IsEqualTo(2);
+        await Assert.That(Snapshot(copy.Path)).IsEqualTo(before);
+    }
+
+    /// <summary>A mistyped option is refused before update rewrites a single golden.</summary>
+    [Test]
+    public async Task Update_WithAnUnknownOption_RewritesNothing()
+    {
+        using CorpusCopy copy = new();
+        // A rewrite of a deterministic render would be byte-identical, so corrupt one golden first:
+        // an update that ran would visibly repair it.
+        copy.CorruptGolden("fitmap-mirage-eco");
+        string before = Snapshot(copy.Path);
+
+        CliRun run = Dv2d.InProcess("golden", "update", "--corpus", copy.Path, "--nmae", "fitmap-mirage-eco",
+            "--assets", Dv2d.AssetsDirectory, "--json");
+
+        await Assert.That(run.ExitCode).IsEqualTo(1);
+        await Assert.That(run.StdErr).Contains("unknown option");
+        await Assert.That(Snapshot(copy.Path)).IsEqualTo(before);
+    }
+
+    private static string Snapshot(string directory) => string.Join("|",
+        Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+            .Select(f => f + ":" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                File.ReadAllBytes(f)))));
 
     [Test]
     public async Task UnknownName_ExitsOne()

@@ -290,6 +290,40 @@ public class DemoProcessingQueueTests
         }
     }
 
+    // A pause stops parsing, never a pending write of the user's own data.
+    [Test]
+    public async Task Pause_DoesNotHoldAStoreSave_ButStillHoldsOtherBackgroundJobs()
+    {
+        RecordingParser parser = new();
+        using DemoProcessingQueue q = NewQueue(parser, out HeavyJobGate gate);
+        using (gate)
+        {
+            q.Pause();
+            bool saved = false;
+            bool other = false;
+            IDemoQueueHandle save = q.SubmitJob(new QueueJobRequest(QueueJobKind.StoreSave, "Save: x", "o",
+                DemoJobPriority.Background, _ =>
+                {
+                    saved = true;
+                    return Task.CompletedTask;
+                }, "save-x"));
+            q.SubmitJob(Job("other", _ =>
+            {
+                other = true;
+                return Task.CompletedTask;
+            }));
+
+            await save.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Delay(100);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(saved).IsTrue();
+                await Assert.That(other).IsFalse().Because("a paused queue still holds other background work");
+            }
+        }
+    }
+
     [Test]
     public async Task Disabled_NoBackground_ButForegroundStillRuns()
     {

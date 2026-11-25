@@ -88,6 +88,29 @@ public class RulesetIdentityTests
         }
     }
 
+    [Test]
+    public async Task AFactsFingerprint_MovesWhenADependencyIsGatedOn()
+    {
+        bool kastOn = false;
+        MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, null),
+            () => [new StampedRuleset(PlayerStats, "net.example.stats", () => true),
+                new StampedRuleset(Kast, "net.example.kast", () => kastOn)]);
+        StampedFacts facts = new(build);
+        string? missing = facts.Fingerprint(PlayerStats, 64);
+
+        kastOn = true;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(missing).IsNotNull()
+                .Because("a ruleset whose dependency is off still has a fingerprint to stamp failed under");
+            await Assert.That(facts.Fingerprint(PlayerStats, 64))
+                .IsEqualTo(new StampedFacts(build).Fingerprint(PlayerStats, 64))
+                .Because("the gate hands back the same doc, so the doc alone cannot key the fingerprint");
+            await Assert.That(facts.Fingerprint(PlayerStats, 64)).IsNotEqualTo(missing);
+        }
+    }
+
     // The identity of a ruleset without use:, the doc composed alone, its file's hash, the engine version.
     private static string Alone(RulesetDoc doc, int tickRate)
     {

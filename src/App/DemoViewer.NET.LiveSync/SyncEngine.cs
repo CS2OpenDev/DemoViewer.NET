@@ -147,6 +147,38 @@ public sealed class SyncEngine : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    ///     True while CS2 plays a different demo than DV's (v1.1 demo-identity, set by
+    ///     <see cref="NoteRemoteDemoChanged" />, cleared by the next <see cref="SetDesiredDemo" />).
+    ///     CS2's ticks then belong to that other demo, so the inbound pump must not mirror them.
+    /// </summary>
+    internal bool HasRemoteDemoChange
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _remoteDemoPath is not null;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     The user's speed as last pushed through <see cref="SetDesiredTimescale" />: the rate CS2
+    ///     runs at under "timescale-set". Stays 1× without that capability, because the setter
+    ///     no-ops there. The drift servo bends around this, never around a hardcoded 1×.
+    /// </summary>
+    internal double DesiredTimescale
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _desiredTimescale;
+            }
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _cts.CancelAsync();
@@ -578,7 +610,10 @@ public sealed class SyncEngine : IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
-                    OnCommandFailed(command, ex);
+                    if (OnCommandFailed(command, ex))
+                    {
+                        Kick();
+                    }
                 }
 
                 PublishStatus();
@@ -723,14 +758,22 @@ public sealed class SyncEngine : IAsyncDisposable
         }
     }
 
-    private void OnCommandFailed(SyncCommand command, Exception ex)
+    /// <returns>True when a newer intent arrived during the failed command and needs a reconcile.</returns>
+    private bool OnCommandFailed(SyncCommand command, Exception ex)
     {
         lock (_gate)
         {
             switch (command)
             {
-                case SyncCommand.Load:
+                case SyncCommand.Load load:
                     _loadInFlight = false;
+                    if (!string.Equals(_desiredDemo, load.Path, StringComparison.Ordinal))
+                    {
+                        // The user opened another demo while this load ran, and Reconcile deferred it
+                        // behind the load. That newer intent is not this failure's to erase.
+                        return true;
+                    }
+
                     // Disengage rather than retry-loop: the user re-arms by re-loading the demo
                     // (or, later, Re-sync). CS2 keeps whatever it had.
                     _desiredDemo = null;
@@ -766,6 +809,8 @@ public sealed class SyncEngine : IAsyncDisposable
                     break;
             }
         }
+
+        return false;
     }
 
     // ── Ledger timers ─────────────────────────────────────────────────────────

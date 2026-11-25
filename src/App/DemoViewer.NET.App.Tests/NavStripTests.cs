@@ -7,6 +7,7 @@ using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using CS2DemoKit.Parser;
 using DemoViewer.NET.Controls;
 using DemoViewer.NET.ViewModels.Shell;
 
@@ -78,6 +79,59 @@ public class NavStripTests
             vm.NavFrameText = "not-a-number";
             vm.CommitNavFrameText();
             await Assert.That(vm.NavFrameText).IsEqualTo("0");
+        });
+    }
+
+    /// <summary>
+    ///     The box blurs (LostFocus commits) while it still shows the live frame. Nothing was edited, so
+    ///     the commit must not re-seek: a seek during play stops the loop, which paused playback on a
+    ///     plain click elsewhere.
+    /// </summary>
+    [Test]
+    public async Task FrameBox_CommitOfTheUneditedFrame_DoesNotSeekOrStopPlayback()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            MainViewModel vm = new(library: TestLibraries.Empty()) { HasFile = true };
+            List<DemoFrame> frames = new(100);
+            for (int i = 0; i < 100; i++)
+            {
+                frames.Add(new DemoFrame
+                {
+                    CommandKind = EDemoCommands.DemPacket,
+                    FrameNumber = i,
+                    ServerTick = i,
+                    HeaderLength = 0,
+                    RawLength = 0,
+                    RawStart = 0,
+                    IsCompressed = false
+                });
+            }
+
+            vm.Playback.LoadDemo(frames, 64);
+            int seeks = 0;
+            vm.Playback.ApplySeek = _ => seeks++;
+            try
+            {
+                vm.Playback.Play();
+                await Assert.That(vm.Playback.IsPlaying).IsTrue();
+                int seeksBefore = seeks;
+
+                vm.CommitNavFrameText();
+
+                await Assert.That(seeks).IsEqualTo(seeksBefore);
+                await Assert.That(vm.Playback.IsPlaying).IsTrue();
+
+                // An edit still seeks.
+                vm.NavFrameText = "42";
+                vm.CommitNavFrameText();
+                await Assert.That(vm.Playback.CurrentFrameIndex).IsEqualTo(42);
+            }
+            finally
+            {
+                vm.Playback.Pause();
+                vm.Playback.Unload();
+            }
         });
     }
 

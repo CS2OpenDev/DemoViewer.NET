@@ -204,13 +204,21 @@ public abstract class StatPresenter : TemplatedControl
 
     /// <summary>
     ///     What is shown: the <see cref="Text" /> override, else the formatted <see cref="Value" />.
-    ///     Negative zero is folded to positive zero first: a differential column that lands exactly on
-    ///     nothing would otherwise print "-0", which reads as a real negative.
+    ///     Negative zero is folded to positive zero: a differential column that lands on nothing would
+    ///     otherwise print "-0", which reads as a real negative. The fold runs on the formatted text, not
+    ///     the value, because a residue too small for the format (-0.004 under "0.##") rounds to zero and
+    ///     .NET keeps its sign.
     /// </summary>
     protected string DisplayText =>
-        Text ?? (Value is { } v
-            ? (v == 0 ? 0.0 : v).ToString(Format, CultureInfo.InvariantCulture)
-            : string.Empty);
+        Text ?? (Value is { } v ? WithoutNegativeZero(v.ToString(Format, CultureInfo.InvariantCulture)) : string.Empty);
+
+    // A leading minus followed by zeros and no other digit is a rounded-away negative. The '0' test keeps
+    // "-∞", which has no digit at all. A multi-section format has already chosen its zero section by
+    // this point, so this only ever touches a one-section one.
+    private static string WithoutNegativeZero(string text) =>
+        text.StartsWith('-') && text.AsSpan(1).Contains('0') && !text.AsSpan(1).ContainsAnyInRange('1', '9')
+            ? text[1..]
+            : text;
 
     /// <summary>Where <see cref="Value" /> sits on the bar channel, 0..1. Zero when there is no value.</summary>
     public double Fraction => Value is { } v ? EffectiveScale.Fraction(v) : 0;

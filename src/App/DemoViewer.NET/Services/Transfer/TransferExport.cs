@@ -83,7 +83,7 @@ public sealed record ExportPlanEntry(
 ///     nothing anywhere; <see cref="ITransferExporter.RunAsync" /> executes it.
 /// </summary>
 /// <param name="Request">What the user asked for.</param>
-/// <param name="BundleFolder">The bundle folder to create under <see cref="ExportRequest.DestinationFolder" /> (<see cref="TransferLayout.NewBundleFolder" />).</param>
+/// <param name="BundleFolder">The bundle folder the run writes (<see cref="TransferLayout.ExportBundleFolder" />).</param>
 /// <param name="Entries">One per selected demo, in display order.</param>
 /// <param name="SharedBytes">The bytes of the shared files.</param>
 /// <param name="Warnings">Findings for the review step, including the target checks.</param>
@@ -124,8 +124,8 @@ public interface ITransferExporter
 
     /// <summary>
     ///     Writes <paramref name="plan" />'s bundle. The manifest goes last, so a cancelled or failed run leaves a
-    ///     folder with no <c>transfer.json</c>, which import refuses. A file the bundle folder already holds with
-    ///     the same size and hash is not copied again.
+    ///     folder with no <c>transfer.json</c>, which import refuses. A bundle folder that holds anything when the
+    ///     run starts is refused, and nothing in it is deleted.
     /// </summary>
     Task<TransferSummary> RunAsync(ExportPlan plan, IProgress<TransferProgress>? progress, CancellationToken ct);
 }

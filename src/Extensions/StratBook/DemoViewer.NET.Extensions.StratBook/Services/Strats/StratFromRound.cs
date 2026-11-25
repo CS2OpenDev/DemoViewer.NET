@@ -390,8 +390,15 @@ public static class StratFromRound
         return step;
     }
 
-    private static StratStep Plant(CaptureMoment moment, StratCaptureOptions options, Dictionary<string, Keyed> last)
+    private static StratStep? Plant(CaptureMoment moment, StratCaptureOptions options, Dictionary<string, Keyed> last)
     {
+        // Ours only, as a throw is: reviewed from the CT side the plant is the opponents', and written down it
+        // would read as a step for all five of ours.
+        if (moment.ActorTeam != 0 && moment.ActorTeam != options.OurSide)
+        {
+            return null;
+        }
+
         string? actor = options.Tokens.GetValueOrDefault(moment.ActorSlot);
         CapturedPawn? planter = moment.PawnIn(moment.ActorSlot);
         StratStep step = new()

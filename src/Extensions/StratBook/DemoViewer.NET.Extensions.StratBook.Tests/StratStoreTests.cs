@@ -508,4 +508,299 @@ public class StratStoreTests
             DeleteQuietly(root);
         }
     }
+
+    [Test]
+    public async Task ABookOrCalloutsFileThatDoesNotParse_IsNeverSavedOver()
+    {
+        string root = TempRoot();
+        try
+        {
+            StratStore store = new(PackStores.At(root));
+            StratBook book = store.LoadBook(Team);
+            book.Notes = "defaults first";
+            book.SlotDefaults["e1"] = new Dictionary<string, string> { ["A"] = "76561198000000001" };
+            CalloutTable table = store.LoadCallouts(Team, "de_mirage");
+            table.Aliases.Add(new CalloutAlias { Alias = "palace", Place = "PalaceInterior", Primary = true });
+            table.Aliases.Add(new CalloutAlias { Alias = "jungle", Place = "Jungle" });
+            await Assert.That(store.SaveBook(book) && store.SaveCallouts(Team, table)).IsTrue();
+
+            // A hand-edit that left a typo: what the stored text was is still there to be repaired.
+            string bookFile = Path.Combine(root, "team-" + TeamId, "book.json");
+            string calloutsFile = Path.Combine(root, "team-" + TeamId, "de_mirage", "callouts.json");
+            string brokenBook = "{ not json" + await File.ReadAllTextAsync(bookFile);
+            string brokenCallouts = "{ not json" + await File.ReadAllTextAsync(calloutsFile);
+            await File.WriteAllTextAsync(bookFile, brokenBook);
+            await File.WriteAllTextAsync(calloutsFile, brokenCallouts);
+
+            // What every caller does: load, change one thing, save.
+            StratBook fresh = store.LoadBook(Team);
+            fresh.SlotDefaults["e2"] = new Dictionary<string, string> { ["B"] = "76561198000000002" };
+            CalloutTable empty = store.LoadCallouts(Team, "de_mirage");
+            empty.Aliases.Add(new CalloutAlias { Alias = "con", Place = "Connector" });
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.SaveBook(fresh)).IsFalse();
+                await Assert.That(store.SaveCallouts(Team, empty)).IsFalse();
+                await Assert.That(await File.ReadAllTextAsync(bookFile)).IsEqualTo(brokenBook);
+                await Assert.That(await File.ReadAllTextAsync(calloutsFile)).IsEqualTo(brokenCallouts);
+            }
+
+            // Repaired, or deleted, the file takes a save again.
+            File.Delete(calloutsFile);
+            await Assert.That(store.SaveCallouts(Team, empty)).IsTrue();
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
+    [Arguments("steps")]
+    [Arguments("slots")]
+    [Arguments("owner")]
+    public async Task AStratWithANullWhereItsShapeHasNone_IsUnreadable_NotACrash(string member)
+    {
+        string root = TempRoot();
+        try
+        {
+            StratStore store = new(PackStores.At(root));
+            StratDocument document = store.Create(Team, "de_mirage", "T", "execute", "A exec");
+            string file = StratFile(root, document);
+            JsonObject edited = JsonNode.Parse(await File.ReadAllTextAsync(file))!.AsObject();
+            edited[member] = null;
+            await File.WriteAllTextAsync(file, edited.ToJsonString());
+
+            // No index.json was written, so the start reads every strat file to rebuild it.
+            StratStore reopened = new(PackStores.At(root));
+            StratLoadResult loaded = reopened.Load(document.Id);
+            using (Assert.Multiple())
+            {
+                await Assert.That(loaded.Document).IsNull();
+                await Assert.That(loaded.IsUnreadable).IsTrue();
+                await Assert.That(reopened.Index.Any(e => e.Id == document.Id)).IsFalse();
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    // The strict read refuses a null property and lets a null list element through.
+    [Test]
+    [Arguments("steps")]
+    [Arguments("slots")]
+    [Arguments("tags")]
+    [Arguments("branches")]
+    public async Task AStratWithANullInAList_IsUnreadable_NotACrash(string member)
+    {
+        string root = TempRoot();
+        try
+        {
+            StratStore store = new(PackStores.At(root));
+            StratDocument document = store.Create(Team, "de_mirage", "T", "execute", "A exec");
+            string file = StratFile(root, document);
+            JsonObject edited = JsonNode.Parse(await File.ReadAllTextAsync(file))!.AsObject();
+            edited[member] = new JsonArray((JsonNode?)null);
+            await File.WriteAllTextAsync(file, edited.ToJsonString());
+
+            StratStore reopened = new(PackStores.At(root));
+            StratLoadResult loaded = reopened.Load(document.Id);
+            using (Assert.Multiple())
+            {
+                await Assert.That(loaded.Document).IsNull();
+                await Assert.That(loaded.IsUnreadable).IsTrue();
+                await Assert.That(reopened.Index.Any(e => e.Id == document.Id)).IsFalse();
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    // A sync client holds the file for the load and has let go of it by the save: what was loaded is still
+    // the fresh stand-in, and saving it would replace a file that now reads perfectly well.
+    [Test]
+    public async Task ABookOrCalloutsFileThatCouldNotBeReadAtTheLoad_IsNotSavedOverOnceItCanBe()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            StratStore store = new(folder);
+            StratBook book = store.LoadBook(Team);
+            book.Notes = "defaults first";
+            CalloutTable table = store.LoadCallouts(Team, "de_mirage");
+            table.Aliases.Add(new CalloutAlias { Alias = "palace", Place = "PalaceInterior", Primary = true });
+            await Assert.That(store.SaveBook(book) && store.SaveCallouts(Team, table)).IsTrue();
+            string bookFile = Path.Combine(root, "team-" + TeamId, "book.json");
+            string calloutsFile = Path.Combine(root, "team-" + TeamId, "de_mirage", "callouts.json");
+            string storedBook = await File.ReadAllTextAsync(bookFile);
+            string storedCallouts = await File.ReadAllTextAsync(calloutsFile);
+
+            folder.AfterRead = _ => throw new IOException("the file is held by another process");
+            StratBook fresh = store.LoadBook(Team);
+            fresh.SlotDefaults["e2"] = new Dictionary<string, string> { ["B"] = "76561198000000002" };
+            CalloutTable empty = store.LoadCallouts(Team, "de_mirage");
+            empty.Aliases.Add(new CalloutAlias { Alias = "con", Place = "Connector" });
+            folder.AfterRead = null;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.SaveBook(fresh)).IsFalse();
+                await Assert.That(store.SaveCallouts(Team, empty)).IsFalse();
+                await Assert.That(await File.ReadAllTextAsync(bookFile)).IsEqualTo(storedBook);
+                await Assert.That(await File.ReadAllTextAsync(calloutsFile)).IsEqualTo(storedCallouts);
+            }
+
+            // Loaded again now that it reads, the same edit lands on what was stored.
+            CalloutTable loaded = store.LoadCallouts(Team, "de_mirage");
+            loaded.Aliases.Add(new CalloutAlias { Alias = "con", Place = "Connector" });
+            await Assert.That(store.SaveCallouts(Team, loaded)).IsTrue();
+            await Assert.That(store.LoadCallouts(Team, "de_mirage").Aliases.Count).IsEqualTo(2);
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
+    public async Task AMapChange_WhoseHistoryLineFails_LeavesTheStratWhereItWas()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            StratStore store = new(folder);
+            StratDocument document = Minimal();
+            store.Save(document, [], "created");
+            string oldFile = StratFile(root, document);
+            string oldLog = LogFile(root, document);
+
+            PatchOp op = PatchOp.ReplaceOp("/map", JsonValue.Create("de_mirage"), JsonValue.Create("de_inferno"));
+            StratDocument moved = StratHistory.Apply(document, [op]);
+            folder.FailAppend = path => path.Contains("de_inferno", StringComparison.Ordinal);
+            StratSaveResult failed = store.Save(moved, [op], null);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(failed.Saved).IsFalse();
+                await Assert.That(File.Exists(oldFile)).IsTrue()
+                    .Because("a commit that did not land must not take the strat file with it");
+                await Assert.That(File.Exists(oldLog)).IsTrue().Because("the log goes back beside its strat");
+                await Assert.That(File.Exists(LogFile(root, moved))).IsFalse();
+                await Assert.That(store.TryLoad(document.Id)?.Map).IsEqualTo("de_mirage");
+                await Assert.That(new StratStore(PackStores.At(root)).Index.Single().Map).IsEqualTo("de_mirage")
+                    .Because("the next start finds one strat, with its log");
+            }
+
+            folder.FailAppend = null;
+            await Assert.That(store.Save(moved, [op], null).Saved).IsTrue();
+            using (Assert.Multiple())
+            {
+                await Assert.That(File.Exists(oldFile)).IsFalse();
+                await Assert.That(File.Exists(StratFile(root, moved))).IsTrue();
+                await Assert.That((await File.ReadAllLinesAsync(LogFile(root, moved))).Length).IsEqualTo(2);
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
+    public async Task ADelete_WhoseLogWillNotMove_PutsTheStratBack_AndSaysItFailed()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            StratStore store = new(folder);
+            StratDocument document = store.Create(Team, "de_mirage", "T", "execute", "A exec");
+            string trash = Path.Combine(StratStore.FolderFor(root, Team, "de_mirage"), ".trash");
+            folder.FailMove = (from, to) => from.EndsWith(StratStore.HistoryExtension, StringComparison.Ordinal)
+                && to.Contains(".trash", StringComparison.Ordinal);
+
+            bool deleted = store.Delete(document.Id);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(deleted).IsFalse();
+                await Assert.That(File.Exists(StratFile(root, document))).IsTrue()
+                    .Because("a delete that failed is one that did not happen");
+                await Assert.That(File.Exists(Path.Combine(trash, document.Id + ".dvstrat.json"))).IsFalse();
+                await Assert.That(store.TryLoad(document.Id)).IsNotNull();
+                await Assert.That(store.Index.Count).IsEqualTo(1);
+            }
+
+            folder.FailMove = null;
+            await Assert.That(store.Delete(document.Id)).IsTrue();
+            await Assert.That(new StratStore(PackStores.At(root)).Index.Count).IsEqualTo(0);
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
+    public async Task ALogLeftBesideATrashedStrat_DoesNotBringTheStratBack()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            StratStore store = new(folder);
+            StratDocument document = store.Create(Team, "de_mirage", "T", "execute", "A exec");
+
+            // The log will not move, and neither will the strat file on its way back out of the trash.
+            folder.FailMove = (from, _) => from.EndsWith(StratStore.HistoryExtension, StringComparison.Ordinal)
+                || from.Contains(".trash", StringComparison.Ordinal);
+            await Assert.That(store.Delete(document.Id)).IsFalse();
+            await Assert.That(File.Exists(LogFile(root, document))).IsTrue();
+
+            await Assert.That(new StratStore(PackStores.At(root)).Index.Count).IsEqualTo(0)
+                .Because("the strat is in the trash; its stranded log is not a first commit to recover");
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
+    [Arguments("""{"map":"de_mirage","aliases":[null,{"alias":"popdog","place":"TRamp"}]}""", "TRamp")]
+    [Arguments("""{"map":"de_mirage","aliases":null}""", null)]
+    [Arguments("""{"map":"de_mirage","canonical":{"names":null},"aliases":[]}""", null)]
+    public async Task CalloutsWithANullEntry_LoadWithoutIt_AndResolve(string json, string? popdog)
+    {
+        string root = TempRoot();
+        try
+        {
+            string folder = StratStore.FolderFor(root, Team, "de_mirage");
+            Directory.CreateDirectory(folder);
+            await File.WriteAllTextAsync(Path.Combine(folder, "callouts.json"), json);
+            StratStore store = new(PackStores.At(root));
+
+            CalloutTable table = store.LoadCallouts(Team, "de_mirage");
+            CalloutResolver resolver = CalloutResolver.For("de_mirage", null, table);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(table.Aliases.Count).IsEqualTo(popdog is null ? 0 : 1);
+                await Assert.That(resolver.Resolve("popdog")).IsEqualTo(popdog);
+                await Assert.That(StratValidator.ValidateCallouts(table)).IsEmpty();
+                await Assert.That(table.Canonical is { Names: null }).IsFalse();
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
 }

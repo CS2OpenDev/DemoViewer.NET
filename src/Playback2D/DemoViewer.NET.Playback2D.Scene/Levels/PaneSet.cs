@@ -30,6 +30,10 @@ public sealed class PaneSet
     // under SingleLayout. Dropped only when the level is genuinely Removed, so a Stacked ⇄ Single round
     // trip gives the user back the pan and zoom they had on each floor.
     private readonly Dictionary<MapLevelId, LevelPane> _retained = [];
+
+    // A Fit that landed while a level was retained, applied when the level is arranged again: its stored
+    // band rectangle may not be the one it comes back in, so fitting it eagerly would frame the wrong size.
+    private readonly Dictionary<MapLevelId, WorldBounds> _pendingFits = [];
     private readonly List<LevelPane> _scratch = [];
     private SKSize _host;
     private int _lastArrangedCount = -1;
@@ -131,8 +135,10 @@ public sealed class PaneSet
             existing.ViewportRect = fresh.ViewportRect;
             existing.Space = space;
             existing.PaneCount = arranged.Count;
-            existing.Camera.Current = existing.Camera.Current
-                .WithViewport(fresh.ViewportRect.Width, fresh.ViewportRect.Height);
+            existing.Camera.Current = _pendingFits.Remove(fresh.Level.Id, out WorldBounds fit)
+                ? ViewportTransform.Fit(fresh.ViewportRect.Width, fresh.ViewportRect.Height,
+                    fit.MinX, fit.MinY, fit.MaxX, fit.MaxY)
+                : existing.Camera.Current.WithViewport(fresh.ViewportRect.Width, fresh.ViewportRect.Height);
             existing.SyncCameraEpoch();
             _scratch.Add(existing);
         }
@@ -174,6 +180,7 @@ public sealed class PaneSet
         for (int i = 0; i < removed.Count; i++)
         {
             _retained.Remove(removed[i]);
+            _pendingFits.Remove(removed[i]);
             for (int p = _panes.Count - 1; p >= 0; p--)
             {
                 if (_panes[p].LevelId == removed[i])
@@ -235,7 +242,8 @@ public sealed class PaneSet
 
     /// <summary>
     ///     Fits every pane to a world extent and clears its manual override, as the pre-v2
-    ///     <c>ApplyFitToAllSlices</c> did.
+    ///     <c>ApplyFitToAllSlices</c> did. A retained level is fitted when it is next arranged: the Fit
+    ///     rig holds the camera, so clearing its override alone would bring back the old pan.
     /// </summary>
     /// <param name="extent">The world rectangle to frame.</param>
     public void FitAll(WorldBounds extent)
@@ -247,6 +255,12 @@ public sealed class PaneSet
                 extent.MinX, extent.MinY, extent.MaxX, extent.MaxY);
             pane.Camera.ManualOverride = false;
             pane.SyncCameraEpoch();
+        }
+
+        foreach (LevelPane pane in _retained.Values)
+        {
+            pane.Camera.ManualOverride = false;
+            _pendingFits[pane.LevelId] = extent;
         }
     }
 

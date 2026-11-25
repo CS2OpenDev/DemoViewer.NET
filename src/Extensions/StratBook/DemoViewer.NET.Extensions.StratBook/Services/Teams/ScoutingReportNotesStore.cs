@@ -52,6 +52,12 @@ public sealed class ScoutingReportNotesStore
     /// <summary>Why the file could not be read, or null. While set the file is never written.</summary>
     public string? FileProblem { get; private set; }
 
+    /// <summary>
+    ///     Why the last write failed, or null once one lands. The edits stand in memory meanwhile and every later
+    ///     mutation writes them all again, but nothing keeps them past the session unless one succeeds.
+    /// </summary>
+    public string? SaveProblem { get; private set; }
+
     /// <summary>Every team this store holds something for; Team Identity keeps these through a rebuild.</summary>
     public IReadOnlyList<Guid> TeamIds => [.. _teams.Select(t => t.TeamId).Distinct()];
 
@@ -370,11 +376,19 @@ public sealed class ScoutingReportNotesStore
         }
 
         bool changed = false;
+        int dropped = 0;
         foreach (ScoutingReportTeamNotes incoming in file.Teams)
         {
             if (file.SchemaVersion < ScoutingReportNotesFile.CurrentSchema)
             {
                 RemapKeys(incoming);
+            }
+
+            if (teams.IsDropped(incoming.TeamId))
+            {
+                dropped++;
+                ledger.CountSkipped();
+                continue;
             }
 
             Guid teamId = teams.Map(incoming.TeamId);
@@ -407,10 +421,55 @@ public sealed class ScoutingReportNotesStore
             }
         }
 
+        if (dropped > 0)
+        {
+            ledger.Report($"the notes of {dropped} team(s) were left out: the team was deleted on this machine");
+        }
+
         if (changed)
         {
             Commit();
         }
+    }
+
+    /// <summary>
+    ///     Moves the notes of a team that was merged away onto the team that took it over, by the rules of an
+    ///     import that keeps this machine's: the summary, the in-game leader and a rewritten line stay the
+    ///     surviving team's where it has its own, and stars, left-out lines, seeded lines and written notes are
+    ///     united. Nothing stays filed under <paramref name="from" />. UI thread, like every other mutator.
+    /// </summary>
+    /// <param name="from">The id the merge tombstoned.</param>
+    /// <param name="into">The team that took it over.</param>
+    /// <returns>False when nothing was filed under <paramref name="from" />.</returns>
+    internal bool Rekey(Guid from, Guid into)
+    {
+        if (from == into || _teams.FirstOrDefault(t => t.TeamId == from) is not { } source)
+        {
+            return false;
+        }
+
+        _teams.Remove(source);
+        if (_teams.FirstOrDefault(t => t.TeamId == into) is { } mine)
+        {
+            Fold(mine, source, new ImportLedger(ImportConflictPolicy.KeepMine, static _ => { }));
+        }
+        else
+        {
+            _teams.Add(new ScoutingReportTeamNotes
+            {
+                TeamId = into,
+                Summary = source.Summary,
+                Igl = source.Igl,
+                Starred = source.Starred,
+                Hidden = source.Hidden,
+                Seeded = source.Seeded,
+                Notes = source.Notes,
+                Edits = source.Edits
+            });
+        }
+
+        Commit();
+        return true;
     }
 
     // True when anything changed. A conflict is counted where the two machines hold different values.
@@ -554,10 +613,13 @@ public sealed class ScoutingReportNotesStore
         {
             ScoutingReportNotesFile file = new() { Teams = [.. _teams] };
             _file.Write(JsonSerializer.SerializeToUtf8Bytes(file, ScoutingReportNotesFile.JsonOptions));
+            SaveProblem = null;
         }
-        catch (Exception)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // Best effort: the in-memory notes stand for the session and the next mutation retries.
+            // The in-memory notes stand for the session and the next mutation retries, but typed notes that never
+            // reach the file are lost at exit: the editor says so until a write lands. Commit raises Changed.
+            SaveProblem = $"{_file.Name} could not be saved ({e.Message}); edits are kept for this session only.";
         }
     }
 }

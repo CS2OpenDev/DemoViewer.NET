@@ -1,5 +1,6 @@
 #region
 
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DemoViewer.NET.Playback2D.Annotations;
@@ -493,8 +494,12 @@ public class AnnotationStoreTests
         eraser.OnReleased(in over, services);
     }
 
+    /// <summary>
+    ///     A sidecar that cannot be parsed opens as empty, but it is the user's file: it is moved aside to
+    ///     <c>&lt;name&gt;.unreadable-&lt;timestamp&gt;</c> before anything can be saved over it, never deleted.
+    /// </summary>
     [Test]
-    public async Task Load_TruncatedJson_ReturnsEmpty_DoesNotThrow()
+    public async Task Load_TruncatedJson_ReturnsEmpty_AndMovesTheFileAside()
     {
         using TempTree tree = new();
         AnnotationStore store = new(tree.AppData);
@@ -502,12 +507,91 @@ public class AnnotationStoreTests
 
         string path = store.ResolvePath(tree.DemoPath)!;
         string text = await File.ReadAllTextAsync(path);
-        await File.WriteAllTextAsync(path, text[..(text.Length / 2)]);
+        string truncated = text[..(text.Length / 2)];
+        await File.WriteAllTextAsync(path, truncated);
 
-        AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
+        AnnotationLoadResult loaded = await store.LoadForEditingAsync(tree.DemoPath, tree.Clock);
+        string[] aside = Directory.GetFiles(Path.GetDirectoryName(path)!,
+            Path.GetFileName(path) + ".unreadable-*");
 
         await Assert.That(loaded.Elements).IsEmpty();
         await Assert.That(loaded.DemoMismatch).IsFalse();
+        await Assert.That(loaded.Unreadable).IsTrue();
+        await Assert.That(loaded.MovedAsidePath).IsEqualTo(aside.SingleOrDefault());
+        await Assert.That(File.Exists(path)).IsFalse().Because("the next save must not land on the user's file");
+        await Assert.That(aside.Length).IsEqualTo(1);
+        await Assert.That(await File.ReadAllTextAsync(aside[0])).IsEqualTo(truncated);
+
+        await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
+        await Assert.That(await File.ReadAllTextAsync(aside[0])).IsEqualTo(truncated)
+            .Because("a save after the load writes a new sidecar and leaves the moved one alone");
+    }
+
+    /// <summary>
+    ///     A reader that only reads (a pack export's ink, a committed fixture) gets the same empty, flagged
+    ///     result, and the file stays where it is with nothing about it remembered.
+    /// </summary>
+    [Test]
+    public async Task Load_TruncatedJson_ForAReaderOnly_LeavesTheFileWhereItIs()
+    {
+        using TempTree tree = new();
+        AnnotationStore store = new(tree.AppData);
+        await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
+        string path = store.ResolvePath(tree.DemoPath)!;
+        string text = await File.ReadAllTextAsync(path);
+        string truncated = text[..(text.Length / 2)];
+        await File.WriteAllTextAsync(path, truncated);
+
+        AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
+        string[] aside = Directory.GetFiles(Path.GetDirectoryName(path)!,
+            Path.GetFileName(path) + ".unreadable-*");
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(loaded.Elements).IsEmpty();
+            await Assert.That(loaded.Unreadable).IsTrue();
+            await Assert.That(loaded.MovedAsidePath).IsNull();
+            await Assert.That(aside).IsEmpty();
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(truncated);
+        }
+    }
+
+    /// <summary>
+    ///     A sidecar that cannot even be moved (held open elsewhere, on Windows) is not saved over: the save
+    ///     refuses until the file can be moved aside, and then goes ahead.
+    /// </summary>
+    [Test]
+    public async Task ASidecarThatCouldNotBeMovedAside_IsNotOverwritten()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return; // only Windows refuses to rename a file another handle holds without delete sharing.
+        }
+
+        using TempTree tree = new();
+        AnnotationStore store = new(tree.AppData);
+        await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
+        string path = store.ResolvePath(tree.DemoPath)!;
+        string original = await File.ReadAllTextAsync(path);
+
+        bool savedWhileHeld;
+        using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            AnnotationLoadResult loaded = await store.LoadForEditingAsync(tree.DemoPath, tree.Clock);
+            await Assert.That(loaded.Elements).IsEmpty();
+            savedWhileHeld = await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, []);
+        }
+
+        string contentAfterRefusal = await File.ReadAllTextAsync(path);
+        bool savedLater = await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, []);
+        string[] aside = Directory.GetFiles(Path.GetDirectoryName(path)!,
+            Path.GetFileName(path) + ".unreadable-*");
+
+        await Assert.That(savedWhileHeld).IsFalse();
+        await Assert.That(contentAfterRefusal).IsEqualTo(original);
+        await Assert.That(savedLater).IsTrue();
+        await Assert.That(aside.Length).IsEqualTo(1);
+        await Assert.That(await File.ReadAllTextAsync(aside[0])).IsEqualTo(original);
     }
 
     [Test]
@@ -622,6 +706,66 @@ public class AnnotationStoreTests
 
         await Assert.That(saved).IsFalse();
         await Assert.That(File.Exists(path + ".tmp")).IsFalse();
+    }
+
+    /// <summary>
+    ///     A save cancelled while it is writing leaves no temp file beside the demo and the sidecar as it
+    ///     was. The debounced autosave is cancelled by the next stroke, so this is an ordinary path, and
+    ///     cancellation is the one failure the save does not turn into <c>false</c>.
+    /// </summary>
+    [Test]
+    public async Task Save_Cancelled_LeavesNoTempFile_AndThePreviousSidecar()
+    {
+        using TempTree tree = new();
+        AnnotationStore store = new(tree.AppData);
+        await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
+        string path = store.ResolvePath(tree.DemoPath)!;
+        byte[] before = await File.ReadAllBytesAsync(path);
+
+        using CancellationTokenSource cancelled = new();
+        await cancelled.CancelAsync();
+
+        bool threw = false;
+        try
+        {
+            await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock,
+                [AnnotationFakes.Stroke(), AnnotationFakes.Stroke()], cancelled.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            threw = true;
+        }
+
+        await Assert.That(threw).IsTrue();
+        await Assert.That(File.Exists(path + ".tmp")).IsFalse();
+        await Assert.That((await File.ReadAllBytesAsync(path)).AsSpan().SequenceEqual(before)).IsTrue();
+    }
+
+    /// <summary>
+    ///     A <c>null</c> in either document's element list is dropped, not dereferenced. The merge runs
+    ///     inside a library import, where anything but a <see cref="JsonException" /> ends the whole run
+    ///     rather than this one demo's annotations.
+    /// </summary>
+    [Test]
+    public async Task MergeDocuments_DropsANullElement_FromEitherSide_AndKeepsTheRest()
+    {
+        byte[] mine = Encoding.UTF8.GetBytes(
+            """{"schemaVersion":1,"demo":{"sha256":"x"},"elements":[{"id":"a","kind":"stroke"},null]}""");
+        byte[] theirs = Encoding.UTF8.GetBytes(
+            """{"schemaVersion":1,"demo":{"sha256":"x"},"elements":[null,{"id":"a","kind":"stroke"},{"id":"b","kind":"stroke"}]}""");
+
+        byte[] merged = AnnotationStore.MergeDocuments(mine, theirs);
+
+        using JsonDocument document = JsonDocument.Parse(merged);
+        JsonElement elements = document.RootElement.GetProperty("elements");
+        List<string?> ids = [];
+        foreach (JsonElement element in elements.EnumerateArray())
+        {
+            await Assert.That(element.ValueKind).IsEqualTo(JsonValueKind.Object);
+            ids.Add(element.GetProperty("id").GetString());
+        }
+
+        await Assert.That(string.Join(",", ids)).IsEqualTo("a,b");
     }
 
     [Test]

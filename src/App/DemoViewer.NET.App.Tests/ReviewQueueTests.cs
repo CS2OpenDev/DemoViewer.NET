@@ -248,8 +248,8 @@ public class ReviewQueueTests
             await Assert.That(clip.DemoPath).IsEqualTo("/d/a.dem");
             await Assert.That(clip.Sha256).IsEqualTo("sha-a.dem");
             await Assert.That(clip.Note).IsEqualTo("ace at 5000");
-            // The default padding: fifteen seconds in, floored at the round start, five out.
-            await Assert.That(clip.FromTick).IsEqualTo(Math.Max(1000, 5000 - 15 * 64));
+            // The default padding: fifteen seconds in, five out.
+            await Assert.That(clip.FromTick).IsEqualTo(5000 - 15 * 64);
             await Assert.That(clip.ToTick).IsEqualTo(5000 + 5 * 64);
         }
 
@@ -257,6 +257,31 @@ public class ReviewQueueTests
         queue.Remove([clip.Id]);
         await Assert.That(vm.StagedCount).IsEqualTo(0);
         await Assert.That(vm.IsStaged(new HighlightKey("/d/a.dem", "r", "ace", 5000, 0))).IsFalse();
+    }
+
+    /// <summary>
+    ///     A kill five seconds after freeze end, with the lead-in reaching back past it. The reel crosses the
+    ///     round start unless "Don't cross round start" is on, so the Review clip has to as well, or it opens
+    ///     ten seconds later than the reel's cut of the same highlight.
+    /// </summary>
+    [Test]
+    public async Task Staging_FloorsAtTheRoundStart_OnlyWhenTheReelDoes()
+    {
+        ReviewQueue queue = new(null);
+        DemoCacheRecord a = HighlightRow("/d/a.dem", "1", ("ace", 1320));
+        DemoCacheRecord b = HighlightRow("/d/b.dem", "2", ("ace", 1320));
+        (_, HighlightsTabViewModel vm) = Tray(queue, a, b);
+
+        await Assert.That(vm.ReelConfig.DontCrossRoundStart).IsFalse().Because("sanity: the reel's default");
+        vm.Stage(a, a.Highlights[0]);
+        vm.ReelConfig.DontCrossRoundStart = true;
+        vm.Stage(b, b.Highlights[0]);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(queue.Clips.Single(c => c.DemoPath == "/d/a.dem").FromTick).IsEqualTo(1320 - 15 * 64);
+            await Assert.That(queue.Clips.Single(c => c.DemoPath == "/d/b.dem").FromTick).IsEqualTo(1000);
+        }
     }
 
     [Test]

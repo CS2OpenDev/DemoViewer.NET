@@ -54,6 +54,10 @@ public partial class Playback2DView : UserControl
     // edit, a profile swap) would strand the surface panning forever.
     private Key? _holdPanKey;
 
+    // The window whose deactivation ends a hold; see ReleaseHoldPan. Kept so detach unsubscribes from the
+    // one attach subscribed to.
+    private WindowBase? _holdPanWindow;
+
     // The overflow menu's entries for Surface.ToolbarItems, rebuilt every open: tracked so the previous
     // set can be removed before the fresh one goes in (a pack toggled live, or a rebind's label change).
     private readonly List<MenuItem> _toolbarMenuItems = [];
@@ -450,8 +454,49 @@ public partial class Playback2DView : UserControl
             return;
         }
 
+        ReleaseHoldPan();
+    }
+
+    // Also the answer to a release that never arrives. A key-up goes to whoever has the keyboard when
+    // the key comes up, so Alt+Tab with the pan key down, or the tab being torn out from under it, left
+    // the router diverting every left press to a pan until the key was pressed and released again.
+    // Window deactivation rather than LostFocus: that one bubbles from every child, and focus moving to
+    // a toolbar button mid-hold is not the key coming up.
+    private void ReleaseHoldPan()
+    {
+        if (_holdPanKey is null)
+        {
+            return;
+        }
+
         _holdPanKey = null;
         _toolSurface?.SetSpacePanHeld(false);
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e) => ReleaseHoldPan();
+
+    /// <inheritdoc />
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        _holdPanWindow = TopLevel.GetTopLevel(this) as WindowBase;
+        if (_holdPanWindow is not null)
+        {
+            _holdPanWindow.Deactivated += OnWindowDeactivated;
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        if (_holdPanWindow is not null)
+        {
+            _holdPanWindow.Deactivated -= OnWindowDeactivated;
+            _holdPanWindow = null;
+        }
+
+        ReleaseHoldPan();
     }
 
     private bool IsTextInputFocused()

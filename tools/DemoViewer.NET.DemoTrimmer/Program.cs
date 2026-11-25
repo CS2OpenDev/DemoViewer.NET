@@ -60,8 +60,17 @@ internal static class Program
         }
     }
 
+    private static readonly string[] _inspectOptions = ["--boundaries"];
+
+    private static readonly string[] _trimOptions =
+    [
+        "--out", "--rounds", "--variants", "--boundary", "--skip-boundaries", "--prefix", "--no-verify",
+        "--no-baseline", "--no-identity-check"
+    ];
+
     private static int RunInspect(string[] args)
     {
+        RejectUnknownOptions(args, _inspectOptions);
         string path = args[1];
         int boundaries = IntOption(args, "--boundaries", 8);
         (byte[] raw, ParsedDemo demo) = Load(path);
@@ -84,6 +93,7 @@ internal static class Program
 
     private static int RunTrim(string[] args)
     {
+        RejectUnknownOptions(args, _trimOptions);
         string path = args[1];
         string outDir = StringOption(args, "--out") ?? Fail<string>("--out <dir> is required.");
         IReadOnlyList<int> roundCounts =
@@ -107,20 +117,16 @@ internal static class Program
             $"source: {Path.GetFileName(path)}  {DemoInspector.Mib(raw.LongLength)}  " +
             $"map={demo.MapName} frames={demo.Frames.Count} ticks={demo.TickCount}"));
 
-        // player_team synthesis inputs: sampled ONCE per source (every window shares round 1's
-        // seating). A missing descriptor or an empty sample set skips synthesis with a warning
-        // rather than emitting a file that will render every player on one team.
-        IReadOnlyList<TeamSample> teamSamples = TeamEventSynthesizer.Sample(demo);
+        // player_team synthesis inputs. The seating is sampled per WINDOW, at the first freeze-end
+        // the window contains: a window entered at a checkpoint after halftime has the sides
+        // swapped relative to round 1, and one seating for the whole source handed it the wrong
+        // one. Windows that enter at the same frame share a sample (every contiguous variant enters
+        // at 0), so the entity replay behind it runs once per distinct entry. A missing descriptor
+        // or an empty sample set skips synthesis with a warning rather than emitting a file that
+        // will render every player on one team.
         CMsgSource1LegacyGameEventList.Types.descriptor_t? teamDescriptor =
             TeamEventSynthesizer.FindDescriptor(demo, out int teamListFrame);
-        byte[]? teamPacket = teamDescriptor is not null && teamSamples.Count > 0
-            ? TeamEventSynthesizer.BuildPacketPayload(teamDescriptor, teamSamples)
-            : null;
-        Console.WriteLine(teamPacket is null
-            ? "WARNING: no player_team synthesis (descriptor or seated controllers missing) — " +
-            "trims ending before halftime will show every player on one team"
-            : string.Create(CultureInfo.InvariantCulture,
-                $"synthesizing {teamSamples.Count} player_team seatings: {string.Join(", ", teamSamples.Select(s => $"{s.Name}→{(s.Team == 3 ? "CT" : "T")}"))}"));
+        Dictionary<int, (IReadOnlyList<TeamSample> Samples, byte[]? Packet)> teamsByEntry = [];
         Console.WriteLine();
 
         int failures = 0;
@@ -132,13 +138,42 @@ internal static class Program
                     demo, rounds, variant.EnterAtCheckpoint, boundaryEvent, skipBoundaries);
                 string outPath = Path.Combine(outDir, $"{prefix}-{variant.Id}-{rounds}r.dem");
 
-                TrimResult result = DemoTrimWriter.Write(demo, raw, window, variant, outPath, identityCheck,
+                if (!teamsByEntry.TryGetValue(window.EntryIndex,
+                        out (IReadOnlyList<TeamSample> Samples, byte[]? Packet) teams))
+                {
+                    IReadOnlyList<TeamSample> sampled = TeamEventSynthesizer.Sample(demo, window.EntryIndex);
+                    teams = (sampled, teamDescriptor is not null && sampled.Count > 0
+                        ? TeamEventSynthesizer.BuildPacketPayload(teamDescriptor, sampled)
+                        : null);
+                    teamsByEntry[window.EntryIndex] = teams;
+                    Console.WriteLine(teams.Packet is null
+                        ? "WARNING: no player_team synthesis (descriptor or seated controllers missing) — " +
+                        "trims ending before halftime will show every player on one team"
+                        : string.Create(CultureInfo.InvariantCulture,
+                            $"synthesizing {sampled.Count} player_team seatings (entry frame {window.EntryIndex}): {string.Join(", ", sampled.Select(s => $"{s.Name}→{(s.Team == 3 ? "CT" : "T")}"))}"));
+                    Console.WriteLine();
+                }
+
+                // A candidate that is going to be verified takes its name only once it has passed: one that
+                // fails must not replace the good candidate an earlier run left under the same name.
+                string writePath = verify ? outPath + UnverifiedSuffix : outPath;
+                (IReadOnlyList<TeamSample> teamSamples, byte[]? teamPacket) = teams;
+                TrimResult result = DemoTrimWriter.Write(demo, raw, window, variant, writePath, identityCheck,
                     teamPacket, teamSamples, teamListFrame);
                 PrintResult(result, raw.LongLength);
 
                 if (verify)
                 {
-                    failures += VerifyEmitted(demo, raw, result, baseline) ? 0 : 1;
+                    if (VerifyEmitted(demo, raw, result, baseline))
+                    {
+                        File.Move(writePath, outPath, true);
+                    }
+                    else
+                    {
+                        failures++;
+                        Console.WriteLine(
+                            $"  kept for inspection as {Path.GetFileName(writePath)}; {Path.GetFileName(outPath)} was not written");
+                    }
                 }
 
                 Console.WriteLine();
@@ -150,6 +185,9 @@ internal static class Program
             : $"{failures} candidate(s) FAILED verification.");
         return failures == 0 ? 0 : 2;
     }
+
+    // What a candidate is called until it has passed verification.
+    private const string UnverifiedSuffix = ".unverified";
 
     private static bool VerifyEmitted(ParsedDemo source, byte[] sourceRaw, TrimResult result, bool baseline)
     {
@@ -225,10 +263,32 @@ internal static class Program
         return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
     }
 
-    private static int IntOption(string[] args, string name, int fallback) =>
-        StringOption(args, name) is { } raw && int.TryParse(raw, CultureInfo.InvariantCulture, out int value)
+    // Absent is the fallback. Present but missing or not an integer is an error: falling back there
+    // made `--skip-boundaries three` indistinguishable from not passing it, and the run still
+    // reported a verified trim of the wrong rounds.
+    internal static int IntOption(string[] args, string name, int fallback)
+    {
+        if (Array.IndexOf(args, name) < 0)
+        {
+            return fallback;
+        }
+
+        return StringOption(args, name) is { } raw && int.TryParse(raw, CultureInfo.InvariantCulture, out int value)
             ? value
-            : fallback;
+            : throw new ArgumentException($"{name} expects an integer.");
+    }
+
+    // A misspelled option (`--skip-boundary`, `--skip-boundaries=3`) is otherwise silently ignored.
+    internal static void RejectUnknownOptions(string[] args, string[] known)
+    {
+        foreach (string arg in args.Skip(2))
+        {
+            if (arg.StartsWith("--", StringComparison.Ordinal) && !known.Contains(arg, StringComparer.Ordinal))
+            {
+                throw new ArgumentException($"unknown option: {arg}");
+            }
+        }
+    }
 
     private static int Fail(string message)
     {

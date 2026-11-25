@@ -182,6 +182,43 @@ public class Playback2DLevelStripTests
     }
 
     /// <summary>
+    ///     The view and its host are rebuilt on every tab activation while the strip's view-model is
+    ///     cached, and a fresh host starts on its own default floor. With AUTO off nothing corrects it, so
+    ///     the floor the user picked has to come back from the view-model.
+    /// </summary>
+    [Test]
+    public async Task ManualPick_SurvivesATabSwitch()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
+            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+
+            Scene2DHost host = TwoFloors(ctx, view);
+            MapLevelId lowest = host.Levels.Levels[0].Id;
+            vm.LevelStrip.SelectCommand.Execute(vm.LevelStrip.Chips[^1]);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(host.ActiveLevelId).IsEqualTo(lowest);
+
+            // What a tab switch does to the view: dropped, then built again around a new host.
+            view.DataContext = null;
+            window.Close();
+            (Window again, Playback2DView rebuilt) = Playback2DTimelineHarness.Show(vm);
+            Scene2DHost fresh = TwoFloors(ctx, rebuilt);
+
+            await Assert.That(fresh).IsNotSameReferenceAs(host);
+            await Assert.That(fresh.Levels.Levels.Count).IsEqualTo(2);
+            await Assert.That(fresh.DisplayMode).IsEqualTo(LevelDisplayMode.Single);
+            await Assert.That(fresh.AutoLevelFollow).IsFalse();
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsFalse();
+            await Assert.That(fresh.ActiveLevelId).IsEqualTo(lowest)
+                .Because("the user picked the lower floor and AUTO is off, so nothing else may move it");
+
+            again.Close();
+        });
+    }
+
+    /// <summary>
     ///     The gate covers AutoFollow only. The strip still picks floors with it off. A manual picker
     ///     does not need a permanent persisted key of its own.
     /// </summary>
@@ -209,6 +246,58 @@ public class Playback2DLevelStripTests
             vm.LevelStrip.SelectCommand.Execute(vm.LevelStrip.Chips[^1]);
             Playback2DTimelineHarness.Pump();
             await Assert.That(host.ActiveLevelId).IsEqualTo(host.Levels.Levels[0].Id);
+
+            window.Close();
+        });
+    }
+
+    /// <summary>
+    ///     The other half of "a gate going off is not the user changing their mind". The gate forces the
+    ///     flag off without persisting it, but the NEXT thing that persisted (the STACK/SINGLE toggle)
+    ///     used to write the forced value as the preference, and the gate coming back restored nothing.
+    /// </summary>
+    [Test]
+    public async Task AutoPreference_SurvivesASaveMadeWhileTheGateIsOff_AndComesBackWithTheGate()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
+            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+
+            Scene2DHost host = TwoFloors(ctx, view);
+            vm.LevelStrip.ApplySettings(LevelDisplayMode.Stacked, true);
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsTrue();
+
+            ctx.Gate!.SetEnabled("playback2d.levels.auto", false);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsFalse();
+
+            int saves = 0;
+            vm.LevelStrip.SettingsChanged += () => saves++;
+            vm.LevelStrip.ToggleDisplayModeCommand.Execute(null);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(saves).IsEqualTo(1);
+            await Assert.That(vm.LevelStrip.AutoFollowPreference).IsTrue()
+                .Because("this is what that save wrote as Playback2D:AutoLevelFollow");
+
+            // A floor picked with the gate off is not a verdict on a chip the user cannot see either.
+            vm.LevelStrip.SelectCommand.Execute(vm.LevelStrip.Chips[^1]);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(vm.LevelStrip.AutoFollowPreference).IsTrue();
+
+            ctx.Gate!.SetEnabled("playback2d.levels.auto", true);
+            Playback2DTimelineHarness.Pump();
+
+            await Assert.That(vm.LevelStrip.IsAutoAvailable).IsTrue();
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsTrue()
+                .Because("the user never turned AutoFollow off; a feature flag did, for a while");
+            await Assert.That(host.AutoLevelFollow).IsTrue();
+
+            // With the gate on, a manual pick IS the user turning it off, as it always was.
+            vm.LevelStrip.SelectCommand.Execute(vm.LevelStrip.Chips[^1]);
+            Playback2DTimelineHarness.Pump();
+            await Assert.That(vm.LevelStrip.IsAutoEnabled).IsFalse();
+            await Assert.That(vm.LevelStrip.AutoFollowPreference).IsFalse();
 
             window.Close();
         });

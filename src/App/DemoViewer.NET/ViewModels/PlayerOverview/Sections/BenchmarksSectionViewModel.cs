@@ -42,6 +42,9 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
     // The last population pooled, kept while the library, subject, filter and minimum hold: the band toggle
     // and a refresh that changes none of them pool nothing again.
     private Pooled? _pooled;
+
+    // The account the rows on show were computed for.
+    private ulong? _shownFor;
     private bool _updating;
 
     [ObservableProperty]
@@ -160,6 +163,13 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
         PlayerRankCache? rankCache = request.Band is null ? null : _services.Ranks;
         LibraryRanks? ranks = rankCache?.TryGetLibrary();
         // Rows already on show stay while a demo the queue finished is pooled in; only a first read says so.
+        // Another subject's rows never stay: they carry that player's own values and would read as this one's.
+        if (Rows.Count > 0 && _shownFor != request.Subject)
+        {
+            Rows = [];
+            PopulationText = NoteText = "";
+        }
+
         bool quiet = Rows.Count > 0;
         object gate = new();
         bool reading = !quiet;
@@ -239,6 +249,7 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
 
     private void Show(Request request, Result? result)
     {
+        _shownFor = request.Subject;
         if (result is null)
         {
             Rows = [];

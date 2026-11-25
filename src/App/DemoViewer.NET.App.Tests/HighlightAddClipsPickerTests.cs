@@ -95,6 +95,36 @@ public class HighlightAddClipsPickerTests
         await Assert.That(picker.Rows[0].DurationText).IsEqualTo("~20s");
     }
 
+    /// <summary>
+    ///     A 4K whose first kill came 30 s before the fourth: the reel reaches back to that first kill, so
+    ///     the estimate has to as well, or the row says ~20s for a clip that renders at ~35s.
+    /// </summary>
+    [Test]
+    public async Task DurationEstimate_ReachesBackToTheFirstEventOfAMultiEventHighlight()
+    {
+        DemoCacheRecord record = Row("/d/a.dem", "de_mirage", 1, [Ev("s1mple", "1", 1, 54_000, "multi.quad_kill")]);
+        CachedHighlightEvent quad = record.Highlights[0];
+        CachedHighlightEvent withStart = new()
+        {
+            RulesetId = quad.RulesetId,
+            HighlightId = quad.HighlightId,
+            PlayerSlot = quad.PlayerSlot,
+            RoundNumber = quad.RoundNumber,
+            Tick = quad.Tick,
+            RenderedTitle = quad.RenderedTitle,
+            ClipStartTick = quad.Tick - (30 * 64)
+        };
+
+        AddClipsRowViewModel row = new(record, withStart, 15, 5, false, _ => { });
+        AddClipsRowViewModel plain = new(record, quad, 15, 5, false, _ => { });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(row.DurationText).IsEqualTo("~35s");
+            await Assert.That(plain.DurationText).IsEqualTo("~20s");
+        }
+    }
+
     [Test]
     public async Task Coverage_Counts_DemosWithEVENTS_NotIndexedRows()
     {
@@ -161,6 +191,23 @@ public class HighlightAddClipsPickerTests
         picker.ClearFiltersCommand.Execute(null);
         await Assert.That(picker.Rows.Count).IsEqualTo(3);
         await Assert.That(picker.HasActiveFilters).IsFalse();
+    }
+
+    // Every bot's SteamID64 is "0", so keyed on the id alone all bots were one filter bucket under one name.
+    [Test]
+    public async Task PlayerFilter_KeepsBotsApart()
+    {
+        DemoCacheRecord record = Row("/d/bots.dem", "de_dust2", 1, [Ev("Mike", "0", 7, 5000, "clutch.ace")]);
+        record.Players.Add(new CachedPlayerInfo { Slot = 6, Name = "Jon", SteamId64 = "0", IsBot = true });
+        record.Highlights.Add(new CachedHighlightEvent
+        {
+            RulesetId = "clutch", HighlightId = "ace", PlayerSlot = 6, RoundNumber = 7, Tick = 5200,
+            RenderedTitle = "Jon — ace"
+        });
+
+        AddClipsPickerViewModel picker = Picker(record);
+
+        await Assert.That(picker.PlayerFilters.Select(p => p.Display)).IsEquivalentTo(["Jon", "Mike"]);
     }
 
     [Test]

@@ -17,7 +17,9 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///     <para>
 ///         <b>It buffers every frame in memory</b> (as RGB; alpha is dropped, export frames are
 ///         opaque), which is why the caps exist: the one global palette needs the whole animation
-///         before any frame can be mapped to it. <see cref="SceneExportSession.Validate" /> enforces the same ceilings on the request,
+///         before any frame can be mapped to it, and the memory budget
+///         (<see cref="SceneExportSession.GifMaxBufferedBytes" />) is checked here too.
+///         <see cref="SceneExportSession.Validate" /> enforces the same ceilings on the request,
 ///         so a user is refused before rendering rather than after.
 ///     </para>
 ///     <para>
@@ -26,16 +28,23 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///         33.3 fps.
 ///     </para>
 /// </summary>
-public sealed class ManagedGifSink : IFrameSink
+public sealed class ManagedGifSink : IFrameSink, IAbortableFrameSink, IOutputOpeningFrameSink
 {
     private readonly int _maxFrames;
     private readonly string _outputPath;
+    private readonly string _stagingPath;
     private bool _cancelled;
     private bool _disposed;
+    private bool _opened;
     private readonly List<byte[]> _frames = [];
     private WuColorQuantizer? _quantizer;
     private int _width;
     private int _height;
+
+    // The token of the most recent write. The session checks its token at the top of each frame, so a
+    // cancel usually surfaces there and never reaches WriteAsync; this is how DisposeAsync still learns
+    // of it.
+    private CancellationToken _lastWriteToken;
 
     /// <summary>Creates the sink.</summary>
     /// <param name="outputPath">Where the GIF goes. Overwritten on success.</param>
@@ -58,6 +67,7 @@ public sealed class ManagedGifSink : IFrameSink
         // Same reason as FfmpegFrameSink: the file is only opened at Dispose, and a missing directory
         // found then would discard every frame accumulated in memory.
         _outputPath = ExportOutputPath.EnsureDirectory(outputPath);
+        _stagingPath = ExportOutputPath.StagingPath(_outputPath);
         _maxFrames = maxFrames;
         FrameDelayCentiseconds = 100 / fps;
     }
@@ -73,6 +83,7 @@ public sealed class ManagedGifSink : IFrameSink
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        _lastWriteToken = ct;
         if (ct.IsCancellationRequested)
         {
             _cancelled = true;
@@ -83,6 +94,14 @@ public sealed class ManagedGifSink : IFrameSink
         {
             throw new ExportValidationException(string.Create(CultureInfo.InvariantCulture,
                 $"A GIF is capped at {_maxFrames} frames. Shorten the range or export WebM."));
+        }
+
+        // The memory budget, for a caller that skipped Validate: the size is only known from the frames.
+        if (FramesWritten >= SceneExportSession.GifMaxFramesFor(width, height))
+        {
+            throw new ExportValidationException(string.Create(CultureInfo.InvariantCulture,
+                $"A {width}×{height} GIF is capped at {FramesWritten} frames to stay within 2 GB of memory. " +
+                $"Shorten the range, choose a smaller size, or export MP4."));
         }
 
         if (rgba.Length < width * height * 4)
@@ -129,7 +148,8 @@ public sealed class ManagedGifSink : IFrameSink
 
         try
         {
-            if (_quantizer is null || _cancelled || FramesWritten == 0)
+            if (_quantizer is null || _cancelled || _lastWriteToken.IsCancellationRequested ||
+                FramesWritten == 0)
             {
                 return ValueTask.CompletedTask;
             }
@@ -151,11 +171,19 @@ public sealed class ManagedGifSink : IFrameSink
     /// <summary>Marks the export cancelled so <see cref="DisposeAsync" /> writes nothing.</summary>
     public void Cancel() => _cancelled = true;
 
+    /// <inheritdoc />
+    void IAbortableFrameSink.Abort() => _cancelled = true;
+
+    /// <inheritdoc />
+    bool IOutputOpeningFrameSink.OutputOpened => _opened;
+
     private void Write(byte[] palette)
     {
+        // Written aside and moved into place, so a failed write (a full disk) leaves an earlier export at
+        // the path as it was rather than truncated and then deleted.
         try
         {
-            using FileStream file = new(_outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16);
+            using FileStream file = new(_stagingPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16);
             GifAnimationWriter writer = new(file, _width, _height, palette);
 
             for (int i = 0; i < _frames.Count; i++)
@@ -173,8 +201,11 @@ public sealed class ManagedGifSink : IFrameSink
         }
         catch
         {
-            File.Delete(_outputPath);
+            File.Delete(_stagingPath);
             throw;
         }
+
+        ExportOutputPath.Commit(_stagingPath, _outputPath);
+        _opened = true;
     }
 }

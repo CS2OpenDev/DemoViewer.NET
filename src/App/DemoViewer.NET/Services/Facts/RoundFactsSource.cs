@@ -41,15 +41,24 @@ public sealed class RoundFactsSource : IRoundFactsSource
             return null;
         }
 
-        if (record.RoundFacts is null && _demoCache.TryGetIndex(demoPath)?.RoundFactsStamp() is { Schema: > 0 }
-            && record.RoundFactsStamp() is not { Schema: > 0 })
+        if (_demoCache.TryGetIndex(demoPath) is { } row && ClaimsMissingRows(record, row))
         {
-            _demoCache.Upsert(record);
+            // The record above was read outside the store's write lock. The store reads it again inside, so
+            // a write that landed in between is neither lost nor taken for the stale row.
+            if (!_demoCache.RewriteRowIf(demoPath, ClaimsMissingRows))
+            {
+                return _demoCache.TryLoadRecord(demoPath)?.RoundFacts;
+            }
+
             _demoCache.SaveIndex();
         }
 
         return record.RoundFacts;
     }
+
+    private static bool ClaimsMissingRows(DemoCacheRecord record, DemoCacheIndexEntry row) =>
+        record.RoundFacts is null && row.RoundFactsStamp() is { Schema: > 0 }
+        && record.RoundFactsStamp() is not { Schema: > 0 };
 
     /// <inheritdoc />
     public RoundFacts? RoundAt(string demoPath, int frameClockTick) =>

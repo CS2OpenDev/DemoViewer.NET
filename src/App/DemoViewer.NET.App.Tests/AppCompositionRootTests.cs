@@ -15,6 +15,7 @@ using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Theming;
+using DemoViewer.NET.ViewModels.Settings;
 using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -379,6 +380,58 @@ public class AppCompositionRootTests
                     .Because("a persisted drop-in theme must resolve at launch (Reload before Install before Apply)");
                 await Assert.That(afterReload).IsEqualTo(Color.Parse("#654321"))
                     .Because("editing the active theme + Reload must repaint via the WireTheme subscription");
+            }
+        });
+    }
+
+    // (f) The theme editor's "Apply to app" preview survives a settings write that is not about the theme. Any
+    // write reloads the config and fires OnChange, and WireTheme re-applied the SAVED theme on every one, so a
+    // background write (the extension update check stamping LastUpdateCheckUtc) snapped the app off the preview.
+    [Test]
+    public async Task WireTheme_UnrelatedSettingsWrite_KeepsTheEditorPreviewOnTheApp()
+    {
+        await WithProvider(new DesktopWindowService(() => null), provider =>
+        {
+            Application app = Application.Current!;
+            ThemeVariant? original = app.RequestedThemeVariant;
+            ThemeRegistry registry = provider.GetRequiredService<ThemeRegistry>();
+            SettingsService settings = provider.GetRequiredService<SettingsService>();
+            ThemeEditorHost host = provider.GetRequiredService<ThemeEditorLauncher>().Host;
+
+            ThemeVariant preview;
+            ThemeVariant? afterWrite;
+            ThemeVariant? afterRestore;
+            try
+            {
+                settings.Write(s => s.Theme = "dark");
+                App.WireTheme(provider);
+
+                preview = registry.BeginPreview(registry.PaletteFor("dark")!);
+                host.ShowAppIn(preview);
+                settings.Write(s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+                Dispatcher.UIThread.RunJobs();
+                afterWrite = app.RequestedThemeVariant;
+
+                host.RestoreApp();
+                registry.EndPreview();
+                settings.Write(s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+                Dispatcher.UIThread.RunJobs();
+                afterRestore = app.RequestedThemeVariant;
+            }
+            finally
+            {
+                app.RequestedThemeVariant = original;
+                registry.Uninstall(app);
+            }
+
+            return AssertBoth();
+
+            async Task AssertBoth()
+            {
+                await Assert.That(afterWrite).IsEqualTo(preview)
+                    .Because("a write that does not touch the theme must leave the editor's preview on the app");
+                await Assert.That(afterRestore).IsEqualTo(ThemeVariant.Dark)
+                    .Because("once the editor restores the app, writes apply the saved theme again");
             }
         });
     }

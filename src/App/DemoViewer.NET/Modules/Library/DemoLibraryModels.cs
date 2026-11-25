@@ -346,7 +346,9 @@ public sealed class DemoLibraryCacheEntry
 
     public string Path { get; init; } = "";
     public long Size { get; init; }
-    public long ModifiedTicks { get; init; }
+
+    // Set only to follow the file's write time across a time zone change (DemoFileStamp).
+    public long ModifiedTicks { get; set; }
 
     // Tier 1
     public string? Map { get; set; }

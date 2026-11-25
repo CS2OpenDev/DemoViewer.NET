@@ -31,6 +31,8 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Headless;
 /// </summary>
 public sealed class HeadlessSceneRenderer : IDisposable
 {
+    // The fit each pane was last given, by this renderer or at its birth. See RefitAfterReshape.
+    private readonly Dictionary<MapLevelId, ViewportTransform> _autoFits = [];
     private readonly List<LevelPaneSnapshot> _snapshots = new(4);
     private readonly IRenderSurfaceProvider _surfaces;
     private bool _disposed;
@@ -234,7 +236,7 @@ public sealed class HeadlessSceneRenderer : IDisposable
         // mid-export (a player takes the lift on Nuke) is fitted to this too, rather than to a rectangle
         // that has nothing to do with the map.
         WorldBounds extent = frame.Map.NetworkedBounds ?? frame.Map.ObservedBounds;
-        Panes.Reconcile(Levels.Space, DisplayMode, host, extent);
+        bool reshaped = Panes.Reconcile(Levels.Space, DisplayMode, host, extent);
 
         // The one-shot fit, before the pin and the policy so an explicit camera still wins. "Real map
         // extent" is either a networked rectangle or at least one marker to have observed; a pane fitted
@@ -244,6 +246,11 @@ public sealed class HeadlessSceneRenderer : IDisposable
         {
             Panes.FitAll(extent);
             _initialFitApplied = true;
+            RememberFits();
+        }
+        else if (reshaped && AutoFitOnFirstMapBounds && _initialFitApplied && !AdvanceCameras)
+        {
+            RefitAfterReshape(extent);
         }
 
         UpdateCrossings(frame);
@@ -284,6 +291,59 @@ public sealed class HeadlessSceneRenderer : IDisposable
             Levels.Space);
 
         return keepArmed;
+    }
+
+    private void RememberFits()
+    {
+        IReadOnlyList<LevelPane> panes = Panes.Panes;
+        for (int i = 0; i < panes.Count; i++)
+        {
+            _autoFits[panes[i].LevelId] = panes[i].Camera.Current;
+        }
+    }
+
+    /// <summary>
+    ///     Re-frames the panes that are still on the fit they were given, after the pane set changed shape.
+    ///     <para>
+    ///         A level born mid-export halves the band of the one already there, and reconciliation
+    ///         carries that pane's camera across at its old pixel scale: half the map, cropped, beside a
+    ///         new floor fitted at half the scale. The live host's rigs put that right on the next frame;
+    ///         here the one-shot fit is spent and no rig runs.
+    ///     </para>
+    ///     <para>
+    ///         Only a camera that is still exactly that fit. One a script or a caller has moved since is
+    ///         theirs, and it runs before the pin and the policy like the first fit does, so an explicit
+    ///         camera still has the last word.
+    ///     </para>
+    /// </summary>
+    private void RefitAfterReshape(WorldBounds extent)
+    {
+        IReadOnlyList<LevelPane> panes = Panes.Panes;
+        for (int i = 0; i < panes.Count; i++)
+        {
+            LevelPane pane = panes[i];
+            float width = pane.ViewportRect.Width;
+            float height = pane.ViewportRect.Height;
+            ViewportTransform fit = ViewportTransform.Fit(width, height,
+                extent.MinX, extent.MinY, extent.MaxX, extent.MaxY);
+
+            if (_autoFits.TryGetValue(pane.LevelId, out ViewportTransform given))
+            {
+                if (pane.Camera.ManualOverride || !pane.Camera.Current.Equals(given.WithViewport(width, height)))
+                {
+                    continue;
+                }
+
+                pane.Camera.Current = fit;
+                pane.SyncCameraEpoch();
+            }
+            else if (!pane.Camera.Current.Equals(fit))
+            {
+                continue; // not a pane born this frame on the fit: nothing of ours to keep track of.
+            }
+
+            _autoFits[pane.LevelId] = fit;
+        }
     }
 
     /// <summary>Fits every pane to the frame's observed extent. The offscreen equivalent of the host's one-shot fit.</summary>

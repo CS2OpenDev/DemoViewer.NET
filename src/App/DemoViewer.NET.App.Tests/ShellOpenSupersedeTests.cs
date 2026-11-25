@@ -10,7 +10,7 @@ namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     An open whose file read finishes after a newer open has already landed must leave the shell to the
-///     newer open. The fake parse fails, so the newer open ends with its path and its error on the shell.
+///     newer open. The fake parse fails, so the newer open ends with no demo open and its error on the shell.
 /// </summary>
 [NotInParallel]
 public class ShellOpenSupersedeTests
@@ -47,7 +47,7 @@ public class ShellOpenSupersedeTests
 
                 using (Assert.Multiple())
                 {
-                    await Assert.That(vm.LoadedDemoPath).IsEqualTo(b);
+                    await Assert.That(vm.LoadedDemoPath).IsNull();
                     await Assert.That(vm.StatusText).IsEqualTo(afterB);
                     await Assert.That(vm.IsLoading).IsFalse();
                     await Assert.That(items.Single(s => s.DisplayName == "Open demo: a.bin").State)

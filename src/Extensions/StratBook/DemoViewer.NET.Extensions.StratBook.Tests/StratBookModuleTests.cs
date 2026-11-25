@@ -443,6 +443,33 @@ public class StratBookModuleTests
     }
 
     [Test]
+    public async Task AFailedDelete_SaysSo_AndLeavesTheStratListed()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            string root = TempRoot();
+            try
+            {
+                FaultyFolder folder = new(PackStores.At(root));
+                StratStore store = new(folder);
+                using StratBookTabViewModel vm = OpenNew(store);
+                folder.FailMove = (_, _) => true;
+                vm.DeleteStratCommand.Execute(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(vm.ListLine).IsEqualTo("strat could not be deleted");
+                    await Assert.That(vm.Strats.Count).IsEqualTo(1);
+                }
+            }
+            finally
+            {
+                DeleteQuietly(root);
+            }
+        });
+    }
+
+    [Test]
     public async Task TheBrowserHost_SaysStratsAreSessionOnly()
     {
         await HeadlessSession.RunOnUi(async () =>

@@ -209,6 +209,31 @@ public class ExtensionStoresTests
         }
     }
 
+    // The listing's pattern is a name pattern: a directory part in it would be joined onto the folder and
+    // list what sits beside the store.
+    [Test]
+    [Arguments("../*")]
+    [Arguments("..\\*")]
+    [Arguments("..")]
+    public async Task AListingPatternThatLeavesTheFolder_IsRefused(string pattern)
+    {
+        string root = NewRoot();
+        try
+        {
+            IExtensionFolder folder =
+                Declared(root, root, new StoreDescriptor("s", "S", StoreRoot.Config, [ExtensionId], IsUserWork: true))
+                    .Open("s")!;
+            folder.WriteAtomic("mine.json", [1]);
+            await File.WriteAllTextAsync(Path.Combine(root, ExtensionId, "..", "secret.txt"), "x");
+
+            await Assert.That(() => folder.EnumerateFiles("", pattern)).Throws<ArgumentException>();
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     [Test]
     public async Task AStoreNotDeclared_OrDeclaringSeveralPaths_DoesNotOpen()
     {

@@ -274,6 +274,35 @@ public class StratsImportTests
     }
 
     [Test]
+    public async Task AFastForward_ThatChangesTheMap_LeavesOneStratFile()
+    {
+        using Machines m = new();
+        StratDocument strat = Committed(m.There);
+        m.Import();
+        PatchOp op = PatchOp.ReplaceOp("/map", JsonValue.Create("de_mirage"), JsonValue.Create("de_inferno"));
+        StratSaveResult moved = m.There.Save(StratHistory.Apply(m.There.TryLoad(strat.Id)!, [op]), [op], null);
+
+        ImportLedger ledger = m.Import();
+
+        string[] files =
+        [
+            .. Directory.EnumerateFiles(m.HerePath, $"{strat.Id:D}{StratStore.StratExtension}",
+                SearchOption.AllDirectories)
+        ];
+        StratStore restarted = new(PackStores.At(m.HerePath));
+        using (Assert.Multiple())
+        {
+            await Assert.That(moved.Saved).IsTrue();
+            await Assert.That(ledger.Merged).IsEqualTo(1);
+            await Assert.That(files.Length).IsEqualTo(1)
+                .Because("the copy on the old map has no log beside it and would be listed at the next start");
+            await Assert.That(files[0]).Contains("de_inferno");
+            await Assert.That(restarted.Index.Single().Map).IsEqualTo("de_inferno");
+            await Assert.That(restarted.History(strat.Id).Select(e => e.Revision)).IsEquivalentTo([1, 2]);
+        }
+    }
+
+    [Test]
     public async Task BothChanged_KeepMine_KeepsThisMachines_AndSaysSo()
     {
         using Machines m = new();
@@ -374,6 +403,89 @@ public class StratsImportTests
             await Assert.That(ledger.Skipped).IsEqualTo(1);
             await Assert.That(ledger.Added).IsEqualTo(0);
             await Assert.That(m.Lines.Any(l => l.Contains("does not replay"))).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task ANewStrat_WithANullInAList_IsLeftOut()
+    {
+        using Machines m = new();
+        StratDocument strat = Committed(m.There);
+        string file = Directory.EnumerateFiles(m.TherePath, "*" + StratStore.StratExtension,
+            SearchOption.AllDirectories).Single();
+        JsonObject edited = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
+        edited["slots"] = new JsonArray((JsonNode?)null);
+        File.WriteAllText(file, edited.ToJsonString());
+
+        ImportLedger ledger = m.Import();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(m.Here.Index.Any(e => e.Id == strat.Id)).IsFalse();
+            await Assert.That(ledger.Skipped).IsEqualTo(1);
+            await Assert.That(ledger.Added).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task ALogLineWithNullOps_LeavesThatStratOut_AndTheRestOfTheImportRuns()
+    {
+        using Machines m = new();
+        StratDocument broken = Committed(m.There);
+        Rename(m.There, broken.Id, "A split");
+        StratDocument fine = Committed(m.There);
+        string log = Directory.EnumerateFiles(m.TherePath, broken.Id + StratStore.HistoryExtension,
+            SearchOption.AllDirectories).Single();
+        string[] lines = [.. File.ReadAllLines(log).Where(l => l.Length > 0)];
+        JsonObject second = JsonNode.Parse(lines[1])!.AsObject();
+        second["ops"] = null;
+        lines[1] = second.ToJsonString();
+        File.WriteAllLines(log, lines);
+        m.There.SaveBook(new StratBook { Owner = StratTestData.Team, Notes = "their notes" });
+
+        ImportLedger ledger = null!;
+        await Assert.That(() => ledger = m.Import()).ThrowsNothing();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(m.Here.Index.Any(e => e.Id == broken.Id)).IsFalse();
+            await Assert.That(m.Here.Index.Any(e => e.Id == fine.Id)).IsTrue();
+            await Assert.That(m.Here.LoadBook(StratTestData.Team).Notes).IsEqualTo("their notes")
+                .Because("the books come after the strats, and one bad strat does not end the import");
+            await Assert.That(ledger.Skipped).IsGreaterThanOrEqualTo(1);
+        }
+    }
+
+    [Test]
+    public async Task NullsInABundlesBookAndCallouts_AreSkipped_AndALocalNullAliasListIsTolerated()
+    {
+        using Machines m = new();
+        StratOwner owner = StratTestData.Team;
+        m.There.SaveBook(new StratBook { Owner = owner, SlotDefaults = { ["r1"] = new() { ["A"] = "1" } } });
+        m.There.SaveCallouts(owner, new CalloutTable
+        {
+            Map = "de_mirage", Aliases = { new CalloutAlias { Alias = "palace", Place = "Palace" } }
+        });
+        string theirBook = Path.Combine(m.TherePath, owner.FolderName, "book.json");
+        JsonObject book = JsonNode.Parse(File.ReadAllText(theirBook))!.AsObject();
+        book["slotDefaults"]!["r2"] = null;
+        File.WriteAllText(theirBook, book.ToJsonString());
+        string theirCallouts = Path.Combine(m.TherePath, owner.FolderName, "de_mirage", "callouts.json");
+        JsonObject callouts = JsonNode.Parse(File.ReadAllText(theirCallouts))!.AsObject();
+        callouts["aliases"]!.AsArray().Add(null);
+        File.WriteAllText(theirCallouts, callouts.ToJsonString());
+        // A hand-edited local table: LoadCallouts reads it as empty, so the import must too.
+        Directory.CreateDirectory(Path.Combine(m.HerePath, owner.FolderName, "de_mirage"));
+        File.WriteAllText(Path.Combine(m.HerePath, owner.FolderName, "de_mirage", "callouts.json"),
+            "{\"schemaVersion\":1,\"map\":\"de_mirage\",\"aliases\":null}");
+
+        await Assert.That(() => m.Import()).ThrowsNothing();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(m.Here.LoadBook(owner).SlotDefaults.Keys).IsEquivalentTo(["r1"]);
+            await Assert.That(m.Here.LoadCallouts(owner, "de_mirage").Aliases.Select(a => a.Alias ?? ""))
+                .IsEquivalentTo(["palace"]);
         }
     }
 

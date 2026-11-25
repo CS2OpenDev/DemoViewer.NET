@@ -786,9 +786,9 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
 
     /// <summary>
     ///     The only coherent in-app capture path (listener-lifetime constraint): attaches
-    ///     the listener (if needed) while the Diagnostics tab is alive, then re-invokes the public
-    ///     <c>AnalysisViewModel.RunAsync</c> on the retained <see cref="ParsedDemo" /> so the run fires
-    ///     with live capture in place.
+    ///     the listener (if needed) while the Diagnostics tab is alive, then re-runs the retained
+    ///     <see cref="ParsedDemo" /> through <c>AnalysisViewModel.RerunAsync</c>, under the open's demo key, so
+    ///     the run fires with live capture in place and the demo's breakpoints survive it.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanReRun))]
     private async Task ReRunCapturedAsync()
@@ -828,7 +828,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
         EvaluatorStatus = "Re-running analysis with profiling + live capture…";
         try
         {
-            await _analysisTab.Analysis.RunAsync(demo);
+            await _analysisTab.Analysis.RerunAsync(demo);
             RebuildEvaluatorRows();
             RefreshEntityProfiling();
             EvaluatorStatus = "Captured. Counters + entity profile reflect the re-run.";

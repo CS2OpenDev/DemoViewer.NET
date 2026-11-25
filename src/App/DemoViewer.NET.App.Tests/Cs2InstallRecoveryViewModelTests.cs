@@ -136,6 +136,47 @@ public class Cs2InstallRecoveryViewModelTests
         await Assert.That(vm.NeedsRestore).IsFalse();
     }
 
+    // Enable Live Sync clicked while the banner's probe is out: the session's launch owns the install from
+    // HostStarting on, so the restore must stand down rather than un-patch under it.
+    [Test]
+    public async Task RestoreCommand_SessionStartedDuringTheProbe_StandsDown()
+    {
+        bool busy = false;
+        FakeLiveSync svc = new(_leftovers);
+        Cs2InstallRecoveryViewModel vm = new(svc, () => busy);
+        await vm.CheckAsync();
+        await Assert.That(vm.NeedsRestore).IsTrue();
+
+        svc.DuringProbe = () => busy = true;
+        await vm.RestoreCommand.ExecuteAsync(null);
+
+        await Assert.That(svc.RestoreCalls).IsEqualTo(0);
+        await Assert.That(vm.NeedsRestore).IsFalse();
+        await Assert.That(vm.Notice).IsNull();
+        await Assert.That(vm.FailureText).IsNull();
+    }
+
+    // The same for the unattended restore: if it fails after a session has started, the banner stays down
+    // until the session lets go of CS2.
+    [Test]
+    public async Task FailedAutoRestore_AfterASessionStarted_DoesNotRaiseTheBanner()
+    {
+        bool busy = false;
+        FakeLiveSync svc = new(_safeLeftovers) { RestoreFailure = new IOException("in use") };
+        Cs2InstallRecoveryViewModel vm = new(svc, () => busy);
+        svc.DuringRestore = () => busy = true;
+
+        await vm.CheckAsync();
+
+        await Assert.That(vm.NeedsRestore).IsFalse();
+        await Assert.That(vm.IsVisible).IsFalse();
+
+        busy = false;
+        svc.DuringRestore = null;
+        vm.Reevaluate();
+        await Assert.That(vm.NeedsRestore).IsTrue().Because("the banner probes again once CS2 is released");
+    }
+
     // A Live Sync session owns the install while it runs, and its own stop restores it: the banner stands
     // down for the session and probes again once sync is back to Off, which is when a failed teardown shows.
     [Test]
@@ -211,8 +252,11 @@ public class Cs2InstallRecoveryViewModelTests
         public Exception? RestoreFailure { get; init; }
         public int ProbeCalls { get; private set; }
         public int RestoreCalls { get; private set; }
+        public Action? DuringProbe { get; set; }
+        public Action? DuringRestore { get; set; }
 
         public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
+        public bool OwnsStartedSession { get; set; }
         public long? LastCs2DemoTick => null;
         public LiveSyncVersionInfo? Versions => null;
         public LiveSyncCapabilities? Capabilities => null;
@@ -220,7 +264,13 @@ public class Cs2InstallRecoveryViewModelTests
         public event EventHandler<LiveSyncStateChangedEventArgs>? StateChanged;
 
         public Task EnableAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task DisableAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public int DisableCalls { get; private set; }
+
+        public Task DisableAsync(CancellationToken cancellationToken = default)
+        {
+            DisableCalls++;
+            return Task.CompletedTask;
+        }
         public Task ResyncAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task<bool> VerifyMomentAsync(int frameClockTick, int preRollTicks = 192, int postRollTicks = 64,
@@ -232,12 +282,14 @@ public class Cs2InstallRecoveryViewModelTests
         public Task<Cs2InstallProbe> ProbeInstallAsync(CancellationToken cancellationToken = default)
         {
             ProbeCalls++;
+            DuringProbe?.Invoke();
             return Task.FromResult(Probe);
         }
 
         public Task RestoreInstallAsync(CancellationToken cancellationToken = default)
         {
             RestoreCalls++;
+            DuringRestore?.Invoke();
             if (RestoreFailure is { } failure)
             {
                 return Task.FromException(failure);
@@ -283,6 +335,93 @@ public class Cs2InstallRecoveryAcrossProfilesTests
 
             await Assert.That(vm.Cs2InstallRecovery!.NeedsRestore).IsTrue();
             await Assert.That(vm.Cs2InstallRecovery.IsVisible).IsTrue();
+        });
+    }
+
+    // CS2 quit in game: CSVG goes Faulted still holding its backups (its StopAsync is the reset path that restores
+    // them). The session still owns the install, so the banner stays down rather than call the session's own
+    // changes a crash's leftovers, and stays down on a clean install once Disable has stopped it.
+    [Test]
+    public async Task AFaultedSessionThatStillOwnsTheInstall_RaisesNoBanner_AndDisableLeavesItClean()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            MainViewModel vm = new(library: TestLibraries.Empty());
+            Cs2InstallRecoveryViewModelTests.FakeLiveSync liveSync = new(new Cs2InstallProbe(false, false, false));
+            vm.AttachLiveSync(liveSync);
+
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.HostStarting));
+            liveSync.OwnsStartedSession = true;
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.SyncedHolding));
+            liveSync.Probe = new Cs2InstallProbe(true, true, false);
+            int probes = liveSync.ProbeCalls;
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.Faulted, "CS2 quit"));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Cs2InstallRecovery!.IsVisible).IsFalse()
+                    .Because("the faulted session restores its own changes when it is stopped");
+                await Assert.That(liveSync.ProbeCalls).IsEqualTo(probes);
+                await Assert.That(liveSync.RestoreCalls).IsEqualTo(0);
+            }
+
+            liveSync.OwnsStartedSession = false;
+            liveSync.Probe = new Cs2InstallProbe(false, false, false);
+            liveSync.Raise(LiveSyncState.Disconnected);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(liveSync.ProbeCalls).IsEqualTo(probes + 1).Because("released, so it looks again");
+                await Assert.That(vm.Cs2InstallRecovery.IsVisible).IsFalse();
+            }
+        });
+    }
+
+    // A stop that could not restore everything: once the session is gone, what it left is leftovers again.
+    [Test]
+    public async Task WhatAStoppedSessionLeftBehind_RaisesTheBanner()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            MainViewModel vm = new(library: TestLibraries.Empty());
+            Cs2InstallRecoveryViewModelTests.FakeLiveSync liveSync = new(new Cs2InstallProbe(false, false, false));
+            vm.AttachLiveSync(liveSync);
+
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.HostStarting));
+            liveSync.OwnsStartedSession = true;
+            liveSync.Probe = new Cs2InstallProbe(true, false, false);
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.Faulted, "CS2 quit"));
+            await Assert.That(vm.Cs2InstallRecovery!.IsVisible).IsFalse();
+
+            liveSync.OwnsStartedSession = false;
+            liveSync.Raise(LiveSyncState.Disconnected);
+
+            await Assert.That(vm.Cs2InstallRecovery.NeedsRestore).IsTrue();
+        });
+    }
+
+    // An engine whose faulted session was already let go (it reports no ownership) is probed on Faulted, and a
+    // banner that probe raised has to be looked at again once a stop ends in Disconnected, rather than keep
+    // saying the install is modified after the stop restored it.
+    [Test]
+    public async Task ABannerRaisedOnFaulted_IsClearedWhenTheSessionStopsAndRestoresTheInstall()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            MainViewModel vm = new(library: TestLibraries.Empty());
+            Cs2InstallRecoveryViewModelTests.FakeLiveSync liveSync = new(new Cs2InstallProbe(false, false, false));
+            vm.AttachLiveSync(liveSync);
+
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.HostStarting));
+            liveSync.Probe = new Cs2InstallProbe(true, true, false);
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.Faulted, "CS2 quit"));
+            await Assert.That(vm.Cs2InstallRecovery!.NeedsRestore).IsTrue();
+
+            liveSync.Probe = new Cs2InstallProbe(false, false, false);
+            liveSync.Raise(LiveSyncState.Disconnected);
+
+            await Assert.That(vm.Cs2InstallRecovery.IsVisible).IsFalse()
+                .Because("the session's StopAsync restored the install");
         });
     }
 

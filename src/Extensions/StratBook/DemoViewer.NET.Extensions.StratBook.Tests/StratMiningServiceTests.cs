@@ -130,9 +130,10 @@ public class StratMiningServiceTests
         public required TagStore Tags { get; init; }
         public required string Root { get; init; }
 
-        public StratMiningService Service(Func<Action, Task>? run = null, Func<bool>? enabled = null) =>
+        public StratMiningService Service(Func<Action, Task>? run = null, Func<bool>? enabled = null,
+            Action<Action>? post = null) =>
             new(Cache.Library(), Cache.RoundFacts(), Positions, Sources.FingerprintFor, null, null, Strats, Tags,
-                TestFiles.Mining(Path.Combine(Root, "cache"), Root), run: run ?? _inline, enabled: enabled)
+                TestFiles.Mining(Path.Combine(Root, "cache"), Root), post, run ?? _inline, enabled: enabled)
             {
                 QuietDelay = Timeout.InfiniteTimeSpan
             };
@@ -221,6 +222,45 @@ public class StratMiningServiceTests
         await Assert.That(record.Total.Run).IsEqualTo(3).Because("each member round is a run of the new strat");
         await Assert.That((await new StratEvidenceService(library.Tags).ComputeAsync(doc)).Total.Run).IsEqualTo(3)
             .Because("the record panel finds the runs through the tag index");
+    }
+
+    // Switching the pack back on re-attaches the residents inside a queue job, off the UI thread, and the inbox
+    // rebuilds its bound rows in the Changed handler.
+    [Test]
+    public async Task AReAttachAfterARelease_HandsTheDetectedPatternsToTheUiThread()
+    {
+        using Library library = Library.Create();
+        using (StratMiningService mined = library.Service())
+        {
+            await mined.MineAsync();
+        }
+
+        List<Action> posted = [];
+        using StratMiningService service = library.Service(post: posted.Add);
+        int detected = service.Patterns.Count;
+        await Assert.That(detected).IsGreaterThan(0).Because("a start reads the detected file where it stands");
+
+        // Off and straight back on: the release's clear is still waiting for the UI thread.
+        service.Release();
+        int raised = 0;
+        service.Changed += () => raised++;
+        service.Attach();
+        int raisedInAttach = raised;
+        int heldInAttach = service.Patterns.Count;
+
+        foreach (Action action in posted.ToList())
+        {
+            action();
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(raisedInAttach).IsEqualTo(0).Because("Changed is raised on the UI thread only");
+            await Assert.That(heldInAttach).IsEqualTo(detected);
+            await Assert.That(raised).IsEqualTo(2);
+            await Assert.That(service.Patterns.Count).IsEqualTo(detected)
+                .Because("the reload lands after the release's clear, not under it");
+        }
     }
 
     // The cache-quiet re-mine is one of the opportunistic hooks the pack gate forces off. A user mine
@@ -571,5 +611,37 @@ public class StratMiningServiceTests
         await Assert.That(Enumerable.Range(1, 3).Sum(n => library.Tags.TryLoad(Sha(n))!.Instances.Count))
             .IsEqualTo(runs)
             .Because("the strat was back in the store when the removal ran");
+    }
+
+    [Test]
+    public async Task AMineThatCouldNotReadTheLibrary_LeavesTheInboxAsItWas()
+    {
+        using Library library = Library.Create();
+        bool broken = false;
+        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
+            map => broken ? throw new IOException("a file mid-write") : Sources.FingerprintFor(map), null, null,
+            library.Strats, library.Tags, TestFiles.Mining(Path.Combine(library.Root, "cache"), library.Root),
+            run: _inline) { QuietDelay = Timeout.InfiniteTimeSpan };
+        await service.MineAsync();
+        int found = service.Patterns.Count;
+        DateTime? mined = service.MinedUtc;
+        (int Demos, int Rounds) read = service.LastRead;
+
+        broken = true;
+        await service.MineAsync();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(found).IsGreaterThan(0);
+            await Assert.That(service.Patterns.Count).IsEqualTo(found)
+                .Because("a pass that read nothing has nothing to say about the patterns");
+            await Assert.That(service.MinedUtc).IsEqualTo(mined);
+            await Assert.That(service.LastRead).IsEqualTo(read);
+            await Assert.That(service.IsMining).IsFalse();
+        }
+
+        broken = false;
+        await service.MineAsync();
+        await Assert.That(service.Patterns.Count).IsEqualTo(found);
     }
 }

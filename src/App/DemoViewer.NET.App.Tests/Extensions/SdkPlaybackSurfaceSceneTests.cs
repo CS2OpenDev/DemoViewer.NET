@@ -629,6 +629,54 @@ public class SdkPlaybackSurfaceSceneTests
         vm.Dispose();
     }
 
+    /// <summary>
+    ///     The timeline hands back the existing registration for an id it already has. Wrapped around a second
+    ///     track, that handle would unregister the first lane on dispose and steer it through its setters, so a
+    ///     filed id that is already a lane is refused. Extension "a" with "b.c" and extension "a.b" with "c"
+    ///     file the same id, so the refusal holds across owners too.
+    /// </summary>
+    [Test]
+    public async Task AddingALaneIdThatIsAlreadyALane_Throws_AndLeavesTheFirstLaneAlone()
+    {
+        (Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab();
+        using SdkPlaybackSurface surface = new(vm.Surface, new FaultRig().Guard);
+        using SdkPlaybackSurface outer = new(vm.Surface, new FaultRig("a").Guard);
+        using SdkPlaybackSurface nested = new(vm.Surface, new FaultRig("a.b").Guard);
+        SdkP.ILaneHandle first = surface.AddLane(new LabelledTrack("tag", "A"));
+        SdkP.ILaneHandle dotted = outer.AddLane(new LabelledTrack("b.c", "D"));
+        SubscribedTrack again = new("tag");
+
+        Assert.Throws<ArgumentException>(() => surface.AddLane(again));
+        Assert.Throws<ArgumentException>(() => nested.AddLane(new LabelledTrack("c", "N")));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(again.Subscribers).IsEqualTo(0).Because("a refused track is let go of");
+            await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id))
+                .IsEquivalentTo(["ext.pack.fake.tag", "ext.a.b.c"], CollectionOrdering.Matching);
+            await Assert.That(vm.Timeline.LaneBands.Select(band => band.Label))
+                .IsEquivalentTo(["A", "D"], CollectionOrdering.Matching)
+                .Because("the lanes already there still draw their own tracks");
+        }
+
+        first.Dispose();
+        await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id))
+            .IsEquivalentTo(["ext.a.b.c"], CollectionOrdering.Matching);
+
+        // Once the first is gone the id is free again: dispose, then add, is how a lane is swapped.
+        SdkP.ILaneHandle swapped = surface.AddLane(again);
+        using (Assert.Multiple())
+        {
+            await Assert.That(again.Subscribers).IsEqualTo(1);
+            await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id))
+                .IsEquivalentTo(["ext.a.b.c", "ext.pack.fake.tag"], CollectionOrdering.Matching);
+        }
+
+        swapped.Dispose();
+        dotted.Dispose();
+        vm.Dispose();
+    }
+
     [Test]
     public async Task ComposedIds_NeverStartWithAHostRoot()
     {
@@ -684,6 +732,28 @@ public class SdkPlaybackSurfaceSceneTests
 
         public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
             [new(id, 10, 20, label, "", 0)];
+
+        public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
+    }
+
+    // Counts who listens to Changed, so a test can see the host let go of a track it refused.
+    private sealed class SubscribedTrack(string id) : ITimelineTrack
+    {
+        public int Subscribers { get; private set; }
+
+        public string Id => id;
+
+        public string DisplayName => id;
+
+        public event Action? Changed
+        {
+            add => Subscribers++;
+            remove => Subscribers--;
+        }
+
+        public bool IsAvailable(ITimelineData data) => true;
+
+        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => [];
 
         public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
     }

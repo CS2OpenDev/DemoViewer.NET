@@ -289,6 +289,27 @@ public class StatsComponentRenderTests
     }
 
     /// <summary>
+    ///     A negative residue too small for the format rounds to zero, and .NET keeps the sign when it
+    ///     does: -0.004 under "0.##" prints "-0". That reads as a real negative just as -0.0 would.
+    /// </summary>
+    [Test]
+    public async Task StatValue_DoesNotPrintNegativeZeroForATinyNegative()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            StatValue cell = new() { Value = -0.004 };
+            await Assert.That(Avalonia.Automation.AutomationProperties.GetName(cell)).IsEqualTo("0");
+
+            cell.Format = "0.00";
+            cell.Value = -0.003;
+            await Assert.That(Avalonia.Automation.AutomationProperties.GetName(cell)).IsEqualTo("0.00");
+
+            cell.Value = -0.4;
+            await Assert.That(Avalonia.Automation.AutomationProperties.GetName(cell)).IsEqualTo("-0.40");
+        });
+    }
+
+    /// <summary>
     ///     The in-app dev gallery (Diagnostics tab) renders and its bindings resolve. Avalonia binding
     ///     errors do not throw, so a renamed view-model property would otherwise ship a panel of empty
     ///     boxes that nobody notices until someone opens it. Every control has a product call site now,

@@ -104,6 +104,38 @@ public class UpdateViewModelTests
     }
 
     /// <summary>
+    ///     A staged update must leave through the normal shutdown, not by replacing the process: only the
+    ///     shutdown path saves the session, flushes the stores and tears down live sync, a reel or an
+    ///     export. A failed download must not close the app.
+    /// </summary>
+    [Test]
+    public async Task UpdateAndRestart_Success_RequestsNormalShutdown()
+    {
+        FakeUpdateService ok = new()
+        {
+            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2"), DownloadSucceeds = true
+        };
+        int shutdowns = 0;
+        UpdateViewModel vm = new(ok, () => shutdowns++);
+        await vm.CheckOnStartupAsync();
+
+        await vm.UpdateAndRestartCommand.ExecuteAsync(null);
+
+        await Assert.That(shutdowns).IsEqualTo(1);
+
+        FakeUpdateService failing = new()
+        {
+            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2"), DownloadSucceeds = false
+        };
+        UpdateViewModel retry = new(failing, () => shutdowns++);
+        await retry.CheckOnStartupAsync();
+
+        await retry.UpdateAndRestartCommand.ExecuteAsync(null);
+
+        await Assert.That(shutdowns).IsEqualTo(1);
+    }
+
+    /// <summary>
     ///     A failed download must restore the offer, not strand the user in a state with no update
     ///     and no way to retry. Velopack stages into a packages dir and only swaps on apply, so the
     ///     running install is untouched.
@@ -180,15 +212,114 @@ public class UpdateViewModelTests
         await Assert.That(vm.StatusMessage).IsEmpty();
     }
 
+    /// <summary>
+    ///     The notice is one per run, and a later check can offer another version: the notes, the release link
+    ///     and the headline follow the version now offered, not the first one the window loaded.
+    /// </summary>
+    [Test]
+    public async Task UpdateNotice_ALaterCheckOfferingAnotherVersion_ReloadsTheNotesAndTheHeadline()
+    {
+        FakeUpdateService svc = new() { CheckResult = UpdateCheckResult.UpdateAvailable("0.12.0") };
+        UpdateViewModel vm = new(svc);
+        FakeNotes notes = new();
+        UpdateNoticeViewModel notice = new(vm, notes);
+        List<string?> changed = [];
+        notice.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        await vm.CheckNowCommand.ExecuteAsync(null);
+        await notice.EnsureNotesLoadedAsync();
+        string? first = notice.NotesMarkdown;
+
+        svc.CheckResult = UpdateCheckResult.UpdateAvailable("0.12.1");
+        await vm.CheckNowCommand.ExecuteAsync(null);
+        await notice.EnsureNotesLoadedAsync();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(first).IsEqualTo("notes for 0.12.0");
+            await Assert.That(notes.Asked).IsEquivalentTo(["0.12.0", "0.12.1"]);
+            await Assert.That(notice.NotesMarkdown).IsEqualTo("notes for 0.12.1");
+            await Assert.That(notice.ReleaseUrl).IsEqualTo("https://example.invalid/0.12.1");
+            await Assert.That(notice.HeadlineText).Contains("0.12.1");
+            await Assert.That(changed).Contains(nameof(UpdateNoticeViewModel.HeadlineText));
+        }
+    }
+
+    /// <summary>A load made while no version was offered is not kept once a check offers one.</summary>
+    [Test]
+    public async Task UpdateNotice_ALoadWithNoVersion_IsNotKeptOnceOneIsOffered()
+    {
+        FakeUpdateService svc = new() { CheckResult = UpdateCheckResult.UpdateAvailable("0.12.0") };
+        UpdateViewModel vm = new(svc);
+        FakeNotes notes = new();
+        UpdateNoticeViewModel notice = new(vm, notes);
+
+        await notice.EnsureNotesLoadedAsync();
+        await vm.CheckOnStartupAsync();
+        await notice.EnsureNotesLoadedAsync();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(notice.NotesMarkdown).IsEqualTo("notes for 0.12.0");
+            await Assert.That(notice.NotesFallback).IsNull();
+        }
+    }
+
+    /// <summary>
+    ///     A check that was already in flight when the beta subscription changed lands with an answer chosen
+    ///     under the old setting: it is dropped, not shown as an offer.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task ACheckInFlightWhenTheSubscriptionChanges_IsDropped(bool startup)
+    {
+        TaskCompletionSource<UpdateCheckResult> answer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        FakeUpdateService svc = new() { NextCheck = answer.Task };
+        UpdateViewModel vm = new(svc);
+
+        Task check = startup ? vm.CheckOnStartupAsync() : vm.CheckNowCommand.ExecuteAsync(null);
+        vm.ForgetAvailableUpdate();
+        answer.SetResult(UpdateCheckResult.UpdateAvailable("0.9.0-beta0001"));
+        await check;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.IsUpdateAvailable).IsFalse();
+            await Assert.That(vm.AvailableVersion).IsNull();
+            await Assert.That(vm.StatusMessage).DoesNotContain("0.9.0-beta0001");
+        }
+    }
+
+    private sealed class FakeNotes : IReleaseNotesService
+    {
+        public List<string> Asked { get; } = [];
+
+        public Task<ReleaseNotes?> GetForVersionAsync(string version, CancellationToken ct = default)
+        {
+            Asked.Add(version);
+            return Task.FromResult<ReleaseNotes?>(new ReleaseNotes(version, version, "notes for " + version, null,
+                "https://example.invalid/" + version));
+        }
+    }
+
     private sealed class FakeUpdateService : IUpdateService
     {
-        public UpdateCheckResult CheckResult { get; init; } = UpdateCheckResult.UpToDate();
+        public UpdateCheckResult CheckResult { get; set; } = UpdateCheckResult.UpToDate();
         public bool DownloadSucceeds { get; init; }
         public int DownloadCalls { get; private set; }
 
         public string CurrentVersion => "0.5.1";
 
-        public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) => Task.FromResult(CheckResult);
+        /// <summary>When set, the next check answers with this task instead of <see cref="CheckResult" />.</summary>
+        public Task<UpdateCheckResult>? NextCheck { get; set; }
+
+        public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default)
+        {
+            Task<UpdateCheckResult>? next = NextCheck;
+            NextCheck = null;
+            return next ?? Task.FromResult(CheckResult);
+        }
 
         public Task<bool> DownloadAndApplyAsync(IProgress<int>? progress = null, CancellationToken ct = default)
         {

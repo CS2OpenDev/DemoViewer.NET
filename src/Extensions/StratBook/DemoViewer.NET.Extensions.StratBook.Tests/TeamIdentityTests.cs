@@ -2,6 +2,8 @@
 
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -417,6 +419,43 @@ public class TeamIdentityTests
     }
 
     [Test]
+    public async Task AFailedTeamsWrite_IsReported_AndTheShutdownFlushRetriesIt()
+    {
+        string root = TempRoot();
+        string file = Path.Combine(root, TeamIdentityService.TeamsFileName);
+        // A folder where teams.json goes: it reads as absent, and every write to it fails, on every OS.
+        Directory.CreateDirectory(file);
+        try
+        {
+            (DemoCacheStore cache, TeamIdentityService teams) = Fresh(root);
+            await Seed(cache, teams,
+                Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()));
+            Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+
+            teams.Rename(a, "Renamed");
+            using (Assert.Multiple())
+            {
+                await Assert.That(teams.TeamsSaveProblem).IsNotNull()
+                    .Because("the rename lives only in memory now, and the user has to be told");
+                await Assert.That(teams.TeamsFileProblem).IsNull().Because("the file is not refused");
+            }
+
+            Directory.Delete(file);
+            teams.FlushTeams();
+            using (Assert.Multiple())
+            {
+                await Assert.That(teams.TeamsSaveProblem).IsNull();
+                await Assert.That(await File.ReadAllTextAsync(file)).Contains("Renamed");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task TheHostsAccounts_AreMe_MirroredIntoTeamsJson_AndAnEditReResolvesOurSide()
     {
         string root = TempRoot();
@@ -467,6 +506,112 @@ public class TeamIdentityTests
         finally
         {
             Directory.Delete(root, true);
+        }
+    }
+
+    // The sides pass queues one replay for however many records it reads meanwhile. Switching the pack off drops
+    // a replay that has not run, and what it would have taken must not be left looking like one still queued.
+    [Test]
+    public async Task ASidesLiftDroppedByARelease_DoesNotStopLaterLifts()
+    {
+        DemoCacheStore cache = new(null);
+        IExtensionLibrary library = cache.Library();
+        cache.Upsert(Record("/d/a.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()));
+        cache.Upsert(Record("/d/b.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()));
+        List<(Action Work, TaskCompletionSource Done)> held = [];
+        bool hold = false;
+        using TeamIdentityService teams = new(TestFiles.Teams(null), library, run: work =>
+        {
+            if (!hold)
+            {
+                work();
+                return Task.CompletedTask;
+            }
+
+            TaskCompletionSource done = new();
+            held.Add((work, done));
+            return done.Task;
+        });
+        await teams.StartAsync();
+        IExtensionRecordPass pass = teams.SidesPass;
+
+        void RunHeld()
+        {
+            foreach ((Action work, TaskCompletionSource done) in held.ToList())
+            {
+                work();
+                done.SetResult();
+            }
+
+            held.Clear();
+        }
+
+        hold = true;
+        pass.Run(library.Detail("/d/a.dem")!, CancellationToken.None);
+        await Assert.That(held.Count).IsEqualTo(1);
+
+        // Off while the replay is queued: it runs after the release and is dropped.
+        teams.Release();
+        RunHeld();
+        teams.Attach();
+        RunHeld();
+        await Assert.That(teams.GetAssignment("/d/b.dem")).IsNull().Because("the release let every side go");
+
+        pass.Run(library.Detail("/d/b.dem")!, CancellationToken.None);
+        int queued = held.Count;
+        RunHeld();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(queued).IsEqualTo(1).Because("a lift after the pack is back on queues its replay");
+            await Assert.That(teams.GetAssignment("/d/b.dem")).IsNotNull();
+            await Assert.That(teams.GetAssignment("/d/a.dem")).IsNull()
+                .Because("a side read before the release went with it");
+        }
+    }
+
+    // The Teams tab holds the teams it was handed and walks their rosters on the UI thread while the commands
+    // run on the teams queue. Inline here, the same edit lands in the middle of the walk.
+    [Test]
+    public async Task ATeamThatWasHandedOut_IsNeverChangedByALaterCommand()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams) = Fresh();
+        await Seed(cache, teams,
+            Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+            Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()),
+            Record("/d/b1.dem", 3, Ids(4, 5, 6, 7, 8), Strangers()),
+            Record("/d/b2.dem", 4, Ids(4, 5, 6, 7, 8), Strangers()));
+        Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+        Guid b = teams.TeamOnSide("/d/b1.dem", 2)!.Id;
+
+        Team held = teams.AllTeams.Single(t => t.Id == a);
+        Team other = teams.AllTeams.Single(t => t.Id == b);
+        string name = held.Name;
+        string[] otherRosters = [.. other.Rosters.Select(r => r.Id)];
+        int walked = 0;
+        foreach (Roster _ in held.Rosters)
+        {
+            teams.StartRoster(a, DateOnly.FromDateTime(new DateTime(Day(2), DateTimeKind.Utc)), "new five");
+            walked++;
+        }
+
+        teams.Rename(a, "Old Guard");
+        teams.SetHidden(a, true);
+        teams.SetUs(a);
+        teams.Merge(a, b);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(walked).IsEqualTo(1);
+            await Assert.That(held.Rosters.Count).IsEqualTo(1);
+            await Assert.That(held.Name).IsEqualTo(name);
+            await Assert.That(held.Hidden).IsFalse();
+            await Assert.That(held.IsUs).IsFalse();
+            await Assert.That(held.MergedFrom).IsEmpty();
+            await Assert.That(other.Rosters.Select(r => r.Id)).IsEquivalentTo(otherRosters)
+                .Because("a merge renames the rosters it moves, in the copy");
+            await Assert.That(teams.AllTeams.Single().Rosters.Count).IsEqualTo(3);
+            await Assert.That(teams.AllTeams.Single().Name).IsEqualTo("Old Guard");
         }
     }
 
@@ -525,6 +670,132 @@ public class TeamIdentityTests
     }
 
     // ── 8. Split ─────────────────────────────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task AMerge_CarriesWhatTheStoresFiledUnderTheMergedTeam_OntoTheTeamThatTookItOver()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams) = Fresh();
+        await Seed(cache, teams,
+            Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+            Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()),
+            Record("/d/b1.dem", 3, Ids(4, 5, 6, 7, 8), Strangers()),
+            Record("/d/b2.dem", 4, Ids(4, 5, 6, 7, 8), Strangers()));
+        Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+        Guid b = teams.TeamOnSide("/d/b1.dem", 2)!.Id;
+        DateOnly day = new(2026, 11, 1);
+        ScoutingReportNotesStore notes = new(null);
+        VetoHistoryStore vetoes = new(null);
+        TeamRanksStore ranks = new(null);
+        notes.SetSummary(a, "A's read");
+        notes.SetStarred(a, "pool", true);
+        notes.SetSummary(b, "B's read");
+        notes.SetStarred(b, "setups", true);
+        notes.AddNote(b, "watch the lurk");
+        vetoes.Add(new VetoEntry { OpponentTeamId = a, Order = 1, Map = "de_nuke" });
+        vetoes.Add(new VetoEntry { OpponentTeamId = b, Order = 1, Map = "de_mirage" });
+        ranks.Set(a, RankSystem.Hltv, 10, day);
+        ranks.Set(b, RankSystem.Hltv, 12, day);
+        ranks.Set(b, RankSystem.Vrs, 40, day);
+
+        teams.Merge(a, b);
+        MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks, new StratStore(null));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(notes.TeamIds).IsEquivalentTo([a]);
+            await Assert.That(notes.For(a).Summary).IsEqualTo("A's read")
+                .Because("the team merged into keeps its own summary, as it keeps its own name");
+            await Assert.That(notes.For(a).Starred).IsEquivalentTo(["pool", "setups"]);
+            await Assert.That(notes.For(a).Notes.Select(n => n.Text)).IsEquivalentTo(["watch the lurk"]);
+            await Assert.That(vetoes.TeamIds).IsEquivalentTo([a]);
+            await Assert.That(vetoes.For(a).Select(v => (v.Order, v.Map)))
+                .IsEquivalentTo([(1, "de_nuke"), (2, "de_mirage")], CollectionOrdering.Matching)
+                .Because("the merged team's steps follow the ones already there");
+            await Assert.That(ranks.TeamIds).IsEquivalentTo([a]);
+            await Assert.That(ranks.Current(a, RankSystem.Hltv)!.Rank).IsEqualTo(10)
+                .Because("one rank a day: the team merged into keeps its own");
+            await Assert.That(ranks.Current(a, RankSystem.Vrs)!.Rank).IsEqualTo(40);
+        }
+
+        int raised = 0;
+        notes.Changed += () => raised++;
+        vetoes.Changed += () => raised++;
+        ranks.Changed += () => raised++;
+        MergedTeamStores.Follow(teams.MergeLineage, notes, vetoes, ranks, new StratStore(null));
+        await Assert.That(raised).IsEqualTo(0).Because("nothing is left under the merged id to move");
+    }
+
+    [Test]
+    public async Task AMerge_CarriesTheMergedTeamsStratBook_OntoTheTeamThatTookItOver()
+    {
+        string root = TempRoot();
+        try
+        {
+            (DemoCacheStore cache, TeamIdentityService teams) = Fresh();
+            await Seed(cache, teams,
+                Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/b1.dem", 3, Ids(4, 5, 6, 7, 8), Strangers()),
+                Record("/d/b2.dem", 4, Ids(4, 5, 6, 7, 8), Strangers()));
+            Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+            Guid b = teams.TeamOnSide("/d/b1.dem", 2)!.Id;
+            StratStore strats = new(PackStores.At(Path.Combine(root, "strats")));
+            StratDocument mine = strats.Create(StratOwner.Team(a), "de_mirage", "T", "execute", "A's exec");
+            StratDocument theirs = strats.Create(StratOwner.Team(b), "de_mirage", "T", "execute", "B's exec");
+            StratDocument open = strats.Create(StratOwner.Team(b), "de_nuke", "CT", "setup", "B's setup");
+            using StratSession session = new(strats);
+            session.Open(open.Id);
+            StratBook bookA = strats.LoadBook(StratOwner.Team(a));
+            bookA.SlotDefaults["e1"] = new Dictionary<string, string> { ["A"] = "76560001" };
+            await Assert.That(strats.SaveBook(bookA)).IsTrue();
+            StratBook bookB = strats.LoadBook(StratOwner.Team(b));
+            bookB.SlotDefaults["e1"] = new Dictionary<string, string> { ["A"] = "76560004" };
+            bookB.SlotDefaults["e2"] = new Dictionary<string, string> { ["B"] = "76560006" };
+            await Assert.That(strats.SaveBook(bookB)).IsTrue();
+            CalloutTable calloutsB = strats.LoadCallouts(StratOwner.Team(b), "de_mirage");
+            calloutsB.Aliases.Add(new CalloutAlias { Alias = "palace", Place = "PalaceInterior", Primary = true });
+            await Assert.That(strats.SaveCallouts(StratOwner.Team(b), calloutsB)).IsTrue();
+
+            teams.Merge(a, b);
+            MergedTeamStores.Follow(teams.MergeLineage, new ScoutingReportNotesStore(null), new VetoHistoryStore(null),
+                new TeamRanksStore(null), strats);
+
+            StratBook merged = strats.LoadBook(StratOwner.Team(a));
+            using (Assert.Multiple())
+            {
+                await Assert.That(strats.Query(StratOwner.Team(a), null, null, null).Select(e => e.Id))
+                    .IsEquivalentTo([mine.Id, theirs.Id, open.Id])
+                    .Because("the merged team's strats are listed in the book of the team that took its id over");
+                await Assert.That(session.Document!.Owner).IsEqualTo(StratOwner.Team(a))
+                    .Because("an open strat moves through its session, which would otherwise write it back");
+                await Assert.That(session.HasPending).IsFalse();
+                await Assert.That(session.CanUndo).IsFalse()
+                    .Because("the move is the merge's, not an edit: Undo would file the strat back under the merged id");
+                await Assert.That(strats.Query(StratOwner.Team(b), null, null, null)).IsEmpty();
+                await Assert.That(strats.TryLoad(theirs.Id)!.Owner).IsEqualTo(StratOwner.Team(a));
+                await Assert.That(merged.SlotDefaults["e1"]["A"]).IsEqualTo("76560001")
+                    .Because("the team merged into keeps its own slot defaults, as it keeps its own name");
+                await Assert.That(merged.SlotDefaults["e2"]["B"]).IsEqualTo("76560006");
+                await Assert.That(strats.LoadCallouts(StratOwner.Team(a), "de_mirage").Aliases.Select(x => x.Alias ?? ""))
+                    .IsEquivalentTo(["palace"]);
+            }
+
+            StratStore reopened = new(PackStores.At(Path.Combine(root, "strats")));
+            int raised = 0;
+            strats.Changed += _ => raised++;
+            MergedTeamStores.Follow(teams.MergeLineage, new ScoutingReportNotesStore(null), new VetoHistoryStore(null),
+                new TeamRanksStore(null), strats);
+            using (Assert.Multiple())
+            {
+                await Assert.That(reopened.Query(StratOwner.Team(a), null, null, null).Count).IsEqualTo(3);
+                await Assert.That(raised).IsEqualTo(0).Because("nothing is left under the merged id to move");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
 
     [Test]
     public async Task Split_MakesANewTeam_AndBothSurviveARebuild()
@@ -793,6 +1064,52 @@ public class TeamIdentityTests
                 await Assert.That(refused.MyAccounts).IsEquivalentTo(Ids(1), CollectionOrdering.Matching)
                     .Because("the session still works in memory");
             }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ARefusedTeamsFile_LeavesTheIndexAlone_SoTheNextSessionStillFindsItsTeams()
+    {
+        string root = TempRoot();
+        try
+        {
+            (DemoCacheStore cache, TeamIdentityService teams) = Fresh(root);
+            await Seed(cache, teams,
+                Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers()),
+                Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Strangers()));
+            Guid a = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
+            cache.SaveIndex();
+            teams.Dispose();
+
+            string teamsPath = Path.Combine(root, "teams.json");
+            string indexPath = Path.Combine(root, "cache", "team-index.json");
+            string good = await File.ReadAllTextAsync(teamsPath);
+            string index = await File.ReadAllTextAsync(indexPath);
+            await File.WriteAllTextAsync(teamsPath, "{ \"schemaVersion\": 1, \"teams\": [ oops");
+
+            // The refused session replays over no teams at all, so every team it holds is minted for the session.
+            (DemoCacheStore refusedCache, TeamIdentityService refused) = Fresh(root);
+            await refused.StartAsync();
+            refusedCache.Upsert(Record("/d/a3.dem", 3, Ids(1, 2, 3, 4, 5), Strangers()));
+            await refused.Idle;
+            using (Assert.Multiple())
+            {
+                await Assert.That(refused.TeamsFileProblem).IsNotNull();
+                await Assert.That(refused.TeamOnSide("/d/a3.dem", 2)).IsNotNull()
+                    .Because("the session still works in memory");
+                await Assert.That(await File.ReadAllTextAsync(indexPath)).IsEqualTo(index)
+                    .Because("an index naming teams that teams.json does not hold is never written");
+            }
+
+            refused.Dispose();
+            await File.WriteAllTextAsync(teamsPath, good);
+            (_, TeamIdentityService next) = Fresh(root);
+            await next.StartAsync();
+            await Assert.That(next.TeamOnSide("/d/a1.dem", 2)?.Id).IsEqualTo(a);
         }
         finally
         {

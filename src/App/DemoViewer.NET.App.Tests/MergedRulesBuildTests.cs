@@ -33,10 +33,10 @@ public class MergedRulesBuildTests
     ///     stamped with. A value that moves re-scans every demo's highlights, so only a deliberate edit to a
     ///     shipped highlight may change it.
     /// </summary>
-    public const string ShippedFingerprint64 = "7dbab2696176a7d3b259cc81e05fc26cf802981a6571469b00c2ae3836744948";
+    public const string ShippedFingerprint64 = "b9f4ef64a35f1953be184d992ec38bfde84a4f7851465731d96891b6e5f04f76";
 
     /// <inheritdoc cref="ShippedFingerprint64" />
-    public const string ShippedFingerprint128 = "8153d4023ed2679925d4f244722b642df34cbe153fb183ab6d9b12a56b38203a";
+    public const string ShippedFingerprint128 = "83fa3d44356ab441097a337f9c30dc1f08cc8de61c9c6dc6ca1f54d1a2b6d459";
 
     private const string RoundFacts = "round_facts";
     private const string Gated = "fixture_gated";
@@ -330,6 +330,34 @@ public class MergedRulesBuildTests
                     .IsEqualTo(before.RulesetIdentity(RoundFacts, 64))
                     .Because("a highlight edit never re-runs round facts");
             }
+        }
+        finally
+        {
+            user.Delete(true);
+        }
+    }
+
+    // The open re-reads the rule files on every run while the build keeps its first read. The open's harvest
+    // is stamped with the build's fingerprint, so an open run over edited files must say so, or its
+    // highlights are stored as current under a stamp that describes other rules.
+    [Test]
+    public async Task AnOpenOverEditedHighlightRules_IsNotInForce_UntilTheBuildReReads()
+    {
+        DirectoryInfo user = Directory.CreateTempSubdirectory("dv-mrb-open-read-");
+        try
+        {
+            MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName),
+                () => [StampedRuleset.Core(RoundFacts)]);
+            _ = build.Fingerprint(64);
+            await Assert.That(build.PlanOpen(build.ReadRules().Rulesets, null).HighlightsInForce).IsTrue()
+                .Because("nothing was edited");
+
+            File.Copy(Path.Combine(_fixture!, Always + ".rules.yaml"), Path.Combine(user.FullName, Always + ".rules.yaml"));
+            await Assert.That(build.PlanOpen(build.ReadRules().Rulesets, null).HighlightsInForce).IsFalse()
+                .Because("the open's read has a highlight ruleset the build's fingerprint does not cover");
+
+            build.Invalidate();
+            await Assert.That(build.PlanOpen(build.ReadRules().Rulesets, null).HighlightsInForce).IsTrue();
         }
         finally
         {

@@ -62,7 +62,7 @@ public sealed class RecordPassRunner : IDisposable
     private const string RunTitle = "Reading cached demos";
 
     private readonly Lock _lock = new();
-    private readonly HashSet<string> _dirty = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _dirty = new(PathComparer.Paths);
 
     // Keyed by the store's demo key, so every path of one demo shares them. A fault is also held under the
     // path it was visited by: that path's key changes once its file is hashed.
@@ -267,7 +267,7 @@ public sealed class RecordPassRunner : IDisposable
                     batch.AddRange(_store.Contents.Select(e => e.Path));
                 }
 
-                HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+                HashSet<string> seen = new(PathComparer.Paths);
                 batch = [.. batch.Where(p => seen.Add(_store.DemoKeyOf(p)))];
 
                 List<IRecordPass> passes = Taken(_passes());

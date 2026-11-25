@@ -152,6 +152,67 @@ public class HostileYamlTests
     // ── Quoting: a value that would parse as something else ───────────────────────────────
 
     /// <summary>
+    ///     A key written with no value is an empty scalar sitting right after the colon. Setting it must
+    ///     not splice the new text against the colon (<c>label:Kills</c>).
+    /// </summary>
+    [Test]
+    [Arguments("")]
+    [Arguments("  # a note")]
+    public async Task SettingAKeyWrittenWithNoValue_KeepsTheSpaceAfterTheColon(string tail)
+    {
+        string yaml = "ruleset: probe\nfor: match\nstats:\n  kills:\n    count: kill\n    label:" + tail + "\n";
+
+        RulesetDocumentEditor edited = RulesetDocumentEditor.Open(yaml).SetStatField("kills", "label", "Kills");
+
+        await Assert.That(edited.Text).Contains("label: Kills");
+        await Assert.That(edited.Scalar(RulesetDocumentEditor.StatPath("kills").Key("label")))
+            .IsEqualTo("Kills");
+    }
+
+    [Test]
+    public async Task SettingTheOnlyBlankKeyOfAStat_StillLeavesAMapping()
+    {
+        const string Yaml = "ruleset: probe\nfor: match\nstats:\n  kills:\n    label:\n";
+
+        RulesetDocumentEditor edited = RulesetDocumentEditor.Open(Yaml).SetStatField("kills", "label", "Kills");
+
+        await Assert.That(edited.Scalar(RulesetDocumentEditor.StatPath("kills").Key("label")))
+            .IsEqualTo("Kills");
+    }
+
+    [Test]
+    public async Task SettingABareDashItem_KeepsTheSpaceAfterTheDash()
+    {
+        const string Yaml = "ruleset: probe\nfor: match\nstats:\n  kills:\n    tags:\n      -\n      - b\n";
+        YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
+        YamlPath item = RulesetDocumentEditor.StatPath("kills").Key("tags").Index(0);
+
+        string after = TextEditor.Apply(Yaml, [YamlEdits.SetScalar(doc, item, "a")]);
+
+        await Assert.That(after).Contains("- a");
+    }
+
+    /// <summary>A lone dash is a legal string, and plain it is a block-entry indicator.</summary>
+    [Test]
+    public async Task SettingAValueOfASingleDash_IsQuoted()
+    {
+        const string Yaml = """
+                            ruleset: probe
+                            for: match
+                            stats:
+                              kills:
+                                count: kill
+                                label: Kills
+                            """;
+
+        RulesetDocumentEditor edited = RulesetDocumentEditor.Open(Yaml).SetStatField("kills", "label", "-");
+
+        await Assert.That(edited.Text).Contains("label: \"-\"");
+        await Assert.That(edited.Scalar(RulesetDocumentEditor.StatPath("kills").Key("label")))
+            .IsEqualTo("-");
+    }
+
+    /// <summary>
     ///     A label is a string in the ruleset schema. Writing <c>true</c> into it plain would make
     ///     it a boolean, and the file would fail the schema its own modeline points at.
     /// </summary>
@@ -357,5 +418,81 @@ public class HostileYamlTests
 
         await Assert.That(edited.Text).Contains("count: death\n\n  assists:");
         await Assert.That(string.Join(",", edited.StatIds)).IsEqualTo("kills,deaths,assists");
+    }
+
+    // ── A mapping that is a sequence item: its first key shares a line with the dash ───────
+
+    /// <summary>
+    ///     The first key of a sequence item sits after <c>- </c> on its line. Deleting from the line
+    ///     start took the dash with it, and the keys left behind re-attached to the parent: a
+    ///     document that still parses and no longer has the item.
+    /// </summary>
+    [Test]
+    public async Task RemovingTheFirstKeyOfASequenceItem_KeepsTheDash()
+    {
+        const string Yaml = "steps:\n  - id: a\n    run: b\n  - id: c\n";
+
+        YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
+        string after = TextEditor.Apply(Yaml,
+            [YamlEdits.RemoveKey(doc, YamlPath.Root.Key("steps").Index(0), "id")]);
+
+        await Assert.That(after).IsEqualTo("steps:\n  - run: b\n  - id: c\n");
+    }
+
+    /// <summary>A later key of the same item is on a line of its own and goes the ordinary way.</summary>
+    [Test]
+    public async Task RemovingALaterKeyOfASequenceItem_TakesOnlyItsLine()
+    {
+        const string Yaml = "steps:\n  - id: a\n    run: b\n  - id: c\n";
+
+        YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
+        string after = TextEditor.Apply(Yaml,
+            [YamlEdits.RemoveKey(doc, YamlPath.Root.Key("steps").Index(0), "run")]);
+
+        await Assert.That(after).IsEqualTo("steps:\n  - id: a\n  - id: c\n");
+    }
+
+    /// <summary>Removing an item's only key leaves the item, empty, rather than removing the item.</summary>
+    [Test]
+    public async Task RemovingTheOnlyKeyOfASequenceItem_LeavesAnEmptyItem()
+    {
+        const string Yaml = "steps:\n  - id: a # first\n  - id: c\n";
+
+        YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
+        string after = TextEditor.Apply(Yaml,
+            [YamlEdits.RemoveKey(doc, YamlPath.Root.Key("steps").Index(0), "id")]);
+
+        await Assert.That(after).IsEqualTo("steps:\n  -\n  - id: c\n");
+    }
+
+    /// <summary>
+    ///     A key added to a one-key sequence item lines up with that key, not with the dash. At the
+    ///     dash's indentation it would close the sequence and land in the parent mapping.
+    /// </summary>
+    [Test]
+    public async Task AKeyAddedToASequenceItem_IndentsToTheKeyColumn()
+    {
+        const string Yaml = "steps:\n  - id: a\n";
+        YamlPath item = YamlPath.Root.Key("steps").Index(0);
+
+        YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
+        string set = TextEditor.Apply(Yaml, [YamlEdits.SetKey(doc, item, "run", "b")]);
+        string added = TextEditor.Apply(Yaml, [YamlEdits.AddEntry(doc, item, "run: b\n")]);
+
+        await Assert.That(set).IsEqualTo("steps:\n  - id: a\n    run: b\n");
+        await Assert.That(added).IsEqualTo("steps:\n  - id: a\n    run: b\n");
+    }
+
+    /// <summary>The emptied-section case has the same dash on its line, and the same answer.</summary>
+    [Test]
+    public async Task AnEntryAddedUnderAnEmptyKeyOfASequenceItem_NestsUnderThatKey()
+    {
+        const string Yaml = "steps:\n  - body:\n";
+
+        YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
+        string after = TextEditor.Apply(Yaml,
+            [YamlEdits.AddEntry(doc, YamlPath.Root.Key("steps").Index(0).Key("body"), "x: 1\n")]);
+
+        await Assert.That(after).IsEqualTo("steps:\n  - body:\n      x: 1\n");
     }
 }

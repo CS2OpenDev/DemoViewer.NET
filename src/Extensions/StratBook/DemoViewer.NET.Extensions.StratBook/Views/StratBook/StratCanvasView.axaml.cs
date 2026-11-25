@@ -39,9 +39,11 @@ public partial class StratCanvasView : UserControl
     private StratCanvasViewModel? _bound;
     private bool _editingText;
     private IExtensionKeymap? _watched;
+    private StratCanvasTools? _tools;
 
     // The key that started a hold-pan, latched so a rebind while it is down cannot strand the surface panning.
     private Key? _holdPanKey;
+    private WindowBase? _holdPanWindow;
 
     public StratCanvasView()
     {
@@ -80,22 +82,55 @@ public partial class StratCanvasView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         WatchKeymap(true);
+        WatchTools(true);
+        _holdPanWindow = TopLevel.GetTopLevel(this) as WindowBase;
+        if (_holdPanWindow is not null)
+        {
+            _holdPanWindow.Deactivated += OnWindowDeactivated;
+        }
+
+        if (_bound is not null)
+        {
+            OnToolSelected(_bound.Tools.ActiveTool);
+        }
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         WatchKeymap(false);
+        WatchTools(false);
+        if (_holdPanWindow is not null)
+        {
+            _holdPanWindow.Deactivated -= OnWindowDeactivated;
+            _holdPanWindow = null;
+        }
+
+        ReleaseHoldPan();
         base.OnDetachedFromVisualTree(e);
     }
+
+    // The answer to a release that never arrives, as on the 2D view. A key-up goes to whoever has the keyboard
+    // when the key comes up, so Alt+Tab with the pan key down, or the canvas leaving the tree under it, left
+    // the router diverting every left press to a pan until the key was pressed and released again. Window
+    // deactivation rather than LostFocus: that one bubbles from every child, and focus moving to a tool
+    // button mid-hold is not the key coming up.
+    private void ReleaseHoldPan()
+    {
+        if (_holdPanKey is null)
+        {
+            return;
+        }
+
+        _holdPanKey = null;
+        _scene?.SetHoldPan(false);
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e) => ReleaseHoldPan();
 
     private void Bind()
     {
         WatchKeymap(false);
-        if (_bound is not null)
-        {
-            _bound.Tools.ToolSelected -= OnToolSelected;
-        }
-
+        WatchTools(false);
         _bound = DataContext as StratCanvasViewModel;
         if (_scene is not null)
         {
@@ -104,11 +139,28 @@ public partial class StratCanvasView : UserControl
 
         if (_bound is not null)
         {
-            _bound.Tools.ToolSelected += OnToolSelected;
             OnToolSelected(_bound.Tools.ActiveTool);
         }
 
         WatchKeymap(this.IsAttachedToVisualTree());
+        WatchTools(this.IsAttachedToVisualTree());
+    }
+
+    // Only while on screen, like the keymap: the canvas view model outlives a view the host has dropped, and a
+    // handler left on its tools would keep that view alive. A tool picked meanwhile is taken up on the way back.
+    private void WatchTools(bool on)
+    {
+        if (_tools is not null)
+        {
+            _tools.ToolSelected -= OnToolSelected;
+            _tools = null;
+        }
+
+        if (on && _bound is not null)
+        {
+            _tools = _bound.Tools;
+            _tools.ToolSelected += OnToolSelected;
+        }
     }
 
     // Only while on screen: the keymap lives as long as the extension, so a handler left on it would keep this

@@ -125,6 +125,27 @@ internal sealed partial class ExtensionDemoDataStore
         return counts;
     }
 
+    /// <summary>
+    ///     A data file's bytes as a transfer bundle carries them: the same header and payload, but the header's
+    ///     demo path, a path on this machine, left out. The importer writes its own.
+    /// </summary>
+    /// <param name="file">A facet's main file or part.</param>
+    /// <exception cref="InvalidDataException">The file has no header that reads.</exception>
+    /// <exception cref="JsonException">The header is not JSON.</exception>
+    public static byte[] ForTransfer(string file)
+    {
+        (Header header, byte[] content) = ReadFile(file);
+        using MemoryStream buffer = new();
+        using (GZipStream gzip = new(buffer, CompressionLevel.Fastest, true))
+        {
+            gzip.Write(JsonSerializer.SerializeToUtf8Bytes(header with { DemoPath = null }, _jsonOptions));
+            gzip.WriteByte((byte)'\n');
+            gzip.Write(content);
+        }
+
+        return buffer.ToArray();
+    }
+
     /// <summary>The extension version a data file's header records, or null when it cannot be read.</summary>
     /// <param name="file">A facet's main file.</param>
     public static string? WriterVersionOf(string file)

@@ -7,6 +7,7 @@ using CS2DemoKit.Parser;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
+using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
@@ -494,6 +495,72 @@ public class DemoLibraryServiceTests
     }
 
     /// <summary>
+    ///     A demo enlisted for tier 2 but not yet parsed, which a later scan holds back for fingerprinting
+    ///     because a same-size file appeared beside it. The full scan's backlog trim dropped it from the
+    ///     backlog, and the held-back branch recorded nothing, so the reconcile after fingerprinting found it
+    ///     owed nothing: the card stayed on Indexing for the rest of the session.
+    /// </summary>
+    [Test]
+    public async Task APendingDemoHeldBackByALaterScan_IsStillIndexed()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "dvlib_" + Guid.NewGuid().ToString("N"));
+        string first = Path.Combine(dir, "a");
+        string second = Path.Combine(dir, "b");
+        Directory.CreateDirectory(first);
+        Directory.CreateDirectory(second);
+        await File.WriteAllBytesAsync(Path.Combine(first, "one.dem"), [1, 2, 3]);
+        await File.WriteAllBytesAsync(Path.Combine(first, "two.dem"), [4, 5, 6, 7]);
+        try
+        {
+            ConcurrentBag<string> parsedNames = [];
+            using ManualResetEventSlim release = new(false);
+            // One background slot: whichever demo submits first holds the worker, the other is refused and
+            // stays enlisted, unparsed.
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(),
+                path =>
+                {
+                    parsedNames.Add(Path.GetFileName(path));
+                    release.Wait(10000);
+                    return SyntheticDemo();
+                }, parseBytes: _ => SyntheticDemo()) { MaxQueueSize = 1 };
+
+            using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json"));
+            using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
+            svc.Scheduler = coord;
+
+            await svc.AddFoldersAsync([first]);
+            await WaitForAsync(() => parsedNames.Count == 1, "one demo occupies the worker");
+            string targetName = parsedNames.First() == "one.dem" ? "two.dem" : "one.dem";
+            string target = svc.Entries.Single(e => e.FileName == targetName).FilePath;
+            await Assert.That(svc.Wants(target)).IsTrue().Because("enlisted, refused by the full tier");
+
+            // A copy of it in a folder that sorts after: same size, so the scan holds both back.
+            File.Copy(target, Path.Combine(second, targetName));
+            await svc.AddFoldersAsync([second]);
+            await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
+            await svc.Confirmed.WaitAsync(TimeSpan.FromSeconds(10));
+
+            release.Set();
+            await WaitForAsync(
+                () => svc.Entries.Single(e => e.FilePath == target).State == DemoIndexState.Indexed,
+                () => $"{targetName} indexed (state {svc.Entries.SingleOrDefault(e => e.FilePath == target)?.State}, "
+                    + $"wanted {svc.Wants(target)})",
+                10000);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(dir, true);
+            }
+            catch
+            {
+                /* best-effort cleanup */
+            }
+        }
+    }
+
+    /// <summary>
     ///     The open as the demo's visit over a REAL demo: the synthetic sibling proves the no-reparse control
     ///     flow; this proves the actual work: the library's pass runs the real entity-decode score replay on
     ///     the open's parse and fills the card (players + duration + final score), while the background queue
@@ -695,6 +762,130 @@ public class DemoLibraryServiceTests
     }
 
     /// <summary>
+    ///     A change of the machine's time zone moves every demo's local write time by the offset between the
+    ///     zones. The next launch reads that as no change: nothing is parsed again, the card stays indexed, and
+    ///     both the library and the unified cache record the stamp the file has now.
+    /// </summary>
+    [Test]
+    public async Task ATimeZoneChange_IsNoChangeToTheDemos_AndTheStampsFollowIt()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "dvlib_" + Guid.NewGuid().ToString("N"));
+        string cacheRoot = dir + "_cache";
+        Directory.CreateDirectory(dir);
+        string demo = Path.Combine(dir, "a.dem");
+        File.WriteAllBytes(demo, [1, 2, 3]);
+        DateTime written = new(2026, 3, 1, 12, 0, 0, DateTimeKind.Local);
+        File.SetLastWriteTime(demo, written);
+        string dataPath = Path.Combine(dir, "library.json");
+        try
+        {
+            int parses = 0;
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(),
+                _ =>
+                {
+                    Interlocked.Increment(ref parses);
+                    return SyntheticDemo();
+                });
+            DemoLibraryService svc = new(_inline, dataPath, null, new DemoCacheStore(cacheRoot));
+            DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
+            svc.Scheduler = coord;
+            using (svc)
+            using (coord)
+            {
+                await svc.AddFoldersAsync([dir]);
+                await WaitForAsync(() => FullyIndexedInCacheFile(dataPath) == 1,
+                    () => $"the first index to be saved; parses={Volatile.Read(ref parses)}");
+            }
+
+            // Two hours east: the file is as it was, its local write time reads two hours later.
+            DateTime shifted = written.AddHours(2);
+            File.SetLastWriteTime(demo, shifted);
+
+            DemoCacheStore store = new(cacheRoot);
+            using DemoLibraryService svc2 = new(_inline, dataPath, null, store);
+            using DemoScheduler coord2 = new([svc2], queue, svc2.Tier2Backlog);
+            svc2.Scheduler = coord2;
+            await svc2.RescanAsync();
+            await WaitForAsync(() => svc2.Entries is [{ State: DemoIndexState.Indexed }]
+                    && store.TryGetIndex(demo)?.ModifiedTicks == shifted.Ticks,
+                () => $"the rescan to settle; parses={Volatile.Read(ref parses)} " +
+                    $"states=[{string.Join(",", svc2.Entries.Select(e => e.State))}] " +
+                    $"stamp={store.TryGetIndex(demo)?.ModifiedTicks} want={shifted.Ticks}");
+            await Task.Delay(300); // let any (wrongly) submitted tier-2 run
+            svc2.Save();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Volatile.Read(ref parses)).IsEqualTo(1).Because("the demo did not change");
+                await Assert.That(svc2.Entries is [{ State: DemoIndexState.Indexed }]).IsTrue();
+                await Assert.That(store.TryGetIndex(demo)?.ModifiedTicks).IsEqualTo(shifted.Ticks);
+                await Assert.That(await File.ReadAllTextAsync(dataPath)).Contains(shifted.Ticks.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
+        finally
+        {
+            foreach (string root in new[] { dir, cacheRoot })
+            {
+                try
+                {
+                    Directory.Delete(root, true);
+                }
+                catch
+                {
+                    /* best-effort cleanup */
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    ///     On Linux two demos whose names differ only by case are two files, and the library lists both. Windows
+    ///     and macOS fold case, so there the pair cannot exist; the test runs only on Linux.
+    /// </summary>
+    [Test]
+    public async Task OnLinux_TwoDemosWhoseNamesDifferOnlyByCase_AreBothListed()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new SkipTestException("only a Linux file system keeps two names that differ only by case");
+        }
+
+        string dir = Path.Combine(Path.GetTempPath(), "dvlib_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        File.WriteAllBytes(Path.Combine(dir, "Match.dem"), [1, 2, 3]);
+        File.WriteAllBytes(Path.Combine(dir, "match.dem"), [4, 5, 6, 7]);
+        try
+        {
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), _ => SyntheticDemo());
+            using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json"), null,
+                new DemoCacheStore(dir + "_cache"));
+            using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
+            svc.Scheduler = coord;
+            await svc.AddFoldersAsync([dir]);
+            await WaitForAsync(() => svc.Entries.Count == 2 && svc.Entries.All(e => e.State == DemoIndexState.Indexed),
+                () => $"both demos indexed; saw [{string.Join(", ", svc.Entries.Select(e => $"{e.FileName}={e.State}"))}]");
+
+            await Assert.That(svc.Entries.Select(e => e.FileName).Order(StringComparer.Ordinal))
+                .IsEquivalentTo(["Match.dem", "match.dem"], CollectionOrdering.Matching);
+        }
+        finally
+        {
+            foreach (string root in new[] { dir, dir + "_cache" })
+            {
+                try
+                {
+                    Directory.Delete(root, true);
+                }
+                catch
+                {
+                    /* best-effort cleanup */
+                }
+            }
+        }
+    }
+
+    /// <summary>
     ///     A demo rewritten in place between rescans is indexed again on the next rescan, without a
     ///     relaunch. An untouched demo is not.
     /// </summary>
@@ -814,6 +1005,88 @@ public class DemoLibraryServiceTests
             {
                 await Assert.That(goodParses).IsEqualTo(1);
                 await Assert.That(badParses).IsEqualTo(1).Because("a failed parse is not retried by a rescan");
+            }
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(dir, true);
+            }
+            catch
+            {
+                /* best-effort cleanup */
+            }
+        }
+    }
+
+    /// <summary>
+    ///     A demo whose read fails between a scan enlisting it and that scan posting its Indexing state stays
+    ///     Failed. The scan's Indexing post lands after the failure's, and nothing would read the demo again.
+    /// </summary>
+    [Test]
+    public async Task AReadFailingBeforeItsIndexingPost_LeavesTheCardFailed()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "dvlib_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        string good = Path.Combine(dir, "good.dem"), bad = Path.Combine(dir, "bad.dem");
+        await File.WriteAllBytesAsync(good, [1, 2, 3]);
+        await File.WriteAllBytesAsync(bad, [4, 5, 6, 7]);
+        // Newest first: good's Indexing post comes before bad's.
+        File.SetLastWriteTimeUtc(bad, DateTime.UtcNow.AddHours(-2));
+        File.SetLastWriteTimeUtc(good, DateTime.UtcNow.AddHours(-1));
+        try
+        {
+            int badParses = 0;
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), path =>
+            {
+                if (path.EndsWith("bad.dem", StringComparison.Ordinal))
+                {
+                    Interlocked.Increment(ref badParses);
+                    throw new InvalidDataException("corrupt");
+                }
+
+                return SyntheticDemo();
+            });
+            using DemoProcessingQueue listing = new(new HeavyJobGate(), a => a(),
+                _ => throw new InvalidOperationException("the listing queue parses nothing"));
+
+            int armed = 0;
+            DemoLibraryService? svc = null;
+            DemoScheduler? coord = null;
+
+            void Post(Action a)
+            {
+                a();
+                // good's Indexing post: bad is enlisted but not yet posted. Its read fails right here.
+                if (svc?.Entries.FirstOrDefault(e => e.FilePath == good) is { State: DemoIndexState.Indexing }
+                    && Interlocked.CompareExchange(ref armed, 1, 0) == 0)
+                {
+                    coord!.DemoChanged(bad);
+                    SpinWait.SpinUntil(
+                        () => svc.Entries.FirstOrDefault(e => e.FilePath == bad)?.State == DemoIndexState.Failed,
+                        TimeSpan.FromSeconds(10));
+                }
+            }
+
+            svc = new DemoLibraryService(Post, Path.Combine(dir, "library.json"));
+            using DemoLibraryService owned = svc;
+            svc.QueueOverride = listing;
+            coord = new DemoScheduler([svc], queue, svc.Tier2Backlog);
+            using DemoScheduler ownedCoord = coord;
+            svc.Scheduler = coord;
+
+            await svc.AddFoldersAsync([dir]);
+            await WaitForAsync(() => svc.Entries.All(e => e.State is DemoIndexState.Indexed or DemoIndexState.Failed),
+                () => "both demos indexed or failed; states were "
+                    + string.Join(", ", svc.Entries.Select(e => $"{Path.GetFileName(e.FilePath)}={e.State}"))
+                    + $", parses bad={badParses}",
+                15000);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(armed).IsEqualTo(1).Because("the read failed between the enlist and its post");
+                await Assert.That(badParses).IsEqualTo(1);
             }
         }
         finally

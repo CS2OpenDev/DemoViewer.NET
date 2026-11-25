@@ -134,13 +134,13 @@ public sealed partial class NumberSettingRow : SchemaSettingRow
         Reflect();
 
     /// <summary>The smallest value.</summary>
-    public decimal Minimum => Descriptor.Minimum is { } minimum ? (decimal)minimum : decimal.MinValue;
+    public decimal Minimum => Descriptor.Minimum is { } minimum ? ToDecimal(minimum) : decimal.MinValue;
 
     /// <summary>The largest value.</summary>
-    public decimal Maximum => Descriptor.Maximum is { } maximum ? (decimal)maximum : decimal.MaxValue;
+    public decimal Maximum => Descriptor.Maximum is { } maximum ? ToDecimal(maximum) : decimal.MaxValue;
 
     /// <summary>One step.</summary>
-    public decimal Increment => (decimal)Descriptor.Step;
+    public decimal Increment => ToDecimal(Descriptor.Step);
 
     /// <summary>The display format: no decimals for a whole step.</summary>
     public string FormatString => IsWhole ? "0" : "0.###";
@@ -152,7 +152,7 @@ public sealed partial class NumberSettingRow : SchemaSettingRow
         double fallback = Descriptor.Default is IConvertible c
             ? c.ToDouble(System.Globalization.CultureInfo.InvariantCulture)
             : 0;
-        Value = (decimal)Settings.Get(Key, fallback);
+        Value = ToDecimal(Settings.Get(Key, fallback));
     }
 
     partial void OnValueChanged(decimal? value)
@@ -162,7 +162,8 @@ public sealed partial class NumberSettingRow : SchemaSettingRow
             return;
         }
 
-        double clamped = Math.Clamp((double)number, (double)Minimum, (double)Maximum);
+        double clamped = Math.Clamp((double)number, Descriptor.Minimum ?? double.NegativeInfinity,
+            Descriptor.Maximum ?? double.PositiveInfinity);
         if (IsWhole)
         {
             Settings.Set(Key, (long)Math.Round(clamped));
@@ -172,6 +173,14 @@ public sealed partial class NumberSettingRow : SchemaSettingRow
             Settings.Set(Key, clamped);
         }
     }
+
+    // The descriptor's doubles may be infinite (the natural "no limit") or past decimal's range, where a cast
+    // throws. Saturate instead; NaN reads as 0.
+    private static decimal ToDecimal(double value) =>
+        double.IsNaN(value) ? 0m
+        : value >= (double)decimal.MaxValue ? decimal.MaxValue
+        : value <= (double)decimal.MinValue ? decimal.MinValue
+        : (decimal)value;
 }
 
 /// <summary>A row offering a fixed set of values.</summary>

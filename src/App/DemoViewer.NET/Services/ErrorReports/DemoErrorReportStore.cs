@@ -64,6 +64,8 @@ public static class DemoErrorReportStore
     ///     False when the demo already carries a report at a newer schema, which this app will not overwrite.
     ///     The caller still holds the only copy of the notes, so it has to say so rather than report a save.
     /// </returns>
+    /// <exception cref="IOException">The record could not be written. Nothing was saved.</exception>
+    /// <exception cref="UnauthorizedAccessException">The record could not be written. Nothing was saved.</exception>
     public static bool Save(DemoCacheStore store, string path, string notes, DemoErrorReportSnapshot snapshot,
         DateTime nowUtc)
     {
@@ -71,7 +73,7 @@ public static class DemoErrorReportStore
         ArgumentNullException.ThrowIfNull(snapshot);
         long ticks = nowUtc.ToUniversalTime().Ticks;
         bool written = false;
-        store.UpdateExisting(path, r =>
+        store.UpdateExistingOrThrow(path, r =>
         {
             if (r.ErrorReport is { Schema: > DemoErrorReport.CurrentSchema })
             {
@@ -100,6 +102,6 @@ public static class DemoErrorReportStore
     public static void Delete(DemoCacheStore store, string path)
     {
         ArgumentNullException.ThrowIfNull(store);
-        store.UpdateExisting(path, r => r.ErrorReport = null);
+        store.UpdateExistingOrThrow(path, r => r.ErrorReport = null);
     }
 }

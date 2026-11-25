@@ -207,7 +207,19 @@ public sealed class StratSession : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         Close();
 
-        StratLoadResult result = _store.Load(id);
+        StratLoadResult result;
+        IReadOnlyList<PatchOp> recovered = [];
+        using (_store.EnterOpen())
+        {
+            result = _store.Load(id);
+            if (result.Document is { } read)
+            {
+                _readOnly = _store.IsUnresolved(id);
+                recovered = _readOnly ? [] : _store.PendingOps(read);
+                _checkOut = _store.CheckOut(id, this);
+            }
+        }
+
         if (result.Document is not { } loaded)
         {
             Issues = result.Issues;
@@ -218,8 +230,6 @@ public sealed class StratSession : IDisposable
             return result;
         }
 
-        _readOnly = _store.IsUnresolved(id);
-        IReadOnlyList<PatchOp> recovered = _readOnly ? [] : _store.PendingOps(loaded);
         StratDocument document = StratStore.WithPending(loaded, false);
         DateTime now = _utcNow();
         foreach (PatchOp op in recovered)
@@ -227,7 +237,6 @@ public sealed class StratSession : IDisposable
             _buffer.Record(op, now);
         }
 
-        _checkOut = _store.CheckOut(id, this);
         Document = document;
         RecoveredPending = recovered.Count > 0;
         RecoveryNote = _store.TakeNote(id);
@@ -260,11 +269,10 @@ public sealed class StratSession : IDisposable
         }
 
         Commit();
-        if (HasPending)
-        {
-            Flush();
-        }
-
+        // Not only when edits are pending: an undo of an edit the autosave already wrote leaves nothing pending
+        // and the working copy still holding it. The write stands down when the file is current, and writes the
+        // copy without the marker when nothing is pending.
+        Flush();
         Cancel(ref _autosave);
         Cancel(ref _idle);
         _checkOut?.Dispose();
@@ -314,6 +322,18 @@ public sealed class StratSession : IDisposable
 
         _redo.Clear();
         Touch(applied);
+    }
+
+    /// <summary>
+    ///     An edit the user did not make, so it is not theirs to undo: a strat moved with its team's merge. On
+    ///     the undo stack it would let Undo file the strat back under the merged id, which nothing lists again.
+    ///     The entries already there touch none of what such an edit changes, so they stay.
+    /// </summary>
+    /// <param name="op">The op.</param>
+    internal void ApplyUnrecorded(PatchOp op)
+    {
+        ArgumentNullException.ThrowIfNull(op);
+        Touch(ApplyCore([op]));
     }
 
     /// <summary>

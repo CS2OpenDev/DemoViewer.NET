@@ -219,13 +219,15 @@ public static class ThemeJson
             {
                 if (stop.ValueKind != JsonValueKind.Object
                     || Property(stop, "offset") is not { ValueKind: JsonValueKind.Number } offset
+                    || !offset.TryGetDouble(out double at)
+                    || !double.IsFinite(at)
                     || StringProperty(stop, "color") is not { } hex
                     || !TryParseColor(hex, out Color color))
                 {
                     return false;
                 }
 
-                list.Add(new ThemeGradientStop(offset.GetDouble(), color));
+                list.Add(new ThemeGradientStop(at, color));
             }
 
             if (list.Count < 2)

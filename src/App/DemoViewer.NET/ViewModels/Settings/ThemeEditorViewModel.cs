@@ -225,6 +225,9 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     // True when the copy prompt saves the current edits (Save As) rather than the theme as saved (Duplicate).
     private bool _copyFromEdits;
 
+    // The theme the delete prompt names. Confirming deletes only that one, and only while it is still shown.
+    private string? _deleteId;
+
     /// <summary>The last thing that happened, for the status line.</summary>
     [ObservableProperty]
     private string? _status;
@@ -288,6 +291,14 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     {
         ThemePalette palette = _registry.PaletteFor(theme.Id) ?? BuiltInThemes.Dark;
         _definition = _registry.UserDefinitionFor(theme.Id);
+        // The window is modeless, so Settings can Reveal another theme while a prompt is up. The delete and copy
+        // prompts are about the theme they opened on, so switching closes them rather than retargeting them.
+        if (Prompt is ThemeEditorPrompt.ConfirmDelete or ThemeEditorPrompt.NameCopy
+            && !string.Equals(Theme.Id, theme.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            Prompt = ThemeEditorPrompt.None;
+        }
+
         _restoring = true;
         try
         {
@@ -682,6 +693,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Delete()
     {
+        _deleteId = Theme.Id;
         OnPropertyChanged(nameof(DeletePromptText));
         Prompt = ThemeEditorPrompt.ConfirmDelete;
     }
@@ -689,7 +701,15 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ConfirmDelete()
     {
+        bool asked = Prompt == ThemeEditorPrompt.ConfirmDelete
+            && string.Equals(_deleteId, Theme.Id, StringComparison.OrdinalIgnoreCase);
         Prompt = ThemeEditorPrompt.None;
+        _deleteId = null;
+        if (!asked)
+        {
+            return;
+        }
+
         Theme doomed = Theme;
         bool wasActive = IsActive;
         try

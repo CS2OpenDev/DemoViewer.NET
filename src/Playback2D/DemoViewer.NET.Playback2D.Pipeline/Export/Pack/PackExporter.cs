@@ -127,8 +127,7 @@ public sealed class PackExporter
         PackSettings settings = plan.Settings;
         List<PackSkip> failed = [];
         int rendered = 0;
-        bool complete = false;
-        IFrameSink sink = _encoder.Open(settings.OutputPath, settings);
+        WrittenSink sink = new(_encoder.Open(settings.OutputPath, settings));
         try
         {
             for (int i = 0; i < plan.Segments.Count; i++)
@@ -143,7 +142,7 @@ public sealed class PackExporter
 
                     case PackClip clip:
                         progress?.Report(new PackProgress(i + 1, plan.Segments.Count, Label(clip)));
-                        PackSegmentSink segment = new(sink);
+                        PackSegmentSink segment = new(sink, ct);
                         try
                         {
                             await _clips.RenderAsync(clip, settings, segment, ct).ConfigureAwait(false);
@@ -169,24 +168,53 @@ public sealed class PackExporter
                 throw new ExportValidationException(
                     $"no clip could be rendered: {string.Join("; ", failed.Select(f => f.Reason))}");
             }
-
-            complete = true;
         }
-        finally
+        catch
         {
             try
             {
                 await sink.DisposeAsync().ConfigureAwait(false);
             }
-            catch (Exception) when (!complete)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 // The pack is already failing for a reason of its own; that one is the one to report.
             }
 
-            if (!complete)
+            // Only what this run wrote. Nothing is opened before the first frame, so a pack cancelled
+            // while its first demo parses has no file of its own, and the one at the path is the pack an
+            // earlier export finished.
+            if (sink.Written)
             {
                 TryDelete(settings.OutputPath);
             }
+
+            throw;
+        }
+
+        try
+        {
+            await sink.DisposeAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Closing the file is where it is muxed. Every clip rendered, and there is still no pack.
+            if (sink.Written)
+            {
+                TryDelete(settings.OutputPath);
+            }
+
+            throw;
+        }
+
+        // A cancel after the last clip: a sink closes quietly on a token already cancelled, with no file.
+        if (ct.IsCancellationRequested)
+        {
+            if (sink.Written)
+            {
+                TryDelete(settings.OutputPath);
+            }
+
+            throw new OperationCanceledException(ct);
         }
 
         return new PackResult([settings.OutputPath], rendered, failed);
@@ -205,17 +233,23 @@ public sealed class PackExporter
             string path = clip.OutputPath
                 ?? PackPlanner.ClipPath(plan.Settings.OutputPath, clip.Number, clip.Section, clip.Entry);
             progress?.Report(new PackProgress(i + 1, clips.Count, Label(clip)));
+            WrittenSink? sink = null;
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                await _clips.RenderAsync(clip, plan.Settings, _encoder.Open(path, plan.Settings), ct)
-                    .ConfigureAwait(false);
+                sink = new WrittenSink(_encoder.Open(path, plan.Settings));
+                await _clips.RenderAsync(clip, plan.Settings, sink, ct).ConfigureAwait(false);
                 outputs.Add(path);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Fail(failed, clip, ex);
-                TryDelete(path);
+
+                // As for the video pack: a clip that failed before a frame left the file alone.
+                if (sink is { Written: true })
+                {
+                    TryDelete(path);
+                }
             }
         }
 
@@ -254,6 +288,39 @@ public sealed class PackExporter
     {
         failed.Add(new PackSkip(clip.Entry, $"{Label(clip)}: {ex.Message}"));
         _log?.Invoke($"pack export: {Label(clip)} in {clip.Entry.DemoPath}: {ex.Message}");
+    }
+
+    /// <summary>
+    ///     A file's sink, and whether this run has put a frame into it. A sink opens its file no earlier
+    ///     than its first frame, so a run that never wrote has nothing at the path that is its own to remove.
+    ///     A sink that opens it later still, at its disposal, says so itself: its frames are not yet a file.
+    /// </summary>
+    private sealed class WrittenSink(IFrameSink inner) : IFrameSink, IAbortableFrameSink
+    {
+        private bool _written;
+
+        /// <summary>A frame was written, or a write failed part way: the file may be this run's.</summary>
+        public bool Written => inner is IOutputOpeningFrameSink opening ? opening.OutputOpened : _written;
+
+        public async ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
+        {
+            try
+            {
+                await inner.WriteAsync(rgba, width, height, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _written = true;
+                throw;
+            }
+
+            _written = true;
+        }
+
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
+
+        // The session asks for this by type, so the wrapper must not hide it from the sink underneath.
+        void IAbortableFrameSink.Abort() => (inner as IAbortableFrameSink)?.Abort();
     }
 
     private void TryDelete(string path)

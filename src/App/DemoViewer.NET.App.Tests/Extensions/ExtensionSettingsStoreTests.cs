@@ -76,6 +76,30 @@ public class ExtensionSettingsStoreTests
         await Assert.That(told).IsEquivalentTo(["flag", "other", "flag"], CollectionOrdering.Matching);
     }
 
+    /// <summary>
+    ///     The host's settings page listens to the same event the extension does, and the context posts a change
+    ///     as the extension's. One guarded call over the whole list stops at the first throw, so the page after
+    ///     a throwing extension handler would never hear the change and would show a stale value.
+    /// </summary>
+    [Test]
+    public async Task AHandlerThatThrows_DoesNotKeepTheChangeFromTheHandlersAfterIt()
+    {
+        FaultRig rig = new();
+        ExtensionSettingsStore store = new("dev.example.settings", null, a => rig.Guard.Wrap("posted callback", a)());
+        List<string> told = [];
+        store.Changed += _ => throw new InvalidOperationException("extension handler");
+        store.Changed += told.Add;
+
+        store.Set("flag", true);
+        await Assert.That(store.Remove("flag")).IsTrue();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(told).IsEquivalentTo(["flag", "flag"], CollectionOrdering.Matching);
+            await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(2);
+        }
+    }
+
     [Test]
     public async Task AValueThatDoesNotReadAsTheAskedType_AnswersTheFallback()
     {
@@ -219,6 +243,36 @@ public class ExtensionSettingsStoreTests
                 await Assert.That(store.Get("tagPalette.id", "cs2-default")).IsEqualTo("team-palette");
                 await Assert.That(store.Get("review.mode", false)).IsTrue();
                 await Assert.That(store.Get("suggestedTags.background", false)).IsFalse();
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    // A value the binder cannot convert makes the settings service reset the preferences in its constructor,
+    // which rewrites the Playback2D section before the app's import can copy the Strat Book's keys out of it.
+    [Test]
+    public async Task TheStratBooksOldSettings_SurviveTheResetOfAnUnbindableSettingsJson()
+    {
+        string root = NewRoot();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "settings.json"), """
+                                                                              {
+                                                                                "UserCategory": "Coach",
+                                                                                "Playback2D": { "TagPaletteId": "team-palette", "ReviewMode": true }
+                                                                              }
+                                                                              """);
+            SettingsService settings = new(root);
+            LegacyExtensionSettings.Import(settings, root);
+
+            ExtensionSettingsStore store = new(LegacyExtensionSettings.StratBookId, root, a => a());
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.Get("tagPalette.id", "cs2-default")).IsEqualTo("team-palette");
+                await Assert.That(store.Get("review.mode", false)).IsTrue();
             }
         }
         finally

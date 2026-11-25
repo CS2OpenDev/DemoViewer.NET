@@ -19,6 +19,7 @@ using CS2DemoKit.Parser.GameEvents;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Highlights;
+using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
@@ -322,6 +323,14 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // Owns the in-flight evaluation's lifetime; a new RunAsync cancels and replaces it.
     private CancellationTokenSource? _runCts;
 
+    // Test seam: awaited right after the evaluation returns, the window in which a newer run or a reset can
+    // cancel this one without the evaluation itself noticing.
+    internal Func<Task>? AfterEvaluationForTests { get; set; }
+
+    // Test seam: awaited after the prelude's awaits (visibility load, stale outputs) and before Build, the
+    // window in which a reset lands without either await noticing.
+    internal Func<Task>? BeforeBuildForTests { get; set; }
+
     // Suppresses re-compose/validate while BeginEdit is seeding the editor from a saved condition (the
     // text + each row would otherwise each fire a recompute); one runs at the end of seeding.
     private bool _seedingEditor;
@@ -622,6 +631,20 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     /// </summary>
     public event Action<AnalysisRun, ParsedDemo>? EvaluationCompleted;
 
+    /// <summary>
+    ///     Read inside <see cref="EvaluationCompleted" />: false when the run's highlights came from rule files
+    ///     edited since the background passes read theirs, so storing them under the passes' stamp would
+    ///     pair one rule set's highlights with another's identity.
+    /// </summary>
+    internal bool LastRunHighlightsInForce { get; private set; } = true;
+
+    /// <summary>
+    ///     Read inside <see cref="EvaluationCompleted" />: the coach slots the run's <c>library_coaches</c> table
+    ///     names, or null when the run did not build it. The run the event carries has that table cut with every
+    ///     stamped one, so this is read off the uncut run first.
+    /// </summary>
+    internal IReadOnlySet<int>? LastRunCoachSlots { get; private set; }
+
     // ── Reset ─────────────────────────────────────────────────────────────────
 
     /// <summary>Reset.</summary>
@@ -777,6 +800,16 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             IReadOnlySet<string>? stale = path is not null && MergedRules() is { } planning
                 ? await Task.Run(() => planning.StaleOutputs(path), runToken)
                 : null;
+            if (BeforeBuildForTests is { } beforeBuild)
+            {
+                await beforeBuild();
+            }
+
+            // Neither await above rechecks the token when it resumes (the stale-outputs Task.Run checks it only
+            // before starting, and there is no Task.Run at all without a path or merged rules). A reset that
+            // landed meanwhile would otherwise build, retain the closed demo and paint its skeleton.
+            runToken.ThrowIfCancellationRequested();
+
             (BuildResult build, RuleConfigLoadResult loadedRules, OpenRunPlan? plan) =
                 BuildFromConfig(demo, visibility, path, clock, stale);
             if (MergedRules() is { } merged)
@@ -811,6 +844,14 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 DecodeSites.Enter(8);
                 return DemoAnalysis.Evaluate(demo, build, evalOptions);
             }, runToken);
+            if (AfterEvaluationForTests is { } afterEvaluation)
+            {
+                await afterEvaluation();
+            }
+
+            // Task.Run checks the token only before the evaluation starts, so a newer run or a reset that lands
+            // after it returned is seen here or not at all. Each await below is the same gap again.
+            runToken.ThrowIfCancellationRequested();
             EvaluationResult result = run.Snapshots!;
             EvaluationProgress = 1;
 
@@ -959,6 +1000,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             await _graphViewModel.SetGraphAsync(vizNodes, vizEdges,
                 null,
                 PlayerTables.Count > 0 ? PlayerTables.Cast<INodeTable>().ToList() : null);
+            runToken.ThrowIfCancellationRequested();
 
             // ── Chain summaries ───────────────────────────────────────────────
             List<AnalysisChainSummaryViewModel> summaries =
@@ -993,6 +1035,9 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             }
 
             // Stats and the open's highlight harvest read the core rulesets only.
+            runToken.ThrowIfCancellationRequested();
+            LastRunHighlightsInForce = plan?.HighlightsInForce ?? true;
+            LastRunCoachSlots = LibraryTeamTables.CoachSlotsOf(run, demo.Players.Values);
             EvaluationCompleted?.Invoke(plan?.Shown(run) ?? run, demo);
 
             if (result.Messages.Count > 0)
@@ -2039,9 +2084,15 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     {
         if (LastEvaluatedDemo is { } demo)
         {
-            await RunAsync(demo, _demoKey);
+            await RerunAsync(demo);
         }
     }
+
+    /// <summary>
+    ///     Re-runs <paramref name="demo" /> under the key its open ran with. A re-run that passed no key would
+    ///     be the in-memory-only run: it clears the demo's breakpoints and stops saving new ones.
+    /// </summary>
+    internal Task RerunAsync(ParsedDemo demo) => RunAsync(demo, _demoKey);
 
     private bool CanRerunAnalysis() => !IsRunning && LastEvaluatedDemo is not null;
 

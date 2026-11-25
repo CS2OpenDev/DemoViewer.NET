@@ -132,7 +132,7 @@ if (suiteMode)
             continue;
         }
 
-        Console.WriteLine($"\n═══ {tc.Id} {"═".PadRight(70 - tc.Id.Length, '═')}");
+        Console.WriteLine($"\n═══ {tc.Id} {"═".PadRight(Math.Max(0, 70 - tc.Id.Length), '═')}");
         string reportFile = Path.Combine(suiteReportDir, $"{tc.Id}_{timestamp}.json");
         try
         {
@@ -232,6 +232,18 @@ if (positional.Length == 0)
         Console.Error.WriteLine($"Unknown --export format '{exportFormat}'. Expected 'csv' or 'json'.");
         return 1;
     }
+
+    // The same fail-fast for the one combination that can never produce a file: the projector reads
+    // snapshots and --bare is the switch that drops them. Reported after the run it cost a whole
+    // analysis, wrote nothing and still exited 0.
+    if (exportFormat is not null && bareMode)
+    {
+        Console.Error.WriteLine("--export requires snapshot mode; it is incompatible with --bare.");
+        return 1;
+    }
+
+    // Validated trimmed above, so hand the registry the same spelling.
+    exportFormat = exportFormat?.Trim();
 
     if (roundDebug)
     {
@@ -503,9 +515,9 @@ static int RunBench(string demoPath, string rulesDir, string? reportPath,
     // Runs the PlayerRoundStatsProjector over the snapshot result and writes one file per emitted
     // table. Needs snapshot mode (the projector reads MessageSnapshots), so it is incompatible with
     // --bare; on the forward path asking for it is what turns snapshots on.
-    if (exportFormat is not null)
+    if (exportFormat is not null && !WriteRoundExport(exportFormat, exportOut, demoPath, run))
     {
-        WriteRoundExport(exportFormat, exportOut, demoPath, run);
+        return 1;
     }
 
     return 0;
@@ -682,12 +694,13 @@ static void WriteGoldenStatsFiles(
 
 // Runs the PlayerRoundStatsProjector over the snapshot result and writes one file per emitted
 // MetricTable in the requested format. Sibling of WriteGoldenStatsFiles: per-round, not per-game.
-static void WriteRoundExport(string format, string? outPath, string demoPath, AnalysisRun run)
+// False when nothing could be written, which the caller turns into a non-zero exit.
+static bool WriteRoundExport(string format, string? outPath, string demoPath, AnalysisRun run)
 {
     if (run.Snapshots is not { } result)
     {
         Console.Error.WriteLine("--export requires snapshot mode; it is incompatible with --bare.");
-        return;
+        return false;
     }
 
     IOutputFormatter formatter = OutputFormatterRegistry.Get(format)
@@ -718,6 +731,8 @@ static void WriteRoundExport(string format, string? outPath, string demoPath, An
         formatter.WriteToFile(table, path);
         Console.WriteLine($"Export: {path}  ({table.Rows.Count} rows, {table.ValueColumns.Count} value columns)");
     }
+
+    return true;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -799,12 +814,14 @@ static object? ParseStatValue(string? raw)
         return true;
     }
 
-    if (int.TryParse(raw, out int i))
+    // The engine formats these strings with the invariant culture, so they are read back with it. The
+    // machine's culture would read "1.43" as 143 under de-DE and refuse it under fr-FR.
+    if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i))
     {
         return i;
     }
 
-    if (double.TryParse(raw, out double d))
+    if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double d))
     {
         return d;
     }

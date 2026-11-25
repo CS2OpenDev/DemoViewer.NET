@@ -35,6 +35,7 @@ public sealed class PackSwitch : IDisposable
     private readonly Dictionary<string, PackState> _states = new(StringComparer.Ordinal);
     private readonly Func<bool> _waitForFirstRun;
     private bool _disposed;
+    private bool _firstRunDismissed;
     private bool _started;
 
     /// <param name="packs">Every pack, in composition order.</param>
@@ -110,11 +111,24 @@ public sealed class PackSwitch : IDisposable
         }
     }
 
+    /// <summary>
+    ///     The first-run wizard closed without Finish or Skip. Nothing was written, so the wait would last the
+    ///     session: the packs start now as they resolve, and the wizard asks again at the next launch.
+    /// </summary>
+    public void FirstRunDismissed()
+    {
+        _firstRunDismissed = true;
+        if (_started)
+        {
+            Apply(ExtensionStartReason.EnabledInSession);
+        }
+    }
+
     private void OnGateChanged(object? sender, EventArgs e) => Apply(ExtensionStartReason.EnabledInSession);
 
     private void Apply(ExtensionStartReason reason)
     {
-        if (_disposed || _waitForFirstRun())
+        if (_disposed || (!_firstRunDismissed && _waitForFirstRun()))
         {
             return;
         }

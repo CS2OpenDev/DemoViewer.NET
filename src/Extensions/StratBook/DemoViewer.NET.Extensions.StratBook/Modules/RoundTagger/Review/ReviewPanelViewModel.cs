@@ -82,6 +82,7 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
     private readonly Func<int> _tickRate;
     private bool _disposed;
     private TagEditorViewModel? _editor;
+    private string? _editorDemoPath;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSuggestedTab), nameof(IsLabelsTab), nameof(IsLabelsListShown))]
@@ -399,6 +400,7 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
     private void SetEditor(TagEditorViewModel editor)
     {
         _editor = editor;
+        _editorDemoPath = _session.DemoPath;
         OnEditorsChanged();
     }
 
@@ -424,6 +426,14 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
 
     private void RebuildLabels()
     {
+        // The panel outlives a demo change, the session is re-attached under it: an editor opened on the last
+        // demo would save that demo's span into this one's document.
+        if (_editor is not null
+            && !string.Equals(_editorDemoPath, _session.DemoPath, StringComparison.OrdinalIgnoreCase))
+        {
+            CloseEditor();
+        }
+
         Guid? keep = _selectedLabel?.Id;
         Labels.Clear();
         HandLabels.Clear();

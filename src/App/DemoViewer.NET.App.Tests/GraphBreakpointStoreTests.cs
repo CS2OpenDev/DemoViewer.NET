@@ -136,6 +136,62 @@ public sealed class GraphBreakpointStoreTests
             .Because("re-attempting a failing parse on every launch is worse than losing a broken file");
     }
 
+    /// <summary>
+    ///     The legacy file is the only copy of what it holds until the new file is written. A carry whose write
+    ///     failed leaves it for the next launch, and only a file that cannot be parsed is given up on.
+    /// </summary>
+    [Test]
+    public async Task ALegacyFileWhoseCarryCouldNotBeWritten_IsKeptForTheNextLaunch()
+    {
+        using ConfigDir dir = new();
+        WriteLegacy(dir, "demo-f",
+            """
+            {"TargetKind":"Node","NodeName":"Alive","EdgeSource":null,"EdgeDest":null,
+             "EdgeLabel":null,"EdgeConditionLabel":null,"Condition":"value > 2","Enabled":true}
+            """);
+        // A folder where the new file goes: nothing can be written there.
+        Directory.CreateDirectory(AppPaths.GraphBreakpointsFile!);
+
+        GraphBreakpointStore.MigrateLegacyFile();
+
+        await Assert.That(File.Exists(AppPaths.LegacyGraphBreakpointsFile!)).IsTrue()
+            .Because("nothing was carried, so the breakpoints exist nowhere else");
+
+        Directory.Delete(AppPaths.GraphBreakpointsFile!, true);
+        GraphBreakpointStore.MigrateLegacyFile();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(new GraphBreakpointStore().Load("demo-f").Single().Condition).IsEqualTo("value > 2");
+            await Assert.That(File.Exists(AppPaths.LegacyGraphBreakpointsFile!)).IsFalse();
+        }
+    }
+
+    /// <summary>
+    ///     The file holds every demo's breakpoints. One that does not read is not an empty one: a save for one
+    ///     demo keeps the bytes aside rather than replacing them with that demo alone.
+    /// </summary>
+    [Test]
+    public async Task ASaveOverAFileThatDoesNotRead_KeepsItAside()
+    {
+        using ConfigDir dir = new();
+        string path = AppPaths.GraphBreakpointsFile!;
+        const string Cut = """{"demo-other":[{"TargetKind":"Node","NodeKey":"g:Alive","Condition":"value > 2""";
+        await File.WriteAllTextAsync(path, Cut);
+        GraphBreakpointStore store = new(path);
+        await Assert.That(store.Load("demo-other").Count).IsEqualTo(0).Because("a load is still best-effort");
+
+        store.Save("demo-x", [Record("a").ToBreakpoint()]);
+
+        string[] aside = Directory.GetFiles(dir.Path, Path.GetFileName(path) + ".unreadable-*");
+        using (Assert.Multiple())
+        {
+            await Assert.That(aside.Length).IsEqualTo(1);
+            await Assert.That(aside.Length == 1 ? await File.ReadAllTextAsync(aside[0]) : null).IsEqualTo(Cut);
+            await Assert.That(store.Load("demo-x").Single().NodeKey).IsEqualTo("g:a");
+        }
+    }
+
     [Test]
     public async Task APerPlayerKeyWrittenBeforeTheOccurrenceCounter_LoadsAndStillResolves()
     {

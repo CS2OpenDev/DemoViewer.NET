@@ -17,6 +17,7 @@ namespace DemoViewer.NET.Visualization;
 /// </summary>
 public sealed class GraphViewModel : INotifyPropertyChanged
 {
+    private int _generation;
     private GraphStyle _style = new();
 
     /// <summary>Current layout result (used internally by GraphView).</summary>
@@ -70,6 +71,11 @@ public sealed class GraphViewModel : INotifyPropertyChanged
 
     internal IReadOnlyList<INodeTable>? Tables { get; private set; }
 
+    // The layout itself, swappable so a test can hold one call back and finish two out of order.
+    internal Func<IReadOnlyList<IGraphNode>, IReadOnlyList<IGraphEdge>, IReadOnlyList<INodeGroup>?,
+        IReadOnlyList<INodeTable>?, GraphStyle, LayoutResult> ComputeLayout { get; set; } =
+        LayoutPipeline.ComputeFullLayout;
+
     /// <summary>Property changed.</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -94,15 +100,22 @@ public sealed class GraphViewModel : INotifyPropertyChanged
         IReadOnlyList<INodeGroup>? groups = null,
         IReadOnlyList<INodeTable>? tables = null)
     {
-        Nodes = nodes;
-        Edges = edges;
-        Tables = tables;
+        // Callers fire this per edit without awaiting, so two layouts can overlap and finish in either
+        // order. Only the latest call publishes; the inputs are published with its layout, so the
+        // view never draws one graph's nodes against another's positions.
+        int generation = Interlocked.Increment(ref _generation);
         IsLayoutComplete = false;
 
         GraphStyle style = _style;
-        LayoutResult layout = await Task.Run(() =>
-            LayoutPipeline.ComputeFullLayout(nodes, edges, groups, tables, style));
+        LayoutResult layout = await Task.Run(() => ComputeLayout(nodes, edges, groups, tables, style));
+        if (generation != Volatile.Read(ref _generation))
+        {
+            return;
+        }
 
+        Nodes = nodes;
+        Edges = edges;
+        Tables = tables;
         CurrentLayout = layout;
 
         Dictionary<IGraphNode, GraphNodePlacement> placements = new(layout.NodePositions.Count);

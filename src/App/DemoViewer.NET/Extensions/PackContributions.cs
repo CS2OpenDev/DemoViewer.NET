@@ -63,6 +63,21 @@ internal sealed class PackContributions(
     /// <summary>The guard every contribution of the pack runs under.</summary>
     public ExtensionGuard Guard { get; } = guard ?? ExtensionGuard.Standalone(pack);
 
+    /// <summary>Every pack this launch declared, in composition order; a test names its own.</summary>
+    internal IReadOnlyList<IExtension>? LoadedPacks { get; init; }
+
+    /// <summary>
+    ///     The pass ids of this pack that the pass registry already held when it refused the pack's passes.
+    ///     They are the core's or another extension's, so the stamps under them are not this pack's to strip.
+    /// </summary>
+    internal IReadOnlyCollection<string> PassIdsOfOthers { get; set; } = [];
+
+    /// <summary>
+    ///     True when the pack's registration failed or its Contribute threw this session, so these are not
+    ///     what the pack contributes: what its passes and rulesets wrote cannot be told apart here.
+    /// </summary>
+    internal bool ContributionsUnknown { get; set; }
+
     public IExtensionContext Context => field ??= context();
     public IReadOnlyList<GatedDemoAction> DemoActions => _demoActions;
 
@@ -107,7 +122,7 @@ internal sealed class PackContributions(
     public IReadOnlyList<StoreDescriptor> Stores =>
         Context is ExtensionContext { Stores: ExtensionStores declared }
             ? declared.Declared
-            : field ??= AcceptedStores(Pack, Guard);
+            : field ??= AcceptedStores(Pack, Guard, LoadedPacks?.Select(p => p.Id));
 
     /// <summary>The pack's own "delete extension data", replacing the host's, or null when it declared none.</summary>
     public IExtensionDataRemoval? DataRemovalContribution { get; private set; }
@@ -246,6 +261,19 @@ internal sealed class PackContributions(
         }
 
         string id = RulesetContribution.QualifiedId(Pack.Id, ruleset.Id);
+
+        // The qualified id makes '.' and '-' the same '_', so two extension ids can file a ruleset under one
+        // id, and that id alone names the facts files and their stamps. The rules keep the first one loaded
+        // and so does this: the later one is dropped here, or its "Delete extension data" would take the
+        // first one's facts.
+        if (EarlierOwnerOf(id, ruleset.Id) is { } owner)
+        {
+            Guard.Report("ruleset", new ArgumentException(
+                $"'{ruleset.Id}' is filed as '{id}', which is already a ruleset of the extension '{owner}'.",
+                nameof(ruleset)));
+            return;
+        }
+
         Func<Stream> open = ruleset.Yaml;
         _rulesets.Add(new ContributedRuleset(id, Pack.Id, Guard.OwnFeature("ruleset", ruleset.FeatureId), () =>
             Guard.Run("ruleset " + id, () =>
@@ -268,16 +296,40 @@ internal sealed class PackContributions(
         return false;
     }
 
-    private bool ListedInManifest(string rulesetId)
+    private bool ListedInManifest(string rulesetId) => ListedInManifest(Pack, rulesetId);
+
+    private static bool ListedInManifest(IExtension pack, string rulesetId)
     {
         try
         {
-            return ExtensionManifests.Of(Pack).Rulesets.Contains(rulesetId, StringComparer.Ordinal);
+            return ExtensionManifests.Of(pack).Rulesets.Contains(rulesetId, StringComparer.Ordinal);
         }
         catch (Manifest.ExtensionManifestException)
         {
             return false;
         }
+    }
+
+    // The extension declared before this one whose manifest lists the same ruleset under the same qualified id.
+    // Only one the app composes: a pack that failed the compatibility check files nothing, so it holds no id.
+    private string? EarlierOwnerOf(string qualifiedId, string rulesetId)
+    {
+        foreach (IExtension other in LoadedPacks ?? FeaturePacks.CompatibleOrNone)
+        {
+            if (string.Equals(other.Id, Pack.Id, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            if (string.Equals(RulesetContribution.QualifiedId(other.Id, rulesetId), qualifiedId,
+                    StringComparison.Ordinal)
+                && ListedInManifest(other, rulesetId))
+            {
+                return other.Id;
+            }
+        }
+
+        return null;
     }
 
     /// <inheritdoc />
@@ -369,8 +421,15 @@ internal sealed class PackContributions(
     ///     past the extension's own files drops the store rather than reaching what belongs to the app or another
     ///     extension.
     /// </summary>
-    internal static IReadOnlyList<StoreDescriptor> AcceptedStores(IExtension pack, ExtensionGuard guard)
+    /// <param name="pack">The extension.</param>
+    /// <param name="guard">The extension's guard, which a refusal is reported through.</param>
+    /// <param name="loadedIds">
+    ///     The ids of every extension this launch declared; null reads them off <see cref="FeaturePacks" />.
+    /// </param>
+    internal static IReadOnlyList<StoreDescriptor> AcceptedStores(IExtension pack, ExtensionGuard guard,
+        IEnumerable<string>? loadedIds = null)
     {
+        string[] loaded = [.. loadedIds ?? FeaturePacks.DeclaredOrNone.Select(p => p.Id)];
         List<StoreDescriptor> accepted = [];
         foreach (StoreDescriptor? store in guard.Run("stores", () => pack.Stores.ToArray(), []))
         {
@@ -380,7 +439,7 @@ internal sealed class PackContributions(
                 continue;
             }
 
-            if (StoreRefusal(pack.Id, store) is { } refusal)
+            if (StoreRefusal(pack.Id, store, loaded) is { } refusal)
             {
                 guard.Report("store", new ArgumentException($"Store '{store.Id}' is refused: {refusal}."));
                 continue;
@@ -395,10 +454,15 @@ internal sealed class PackContributions(
     /// <summary>
     ///     Why <paramref name="store" /> may not be listed for <paramref name="packId" />, or null. No store names
     ///     a folder the host keeps for itself and every extension. A third-party extension may name only paths
-    ///     whose first segment is its id, its id and ".json", or starts with its id and '-'. An extension the app
-    ///     ships may name other paths, and a <c>demos/*</c> pattern only when its suffix cannot match a record.
+    ///     whose first segment is its id, its id and ".json", or starts with its id and '-'. An id may itself hold
+    ///     '-', so a name can fit two extensions' ids: the longer id is the closer match and keeps it, and the
+    ///     shorter one's store is refused. An extension the app ships may name other paths, and a
+    ///     <c>demos/*</c> pattern only when its suffix cannot match a record.
     /// </summary>
-    internal static string? StoreRefusal(string packId, StoreDescriptor store)
+    /// <param name="packId">The extension's id.</param>
+    /// <param name="store">The store it declared.</param>
+    /// <param name="loadedIds">The ids of the extensions loaded beside it; its own may be among them.</param>
+    internal static string? StoreRefusal(string packId, StoreDescriptor store, IEnumerable<string>? loadedIds = null)
     {
         bool shipped = packId.StartsWith(ExternalExtensions.ReservedIdPrefix, StringComparison.Ordinal);
         foreach (string raw in store.Paths)
@@ -418,11 +482,17 @@ internal sealed class PackContributions(
 
             if (!shipped)
             {
-                if (!string.Equals(first, packId, StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(first, packId + ".json", StringComparison.OrdinalIgnoreCase)
-                    && !first.StartsWith(packId + "-", StringComparison.OrdinalIgnoreCase))
+                if (!NamedAfter(first, packId))
                 {
                     return $"'{raw}' is not named after the extension's id '{packId}'";
+                }
+
+                // "a.b-c" is "a.b" and "-c", and it is also the extension "a.b-c"'s own folder. Listed by
+                // "a.b", it would be opened by one extension and deleted with it while holding the other's.
+                if (loadedIds?.FirstOrDefault(other => other.Length > packId.Length && NamedAfter(first, other))
+                    is { } owner)
+                {
+                    return $"'{raw}' is named after the extension '{owner}'";
                 }
 
                 continue;
@@ -444,6 +514,12 @@ internal sealed class PackContributions(
 
         return PortabilityRefusal(store);
     }
+
+    // The three names a third-party extension may give a path's first segment.
+    private static bool NamedAfter(string first, string id) =>
+        string.Equals(first, id, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(first, id + ".json", StringComparison.OrdinalIgnoreCase)
+        || first.StartsWith(id + "-", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     ///     Why the transfer side of <paramref name="store" /> is refused, or null. A transfer copies what a template

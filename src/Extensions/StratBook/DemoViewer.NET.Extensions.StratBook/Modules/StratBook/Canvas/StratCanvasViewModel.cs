@@ -732,15 +732,33 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             case CoreActions.Redo:
                 return !IsGestureOpen && _session.Redo();
 
+            // A stroke in flight keeps the ink it opened on, and its close carries that ink back into the strat:
+            // an edit under it would come back undone, or land on another step. Refused, as the host's
+            // annotations panel refuses a clear mid-gesture; a token drag is cancelled instead.
             case CoreActions.ClearAnnotations:
-                return ClearActiveStepStrokes();
+                return !Ink.Document.IsGestureOpen && ClearActiveStepStrokes();
             case StratBookActions.AddStep:
+                if (Ink.Document.IsGestureOpen)
+                {
+                    return false;
+                }
+
                 CancelOpenDrag();
                 return InsertStep();
             case StratBookActions.DuplicateStep:
+                if (Ink.Document.IsGestureOpen)
+                {
+                    return false;
+                }
+
                 CancelOpenDrag();
                 return DuplicateActiveStep();
             case StratBookActions.DeleteStep:
+                if (Ink.Document.IsGestureOpen)
+                {
+                    return false;
+                }
+
                 CancelOpenDrag();
                 return DeleteActiveStep();
             case StratBookActions.PrevStep:
@@ -1552,10 +1570,22 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
     }
 
+    /// <summary>
+    ///     Raised after every reprojection, including the ones no session change causes (another branch path,
+    ///     lineup origins or places moving, the routing gate), so a holder of the projection's ranges can check them.
+    /// </summary>
+    internal event Action? Reprojected;
+
+    private void Reproject()
+    {
+        ReprojectCore();
+        Reprojected?.Invoke();
+    }
+
     // Rebuilds everything the canvas shows from the session's document: path, schedule, tracks, ink, the
     // frame source, the transport's range and the timeline. Cheap next to a render: ten tracks and a few
     // dozen strokes.
-    private void Reproject()
+    private void ReprojectCore()
     {
         if (_disposed)
         {

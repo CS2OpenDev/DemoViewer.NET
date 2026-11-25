@@ -520,9 +520,11 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
                 ExceptionDispatchInfo.Throw(failure);
             }
 
-            // A newer request's build replaced this one in the queue before it ran.
+            // The build never ran. A newer request's build replaced this one in the queue, and that one clears
+            // IsBuilding when it lands; or the item was removed from the queue, and nothing else will.
             if (result is null)
             {
+                PostStopped(sequence);
                 return;
             }
 
@@ -536,7 +538,9 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
         }
         catch (OperationCanceledException)
         {
-            // A newer request replaced this one; it clears IsBuilding when it lands.
+            // A newer request replaced this one; it clears IsBuilding when it lands. A stop from the queue
+            // with no newer request behind it is still the latest, and takes the build off itself.
+            PostStopped(sequence);
         }
         catch (Exception ex)
         {
@@ -550,6 +554,17 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
             });
         }
     }
+
+    // A request that is still the latest has nothing coming to clear IsBuilding for it.
+    private void PostStopped(int sequence) =>
+        _post(() =>
+        {
+            if (sequence == _sequence && !_disposed)
+            {
+                IsBuilding = false;
+                StatusLine = "the matrix build was stopped before it finished";
+            }
+        });
 
     // Off the UI thread: the scope, the documents, the side narrowing, the axes and values offered, and
     // the pivot. Reads the store, the cache index and Team Identity, all of which lock for themselves.

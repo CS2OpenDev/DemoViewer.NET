@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace DemoViewer.NET.Services;
 
 /// <summary>
@@ -48,6 +50,32 @@ public static class PathSafety
         }
 
         return kept.Count == 0 ? null : Path.Combine(kept.ToArray());
+    }
+
+    /// <summary>
+    ///     True when <paramref name="mapName" /> can name a map's asset folder: one segment of letters, digits,
+    ///     <c>_</c>, <c>-</c> and <c>.</c>, not starting with a dot. A map name comes from a demo's header, which
+    ///     whoever wrote the demo controls, and every asset lookup joins it to a folder; a rooted or UNC name
+    ///     would replace that folder outright and point the probe at a location of the author's choosing. A
+    ///     workshop name such as <c>workshop/123/de_x</c> is refused too, which costs nothing: no bundle ships
+    ///     for one.
+    /// </summary>
+    public static bool IsMapFolderName([NotNullWhen(true)] string? mapName)
+    {
+        if (string.IsNullOrEmpty(mapName) || mapName[0] == '.')
+        {
+            return false;
+        }
+
+        foreach (char c in mapName)
+        {
+            if (!char.IsAsciiLetterOrDigit(c) && c is not ('_' or '-' or '.'))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>

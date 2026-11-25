@@ -39,6 +39,9 @@ public sealed class ExtensionUpdateService
     private readonly IReadOnlyList<string> _catalogue;
     private readonly IReadOnlyList<string> _shippedIds;
     private readonly IReadOnlyList<LoadOutcome> _externalRejected;
+    // Folders a stage emptied of the copy that was in them. The launch's refusals are a list made once, and
+    // what a later stage puts in one of these folders is not the copy the launch refused. Under _sync.
+    private readonly HashSet<string> _replaced = new(StringComparer.FromComparison(PathComparison));
     // Two stages of one entry share the .staging paths, so stages run one at a time: each waits for the
     // tail of the chain and the second then finds the first's result, not its files.
     private readonly Lock _stageSync = new();
@@ -121,6 +124,9 @@ public sealed class ExtensionUpdateService
 
     /// <summary>The packs this service knows, as handed in.</summary>
     private IReadOnlyList<PackStatus> Statuses { get; }
+
+    /// <summary>Runs in a stage after the removal check, before the new version is moved in. Test seam.</summary>
+    internal Action? AfterRemovalCheck { get; set; }
 
     /// <summary>
     ///     The most recent state of every extension that has been checked this run, in declaration order;
@@ -240,7 +246,9 @@ public sealed class ExtensionUpdateService
     /// <summary>
     ///     A staged version newer than the running copy that the loader would take at the next start: the
     ///     highest under <c>extensions/&lt;id&gt;/</c> above the running version that passes the compatibility
-    ///     check. Null when none, or when the running copy's version is unknown.
+    ///     check, passing over a copy this launch's trust check refused. Null when none, when the running copy's
+    ///     version is unknown, or when a copy above it failed to load this launch and is still on disk: the next
+    ///     start chooses that one again and falls back to the bundled copy.
     /// </summary>
     public SemVersion? PendingVersion(string packId)
     {
@@ -251,7 +259,7 @@ public sealed class ExtensionUpdateService
             return null;
         }
 
-        return HighestStaged(packId, manifest.Version);
+        return HighestStaged(packId, manifest.Version, asTheLoaderChooses: true);
     }
 
     /// <summary>True when <c>extensions/&lt;id&gt;/</c> carries the removal marker: Remove was pressed and the next start deletes it.</summary>
@@ -266,17 +274,32 @@ public sealed class ExtensionUpdateService
     public bool PendingRestart => Statuses.Any(s => PendingVersion(s.Pack.Id) is not null);
 
     // The highest compatible version of packId under extensions/<id>/, above a floor when one is given.
-    private SemVersion? HighestStaged(string packId, SemVersion? above)
+    // asTheLoaderChooses walks down as ExtensionLoader.Select does: a copy this launch refused before loading it
+    // is refused again and passed over, but one that failed to load is chosen again, and the loader does not
+    // look below it, so nothing lower is pending while it is on disk.
+    private SemVersion? HighestStaged(string packId, SemVersion? above, bool asTheLoaderChooses = false)
     {
         try
         {
-            return ExtensionLoader.Discover(_extensionsDirectory).Candidates
+            IEnumerable<ExtensionCandidate> candidates = ExtensionLoader.Discover(_extensionsDirectory).Candidates
                 .Where(c => string.Equals(c.Manifest.Id, packId, StringComparison.Ordinal)
                     && (above is null || c.Manifest.Version > above)
                     && PackCompatibility.Check(c.Manifest, _host).IsCompatible)
-                .Select(c => c.Manifest.Version)
-                .OrderByDescending(v => v)
-                .FirstOrDefault();
+                .OrderByDescending(c => c.Manifest.Version);
+            foreach (ExtensionCandidate candidate in candidates)
+            {
+                if (!asTheLoaderChooses || RefusedCopy(candidate.Directory) is not { } refused)
+                {
+                    return candidate.Manifest.Version;
+                }
+
+                if (FailedToLoad(refused))
+                {
+                    return null;
+                }
+            }
+
+            return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -423,7 +446,11 @@ public sealed class ExtensionUpdateService
                 for (int i = 0; i < firstParty.Length; i++)
                 {
                     ExtensionUpdateState state = await CheckCore(firstParty[i], linked.Token).ConfigureAwait(false);
-                    if (state.Status == ExtensionUpdateStatus.UpdateAvailable && state.Offered is { } offered)
+                    // A version that failed to load here is not downloaded again only to fail again; a newer
+                    // one, an app update or a user's Update stages it.
+                    if (state.Status == ExtensionUpdateStatus.UpdateAvailable && state.Offered is { } offered
+                        && !ExtensionStaging.FailedToLoadBefore(_extensionsDirectory, offered.Manifest.Id,
+                            offered.Version, _host.AppVersion))
                     {
                         StageResult result = await StageLocked(offered, _installTrust, ctx, null, false,
                             linked.Token).ConfigureAwait(false);
@@ -518,15 +545,38 @@ public sealed class ExtensionUpdateService
     ///     The start-of-run sweep, as a background queue item: removes <c>extensions/.staging/</c> whole (a
     ///     download that did not finish), then every staged version of a known extension that is not newer
     ///     than the running copy and is not the directory the running copy loaded from. Newer versions stay:
-    ///     one the loader refused today may load after an app update. Touches nothing outside
-    ///     <c>extensions/</c> and never follows a link.
+    ///     one the loader refused today may load after an app update. The exception is a staged update of a
+    ///     shipped extension that failed to load this launch: the loader would choose it again at every start
+    ///     and never look at an older staged copy, so it is deleted, at the next start when its assembly is
+    ///     mapped. Touches nothing outside <c>extensions/</c> and never follows a link.
     /// </summary>
+    // The sweep joins the stage chain: it is a background item and a user's Update a user item, which the queue
+    // runs side by side, and deleting .staging under a stage in flight breaks that stage.
     public Task CleanupOnStartAsync() =>
-        QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, "Tidy staged extension updates", Owner, _ =>
+        QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, "Tidy staged extension updates", Owner,
+            _ => AfterStages(Cleanup));
+
+    // Runs `sweep` once every stage queued before it has finished; a stage queued after waits for the sweep.
+    private async Task AfterStages(Action sweep)
+    {
+        TaskCompletionSource done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task previous;
+        lock (_stageSync)
         {
-            Cleanup();
-            return Task.CompletedTask;
-        });
+            previous = _stageTail;
+            _stageTail = Task.WhenAll(previous, done.Task);
+        }
+
+        try
+        {
+            await previous.ConfigureAwait(false); // never faults: every link ends with SetResult
+            sweep();
+        }
+        finally
+        {
+            done.SetResult();
+        }
+    }
 
     /// <summary>The sweep behind <see cref="CleanupOnStartAsync" />, inline. Never throws.</summary>
     public void Cleanup()
@@ -578,6 +628,8 @@ public sealed class ExtensionUpdateService
                     string reason = "superseded by the running " + running.Version;
                     AppLog.ExtensionStagingRemoved(Log, directory, reason);
                 }
+
+                RemoveFailedCopies(status, running);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -585,6 +637,48 @@ public sealed class ExtensionUpdateService
             AppLog.OperationFailed(Log, "tidy staged extension updates", ex);
         }
     }
+
+    // The staged copies of a shipped extension that the loader chose this launch and could not load. A
+    // folder a stage has replaced since is not the copy that failed (RefusedCopy).
+    private void RemoveFailedCopies(PackStatus status, ExtensionManifest running)
+    {
+        foreach (LoadOutcome outcome in status.Rejected)
+        {
+            if (!FailedToLoad(outcome) || (outcome.Version is { } version && version <= running.Version)
+                || string.IsNullOrEmpty(outcome.Directory) || RefusedCopy(outcome.Directory) is null)
+            {
+                continue;
+            }
+
+            string directory = Path.GetFullPath(outcome.Directory);
+            if (!ExtensionStaging.IsInside(_extensionsDirectory, directory) || !Directory.Exists(directory))
+            {
+                continue;
+            }
+
+            // Every such failure comes after the assembly loaded, and it stays mapped until this process
+            // exits, so the folder is marked: the next start deletes it before anything loads.
+            if (ExtensionStaging.MarkVersionForRemoval(_extensionsDirectory, directory))
+            {
+                AppLog.ExtensionStagingRemoved(Log, directory,
+                    "it failed to load: " + outcome.Detail + "; deleted at the next start");
+                // Discover lists a version only from a folder named after it.
+                if ((outcome.Version ?? (SemVersion.TryParse(Path.GetFileName(directory), out SemVersion? named)
+                        ? named
+                        : null)) is { } failed)
+                {
+                    ExtensionStaging.RecordFailedLoad(_extensionsDirectory, status.Pack.Id, failed, _host.AppVersion);
+                }
+            }
+        }
+    }
+
+    // A staged update of a shipped extension that ExtensionLoader.Select chose and Resolve then could not load.
+    // Select chooses it again at the next start and falls back to the bundled copy without trying a lower one.
+    private static bool FailedToLoad(LoadOutcome outcome) =>
+        !outcome.External && outcome.Failure is LoadFailure.AssemblyLoadFailed or LoadFailure.EntryTypeMissing
+            or LoadFailure.NotAPack or LoadFailure.IdentityMismatch or LoadFailure.ReferenceMismatch
+            or LoadFailure.ProbeFailed;
 
     private async Task<ExtensionUpdateState> CheckCore(PackStatus status, CancellationToken ct)
     {
@@ -797,6 +891,44 @@ public sealed class ExtensionUpdateService
         _externalRejected.FirstOrDefault(o =>
             string.Equals(IdFolderOf(o.Directory), id, StringComparison.Ordinal) && Directory.Exists(o.Directory));
 
+    // The launch's refusal of the copy in directory, from a declared pack's status or the external list. A
+    // copy refused only for not being newer than the shipped one is not at fault, and a folder a stage has
+    // replaced since no longer holds the copy the refusal was about.
+    private LoadOutcome? RefusedCopy(string directory)
+    {
+        string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        lock (_sync)
+        {
+            if (_replaced.Contains(full))
+            {
+                return null;
+            }
+        }
+
+        return Statuses.SelectMany(s => s.Rejected).Concat(_externalRejected)
+            .FirstOrDefault(o => o.Failure is not LoadFailure.NotNewer
+                && !string.IsNullOrEmpty(o.Directory)
+                && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(o.Directory)), full,
+                    PathComparison));
+    }
+
+    // directory is a copy the loader would consider: a discovered candidate the compatibility check accepts.
+    private bool IsLoadableCopy(string directory)
+    {
+        string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        try
+        {
+            return ExtensionLoader.Discover(_extensionsDirectory).Candidates.Any(c =>
+                string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(c.Directory)), full, PathComparison)
+                && PackCompatibility.Check(c.Manifest, _host).IsCompatible);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Unreadable is not proof of damage: leave the folder alone.
+            return true;
+        }
+    }
+
     // The resolver is caller-supplied; one that throws is a feed failure, never a failed queue item.
     private Uri? TryResolveFeedUrl(string packId, out string logDetail)
     {
@@ -924,7 +1056,38 @@ public sealed class ExtensionUpdateService
 
         if (Directory.Exists(installed))
         {
-            return new StageResult(StageOutcome.AlreadyInstalled, installed);
+            // A folder the next start would load is already the install. One this launch refused, or one that
+            // is not a loadable copy of this version, is replaced, unless its assembly is mapped in this process.
+            LoadOutcome? refused = RefusedCopy(installed);
+            if (refused is null && IsLoadableCopy(installed))
+            {
+                return new StageResult(StageOutcome.AlreadyInstalled, installed);
+            }
+
+            if (refused is { AssemblyLoaded: true })
+            {
+                return Refuse(entry, refused.Detail, refused.LogDetail);
+            }
+
+            try
+            {
+                ExtensionStaging.DeleteTree(installed);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return Refuse(entry, "the update could not be written to the app's data folder", ex.Message);
+            }
+
+            // DeleteTree leaves a file that will not delete, and the folder with it.
+            if (Directory.Exists(installed))
+            {
+                return Refuse(entry, "the update could not be written to the app's data folder", null);
+            }
+
+            lock (_sync)
+            {
+                _replaced.Add(Path.TrimEndingDirectorySeparator(Path.GetFullPath(installed)));
+            }
         }
 
         if (entry.Size > ExtensionStaging.MaxBytes)
@@ -994,8 +1157,14 @@ public sealed class ExtensionUpdateService
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(installed)!);
-            // An install after Remove, before the restart, is a reinstall: the marker would sweep this copy.
-            File.Delete(marker);
+            AfterRemovalCheck?.Invoke();
+            // An install after Remove, before the restart, is a reinstall: the marker would sweep this copy. The
+            // automatic stage found no marker above, so one here is a Remove pressed since, and it stands.
+            if (userInitiated)
+            {
+                File.Delete(marker);
+            }
+
             try
             {
                 Directory.Move(extracted, installed);
@@ -1007,6 +1176,7 @@ public sealed class ExtensionUpdateService
             }
 
             RemoveStaging(part, extracted);
+            ExtensionStaging.ForgetFailedLoad(_extensionsDirectory, id);
             string versionText = version.ToString();
             AppLog.ExtensionUpdateStaged(Log, name, versionText, installed);
             return new StageResult(StageOutcome.Installed, installed);

@@ -91,9 +91,15 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // The WHOLE demo's kills, pre-built ONCE at load from IModuleContext.GetEventTimeline("player_death")
     // (decoupling display from the push cadence, no kill lost to a render-skipped frame). Rebuilt if the
     // roster arrives after activation (names depend on it). _killWindow is reusable render scratch.
-    private readonly List<KillFeedRow> _allKills = [];
+    //
+    // REPLACED on a rebuild, never cleared and refilled: a running export holds the list it was set up
+    // with and reads it on a pool thread for minutes, so a list is not touched again once it is here.
+    private List<KillFeedRow> _allKills = [];
 
     private readonly AnnotationSessionController _annotationController;
+
+    // The controller's place among the sessions a transfer import saves, holds and reloads; null headless.
+    private readonly IDisposable? _annotationWrites;
     private readonly AnnotationTrack _annotationTrack;
 
     // Attributes panel: one row per roster slot, updated in place each push (no list rebuild).
@@ -153,6 +159,11 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // inside one demo, and the DemoReset signal does not reach a DEACTIVATED tab, so the path is what
     // tells the next activation's resync whether the state it is holding is still about this demo.
     private string? _followDemoPath;
+
+    // The content hash the annotation controller was last attached under. The controller keys on the
+    // path, and a demo re-opened at the same path with other bytes (overwritten, re-downloaded, or on the
+    // browser head any demo with the same file name) reaches a deactivated tab only as a re-activation.
+    private string? _annotationDemoSha256;
 
     // A follow by account asked for before the roster of its demo was seeded: the account and the demo it is
     // about. SeedRosterDisplay applies it once that demo's roster is in, and drops it when another demo's is.
@@ -338,6 +349,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         _annotationController = new AnnotationSessionController(
             TryResolveAnnotationStore(AnnotationDemoKey), TryResolveSettings());
         _annotationController.LoadRecentColors();
+        _annotationWrites = TryResolveAnnotationWrites()?.Register(_annotationController);
 
         Annotations = new AnnotationsPanelViewModel(_annotationController,
             () => _context?.CurrentTick ?? CurrentFrame.Time.Tick);
@@ -614,6 +626,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         Timeline.TrackVisibilityChanged -= SaveTimelineSettings;
         Timeline.Dispose(); // the tracks' Changed subscriptions, taken in RegisterTrack
         LevelStrip.SettingsChanged -= SaveLevelSettings;
+        _annotationWrites?.Dispose();
         _annotationController.Flush();
         Annotations.Dispose();
         _annotationTrack.Dispose();
@@ -691,7 +704,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     {
         // Annotations are flushed FIRST, while the context is still attached, and SYNCHRONOUSLY: a
         // debounced autosave that had not fired yet is the difference between a stroke surviving and
-        // vanishing, and the shell calls this on its way out of MainViewModel.Dispose, where a
+        // vanishing, and the shell calls this on its way out (MainViewModel.FlushForShutdown at exit), where a
         // fire-and-forget write races the process exit.
         _annotationController.Flush();
         Surface.NotifyDeactivated(); // a panel holding the keyboard lets go, writes what it was making and flushes
@@ -881,6 +894,10 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // The export pane and a contributed side pane share one place.
         Surface.CloseSidePane();
 
+        // The button stays visible while the pane is open. A dialog replaced without closing would keep its
+        // ffmpeg download running with no pane to answer its licence prompt.
+        CloseExport();
+
         if (_exportJob is null)
         {
             // The log sink is passed at BOTH levels on purpose: the runner's carries the chosen encoder
@@ -925,6 +942,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             host.MountStatusChip?.Invoke(ExportStatus);
         }
 
+        // A pane already open is replaced, and disposed so it stops listening to the job, which outlives it.
+        CloseExport();
         ExportDialog = new Playback2DExportDialogViewModel(
             BuildExportRanges(),
             exports.Settings.Playback2D,
@@ -1023,28 +1042,52 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     ///     <c>Ink</c> is the frozen document for <b>this</b> run.
     /// </param>
     internal ExportSceneSetup BuildExportSetup(Playback2DExportHost host,
-        Scene2DExportRequest? request = null) => new(
-        host.Frames() ?? [],
-        _tickRate,
-        _context?.MapName,
-        request?.Palette ?? LivePalette(),
-        LevelStrip.DisplayMode,
-
-        // The export builds its own solver over the same engine: VisionLayer is stateless per frame, and
-        // the engine itself is a read-only mesh.
-        VisionEngine is null ? null : new VisibilityEngineSolver(() => VisionEngine),
-        BuildExportHud(),
-        MapAsset,
-
-        // Off the REQUEST, not off a field. This method runs on the export's pool thread, and it runs
-        // AFTER the job has waited on the heavy-job gate; a tab-level field written at Start would by
-        // then be whatever the most recent Start put there, which is not necessarily this run's.
-        request?.Ink)
+        Scene2DExportRequest? request = null)
     {
-        // The live HUD reads _context.CurtimeSeconds(tick) = tick/rate − base; the export's source reads
-        // tick/rate and subtracts this, so both clocks agree. CurtimeSeconds(0) is exactly −base.
-        ClockBaseSeconds = _context is { } context ? -context.CurtimeSeconds(0) : 0
-    };
+        // The run's OWN hold on the map art, not the tab's. The render draws the radar images for
+        // minutes on a pool thread, and the tab gives its hold back the moment the user opens a demo on
+        // another map; as the last one, that disposed the bundle under the export. The runner releases
+        // this one when the run ends, however it ends.
+        string? map = _context?.MapName;
+        MapBundleLease? lease = string.IsNullOrEmpty(map) ? null : MapBundleLeases.Acquire(map);
+
+        // Read once, for the same reason: a map change nulls the tab's engine and later points it at the
+        // new map's mesh, and a solver closing over the property would follow it mid-render.
+        VisibilityEngine? engine = VisionEngine;
+
+        try
+        {
+            return new ExportSceneSetup(
+                host.Frames() ?? [],
+                _tickRate,
+                map,
+                request?.Palette ?? LivePalette(),
+                LevelStrip.DisplayMode,
+
+                // The export builds its own solver over the same engine: VisionLayer is stateless per frame,
+                // and the engine itself is a read-only mesh, captured above for the whole run.
+                engine is null ? null : new VisibilityEngineSolver(() => engine),
+                BuildExportHud(),
+                lease,
+
+                // Off the REQUEST, not off a field. This method runs on the export's pool thread, and it runs
+                // AFTER the job has waited on the heavy-job gate; a tab-level field written at Start would by
+                // then be whatever the most recent Start put there, which is not necessarily this run's.
+                request?.Ink)
+            {
+                // The live HUD reads _context.CurtimeSeconds(tick) = tick/rate − base; the export's source
+                // reads tick/rate and subtracts this, so both clocks agree. CurtimeSeconds(0) is exactly −base.
+                ClockBaseSeconds = _context is { } context ? -context.CurtimeSeconds(0) : 0,
+                Owned = lease
+            };
+        }
+        catch
+        {
+            // No setup came of it, so there is no runner to release the hold through Owned.
+            lease?.Dispose();
+            throw;
+        }
+    }
 
     // The exported HUD reads the SAME pre-built kill timeline the XAML feed windows, and the same
     // SceneGameInfo projection the panel binds, so the two HUDs cannot drift apart.
@@ -1053,15 +1096,19 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // the scoreboard as it stood the instant Start was pressed and burns that into every frame of the
     // video, and it drifts with the live viewport if the user resumes playback while the export runs.
     // The kill timeline is safe to capture because it is the whole demo's, windowed by tick inside the
-    // source.
+    // source, and because the list captured here is never written again: a roster re-seed or a demo swap
+    // gives the tab a NEW list (BuildKillTimeline), so the run keeps the kills that go with its frames.
     //
     // The roster reads the export's own frame too, and for the same reason: LastRoster is the condition
     // of the players in the frame just built, so a card and the disc it names cannot disagree. Both
     // closures ignore their tick argument: the source IS the tick, and asking it for a different one
     // would be asking a positional reader to seek.
-    internal Func<TrackerFrameSource, IHudDataSource> BuildExportHud() =>
-        src => new TimelineHudDataSource(_allKills, _tickRate, _ => ClockReading.From(src.LastGameInfo),
+    internal Func<TrackerFrameSource, IHudDataSource> BuildExportHud()
+    {
+        List<KillFeedRow> kills = _allKills;
+        return src => new TimelineHudDataSource(kills, _tickRate, _ => ClockReading.From(src.LastGameInfo),
             rosterAt: _ => src.LastRoster);
+    }
 
     // A CAPTURE, taken once when Start is pressed. Panning the live window afterwards changes nothing
     // about the video. With no live surface (a designer, a VM-only test) the fallback is an empty Fixed
@@ -1204,7 +1251,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     private string AnnotationDemoKey(string demoPath)
     {
         if (_context is { DemoSha256: { Length: > 0 } open } context
-            && string.Equals(context.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))
+            && string.Equals(context.DemoPath, demoPath, PathComparer.Comparison))
         {
             return open;
         }
@@ -1216,6 +1263,18 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         catch (Exception)
         {
             return "";
+        }
+    }
+
+    private static AnnotationWriteCoordinator? TryResolveAnnotationWrites()
+    {
+        try
+        {
+            return App.Services?.GetService<AnnotationWriteCoordinator>();
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
@@ -1259,7 +1318,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     private void OnRoundFactsUpdated(string demoPath)
     {
         if (_context is not { } ctx
-            || !string.Equals(ctx.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(ctx.DemoPath, demoPath, PathComparer.Comparison))
         {
             return;
         }
@@ -1289,6 +1348,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             return;
         }
 
+        // Other bytes at the same path are another demo: its strokes and identity are not these.
+        force |= !string.Equals(_annotationDemoSha256, ctx.DemoSha256, StringComparison.OrdinalIgnoreCase);
+        _annotationDemoSha256 = ctx.DemoSha256;
         _ = _annotationController.AttachDemoAsync(ctx.DemoPath, FrameClock.IdentityFor(ctx), force)
             .ContinueWith(static _ => { }, TaskScheduler.Default);
     }
@@ -1562,8 +1624,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // roster yet, or a context on another demo than the one asked about. The roster seed applies it.
         if (_context is null
             || _context.Players.Count == 0
-            || !string.Equals(demoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(_followDemoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(demoPath, _context.DemoPath, PathComparer.Comparison)
+            || !string.Equals(_followDemoPath, _context.DemoPath, PathComparer.Comparison))
         {
             _pendingFollow = (steamId64, demoPath);
             return true;
@@ -1607,7 +1669,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             return;
         }
 
-        if (!string.Equals(pending.DemoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(pending.DemoPath, _context.DemoPath, PathComparer.Comparison))
         {
             _pendingFollow = null;
             return;
@@ -2077,7 +2139,10 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         }
 
         LevelDisplayMode mode = LevelStrip.DisplayMode;
-        bool auto = LevelStrip.IsAutoEnabled;
+
+        // The preference, not IsAutoEnabled: that one reads false whenever the feature gate is off, and
+        // a display-mode toggle made meanwhile would save the gate's state as the user's choice.
+        bool auto = LevelStrip.AutoFollowPreference;
 
         try
         {
@@ -2290,12 +2355,19 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // FollowSlotChanged mirror, the per-row flag and the timeline footer clear with them: the funnel
         // is the single place that knows what "following nobody" means. Not ClearFollow(): that also
         // raises FitRequested, and the fit is already coming from the resync's own frame rebuild.
-        demoChanged |= !string.Equals(_followDemoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase);
+        demoChanged |= !string.Equals(_followDemoPath, _context.DemoPath, PathComparer.Comparison);
         _followDemoPath = _context.DemoPath;
 
         if (demoChanged && (FollowedSlot >= 0 || SelectedPlayer is not null))
         {
             NotifyFollowSlotChanged(-1);
+        }
+
+        // The export pane's ranges are frame indices of the demo it was opened on, and Start reads the
+        // frames live: left open, it would export the old demo's round boundaries out of the new one.
+        if (demoChanged)
+        {
+            CloseExport();
         }
 
         // Cache the stable identity roster (slot → name) for marker labels + seed one attributes row per
@@ -2394,8 +2466,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     /// <summary>
     ///     Swaps in a new hold on the map's bundle and gives the previous one back. The registry owns the
     ///     decode, so a bundle another view still holds survives this; the radar images are Skia-backed
-    ///     unmanaged buffers (~4 MB each) and are released once the last hold ends, a dispatcher hop later
-    ///     because the render thread may still be replaying a cached SKPicture that draws one.
+    ///     unmanaged buffers (~4 MB each) and are released once the last hold ends and the render thread has
+    ///     rendered a later batch, because a draw operation queued there may still re-record from one.
     /// </summary>
     private void ReplaceMapAsset(MapBundleLease? next)
     {
@@ -2527,9 +2599,10 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // seek shows the right kills. Rebuilt when the roster (re)seeds, since names depend on it.
     private void BuildKillTimeline()
     {
-        _allKills.Clear();
+        List<KillFeedRow> kills = [];
         if (_context is null)
         {
+            _allKills = kills;
             return;
         }
 
@@ -2552,7 +2625,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             int attackerTeam = _timelineData?.TeamForSlotAtTick(attackerSlot, ev.Tick) ?? 0;
             int victimTeam = _timelineData?.TeamForSlotAtTick(victimSlot, ev.Tick) ?? 0;
 
-            _allKills.Add(new KillFeedRow(
+            kills.Add(new KillFeedRow(
                 ev.Tick,
                 NameForSlot(attackerSlot),
                 assister >= 0 && _nameBySlot.TryGetValue(assister, out string? an) ? an : null,
@@ -2568,6 +2641,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
                 attackerTeam,
                 victimTeam));
         }
+
+        // Published whole, after the last row is in: a reader on another thread sees the old list or this one.
+        _allKills = kills;
 
         // Force the next UpdateKillFeedWindow to publish (the underlying set just changed).
         _lastKillCount = -1;

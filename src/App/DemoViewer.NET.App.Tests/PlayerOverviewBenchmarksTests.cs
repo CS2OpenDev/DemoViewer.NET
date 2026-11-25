@@ -283,4 +283,40 @@ public class PlayerOverviewBenchmarksTests
         section.Update(context with { SteamId64 = null, Player = null });
         await Assert.That(section.IsVisible).IsFalse();
     }
+
+    // Opening another player must not leave the last player's percentiles on show, as if they were the new
+    // player's, while the new ones are pooled.
+    [Test]
+    public async Task ANewSubject_DoesNotShowThePreviousSubjectsRows_WhileItsOwnAreComputed()
+    {
+        Fixture library = Library();
+        using IdentityService identity = new(new SettingsService(null));
+        PlayerOverviewServices services = new(library.Directory, identity, library.Rows, _ => { },
+            (_, _) => { }, _ => { }, Ranks: library.Ranks);
+        BenchmarksSectionViewModel section = new(services);
+
+        async Task<PlayerOverviewContext> ContextOf(ulong subject)
+        {
+            PlayerRows rows = await library.Rows.LoadAsync(subject);
+            PlayerRanks ranks = await library.Ranks.LoadAsync(subject);
+            return new PlayerOverviewContext(subject, library.Directory.Get(subject)!,
+                [.. rows.Demos.Select(d => d.Match)], Demos, false, services, rows.Demos,
+                PlayerFilter.All, rows.Demos, false, ranks, false);
+        }
+
+        section.Update(await ContextOf(Account(3)));
+        await section.Loading;
+        await Assert.That(section.Rows).IsNotEmpty();
+
+        section.Update(await ContextOf(Account(5)));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(section.Rows).IsEmpty();
+            await Assert.That(section.PopulationText).IsEqualTo("");
+        }
+
+        await section.Loading;
+        await Assert.That(section.Rows).IsNotEmpty();
+    }
 }

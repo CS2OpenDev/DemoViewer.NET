@@ -102,6 +102,8 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     private readonly Func<int, int, int, double, int> _outputFrameCount;
     private readonly Action<Action<AppSettings>>? _persistDefaults;
     private readonly ExportDialogScene _scene;
+    private bool _disposed;
+    private bool _jobWasRunning;
 
     [ObservableProperty]
     private string _customHeightText;
@@ -289,8 +291,12 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         _includeHudRoster = seed.ExportIncludeHudRoster;
         _includeAnnotations = seed.ExportIncludeAnnotations;
         _includeVision = seed.ExportIncludeVision;
-        _selectedSize = Sizes.FirstOrDefault(s => s.Width == seed.ExportWidth && s.Height == seed.ExportHeight)
-            ?? Sizes[0];
+        // A saved size that matches no preset was a custom one: reopen it as custom, or the next Start persists
+        // the dormant fallback preset over it.
+        ExportSizeOption? savedPreset =
+            Sizes.FirstOrDefault(s => s.Width == seed.ExportWidth && s.Height == seed.ExportHeight);
+        _useCustomSize = savedPreset is null;
+        _selectedSize = savedPreset ?? Sizes[0];
         _customWidthText = seed.ExportWidth.ToString(CultureInfo.InvariantCulture);
         _customHeightText = seed.ExportHeight.ToString(CultureInfo.InvariantCulture);
         _outputPath = BuildDefaultPath(seed, _scene.FileStem);
@@ -298,8 +304,30 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         RebuildFps(seed.ExportFps);
         RebuildEncoders(_selectedEncoder);
         RefreshFfmpegStatus();
+
+        // Validate refuses while a job runs, so the pane has to hear the job end; it can be open the whole time.
+        // Subscribed, then read, then validated: a job that ends between a validation and a later read of its
+        // status would leave the refusal standing with no StatusChanged still to come.
+        if (_job is not null)
+        {
+            _job.StatusChanged += OnJobStatusChanged;
+            _jobWasRunning = _job.Status.IsRunning;
+        }
+
         UpdateValidation();
     }
+
+    // Revalidates only when the job starts or stops running, not on every progress tick.
+    private void OnJobStatusChanged(object? sender, ExportJobStatus status) => OnUiThread(() =>
+    {
+        if (_disposed || status.IsRunning == _jobWasRunning)
+        {
+            return;
+        }
+
+        _jobWasRunning = status.IsRunning;
+        UpdateValidation();
+    });
 
     /// <summary>
     ///     The output size presets. All even, so no preset can trip the yuv420p rule. 720p leads because
@@ -412,6 +440,12 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     /// </summary>
     public void Dispose()
     {
+        _disposed = true;
+        if (_job is not null)
+        {
+            _job.StatusChanged -= OnJobStatusChanged;
+        }
+
         AnswerLicense(false);
         _downloadCts?.Cancel();
         _downloadCts?.Dispose();
@@ -519,6 +553,12 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         {
             // A 404 on the pin, a checksum mismatch, a broken network: the message is user-facing copy.
             FfmpegDownloadStatus = ex.Message;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            // FfmpegAcquisition wraps these itself; this is for an acquisition that does not. The command runs
+            // on the UI thread, and an exception rethrown there takes the whole app down.
+            FfmpegDownloadStatus = $"Could not install ffmpeg: {ex.Message} Install ffmpeg yourself, or export GIF.";
         }
         finally
         {
@@ -862,15 +902,17 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
             return "ffmpeg isn't installed — install it and press Re-check, or switch the format to GIF.";
         }
 
+        ExportRequest request = BuildRequest(range, DefaultCamera());
         try
         {
             // The ONE validator. Everything above is about the dialog's own environment; everything a
             // request can be wrong about is Pipeline's rule set, so the CLI refuses identically.
-            SceneExportSession.Validate(BuildRequest(range, DefaultCamera()));
+            SceneExportSession.Validate(request);
         }
         catch (ExportValidationException ex)
         {
-            return ex.Message + GifCapHint(range, gif);
+            return ex.Message + GifCapHint(range, gif,
+                SceneExportSession.GifMaxFramesFor(request.Size.Width, request.Size.Height));
         }
 
         return null;
@@ -878,11 +920,12 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
 
     // A strat's whole round at 20 fps runs past the GIF cap, and the lower rate that fits is one pick away,
     // so the refusal names it with its frame count rather than leaving the user to
-    // try each rate. Only for a strat: the demo dialog's copy is the validator's own.
-    private string GifCapHint(ExportRangeOption range, bool gif)
+    // try each rate. Only for a strat: the demo dialog's copy is the validator's own. The cap is the one
+    // for this size, so a large GIF's memory budget is what the lower rate has to fit.
+    private string GifCapHint(ExportRangeOption range, bool gif, int cap)
     {
         if (ShowDemoLayers || !gif || _outputFrameCount(range.StartFrame, range.EndFrame, SelectedFps, 1.0)
-            <= SceneExportSession.GifMaxFrames)
+            <= cap)
         {
             return "";
         }
@@ -890,7 +933,7 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         foreach (int fps in AvailableFps.Where(f => f < SelectedFps).OrderByDescending(f => f))
         {
             int frames = _outputFrameCount(range.StartFrame, range.EndFrame, fps, 1.0);
-            if (frames <= SceneExportSession.GifMaxFrames)
+            if (frames <= cap)
             {
                 return string.Create(CultureInfo.InvariantCulture, $" At {fps} fps it is {frames} frames and fits.");
             }

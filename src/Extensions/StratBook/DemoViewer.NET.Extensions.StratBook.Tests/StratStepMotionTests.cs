@@ -451,6 +451,41 @@ public class StratStepMotionTests
     }
 
     [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task AHoldOrARunPastTheTickClock_NeverPutsARunBeforeTheRoundStarts(bool hold)
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            // A hold of more than a year, or a destination a run could not reach in one.
+            StratDocument document = Sent("move");
+            if (hold)
+            {
+                document.Steps[1].HoldSeconds = 4e7;
+            }
+            else
+            {
+                document.Steps[1].To = new PlaceRef { X = 1e12, Y = 100, LevelMinZ = -512 };
+            }
+
+            StratSceneProjection projection = Project(document);
+            TokenTrack a = projection.Tracks.Single(t => t.Slot == "A");
+            List<StratSceneProjection.RunSpan> runs =
+                [.. Enumerable.Range(0, 2).SelectMany(i => projection.RunsOf(i)).Select(r => r.Run)];
+            using (Assert.Multiple())
+            {
+                await Assert.That(a.Keyframes.Min(k => k.Tick)).IsGreaterThanOrEqualTo(0);
+                await Assert.That(runs.All(r => r.StartTick >= 0 && r.ArriveTick >= r.StartTick)).IsTrue()
+                    .Because("no sum wraps to a tick before the round");
+                await Assert.That(projection.ContentEndTick).IsEqualTo(Project(Sent("hold")).ContentEndTick)
+                    .Because("a run that cannot arrive inside the tick clock is not walked, so nothing plays out to it");
+                await Assert.That(At(a, Two + 6400).X).IsEqualTo(100f)
+                    .Because("the token is still where it stood long after the step");
+            }
+        });
+    }
+
+    [Test]
     public async Task ATravelForATokenNeverPlaced_StartsAtItsDestination()
     {
         await HeadlessSession.RunOnUi(async () =>

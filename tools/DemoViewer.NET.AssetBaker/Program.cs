@@ -97,6 +97,9 @@ if (args.Contains("--icons"))
 // would mean either a wrong CRC or a re-stage. Nothing reads that field in any case: the app finds a
 // soup by the assets/<map>/collision.tris path, which is why the five maps that do ship one work today
 // with collision:null in their bundle.
+//
+// What it writes is collision.tris.gz, the same file the full bake leaves, and never the plain soup:
+// the plain name is probed first, so one left behind would shadow the .gz that ships.
 if (args.Contains("--collision"))
 {
     string? collisionCs2 = args
@@ -149,21 +152,52 @@ if (args.Contains("--collision"))
 
         string mapOut = Path.Combine(soupRoot, map);
         Directory.CreateDirectory(mapOut);
+        string plain = Path.Combine(mapOut, "collision.tris");
+        bool compressing = false;
         try
         {
-            CollisionMesh.Result cm = CollisionMesh.Extract(
-                mapVpk, map, Path.Combine(mapOut, "collision.tris"));
+            CollisionMesh.Result cm = CollisionMesh.Extract(mapVpk, map, plain);
+
+            // Shipped the way the full bake ships it: gzipped, with no plain file beside it. Left
+            // plain, the fresh soup sat next to the committed collision.tris.gz, CollisionSoup probed
+            // the plain name first, and the .gz that actually ships stayed the old geometry.
+            compressing = true;
+            long gzLen = CollisionMesh.CompressAndReplace(plain, plain + ".gz");
             Console.WriteLine($"# {map}");
-            Console.WriteLine(cm.Diagnostic);
+            Console.WriteLine($"{cm.Diagnostic}  gz {gzLen / 1024.0 / 1024.0:F1} MiB");
             baked++;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"  x {map}: {ex.GetType().Name}: {ex.Message}");
+
+            // The plain file never outlives the run, for the reason above. The .gz goes only when
+            // the compression itself failed, since it is then a truncated stream; an extraction that
+            // threw has not touched it.
+            try
+            {
+                File.Delete(plain);
+                if (compressing)
+                {
+                    File.Delete(plain + ".gz");
+                }
+            }
+            catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException)
+            {
+                Console.WriteLine($"  x {map}: partial output left in {mapOut}: {cleanup.Message}");
+            }
         }
     }
 
     Console.WriteLine($"\n{baked}/{soupMaps.Length} soup(s) baked.");
+
+    // A map that was asked for and not baked, for a missing vpk or a thrown extraction, fails the
+    // run the way a --zones self-check does. The lines above are easy to miss in a nine-map log.
+    if (baked < soupMaps.Length)
+    {
+        Environment.ExitCode = 1;
+    }
+
     return;
 }
 
@@ -213,6 +247,7 @@ if (args.Contains("--zones"))
 
     List<Zones.Coverage> coverage = [];
     List<string> zoneFailures = [];
+    int zonesWritten = 0;
     foreach (string map in zoneMaps)
     {
         string mapVpk = Path.Combine(zonesMapsSource, map + ".vpk");
@@ -220,12 +255,14 @@ if (args.Contains("--zones"))
         if (!File.Exists(mapVpk))
         {
             Console.WriteLine($"  x {map}: no {map}.vpk in {zonesMapsSource}");
+            zoneFailures.Add($"{map}: no {map}.vpk in {zonesMapsSource}");
             continue;
         }
 
         if (!File.Exists(bundlePath))
         {
             Console.WriteLine($"  x {map}: no bundle.json under {zonesRoot}; run a full bake first");
+            zoneFailures.Add($"{map}: no bundle.json under {zonesRoot}");
             continue;
         }
 
@@ -241,6 +278,15 @@ if (args.Contains("--zones"))
             }
 
             Console.WriteLine(zr.Diagnostic);
+            if (zr.Written)
+            {
+                zonesWritten++;
+            }
+            else
+            {
+                Console.WriteLine("  x zones.json NOT written: a self-check failed, the existing file is unchanged");
+            }
+
             coverage.Add(zr.Coverage);
             zoneFailures.AddRange(zr.Failures);
             if (diag)
@@ -257,7 +303,7 @@ if (args.Contains("--zones"))
         }
     }
 
-    Console.WriteLine($"\n{coverage.Count}/{zoneMaps.Length} zone file(s) baked.");
+    Console.WriteLine($"\n{zonesWritten}/{zoneMaps.Length} zone file(s) baked.");
     if (diag)
     {
         Console.WriteLine("\ncoverage (this bake):");
@@ -313,6 +359,7 @@ Console.WriteLine($"cs2-assets (raw source): {assets}");
 Console.WriteLine($"assets (baked output):  {bakedRoot}");
 Console.WriteLine($"baking {maps.Length} map(s): {string.Join(", ", maps)}\n");
 
+List<string> bakeFailures = [];
 foreach (string map in maps)
 {
     try
@@ -322,7 +369,21 @@ foreach (string map in maps)
     catch (Exception ex)
     {
         Console.WriteLine($"  ✗ {map}: {ex.GetType().Name}: {ex.Message}\n");
+        bakeFailures.Add($"{map}: {ex.GetType().Name}: {ex.Message}");
     }
+}
+
+// One failed map does not stop the others, but it does fail the run: a script that trusts the exit
+// code must not go on to commit a half-baked assets/.
+if (bakeFailures.Count > 0)
+{
+    Console.WriteLine($"{bakeFailures.Count} bake failure(s):");
+    foreach (string f in bakeFailures)
+    {
+        Console.WriteLine("  ! " + f);
+    }
+
+    Environment.ExitCode = 1;
 }
 
 return;
@@ -338,6 +399,13 @@ void BakeMap(string map)
     OverviewTxt.Parsed ov = OverviewTxt.Parse(overviewPath);
     RadarTransform t = ov.Transform;
     Console.WriteLine($"  transform: pos=({t.PosX},{t.PosY}) scale={t.Scale} rotate={t.Rotate} zoom={t.Zoom}");
+
+    // The fallible reads of the per-map vpk come BEFORE the first file is written: a missing or moved
+    // nav entry used to throw after the radar PNGs had replaced the committed ones, leaving new art
+    // under the previous bake's mapVersion (the value `dv2d golden` compares to refuse a re-bake).
+    string vpk = Path.Combine(mapsDir, $"{map}.vpk");
+    byte[] navBytes = NavFloors.ExtractNav(vpk, map);
+    NavFloors.Result floors = NavFloors.ComputeFloors(navBytes);
 
     // 2. radar vtex_c → PNG (default + optional _lower), and remember source bytes for the version hash.
     List<string> radarImages = [];
@@ -366,11 +434,8 @@ void BakeMap(string map)
         Console.WriteLine($"  radar: {l.png} (lower)");
     }
 
-    // 3. nav → floor bands (the headline)
-    string vpk = Path.Combine(mapsDir, $"{map}.vpk");
-    byte[] navBytes = NavFloors.ExtractNav(vpk, map);
+    // 3. nav → floor bands (the headline). Read above, before step 2 wrote anything.
     crc.Append(navBytes);
-    NavFloors.Result floors = NavFloors.ComputeFloors(navBytes);
     Console.WriteLine($"  floors: {floors.Floors.Count}  " +
         string.Join(" ", floors.Floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
     if (diag)
@@ -391,6 +456,7 @@ void BakeMap(string map)
     //     extractable physics still bakes its 2D assets.
     CollisionMeshRef? collision = null;
     const string TrisName = "collision.tris";
+    bool hadSoup = File.Exists(Path.Combine(outDir, TrisName + ".gz"));
     try
     {
         CollisionMesh.Result cm = CollisionMesh.Extract(vpk, map, Path.Combine(outDir, TrisName));
@@ -425,6 +491,19 @@ void BakeMap(string map)
         {
             Console.WriteLine($"  collision: partial output left in {outDir} — {cleanup.Message}");
         }
+
+        // "Optional" covers a map that never had a soup. One that shipped a soup and now bakes
+        // without it has just lost its line of sight, and the delete above is what took it: the
+        // extraction can throw before writing a byte, with the previous bake's .gz still intact.
+        // The delete stays, for the consistency it was written for, but it is no longer quiet.
+        if (hadSoup)
+        {
+            Console.WriteLine(
+                $"  collision: the {TrisName}.gz from the previous bake was REMOVED and the bundle now " +
+                "records no mesh. Restore both from git unless the map really lost its physics.");
+            bakeFailures.Add(
+                $"{map}: collision extraction failed and the previous {TrisName}.gz was removed");
+        }
     }
 
     // 6. version = CRC32 over source bytes (radar + nav + collision) + overview txt
@@ -456,6 +535,12 @@ void BakeMap(string map)
         foreach (string failure in zr.Failures)
         {
             Console.WriteLine($"  ! zones: {failure}");
+            bakeFailures.Add($"{map}: zones: {failure}");
+        }
+
+        if (!zr.Written)
+        {
+            Console.WriteLine("  zones: zones.json NOT written, the existing file (if any) is unchanged");
         }
 
         if (diag)
@@ -465,7 +550,10 @@ void BakeMap(string map)
     }
     catch (Exception ex)
     {
+        // Still optional in the sense that the 2D assets above are already written and kept. It
+        // fails the run all the same: a zones.json that could not be baked is not a clean bake.
         Console.WriteLine($"  zones: (skipped, {ex.GetType().Name}: {ex.Message})");
+        bakeFailures.Add($"{map}: zones: {ex.GetType().Name}: {ex.Message}");
     }
 
     Console.WriteLine();

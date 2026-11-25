@@ -47,6 +47,10 @@ internal static class InstallRecovery
     /// </summary>
     private static readonly Lock _restoreGate = new();
 
+    /// <summary>Why <see cref="Restore" /> refused while a Live Sync session still owns the install.</summary>
+    internal const string SessionOwnsInstallText =
+        "Live Sync's session still owns the CS2 install. Reconnect or Disable Live Sync, which restores it.";
+
     /// <summary>How long a launch waits for the CS2 it just stopped to exit before the guard runs.</summary>
     internal static readonly TimeSpan Cs2ExitTimeout = TimeSpan.FromSeconds(15);
 
@@ -93,15 +97,44 @@ internal static class InstallRecovery
     }
 
     /// <summary>
+    ///     The CS2 install's <c>game/csgo</c> directory, or null in mock mode or when install discovery fails.
+    /// </summary>
+    public static string? FindCsgoDirectory(LiveSyncSettings settings)
+    {
+        if (IsMock(settings))
+        {
+            return null;
+        }
+
+        try
+        {
+            using ServiceProvider services = BuildCsvgServices(settings);
+            return services.GetRequiredService<Cs2DirectoryUtil>().CsgoGameFilesDirectory;
+        }
+        catch
+        {
+            return null; // no Steam/CS2 on this machine: nothing to resolve against
+        }
+    }
+
+    /// <summary>
     ///     Restores the install: un-patches <c>gameinfo.gi</c> from CSVG's backup and removes the
     ///     plugin files. Also the permanent-disable uninstall path. Throws on hard failures (the
     ///     caller surfaces them with the <c>csvg restore</c> fallback copy).
     /// </summary>
-    public static void Restore(LiveSyncSettings settings, Action<string>? log = null, Func<bool>? isCs2Running = null)
+    public static void Restore(LiveSyncSettings settings, Action<string>? log = null, Func<bool>? isCs2Running = null,
+        Func<bool>? sessionOwnsInstall = null)
     {
         if (IsMock(settings))
         {
             return;
+        }
+
+        // A session that was started and not yet stopped owns these changes, and its own StopAsync puts the
+        // backups back. Restoring under it races that stop on the same files.
+        if (sessionOwnsInstall?.Invoke() == true)
+        {
+            throw new InvalidOperationException(SessionOwnsInstallText);
         }
 
         // A running CS2 holds the plugin DLL open and may be the user's own game with the plugin loaded:
@@ -113,6 +146,11 @@ internal static class InstallRecovery
 
         lock (_restoreGate)
         {
+            if (sessionOwnsInstall?.Invoke() == true)
+            {
+                throw new InvalidOperationException(SessionOwnsInstallText);
+            }
+
             RestoreCore(settings, log);
         }
     }

@@ -3,6 +3,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 
 #endregion
 
@@ -29,6 +30,13 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 /// </remarks>
 public readonly record struct EncoderProbeResult(string Encoder, bool Works, string Detail)
 {
+    /// <summary>
+    ///     True when the probe could not ask: ffmpeg's encoder listing was unreadable. The answer is
+    ///     still "unavailable" for this export, but it is not a fact about the machine, and
+    ///     <see cref="EncoderProbeCache" /> does not remember it.
+    /// </summary>
+    internal bool Inconclusive { get; init; }
+
     /// <summary>A one-line description for a log or a JSON payload.</summary>
     public string Describe() => string.Create(CultureInfo.InvariantCulture,
         $"{Encoder}: {(Works ? "ok" : "unavailable")} — {Detail}");
@@ -107,10 +115,12 @@ public sealed class FfmpegEncoderProbe : IEncoderProbe
 
         if (!listed.Contains(encoderName))
         {
-            return new EncoderProbeResult(encoderName, false,
-                listed.Count == 0
-                    ? "could not read `ffmpeg -encoders`"
-                    : "not built into this ffmpeg");
+            return listed.Count == 0
+                ? new EncoderProbeResult(encoderName, false, "could not read `ffmpeg -encoders`")
+                {
+                    Inconclusive = true
+                }
+                : new EncoderProbeResult(encoderName, false, "not built into this ffmpeg");
         }
 
         if (trustListing)
@@ -266,6 +276,14 @@ public sealed class FfmpegEncoderProbe : IEncoderProbe
             ? FfmpegLocator.ExecutableName
             : Path.Combine(binaryFolder, FfmpegLocator.ExecutableName);
 
+        return RunProcess(executable, arguments, stdin, Timeout, ct);
+    }
+
+    // Split from Run so a test can stand a process that never reads its stdin in for ffmpeg, and reach
+    // the deadline without waiting out the real one.
+    internal static (int Exit, string StdOut, string StdErr) RunProcess(string executable,
+        IReadOnlyList<string> arguments, byte[]? stdin, TimeSpan timeout, CancellationToken ct)
+    {
         ProcessStartInfo info = new()
         {
             FileName = executable,
@@ -301,6 +319,15 @@ public sealed class FfmpegEncoderProbe : IEncoderProbe
             Task<string> stdout = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
             Task<string> stderr = process.StandardError.ReadToEndAsync(CancellationToken.None);
 
+            // ONE deadline for the whole exchange, armed before the write rather than after it. The test
+            // encode's payload is larger than a pipe buffer, so an encoder that hangs while initialising
+            // stops reading and the write below blocks; a wait that only starts once the write returns
+            // never starts. Ending the child breaks the pipe, which is what releases the write.
+            ExportClock clock = ExportClock.Start();
+            using CancellationTokenSource deadline = new(timeout);
+            using CancellationTokenRegistration expire =
+                deadline.Token.Register(static state => TryKill((Process)state!), process);
+
             if (stdin is not null)
             {
                 try
@@ -316,12 +343,15 @@ public sealed class FfmpegEncoderProbe : IEncoderProbe
 
             process.StandardInput.Close();
 
-            if (!process.WaitForExit((int)Timeout.TotalMilliseconds))
+            // What is left of the deadline, not a second full one: the write has already spent some.
+            long remainingMs = Math.Max(0, (long)(timeout - clock.Elapsed).TotalMilliseconds);
+
+            if (!process.WaitForExit((int)remainingMs) || deadline.IsCancellationRequested)
             {
                 TryKill(process);
                 return (-1, string.Empty,
                     string.Create(CultureInfo.InvariantCulture,
-                        $"the probe did not finish within {Timeout.TotalSeconds:F0} s"));
+                        $"the probe did not finish within {timeout.TotalSeconds:F0} s"));
             }
 
             // A process we killed ourselves exits non-zero, and reporting that as "this encoder does not
@@ -410,7 +440,9 @@ public sealed class EncoderProbeCache(IEncoderProbe? inner = null) : IEncoderPro
         EncoderProbeResult result = _inner.Verify(encoderName, binaryFolder, trustListing, ct);
 
         // A cancelled probe is not a fact about the machine; caching it would poison the next export.
-        if (!ct.IsCancellationRequested)
+        // Nor is one whose listing could not be read: FfmpegEncoderProbe.ListEncoders does not remember
+        // that either, and this must agree with it or the session is on the software floor until Re-check.
+        if (!ct.IsCancellationRequested && !result.Inconclusive)
         {
             _results[key] = result;
         }

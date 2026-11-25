@@ -105,6 +105,26 @@ public class SceneFixtureTests
         await Assert.That(fixture.Frame.FollowSlot).IsEqualTo(7);
     }
 
+    /// <summary>
+    ///     A null in any list is a malformed fixture, and Read promises <see cref="JsonException" /> for
+    ///     those: <c>dv2d fixture verify</c> catches exactly that type to report one bad entry and go on.
+    /// </summary>
+    [Test]
+    [Arguments("""{ "frame": { "markers": [null] } }""")]
+    [Arguments("""{ "frame": { "areaEffects": [null] } }""")]
+    [Arguments("""{ "frame": { "trails": [{ "points": [null] }] } }""")]
+    [Arguments("""{ "frame": { "routes": [{ "points": [null] }] } }""")]
+    [Arguments("""{ "frame": { "killFeed": [null] } }""")]
+    [Arguments("""{ "frame": { "map": { "radars": [null] } } }""")]
+    [Arguments("""{ "frame": { "vision": { "cones": [{ "fan": [null] }] } } }""")]
+    [Arguments("""{ "frame": { "vision": { "sightlines": [null] } } }""")]
+    public async Task Read_NullListElement_ThrowsJsonException(string json)
+    {
+        using MemoryStream input = new(Encoding.UTF8.GetBytes(json));
+
+        await Assert.That(() => SceneFixtureSerializer.Read(input)).Throws<JsonException>();
+    }
+
     [Test]
     public async Task Read_MissingOptionalMembers_UsesDefaults()
     {

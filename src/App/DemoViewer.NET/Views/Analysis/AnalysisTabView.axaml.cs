@@ -195,7 +195,10 @@ public partial class AnalysisTabView : UserControl
         int end = Math.Clamp(_tokenEnd, start, text.Length);
         string spliced = text[..start] + chosen + text[end..];
 
-        _suppressSuggestionRefresh = true; // the programmatic Text set must not re-open the list
+        // The programmatic Text set must not re-open the list. Armed only when the text really changes:
+        // with the caret mid-token the chosen id can be the token already there, an equal value raises
+        // no TextChanged to disarm this, and it then swallowed the user's next keystroke instead.
+        _suppressSuggestionRefresh = !string.Equals(spliced, text, StringComparison.Ordinal);
         ConditionTextBox.Text = spliced;
         ConditionTextBox.CaretIndex = start + chosen.Length;
         ConditionSuggestionsList.SelectedItem = null;

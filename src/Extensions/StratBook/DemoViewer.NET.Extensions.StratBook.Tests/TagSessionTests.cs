@@ -1,6 +1,7 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Playback2D.Annotations;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 
@@ -113,6 +114,181 @@ public class TagSessionTests
             await Assert.That(restored.FactsStamp!.Schema).IsEqualTo(1);
             await Assert.That(restored.Positions.Single().Place).IsEqualTo("BombsiteA");
             await Assert.That(restored.Positions.Single().PlaceSource).IsEqualTo("zones:abc");
+        }
+    }
+
+    private static readonly DemoIdentity _otherDemo = new(new string('a', 64), "other.dem", 1);
+
+    // Runs what the store posted, and what that posts in turn.
+    private static void Drain(List<Action> posted)
+    {
+        while (posted.Count > 0)
+        {
+            Action next = posted[0];
+            posted.RemoveAt(0);
+            next();
+        }
+    }
+
+    [Test]
+    public async Task ARoutedChange_PostedBeforeADemoSwap_LandsOnItsOwnDemo_NotTheOneNowAttached()
+    {
+        List<Action> posted = [];
+        TagStore store = new(null, posted.Add);
+        using TagSession session = Session(store);
+        await session.AttachAsync(Demo, Clock, DemoPath);
+        session.Apply(new TagDelta.Add(Instance("Default", 5, 6)));
+
+        // Both see the session holding the first demo and post to it; the swap runs before either post does.
+        await Assert.That(store.Append(Demo, Clock, Instance("A execute", 100, 200))).IsTrue();
+        await Assert.That(store.Update(Sha, d => d.Instances[0].Note = "refreshed")).IsTrue();
+        await session.AttachAsync(_otherDemo, Clock, "/d/other.dem");
+        Drain(posted);
+
+        TagDocument first = store.TryLoad(Sha)!;
+        using (Assert.Multiple())
+        {
+            await Assert.That(session.Document!.Demo.Sha256).IsEqualTo(_otherDemo.Sha256);
+            await Assert.That(session.Document.Instances).IsEmpty()
+                .Because("a change routed for one demo is never applied to another demo's document");
+            await Assert.That(first.Instances.Select(i => i.Code)).IsEquivalentTo(["Default", "A execute"])
+                .Because("the add reported true, so it is written through the store instead");
+            await Assert.That(first.Instances[0].Note).IsEqualTo("refreshed");
+        }
+    }
+
+    [Test]
+    public async Task ARoutedAdd_ThatLandsWhileTheSessionIsBetweenDemos_IsNotLost()
+    {
+        List<Action> posted = [];
+        TagStore store = new(null, posted.Add);
+        TaskCompletionSource<IReadOnlyList<LibraryRound>?> rounds = new();
+        using TagSession session = new(store,
+            path => path == DemoPath ? Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds) : rounds.Task,
+            () => false, () => Created) { AutoSaveDelay = TimeSpan.FromHours(1) };
+        await session.AttachAsync(Demo, Clock, DemoPath);
+
+        await Assert.That(store.Append(Demo, Clock, Instance("A execute", 100, 200))).IsTrue();
+        Task swap = session.AttachAsync(_otherDemo, Clock, "/d/other.dem");
+        await Assert.That(session.Document).IsNull().Because("the swap is waiting for the next demo's rounds");
+        Drain(posted);
+        rounds.SetResult(_rounds);
+        await swap;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(store.TryLoad(Sha)?.Instances.Select(i => i.Code)).IsEquivalentTo(["A execute"]);
+            await Assert.That(session.Document!.Instances).IsEmpty();
+        }
+    }
+
+    [Test]
+    public async Task ASessionDisposedWhileItsAttachWaits_TakesNoCheckOut()
+    {
+        List<Action> posted = [];
+        TagStore store = new(null, posted.Add);
+        TaskCompletionSource<IReadOnlyList<LibraryRound>?> rounds = new();
+        TagSession closed = new(store, _ => rounds.Task, () => false, () => Created)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        Task attach = closed.AttachAsync(Demo, Clock, DemoPath);
+
+        // The playback tab closes while the demo record read behind the rounds is still queued.
+        closed.Dispose();
+        rounds.SetResult(_rounds);
+        await attach;
+
+        using TagSession next = Session(store);
+        await next.AttachAsync(Demo, Clock, DemoPath);
+        await Assert.That(store.Append(Demo, Clock, Instance("A execute", 100, 200))).IsTrue();
+        Drain(posted);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(closed.Document).IsNull();
+            await Assert.That(next.Document!.Instances.Select(i => i.Code)).IsEquivalentTo(_oneCode)
+                .Because("the session that holds the demo gets the routed add, not one that was disposed");
+        }
+    }
+
+    [Test]
+    public async Task AnAttachOvertakenByALaterOne_LeavesNoCheckOutBehind()
+    {
+        TagStore store = new(null);
+        TaskCompletionSource<IReadOnlyList<LibraryRound>?> first = new();
+        TaskCompletionSource<IReadOnlyList<LibraryRound>?> second = new();
+        TagSession session = new(store, path => path == DemoPath ? first.Task : second.Task, () => false,
+            () => Created) { AutoSaveDelay = TimeSpan.FromHours(1) };
+
+        // Two demos opened back to back: both attaches wait on their rounds, and both reads then land.
+        Task overtaken = session.AttachAsync(Demo, Clock, DemoPath);
+        Task latest = session.AttachAsync(_otherDemo, Clock, "/d/other.dem");
+        first.SetResult(_rounds);
+        second.SetResult(_rounds);
+        await overtaken;
+        await latest;
+        await Assert.That(session.Document!.Demo.Sha256).IsEqualTo(_otherDemo.Sha256);
+        await Assert.That(session.DemoPath).IsEqualTo("/d/other.dem");
+        session.Dispose();
+
+        using TagSession next = Session(store);
+        await next.AttachAsync(Demo, Clock, DemoPath);
+        await Assert.That(next.Document!.Demo.Sha256).IsEqualTo(Sha);
+    }
+
+    // Stands in for the UI thread's context: counts what is posted back to it and runs it under itself.
+    private sealed class CountingContext : SynchronizationContext
+    {
+        private int _posts;
+
+        public int Posts => Volatile.Read(ref _posts);
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            Interlocked.Increment(ref _posts);
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                SetSynchronizationContext(this);
+                d(state);
+            });
+        }
+    }
+
+    [Test]
+    public async Task TheDebouncedSave_TakesItsSnapshot_BackOnTheThreadTheEditWasMadeOn()
+    {
+        TagStore store = new(null);
+        using TagSession session = await Attached(store);
+        session.AutoSaveDelay = TimeSpan.FromMilliseconds(1);
+        using ManualResetEventSlim saved = new();
+        session.Changed += () =>
+        {
+            if (session.SaveCount > 0)
+            {
+                saved.Set();
+            }
+        };
+
+        // No await while the context is set: only the session's own debounce can capture it.
+        CountingContext ui = new();
+        SynchronizationContext? before = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(ui);
+        try
+        {
+            session.Apply(new TagDelta.Add(Instance("A execute", 100, 200)));
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(before);
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(saved.Wait(TimeSpan.FromSeconds(30))).IsTrue();
+            await Assert.That(ui.Posts).IsGreaterThanOrEqualTo(1)
+                .Because("the document is cloned where it is edited, not on the pool thread the delay ended on");
+            await Assert.That(store.TryLoad(Sha)!.Instances.Count).IsEqualTo(1);
         }
     }
 

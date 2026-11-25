@@ -284,12 +284,13 @@ public class QueueStartOrderTests
     public async Task Promote_RefusesALightItem()
     {
         using Rig rig = new();
-        rig.Queue.Pause();
+        // A hold, not the user's pause: a pause no longer holds a store save.
+        IDisposable hold = rig.Queue.HoldBackground();
         IDemoQueueHandle save = rig.Queue.SubmitJob(new QueueJobRequest(QueueJobKind.StoreSave, "save", "store",
             DemoJobPriority.Background, _ => Task.CompletedTask));
         await Assert.That(rig.Queue.Promote(save.Id)).IsFalse();
         await Assert.That(rig.Item("save").Light).IsTrue();
-        rig.Queue.Resume();
+        hold.Dispose();
     }
 
     [Test]

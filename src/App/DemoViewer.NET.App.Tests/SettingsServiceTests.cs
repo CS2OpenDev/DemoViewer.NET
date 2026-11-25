@@ -6,6 +6,7 @@ using DemoViewer.NET.Models;
 using DemoViewer.NET.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using TUnit.Core.Exceptions;
 
 #endregion
 
@@ -198,6 +199,328 @@ public class SettingsServiceTests
             await Assert.That(s.Library.Folders.Length).IsEqualTo(0);
             await Assert.That(s.Features.Overrides.Count).IsEqualTo(0);
             await Assert.That(svc.NeedsFirstRun).IsTrue();
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
+    ///     A file that parses but holds a value the binder cannot convert (an enum member from a newer build, a
+    ///     word where a number belongs) threw out of the first <c>Current</c> read at start-up, on every launch.
+    ///     It is set aside and read as defaults instead, like a file that does not parse, and the sections the
+    ///     preferences do not model are kept.
+    /// </summary>
+    [Test]
+    [Arguments("""{ "UserCategory": "Coach", "Session": { "ActiveTab": "library" } }""")]
+    [Arguments("""{ "ProcessingQueue": { "MaxConcurrency": "auto" }, "Session": { "ActiveTab": "library" } }""")]
+    public async Task AValueTheBinderCannotConvert_ReadsAsDefaults_AndIsSetAside(string json)
+    {
+        string dir = NewTempDir();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), json);
+
+            SettingsService svc = new(dir);
+            ServiceCollection services = new();
+            services.Configure<AppSettings>(svc.Configuration);
+            await using ServiceProvider sp = services.BuildServiceProvider();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(() => svc.Current).ThrowsNothing();
+                await Assert.That(() => sp.GetRequiredService<IOptionsMonitor<AppSettings>>().CurrentValue)
+                    .ThrowsNothing();
+                await Assert.That(svc.NeedsFirstRun).IsTrue();
+                await Assert.That(Directory.GetFiles(dir, "settings.json.unreadable-*").Length).IsEqualTo(1);
+                await Assert.That(svc.ReadPersisted("Session:ActiveTab")?.GetValue<string>()).IsEqualTo("library");
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
+    ///     The loader matches keys without regard to case, so a hand-edited lower-case key reads. A write used to
+    ///     miss it in its basis and add the canonical spelling beside it, and the loader refuses a file with two
+    ///     keys that differ only in case, so every setting fell back to its default.
+    /// </summary>
+    [Test]
+    public async Task AKeyInAnotherCase_SurvivesAWrite_WithoutADuplicate()
+    {
+        string dir = NewTempDir();
+        string path = Path.Combine(dir, "settings.json");
+        try
+        {
+            await File.WriteAllTextAsync(path,
+                """
+                { "firstRunCompleted": true, "theme": "Light", "library": { "folders": ["/demos/major"] },
+                  "session": { "ActiveTab": "library" } }
+                """);
+            SettingsService svc = new(dir);
+            await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+
+            svc.Write(s => s.LastSeenVersion = "1.2.3");
+            svc.SaveSession(new SessionPayload(null, null, null, false, false, "parser"));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+                await Assert.That(svc.Current.Library.Folders).IsEquivalentTo(["/demos/major"]);
+                await Assert.That(svc.NeedsFirstRun).IsFalse();
+                await Assert.That(svc.Current.LastSeenVersion).IsEqualTo("1.2.3");
+                await Assert.That(new SettingsService(dir).Current.Theme).IsEqualTo("Light");
+                JsonDocument written = JsonDocument.Parse(await File.ReadAllTextAsync(path));
+                string[] keys = written.RootElement.EnumerateObject().Select(p => p.Name).ToArray();
+                await Assert.That(keys.Length).IsEqualTo(keys.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
+    ///     Each write reads the file, changes its part and replaces the file. The annotation style is written
+    ///     from a pool thread, so two writes can overlap, and the later replace used to put back the other's
+    ///     keys as they were before it.
+    /// </summary>
+    [Test]
+    public async Task OverlappingWrites_FromTwoThreads_BothLand()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            SettingsService svc = new(dir);
+            using ManualResetEventSlim entered = new();
+            using ManualResetEventSlim release = new();
+            Task first = Task.Run(() => svc.Write(s =>
+            {
+                s.Playback2D.AnnotationWidth = 7;
+                entered.Set();
+                release.Wait(TimeSpan.FromSeconds(10));
+            }));
+            entered.Wait(TimeSpan.FromSeconds(10));
+            Task second = Task.Run(() => svc.Write(s => s.Theme = "Light"));
+            await Task.WhenAny(second, Task.Delay(300));
+            release.Set();
+            await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10));
+
+            AppSettings read = new SettingsService(dir).Current;
+            using (Assert.Multiple())
+            {
+                await Assert.That(read.Theme).IsEqualTo("Light");
+                await Assert.That(read.Playback2D.AnnotationWidth).IsEqualTo(7);
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // The same bad value from the environment layer: the file is fine and is left alone, and the override is
+    // what gets dropped.
+    [Test]
+    public async Task AnEnvironmentValueTheBinderCannotConvert_IsIgnored_AndTheFileKept()
+    {
+        string dir = NewTempDir();
+        const string EnvKey = "DEMOVIEWER_UserCategory";
+        string? previous = Environment.GetEnvironmentVariable(EnvKey);
+        try
+        {
+            SettingsService seed = new(dir);
+            seed.Write(s =>
+            {
+                s.Theme = "Light";
+                s.FirstRunCompleted = true;
+            });
+
+            Environment.SetEnvironmentVariable(EnvKey, "Coach");
+            SettingsService svc = new(dir);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(() => svc.Current).ThrowsNothing();
+                await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+                await Assert.That(svc.NeedsFirstRun).IsFalse();
+                await Assert.That(Directory.GetFiles(dir, "settings.json.unreadable-*")).IsEmpty();
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvKey, previous);
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
+    ///     A file the writers cannot parse is replaced by the next save, so its text is set aside first, once:
+    ///     a hand edit with a typo loses nothing the user cannot copy back.
+    /// </summary>
+    [Test]
+    [Arguments("recents")]
+    [Arguments("session")]
+    [Arguments("preference")]
+    public async Task AnUnparseableFile_IsSetAsideOnce_BeforeASaveReplacesIt(string writer)
+    {
+        const string Broken = """{ "Theme": "Light", "Library": { "Folders": ["/demos/major"] """;
+        string dir = NewTempDir();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), Broken);
+            SettingsService svc = new(dir);
+
+            for (int i = 0; i < 2; i++)
+            {
+                switch (writer)
+                {
+                    case "recents":
+                        svc.SaveRecents([new RecentFile("/demos/a.dem", null, DateTime.UtcNow)]);
+                        break;
+                    case "session":
+                        svc.SaveSession(new SessionPayload(null, null, null, false, false, "library"));
+                        break;
+                    default:
+                        svc.Write(s => s.UserCategory = UserCategory.Developer);
+                        break;
+                }
+            }
+
+            string[] setAside = Directory.GetFiles(dir, "settings.json.unreadable-*");
+            using (Assert.Multiple())
+            {
+                await Assert.That(setAside.Length).IsEqualTo(1);
+                await Assert.That(setAside.Length == 1 ? await File.ReadAllTextAsync(setAside[0]) : null)
+                    .IsEqualTo(Broken);
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
+    ///     The copy is named to the second, so a second unparseable version set aside within the same second
+    ///     replaced the first copy.
+    /// </summary>
+    [Test]
+    public async Task TwoUnparseableVersions_SetAsideInOneSecond_BothSurvive()
+    {
+        const string BrokenOne = """{ "Theme": "Light" """;
+        const string BrokenTwo = """{ "Theme": "Dark", "Library": """;
+        string dir = NewTempDir();
+        string path = Path.Combine(dir, "settings.json");
+        try
+        {
+            await File.WriteAllTextAsync(path, BrokenOne);
+            SettingsService svc = new(dir);
+            svc.Write(s => s.LastSeenVersion = "1");
+            await File.WriteAllTextAsync(path, BrokenTwo);
+            svc.Write(s => s.LastSeenVersion = "2");
+
+            string[] texts = await Task.WhenAll(Directory.GetFiles(dir, "settings.json.unreadable-*")
+                .Select(f => File.ReadAllTextAsync(f)));
+            await Assert.That(texts).IsEquivalentTo([BrokenOne, BrokenTwo]);
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // A handle that shares nothing, as antivirus or a sync client can hold for a moment.
+    private static FileStream HoldExclusively(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.None);
+
+    /// <summary>
+    ///     A save reads the file before it replaces it. A read refused for a moment threw out of the save, and
+    ///     most callers are UI commands with nothing to catch it.
+    /// </summary>
+    [Test]
+    public async Task OnWindows_AFileHeldForAMoment_IsSavedOnceReleased()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new SkipTestException("only Windows refuses a read of a file held without read sharing");
+        }
+
+        string dir = NewTempDir();
+        string path = Path.Combine(dir, "settings.json");
+        try
+        {
+            SettingsService svc = new(dir);
+            svc.Write(s => s.Theme = "Light");
+
+            FileStream hold = HoldExclusively(path);
+            Thread release = new(() =>
+            {
+                Thread.Sleep(30);
+                hold.Dispose();
+            });
+            release.Start();
+            try
+            {
+                await Assert.That(() => svc.Write(s => s.Theme = "Dark")).ThrowsNothing();
+            }
+            finally
+            {
+                release.Join();
+            }
+
+            await Assert.That(new SettingsService(dir).Current.Theme).IsEqualTo("Dark");
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
+    ///     A file that stays unreadable is neither replaced with defaults nor allowed to throw out of the save. The
+    ///     change is kept and goes to disk with the next save that can read the file.
+    /// </summary>
+    [Test]
+    public async Task OnWindows_AFileHeldThroughout_IsLeftAlone_AndTheChangeLandsWithTheNextSave()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new SkipTestException("only Windows refuses a read of a file held without read sharing");
+        }
+
+        string dir = NewTempDir();
+        string path = Path.Combine(dir, "settings.json");
+        try
+        {
+            SettingsService svc = new(dir);
+            svc.Write(s =>
+            {
+                s.Theme = "Light";
+                s.Library.Folders = ["/demos/major"];
+            });
+            string before = await File.ReadAllTextAsync(path);
+
+            using (HoldExclusively(path))
+            {
+                await Assert.That(() => svc.Write(s => s.Theme = "Dark")).ThrowsNothing();
+            }
+
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(before);
+
+            svc.Write(s => s.LastSeenVersion = "2");
+
+            AppSettings saved = new SettingsService(dir).Current;
+            using (Assert.Multiple())
+            {
+                await Assert.That(saved.Theme).IsEqualTo("Dark");
+                await Assert.That(saved.LastSeenVersion).IsEqualTo("2");
+                await Assert.That(saved.Library.Folders).IsEquivalentTo(["/demos/major"]);
+            }
         }
         finally
         {
@@ -573,7 +896,8 @@ public class SettingsServiceTests
     ///     Best-effort semantics (preserved from the pre-consolidation stores): a <c>SaveSession</c> /
     ///     <c>SaveRecents</c> whose write cannot land (here the <c>settings.json</c> path is occupied by a
     ///     DIRECTORY, so the atomic <c>File.Move</c> fails) must NOT throw: a shutdown-save or demo-open
-    ///     never crashes the app. The reactive preference <c>Write</c>, by contrast, still surfaces the error.
+    ///     never crashes the app. Nor does the preference <c>Write</c>, whose callers are mostly UI commands: it
+    ///     keeps the change for the next save instead.
     /// </summary>
     [Test]
     public async Task SaveSessionAndRecents_AreBestEffort_DoNotThrowOnWriteFailure()
@@ -602,19 +926,97 @@ public class SettingsServiceTests
             await Assert.That(savesThrew).IsFalse()
                 .Because("both best-effort saves swallow a write failure rather than crashing the app");
 
-            // The reactive preference write is NOT best-effort: it still throws so the UI can surface it.
-            bool writeThrew = false;
-            try
+            await Assert.That(() => svc.Write(s => s.Theme = "Light")).ThrowsNothing()
+                .Because("a failed preference write is logged and kept, not thrown into a UI command");
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // What a user leaves behind after editing the file by hand: a comment and a trailing comma, both of which
+    // the configuration loader reads without complaint.
+    private const string HandEdited =
+        """
+        {
+          // my settings
+          "Theme": "Light",
+          "FirstRunCompleted": true,
+          "Library": { "Folders": ["/demos/major"] },
+        }
+        """;
+
+    /// <summary>
+    ///     A file the loader accepts is a file the writers must merge into. Reading it more strictly than the
+    ///     loader does makes each save start from nothing and replace everything else the file held.
+    /// </summary>
+    [Test]
+    [Arguments("recents")]
+    [Arguments("session")]
+    [Arguments("preference")]
+    public async Task AHandEditedFileTheLoaderAccepts_KeepsItsOtherSectionsAcrossASave(string writer)
+    {
+        string dir = NewTempDir();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), HandEdited);
+            SettingsService svc = new(dir);
+            using (Assert.Multiple())
             {
-                svc.Write(s => s.Theme = "Light");
-            }
-            catch
-            {
-                writeThrew = true;
+                await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+                await Assert.That(svc.NeedsFirstRun).IsFalse();
             }
 
-            await Assert.That(writeThrew).IsTrue()
-                .Because("the reactive preference write surfaces a write failure rather than swallowing it");
+            switch (writer)
+            {
+                case "recents":
+                    svc.SaveRecents([new RecentFile("/demos/a.dem", null, DateTime.UtcNow)]);
+                    break;
+                case "session":
+                    svc.SaveSession(new SessionPayload(null, null, null, false, false, "library"));
+                    break;
+                default:
+                    svc.Write(s => s.UserCategory = UserCategory.Developer);
+                    break;
+            }
+
+            SettingsService fresh = new(dir);
+            using (Assert.Multiple())
+            {
+                await Assert.That(fresh.Current.Theme).IsEqualTo("Light");
+                await Assert.That(fresh.NeedsFirstRun).IsFalse();
+                await Assert.That(string.Join("|", fresh.Current.Library.Folders)).IsEqualTo("/demos/major");
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
+    ///     An explicit null where the model has a collection or a section is read as "not set", the way the
+    ///     loader reads it. A write must not hand its mutator a null to index.
+    /// </summary>
+    [Test]
+    [Arguments("""{ "Theme": "Light", "Features": { "Overrides": null } }""")]
+    [Arguments("""{ "Theme": "Light", "Features": null }""")]
+    public async Task ANullWhereASectionOrCollectionBelongs_DoesNotBreakTheNextWrite(string json)
+    {
+        string dir = NewTempDir();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), json);
+            SettingsService svc = new(dir);
+
+            svc.Write(s => s.Features.Overrides["fancyGraph"] = true);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(svc.Current.Features.Overrides["fancyGraph"]).IsTrue();
+                await Assert.That(svc.Current.Theme).IsEqualTo("Light");
+            }
         }
         finally
         {

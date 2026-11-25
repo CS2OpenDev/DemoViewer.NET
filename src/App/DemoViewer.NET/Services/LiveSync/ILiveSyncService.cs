@@ -34,6 +34,14 @@ public interface ILiveSyncService : IAsyncDisposable
     /// </summary>
     LiveSyncCapabilities? Capabilities { get; }
 
+    /// <summary>
+    ///     True from the moment a CS2 session is launched until it is stopped, whatever <see cref="State" /> says
+    ///     meanwhile. A session that faulted because CS2 quit still holds the install's changes and restores them
+    ///     when it is stopped (Reconnect, Disable), so the install is the engine's, not a crash's leftovers. A
+    ///     launch refused before CS2 started never sets it. An engine that keeps no session reports false.
+    /// </summary>
+    bool OwnsStartedSession => false;
+
     /// <summary>Raised on the UI thread after every state transition.</summary>
     event EventHandler<LiveSyncStateChangedEventArgs>? StateChanged;
 
@@ -68,8 +76,9 @@ public interface ILiveSyncService : IAsyncDisposable
     ///     arrival), then remote-applies DV's playhead to the trigger frame and resumes the
     ///     follower. <paramref name="frameClockTick" /> is FRAME-CLOCK (<c>RuleChainEvent.Tick</c>
     ///     / <c>GameEvent.GameTick</c> as-is, never <c>−ServerStartTick</c>). Returns false,
-    ///     never throws for playback failures, when not currently synced or when CS2 could not
-    ///     complete the range; the UI surfaces the enable prompt / failure state.
+    ///     never throws for playback failures, when not currently synced, when another
+    ///     verification is still playing, or when CS2 could not complete the range; the UI
+    ///     surfaces the enable prompt / failure state.
     /// </summary>
     Task<bool> VerifyMomentAsync(int frameClockTick, int preRollTicks = 192, int postRollTicks = 64,
         string? spectateName = null, CancellationToken cancellationToken = default);
@@ -88,6 +97,13 @@ public interface ILiveSyncService : IAsyncDisposable
     /// </summary>
     async Task<Cs2InstallProbe> ProbeInstallAsync(CancellationToken cancellationToken = default) =>
         new(await HasLeftoverInstallModificationsAsync(cancellationToken).ConfigureAwait(false), false, false);
+
+    /// <summary>
+    ///     The CS2 install's <c>game/csgo</c> directory, which the engine reports a demo path relative to, or null
+    ///     when no install is found (or in mock mode). Runs off-thread.
+    /// </summary>
+    Task<string?> GetCs2GameDirectoryAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<string?>(null);
 
     /// <summary>
     ///     Crash recovery: restores the CS2 install: un-patches <c>gameinfo.gi</c> from

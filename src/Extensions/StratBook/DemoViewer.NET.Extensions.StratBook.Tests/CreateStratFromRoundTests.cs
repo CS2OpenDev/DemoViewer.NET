@@ -460,4 +460,25 @@ public class CreateStratFromRoundTests
     internal static StratCaptureRequest Request(IReadOnlyCollection<string> key) =>
         new("de_mirage", 7, "ab", "match.dem", null, key, StratOwner.Me(), "me", StratOwner.MeKind,
             StratFromRound.QuantizedLevel);
+
+    [Test]
+    public async Task TheirPlant_IsNotAStepOfOurs()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            // Slot 3 is a T. Reviewed from the CT side it is O4, and its plant is nothing the CTs do.
+            List<CapturedPawn> planting =
+                [.. Everyone().Select(p => p.PlayerSlot == 3 ? p with { Place = "BombsiteB" } : p)];
+            RoundCapture capture = Round(new CaptureMoment(At(40), CaptureTrigger.Plant, planting, null, 3, 2));
+
+            List<StratStep> theirs = StratFromRound.Steps(capture, Options(capture, 3));
+            List<StratStep> ours = StratFromRound.Steps(capture, Options(capture));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(string.Join(",", theirs.Select(s => s.Verb))).IsEqualTo("hold");
+                await Assert.That(string.Join(",", ours.Select(s => s.Verb))).IsEqualTo("hold,plant");
+            }
+        });
+    }
 }

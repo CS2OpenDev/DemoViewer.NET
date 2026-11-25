@@ -49,9 +49,18 @@ public sealed partial class MarkdownBlock : ContentControl
     private void Rebuild() =>
         Content = string.IsNullOrWhiteSpace(Markdown) ? null : RenderBlocks(Markdown);
 
+    // Quotes and details re-render their bodies, one call deeper per level. The text is a release body
+    // fetched from the network or whatever an extension binds, and a stack that runs out cannot be caught,
+    // so past a depth no real body reaches the remaining lines render as plain paragraphs.
+    private const int MaxNesting = 16;
+
     /// <summary>Renders <paramref name="markdown" /> to a block-stack control (test seam).</summary>
-    internal static Control RenderBlocks(string markdown)
+    internal static Control RenderBlocks(string markdown) => RenderBlocks(markdown, 0);
+
+    private static StackPanel RenderBlocks(string markdown, int depth)
     {
+        bool nests = depth < MaxNesting;
+
         // Preprocess: normalize newlines, drop HTML comments, reduce images to their alt text.
         markdown = markdown.Replace("\r\n", "\n", StringComparison.Ordinal);
         markdown = HtmlComment().Replace(markdown, string.Empty);
@@ -69,9 +78,9 @@ public sealed partial class MarkdownBlock : ContentControl
                 continue;
             }
 
-            if (trimmed.StartsWith("<details", StringComparison.OrdinalIgnoreCase))
+            if (nests && trimmed.StartsWith("<details", StringComparison.OrdinalIgnoreCase))
             {
-                panel.Children.Add(ParseDetails(lines, ref i));
+                panel.Children.Add(ParseDetails(lines, ref i, depth));
                 continue;
             }
 
@@ -83,9 +92,9 @@ public sealed partial class MarkdownBlock : ContentControl
                 continue;
             }
 
-            if (trimmed.StartsWith('>'))
+            if (nests && trimmed.StartsWith('>'))
             {
-                panel.Children.Add(RenderQuote(lines, ref i));
+                panel.Children.Add(RenderQuote(lines, ref i, depth));
                 continue;
             }
 
@@ -124,7 +133,7 @@ public sealed partial class MarkdownBlock : ContentControl
 
     // Consecutive '>' lines become one quote block; the stripped inner text is re-rendered
     // recursively so bold/paragraph rules apply inside the quote too.
-    private static Border RenderQuote(string[] lines, ref int i)
+    private static Border RenderQuote(string[] lines, ref int i, int depth)
     {
         List<string> inner = [];
         while (i < lines.Length && lines[i].TrimStart().StartsWith('>'))
@@ -139,7 +148,7 @@ public sealed partial class MarkdownBlock : ContentControl
             BorderBrush = _quoteBarBrush,
             BorderThickness = new Thickness(3, 0, 0, 0),
             Padding = new Thickness(10, 2, 0, 2),
-            Child = RenderBlocks(string.Join('\n', inner))
+            Child = RenderBlocks(string.Join('\n', inner), depth + 1)
         };
     }
 
@@ -188,7 +197,7 @@ public sealed partial class MarkdownBlock : ContentControl
     // A <details> block becomes a collapsed Expander headed by its <summary> text, exactly how
     // the release bodies use it ("What was new in 0.5.1"). Tracks nesting depth so a details
     // inside a details stays inside the outer body.
-    private static Expander ParseDetails(string[] lines, ref int i)
+    private static Expander ParseDetails(string[] lines, ref int i, int nesting)
     {
         int depth = 0;
         List<string> body = [];
@@ -204,6 +213,15 @@ public sealed partial class MarkdownBlock : ContentControl
         string joined = string.Join('\n', body);
         // Strip the outer <details> tags and pull the summary out of the body.
         joined = OuterDetailsTag().Replace(joined, string.Empty);
+
+        // A tag with no '>' after it is not one the strip removes. The body would still open with it, and
+        // re-rendering that comes straight back here with the same text, without end. The bare token goes
+        // too, so every pass hands on less than it was given.
+        while (joined.TrimStart().StartsWith("<details", StringComparison.OrdinalIgnoreCase))
+        {
+            joined = joined.TrimStart()["<details".Length..];
+        }
+
         string summary = "Details";
         Match m = SummaryTag().Match(joined);
         if (m.Success)
@@ -217,7 +235,7 @@ public sealed partial class MarkdownBlock : ContentControl
             Header = summary,
             IsExpanded = false,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            Content = new Border { Padding = new Thickness(4, 8, 0, 0), Child = RenderBlocks(joined) }
+            Content = new Border { Padding = new Thickness(4, 8, 0, 0), Child = RenderBlocks(joined, nesting + 1) }
         };
     }
 

@@ -72,7 +72,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     private readonly ActiveCollectors _visitCollectors = new();
     private readonly Func<string, string?>? _contentHash;
     private readonly DemoFileRead _fileRead;
-    private readonly Dictionary<string, int> _parsesByPath = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _parsesByPath = new(PathComparer.Paths);
     private readonly JobKindRegistry _jobKinds;
     private readonly Action<ParsedDemo>? _parseReleased;
     private readonly Action<Action> _post;
@@ -371,7 +371,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         // Folded at read time: a first import learns its hash during the visit that read it.
-        Dictionary<string, int> byContent = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, int> byContent = new(PathComparer.Paths);
         foreach ((string path, int count) in byPath)
         {
             string key = ContentKey(path);
@@ -588,21 +588,22 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
     }
 
-    // A running retained parse of this demo that decodes user commands: an open can take its result.
+    // A running retained parse of this demo that decodes user commands: an open can take its result. A visit
+    // is marked running before its read is chosen, and until then Forward and UserCommands say nothing: a
+    // waiter added then would be handed a parse without user commands, or none at all by a forward read.
     private Entry? JoinableParseLocked(string path) => _entries.FirstOrDefault(e =>
         e is
         {
-            Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running, Finalizing: false, Forward: false,
-            UserCommands: true
+            Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running, ModeChosen: true,
+            Finalizing: false, Forward: false, UserCommands: true
         }
         && PathEquals(e.Path, path));
 
-    // A running retained parse of this demo, passes included, that an open cannot take: it skips user commands.
+    // A running retained parse of this demo, passes included, that an open cannot take: it skips user commands,
+    // or its read is not chosen yet and may come to.
     private Entry? UnjoinableParseLocked(string path) => _entries.FirstOrDefault(e =>
-        e is
-        {
-            Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running, Forward: false, UserCommands: false
-        }
+        e is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running }
+            and ({ ModeChosen: false } or { Forward: false, UserCommands: false })
         && PathEquals(e.Path, path));
 
     // ── User opens ───────────────────────────────────────────────────────
@@ -1525,7 +1526,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                 end++;
             }
 
-            Dictionary<string, Queue<int>> byPath = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, Queue<int>> byPath = new(PathComparer.Paths);
             for (int i = start; i < end; i++)
             {
                 string path = pending[i].Entry.Path;
@@ -1835,6 +1836,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             (forward, entry.Needs, entry.UserCommands) =
                 entry.Visit!.ChooseMode(_forwardPass is not null || ForwardRead is not null);
             entry.Forward = forward;
+            entry.ModeChosen = true;
         }
 
         if (forward)
@@ -1869,13 +1871,19 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         bool didParse = parsed is not null;
-        FinishEntry(entry, parsed, failure, cancel.Token); // runs passes OUTSIDE _sync, still inside the slot
-        lock (_sync)
+        try
         {
-            entry.Cancel = null;
+            FinishEntry(entry, parsed, failure, cancel.Token); // runs passes OUTSIDE _sync, still inside the slot
         }
+        finally
+        {
+            lock (_sync)
+            {
+                entry.Cancel = null;
+            }
 
-        cancel.Dispose();
+            cancel.Dispose();
+        }
 
         lock (_sync)
         {
@@ -1914,6 +1922,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         {
             entry.Forward = false;
             entry.UserCommands = true;
+            entry.ModeChosen = true;
             entry.Detail = "On the open demo's parse";
             entry.Cancel = cancel;
             if (entry.CancelRequested)
@@ -1980,13 +1989,15 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         RaiseChanged();
-        if (!cancelled)
+        DemoQueueItemState state = DemoQueueItemState.Completed;
+        string? error = null;
+        try
         {
-            using IDisposable collecting =
-                _visitCollectors.Begin(open.Path, merged.Collectors(), merged.ChooseMode(false).Needs);
-            foreach (VisitPass p in merged.Ordered())
+            if (!cancelled)
             {
-                RunPass(p,
+                using IDisposable collecting =
+                    _visitCollectors.Begin(open.Path, merged.Collectors(), merged.ChooseMode(false).Needs);
+                RunPasses(merged.Ordered(), () =>
                     new PassInput(merged.Demo, PassLevel.OpenDemo, parsed, null, ct)
                     {
                         RetainedCollected = RetainedCollected(parsed, open.Path),
@@ -1996,15 +2007,24 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                     });
             }
         }
-
-        if (_parseReleased is { } released)
+        catch (Exception ex)
         {
-            SafeInvoke(() => released(parsed));
+            state = DemoQueueItemState.Failed;
+            error = ex.Message;
+            throw;
         }
-
-        foreach (Entry visit in visits)
+        finally
         {
-            SetTerminal(visit, DemoQueueItemState.Completed, null);
+            // The visits end whatever a pass let through, as in FinishEntry.
+            if (_parseReleased is { } released)
+            {
+                SafeInvoke(() => released(parsed));
+            }
+
+            foreach (Entry visit in visits)
+            {
+                SetTerminal(visit, state, error);
+            }
         }
     }
 
@@ -2059,14 +2079,23 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         // The source stays on the entry through the passes, so a remove during their turn still reaches them.
-        FinishForward(entry, pass, failure, cancelled, cancel.Token);
-
-        lock (_sync)
+        try
         {
-            entry.Cancel = null;
+            FinishForward(entry, pass, failure, cancelled, cancel.Token);
         }
+        finally
+        {
+            lock (_sync)
+            {
+                // A requeued read may already be running again on another worker, under that run's own source.
+                if (ReferenceEquals(entry.Cancel, cancel))
+                {
+                    entry.Cancel = null;
+                }
+            }
 
-        cancel.Dispose();
+            cancel.Dispose();
+        }
 
         lock (_sync)
         {
@@ -2085,6 +2114,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         IReadOnlyList<VisitPass> passes;
         VisitedDemo demo;
         PassLevel level;
+        // Decided under the lock: once it is released another worker may pick the requeued entry, and its
+        // state then describes that run.
+        bool requeued = false;
         lock (_sync)
         {
             demo = entry.Visit!.Demo;
@@ -2092,6 +2124,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             if (cancelled && entry is { Preempted: true, CancelRequested: false })
             {
                 RequeueLocked(entry);
+                requeued = true;
                 passes = [];
             }
             else
@@ -2102,7 +2135,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             }
         }
 
-        if (entry is { Requeued: true, State: DemoQueueItemState.Queued })
+        if (requeued)
         {
             RaiseChanged();
             return;
@@ -2122,9 +2155,14 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             return;
         }
 
-        foreach (VisitPass p in passes)
+        try
         {
-            RunPass(p, new PassInput(demo, level, null, pass!, token) { TableOf = TableOf });
+            RunPasses(passes, () => new PassInput(demo, level, null, pass!, token) { TableOf = TableOf });
+        }
+        catch (Exception ex)
+        {
+            SetTerminal(entry, DemoQueueItemState.Failed, ex.Message);
+            throw;
         }
 
         SetTerminal(entry, DemoQueueItemState.Completed, null);
@@ -2139,6 +2177,12 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         try
         {
             interest = p.Pass.Interest(input.Demo, input.Level);
+        }
+        catch (OutOfMemoryException ex)
+        {
+            // Not swallowed here, but the submitter still hears that its pass ended.
+            EndPass(p, PassOutcome.Failed, ex);
+            throw;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -2168,6 +2212,11 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             EndPass(p, PassOutcome.Cancelled, ex);
             return;
         }
+        catch (OutOfMemoryException ex)
+        {
+            EndPass(p, PassOutcome.Failed, ex);
+            throw;
+        }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             AppLog.QueueOwnerHandlerFailed(DiagLog, ex);
@@ -2176,6 +2225,32 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         EndPass(p, PassOutcome.Ran, null);
+    }
+
+    // A visit's passes, each in its turn. What RunPass lets through (out of memory) ended the pass it came
+    // from; the passes behind it are ended here, so no submitter waits on a visit that is over, and the
+    // exception goes on to the caller, which ends the entry.
+    private static void RunPasses(IReadOnlyList<VisitPass> passes, Func<PassInput> input)
+    {
+        int next = 0;
+        try
+        {
+            while (next < passes.Count)
+            {
+                PassInput turn = input();
+                RunPass(passes[next++], turn);
+            }
+        }
+        catch (Exception ex)
+        {
+            for (; next < passes.Count; next++)
+            {
+                EndPass(passes[next], PassOutcome.Failed, ex);
+            }
+
+            AppLog.QueueOwnerHandlerFailed(DiagLog, ex);
+            throw;
+        }
     }
 
     private static void FailPasses(IReadOnlyList<VisitPass> passes, VisitedDemo demo, Exception failure)
@@ -2488,6 +2563,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         if (best is not null)
         {
             best.State = DemoQueueItemState.Running;
+            best.ModeChosen = false; // a visit picked again chooses again
             best.PromotedSeq = 0;
             if (!light && best.Path.Length > 0)
             {
@@ -2543,16 +2619,18 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             w.TrySetResult(parsed!);
         }
 
-        if (cancelled)
+        DemoQueueItemState state = cancelled ? DemoQueueItemState.Cancelled : DemoQueueItemState.Completed;
+        string? error = null;
+        try
         {
-            EndPasses(passes, PassOutcome.Cancelled);
-        }
-        else
-        {
-            using IDisposable collecting = _visitCollectors.Begin(demo.Path, collectors, needs);
-            foreach (VisitPass p in passes)
+            if (cancelled)
             {
-                RunPass(p,
+                EndPasses(passes, PassOutcome.Cancelled);
+            }
+            else
+            {
+                using IDisposable collecting = _visitCollectors.Begin(demo.Path, collectors, needs);
+                RunPasses(passes, () =>
                     new PassInput(demo, level, parsed!, null, token)
                     {
                         RetainedCollected = RetainedCollected(parsed!, demo.Path),
@@ -2562,13 +2640,23 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                     });
             }
         }
-
-        if (_parseReleased is { } released)
+        catch (Exception ex)
         {
-            SafeInvoke(() => released(parsed!));
+            state = DemoQueueItemState.Failed;
+            error = ex.Message;
+            throw;
         }
+        finally
+        {
+            // The entry ends whatever a pass let through: left Running it would hold the heavy lane, and
+            // everyone waiting on its Completion, for the rest of the session.
+            if (_parseReleased is { } released)
+            {
+                SafeInvoke(() => released(parsed!));
+            }
 
-        SetTerminal(entry, cancelled ? DemoQueueItemState.Cancelled : DemoQueueItemState.Completed, null);
+            SetTerminal(entry, state, error);
+        }
     }
 
     private void SetTerminal(Entry entry, DemoQueueItemState state, string? error)
@@ -2764,9 +2852,12 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         e.State == DemoQueueItemState.Queued && HoldLocked(e) == DemoQueueHold.None && !BlockedLocked(e);
 
     // Pause, the user's or a hold's, stops every start; the disable switch stops only Background-priority work.
+    // The user's own pause (and the idle pause) never holds a store's debounced save: it stops parsing, and a
+    // save held until resume would lose the user's edits to any exit that skips the shutdown flush.
     private DemoQueueHold HoldLocked(Entry e) =>
         ParkedLocked(e) ? DemoQueueHold.OnOpen
-        : (_paused || _holds > 0) && e.Priority < DemoJobPriority.UserRequested ? DemoQueueHold.Paused
+        : ((_paused && e.Kind != QueueJobKind.StoreSave) || _holds > 0) && e.Priority < DemoJobPriority.UserRequested
+            ? DemoQueueHold.Paused
         : !_backgroundEnabled && e.Priority < DemoJobPriority.UserRequested && e.Kind != QueueJobKind.HeapCompaction
         && !IsLight(e) ? DemoQueueHold.BackgroundOff
         : DemoQueueHold.None;
@@ -2903,7 +2994,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     }
 
     private static bool PathEquals(string a, string b) =>
-        string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+        string.Equals(a, b, PathComparer.Comparison);
 
     private static DemoQueueItemSnapshot ToSnapshot(Entry e) => new(
         e.Id, e.Path, e.DisplayName,
@@ -3110,6 +3201,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
         // Read forward instead of retained; fixed once it runs.
         public bool Forward { get; set; }
+
+        // False from the pick until the run has set UserCommands and Forward for this start.
+        public bool ModeChosen { get; set; }
 
         // What a forward read's rules run declared; null until it starts.
         public CollectorSet? DeclaredCollectors { get; set; }

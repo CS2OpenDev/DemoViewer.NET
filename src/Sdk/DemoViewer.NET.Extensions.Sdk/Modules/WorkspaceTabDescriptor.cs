@@ -201,8 +201,10 @@ public sealed class WorkspaceTabDescriptor : INotifyPropertyChanged
         view.DataContext = DataContext ?? TabViewModel;
         ActiveContent = view;
 
-        TabViewModel?.OnActivated(context);
+        // Active before OnActivated, not after: the view is already up, so a view model that throws there
+        // still has to be deactivated, or the view stays alive behind the next tab and is built a second time.
         IsActive = true;
+        TabViewModel?.OnActivated(context);
     }
 
     /// <summary>

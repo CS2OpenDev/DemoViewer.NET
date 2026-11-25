@@ -245,6 +245,67 @@ public class TagStoreImportTests
     });
 
     [Test]
+    public Task AVerdictsFileWithANullVerdict_IsRefused_AndNeverWritten() => WithRoots(async (local, staged) =>
+    {
+        TagStore store = new(PackStores.At(local));
+        Machine(staged, [Instance("A execute", 100, 200)], ProposalA);
+        string path = Path.Combine(staged, "verdicts", Sha + ".verdicts.json");
+        await File.WriteAllTextAsync(path, $"{{\"demo\":{{\"sha256\":\"{Sha}\"}},\"verdicts\":{{\"{ProposalA}\":null}}}}");
+
+        TagImportResult result = store.Import(Sha, PackStores.At(staged), ImportConflictPolicy.KeepBoth);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(result.Verdicts).IsEqualTo(TagImportOutcome.Refused);
+            await Assert.That(File.Exists(Path.Combine(local, "verdicts", Sha + ".verdicts.json"))).IsFalse();
+            await Assert.That(() => store.RecordVerdict(Sha, ProposalA, Verdict(SuggestionVerdicts.Rejected)))
+                .ThrowsNothing();
+        }
+    });
+
+    [Test]
+    public Task NullVerdicts_UnderKeepBoth_AreRefused_WithoutEndingTheImport() => WithRoots(async (local, staged) =>
+    {
+        TagStore store = Machine(local, [Instance("A execute", 100, 200)], ProposalA);
+        Machine(staged, [Instance("A execute", 100, 200)], ProposalB);
+        string path = Path.Combine(staged, "verdicts", Sha + ".verdicts.json");
+        await File.WriteAllTextAsync(path, $"{{\"demo\":{{\"sha256\":\"{Sha}\"}},\"verdicts\":null}}");
+        string verdicts = VerdictsText(local);
+
+        TagImportResult result = null!;
+        await Assert.That(() => result = store.Import(Sha, PackStores.At(staged), ImportConflictPolicy.KeepBoth))
+            .ThrowsNothing();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(result.Verdicts).IsEqualTo(TagImportOutcome.Refused);
+            await Assert.That(VerdictsText(local)).IsEqualTo(verdicts);
+        }
+    });
+
+    [Test]
+    public async Task ALocalVerdictsFileWithANullVerdict_ReadsAsUnreadable()
+    {
+        string local = TempRoot();
+        try
+        {
+            TagStore store = Machine(local, [Instance("A execute", 100, 200)], ProposalA);
+            await File.WriteAllTextAsync(Path.Combine(local, "verdicts", Sha + ".verdicts.json"),
+                $"{{\"demo\":{{\"sha256\":\"{Sha}\"}},\"verdicts\":{{\"{ProposalB}\":null}}}}");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.LoadVerdicts(Sha)).IsNull();
+                await Assert.That(store.RecordVerdict(Sha, ProposalB, Verdict(SuggestionVerdicts.Rejected))).IsFalse();
+            }
+        }
+        finally
+        {
+            DeleteQuietly(local);
+        }
+    }
+
+    [Test]
     [Arguments(ImportConflictPolicy.KeepMine)]
     [Arguments(ImportConflictPolicy.TakeImported)]
     [Arguments(ImportConflictPolicy.KeepBoth)]

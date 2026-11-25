@@ -125,7 +125,8 @@ public sealed record PackPlan(
 ///         is why a GIF has a frame cap at all (<see cref="SceneExportSession.GifMaxFrames" />); a pack of
 ///         many clips in one GIF would pass it by the third clip. So each clip is its own GIF, numbered in
 ///         play order in a folder beside the pack's name, its section in its file name, and each is held to
-///         the cap on its own.
+///         the cap on its own. The cap shrinks with the side, so a clip never buffers more than
+///         <see cref="SceneExportSession.GifMaxBufferedBytes" />.
 ///     </para>
 /// </summary>
 public static class PackPlanner
@@ -254,7 +255,8 @@ public static class PackPlanner
             number++;
             int estimated = EstimateFrames(entry, settings.Fps);
             segments.Add(settings.IsGif
-                ? new PackClip(entry, number, section?.Title, estimated, SceneExportSession.GifMaxFrames,
+                ? new PackClip(entry, number, section?.Title, estimated,
+                    SceneExportSession.GifMaxFramesFor(settings.Side, settings.Side),
                     ClipPath(settings.OutputPath, number, section?.Title, entry))
                 : new PackClip(entry, number, section?.Title, estimated, null, null));
         }

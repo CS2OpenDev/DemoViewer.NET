@@ -329,6 +329,49 @@ public class FirstRunWizardTests
         }
     }
 
+    // The close box is the user leaving the wizard unanswered. The app going away is not: Dismiss turns every
+    // pack on and queues a re-index, which has no business running on the way out.
+    [Test]
+    public async Task DesktopWizard_ClosedWithItsOwner_IsNotDismissed_ButTheCloseBoxIs()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            await HeadlessSession.RunOnUi(async () =>
+            {
+                Window owner = new();
+                owner.Show();
+                DesktopWindowService windowService = new(() => owner);
+
+                FirstRunWizardViewModel vm = new(new SettingsService(dir));
+                int dismissed = 0;
+                vm.Dismissed += (_, _) => dismissed++;
+                windowService.ShowFirstRunWizard(vm);
+                Dispatcher.UIThread.RunJobs();
+                owner.Close();
+                Dispatcher.UIThread.RunJobs();
+                await Assert.That(dismissed).IsEqualTo(0).Because("the wizard closed because the app did");
+
+                Window again = new();
+                again.Show();
+                DesktopWindowService other = new(() => again);
+                FirstRunWizardViewModel closedByUser = new(new SettingsService(dir));
+                int userDismissed = 0;
+                closedByUser.Dismissed += (_, _) => userDismissed++;
+                other.ShowFirstRunWizard(closedByUser);
+                Dispatcher.UIThread.RunJobs();
+                again.OwnedWindows.Single().Close();
+                Dispatcher.UIThread.RunJobs();
+                await Assert.That(userDismissed).IsEqualTo(1);
+                again.Close();
+            });
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     // Render smoke: the real FirstRunWizardView bound to a real VM (on the category step) draws far more than
     // an empty background.
     [Test]

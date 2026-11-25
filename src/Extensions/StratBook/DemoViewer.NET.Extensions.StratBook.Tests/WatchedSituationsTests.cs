@@ -4,7 +4,9 @@ using System.Text.Json;
 using CS2DemoKit.Parser.EntityTracking;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Playback2D.Query;
@@ -367,6 +369,117 @@ public class WatchedSituationsTests
 
         list.Rows.Single().RemoveCommand.Execute(null);
         await Assert.That(list.HasRows).IsFalse();
+    }
+
+    // A bundle is not written by this build: a null in the token list does not read under the strict options
+    // (they reach properties, not list elements), and the last representable day is a valid "to".
+    [Test]
+    public async Task AnImportedWatch_WithANullToken_IsLeftOut_AndOneDatedToTheLastDay_Evaluates()
+    {
+        string root = TempRoot();
+        try
+        {
+            string there = Path.Combine(root, "there");
+            Directory.CreateDirectory(there);
+            Guid broken = Guid.NewGuid();
+            Guid farDate = Guid.NewGuid();
+            await File.WriteAllTextAsync(Path.Combine(there, WatchedSituationsService.FileName),
+                $$$"""
+                  {"schemaVersion":1,"watches":[null,
+                   {"id":"{{{broken}}}","name":"bad","map":"de_nuke","tokens":[null],"filters":{}},
+                   {"id":"{{{farDate}}}","name":"far","map":"de_nuke","tokens":[],"filters":{"to":"9999-12-31T00:00:00"}}]}
+                  """);
+            using Harness h = new();
+            using WatchedSituationsService service =
+                new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(),
+                    now: () => Before);
+            List<string> lines = [];
+
+            service.Import(new StagedFolder(there), new TeamIdMap(new Dictionary<Guid, Guid>()),
+                new ImportLedger(ImportConflictPolicy.KeepMine, lines.Add));
+            h.Evaluate("/d/b.dem", "de_nuke", 1000);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(service.Watches.Select(w => w.Id)).IsEquivalentTo([farDate]);
+                await Assert.That(lines.Count(l => l.Contains("bad", StringComparison.Ordinal))).IsEqualTo(1)
+                    .Because("the watch left out is reported by name");
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, WatchedSituationsService.FileName)))
+                    .DoesNotContain(broken.ToString());
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
+    // The pack reloads its live stores after every import that carried its data; the new-hit groups are derived,
+    // and a reload that dropped them would leave the badge at zero until the index next changed.
+    [Test]
+    public async Task AReload_KeepsTheNewHits_ItsFileStillCounts()
+    {
+        string root = TempRoot();
+        try
+        {
+            using Harness h = new();
+            using WatchedSituationsService service =
+                new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(),
+                    now: () => Before);
+            WatchedSituation watch = service.Watch("A hold", "de_nuke", FiveOnA(), SituationTolerance.Exact,
+                SearchFilterValues.None);
+            h.Evaluate("/d/b.dem", "de_nuke", 1000);
+            await Assert.That(service.NewCountOf(watch.Id)).IsEqualTo(1);
+
+            service.Reload();
+
+            await Assert.That(service.NewCountOf(watch.Id)).IsEqualTo(1);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
+    [Test]
+    public async Task ALocalFile_WithANullToken_IsRefused_RatherThanThrowingOnEveryEvaluation()
+    {
+        string root = TempRoot();
+        try
+        {
+            Directory.CreateDirectory(root);
+            string path = Path.Combine(root, WatchedSituationsService.FileName);
+            string text = $$$"""
+                            {"schemaVersion":1,"watches":[
+                             {"id":"{{{Guid.NewGuid()}}}","name":"bad","map":"de_nuke","tokens":[null],"filters":{}}]}
+                            """;
+            await File.WriteAllTextAsync(path, text);
+            using Harness h = new();
+
+            using WatchedSituationsService service =
+                new(StoredFile.At(path), h.Index, h.Cache.Library(), now: () => Before);
+            h.Evaluate("/d/b.dem", "de_nuke", 1000);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(service.FileProblem).IsNotNull();
+                await Assert.That(service.Watches).IsEmpty();
+                await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(text);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
     }
 
     private static async Task WaitPast(long stamp)

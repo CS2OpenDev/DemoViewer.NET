@@ -161,6 +161,95 @@ public class RuleWorkbenchModuleTests
             await Assert.That(File.Exists(Path.Combine(userDir, "my-fork.rules.yaml"))).IsTrue();
             await Assert.That(vm.SelectedFile!.IsShipped).IsFalse();
             await Assert.That(vm.IsReadOnlyFile).IsFalse().Because("the forked copy is an editable user file");
+            await Assert.That(vm.Summary).Contains("after a restart")
+                .Because("the reselect's check must not replace the restart notice");
+
+            vm.DocumentText += "\n# edited again\n";
+            await Assert.That(vm.Summary).DoesNotContain("after a restart");
+        });
+    }
+
+    // Save As is "save as a NEW user ruleset". Typing the name of another ruleset used to replace that
+    // file with the open buffer, without a word.
+    [Test]
+    public async Task SaveAs_OntoAnotherRuleset_IsRefused_AndLeavesItAlone()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string first = vm.SelectedFile!.FullPath;
+            string firstText = await File.ReadAllTextAsync(first);
+
+            vm.NewFileCommand.Execute(null);
+            string second = vm.SelectedFile!.FullPath;
+            await Assert.That(second).IsNotEqualTo(first);
+            vm.DocumentText += "\n# only in the second\n";
+
+            vm.SaveAsName = Path.GetFileName(first);
+            vm.SaveAsCommand.Execute(null);
+
+            await Assert.That(await File.ReadAllTextAsync(first)).IsEqualTo(firstText)
+                .Because("another ruleset is not this buffer's to overwrite");
+            await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(second)
+                .Because("a refused save leaves the open file open");
+            await Assert.That(vm.IsDirty).IsTrue().Because("nothing was written");
+            await Assert.That(vm.Summary).Contains("already exists");
+
+            // A folder in the way is the same refusal, not a swallowed write error and a closed editor.
+            Directory.CreateDirectory(Path.Combine(userDir, "taken.rules.yaml"));
+            vm.SaveAsName = "taken";
+            vm.SaveAsCommand.Execute(null);
+            await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(second);
+        });
+    }
+
+    // The name is a file name. A path in the box used to go straight into Path.Combine, which a rooted
+    // name replaces outright and a "..\" one walks out of.
+    [Test]
+    public async Task SaveAs_WithAPathForAName_WritesNothingOutsideTheUserFolder()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string open = vm.SelectedFile!.FullPath;
+            string[] before = Directory.GetFiles(userDir);
+            string stem = "dvwb_escape_" + Guid.NewGuid().ToString("N");
+            string outside = Path.Combine(Path.GetDirectoryName(userDir)!, stem + ".rules.yaml");
+            try
+            {
+                vm.SaveAsName = Path.Combine("..", stem);
+                vm.SaveAsCommand.Execute(null);
+                await Assert.That(File.Exists(outside)).IsFalse().Because("a relative path escapes the folder");
+
+                vm.SaveAsName = Path.Combine(Path.GetDirectoryName(userDir)!, stem);
+                vm.SaveAsCommand.Execute(null);
+                await Assert.That(File.Exists(outside)).IsFalse().Because("a rooted path discards the folder");
+
+                await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(open);
+                await Assert.That(Directory.GetFiles(userDir)).IsEquivalentTo(before);
+            }
+            finally
+            {
+                File.Delete(outside);
+            }
+        });
+    }
+
+    [Test]
+    public async Task SaveAs_UnderTheOpenFilesOwnName_StillSaves()
+    {
+        await WithTempRules(async (vm, _) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string open = vm.SelectedFile!.FullPath;
+            vm.DocumentText += "\n# kept\n";
+
+            vm.SaveAsName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(open));
+            vm.SaveAsCommand.Execute(null);
+
+            await Assert.That(await File.ReadAllTextAsync(open)).Contains("# kept");
+            await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(open);
+            await Assert.That(vm.IsDirty).IsFalse();
         });
     }
 
@@ -775,6 +864,238 @@ public class RuleWorkbenchModuleTests
 
                 window.Close();
             });
+
+            vm.OnDeactivated();
+        });
+    }
+
+    // ── The file list refreshes under an open, edited buffer ───────────────────────────────────────
+
+    /// <summary>
+    ///     Coming back to the tab (or any change in the user rules folder) rebuilds the dropdown's list. The
+    ///     ComboBox drops its selection when its list is emptied and writes that null back, and the re-select
+    ///     that follows used to read as "the user picked a file": the open buffer was reloaded from disk and
+    ///     every unsaved edit went with it. Needs the view: without the ComboBox there is no write-back.
+    /// </summary>
+    [Test]
+    public async Task RefreshingTheFileList_KeepsTheUnsavedBuffer()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string open = vm.SelectedFile!.FullPath;
+
+            await HeadlessSession.RunOnUi(async () =>
+            {
+                RuleWorkbenchView view = new() { DataContext = vm };
+                Window window = new() { Width = 900, Height = 560, Content = view };
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+
+                vm.OnActivated(new FakeDemoContext(null!));
+                Dispatcher.UIThread.RunJobs();
+                vm.DocumentText += "\n# not saved yet\n";
+                vm.SaveAsName = "a-name-being-typed";
+                await Assert.That(vm.IsDirty).IsTrue();
+
+                // Another ruleset lands in the folder, and the user leaves the tab and comes back.
+                await File.WriteAllTextAsync(Path.Combine(userDir, "other.rules.yaml"),
+                    "ruleset: other_probe\nfor: each_player\nstats:\n  k:\n    count: kill\n    per: match\n");
+                vm.OnDeactivated();
+                vm.OnActivated(new FakeDemoContext(null!));
+                Dispatcher.UIThread.RunJobs();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(vm.OpenableFiles.Any(f => f.FileName == "other.rules.yaml")).IsTrue();
+                    await Assert.That(vm.SelectedFile?.FullPath).IsEqualTo(open);
+                    await Assert.That(vm.DocumentText).Contains("# not saved yet");
+                    await Assert.That(vm.IsDirty).IsTrue();
+                    await Assert.That(vm.SaveAsName).IsEqualTo("a-name-being-typed");
+                }
+
+                vm.OnDeactivated();
+                window.Close();
+            });
+        });
+    }
+
+    /// <summary>
+    ///     Picking another ruleset, or New, while the buffer is edited used to replace it with the other file
+    ///     and clear the dirty flag: the edits were never written and could not come back. They are parked
+    ///     under the file's path now, restored when it is picked again, and starred in the dropdown meanwhile.
+    /// </summary>
+    [Test]
+    public async Task SwitchingRulesets_StashesTheDirtyBufferAndRestoresItOnReselect()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            const string Other = "ruleset: other_probe\nfor: each_player\nstats:\n  k:\n    count: kill\n    per: match\n";
+            string otherPath = Path.Combine(userDir, "other.rules.yaml");
+            await File.WriteAllTextAsync(otherPath, Other);
+
+            vm.NewFileCommand.Execute(null);
+            RulesetFileRef draft = vm.SelectedFile!;
+            vm.DocumentText += "\n# not saved yet\n";
+            string edited = vm.DocumentText;
+
+            vm.SelectedFile = vm.OpenableFiles.First(f => f.FileName == "other.rules.yaml");
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.DocumentText).IsEqualTo(Other);
+                await Assert.That(vm.IsDirty).IsFalse();
+                await Assert.That(vm.OpenableFiles.First(f => f.FullPath == draft.FullPath).Label).EndsWith(" *");
+            }
+
+            vm.NewFileCommand.Execute(null); // New from a clean buffer; the first draft stays parked
+            await Assert.That(vm.OpenableFiles.First(f => f.FullPath == draft.FullPath).HasUnsavedEdits).IsTrue();
+
+            vm.SelectedFile = vm.OpenableFiles.First(f => f.FullPath == draft.FullPath);
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.DocumentText).IsEqualTo(edited);
+                await Assert.That(vm.IsDirty).IsTrue();
+                await Assert.That(vm.CanSave).IsTrue();
+            }
+
+            vm.SaveCommand.Execute(null);
+            await Assert.That(await File.ReadAllTextAsync(draft.FullPath)).Contains("# not saved yet");
+            await Assert.That(vm.OpenableFiles.Any(f => f.HasUnsavedEdits)).IsFalse();
+            await Assert.That(vm.Summary).Contains("after a restart");
+        });
+    }
+
+    /// <summary>
+    ///     When the open file vanishes under an edited buffer nothing is selected, which used to disable Save
+    ///     As and leave the buffer unsavable. It can be saved under a name.
+    /// </summary>
+    [Test]
+    public async Task ADirtyBufferWhoseFileVanished_CanStillBeSavedAs()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            string open = vm.SelectedFile!.FullPath;
+            vm.DocumentText += "\n# not saved yet\n";
+
+            File.Delete(open);
+            vm.OnDeactivated();
+            vm.OnActivated(new FakeDemoContext(null!)); // rebuilds the list; the open file is gone from it
+            await Assert.That(vm.SelectedFile).IsNull();
+            await Assert.That(vm.IsDirty).IsTrue();
+            await Assert.That(vm.CanSaveAs).IsTrue();
+
+            vm.SaveAsName = "rescued";
+            vm.SaveAsCommand.Execute(null);
+            await Assert.That(await File.ReadAllTextAsync(Path.Combine(userDir, "rescued.rules.yaml")))
+                .Contains("# not saved yet");
+        });
+    }
+
+    /// <summary>
+    ///     A ruleset that is there but cannot be read (another program holds it) is not an empty ruleset. The
+    ///     buffer shown in its place must not be saveable over it, whether the dirty flag came across from
+    ///     the file open before or from typing into the blank editor.
+    /// </summary>
+    [Test]
+    public async Task ARulesetThatCannotBeRead_IsNotSavedOver()
+    {
+        await WithTempRules(async (vm, userDir) =>
+        {
+            const string Held = "ruleset: held_probe\nfor: each_player\nstats:\n  k:\n    count: kill\n    per: match\n";
+            string held = Path.Combine(userDir, "held.rules.yaml");
+            await File.WriteAllTextAsync(held, Held);
+
+            vm.NewFileCommand.Execute(null); // lists held.rules.yaml too, and opens a draft
+            vm.DocumentText += "\n# an edit to the draft\n";
+            await Assert.That(vm.IsDirty).IsTrue();
+
+            using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                vm.SelectedFile = vm.OpenableFiles.First(f => f.FileName == "held.rules.yaml");
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.IsDirty).IsFalse().Because("the draft's flag does not describe this file");
+                await Assert.That(vm.CanSave).IsFalse();
+                await Assert.That(vm.Summary).Contains("Couldn't open the ruleset");
+            }
+
+            vm.SaveCommand.Execute(null);
+            await Assert.That(await File.ReadAllTextAsync(held)).IsEqualTo(Held);
+
+            // Typing into the blank editor does not make it this file's content either.
+            vm.DocumentText = "ruleset: typed_over\n";
+            await Assert.That(vm.CanSave).IsFalse();
+            vm.SaveCommand.Execute(null);
+            vm.SaveAsName = "held";
+            vm.SaveAsCommand.Execute(null);
+            await Assert.That(await File.ReadAllTextAsync(held)).IsEqualTo(Held);
+
+            // Opening it again once it reads is the way back.
+            vm.SelectedFile = vm.OpenableFiles.First(f => f.FileName != "held.rules.yaml" && !f.IsShipped);
+            vm.SelectedFile = vm.OpenableFiles.First(f => f.FileName == "held.rules.yaml");
+            await Assert.That(vm.DocumentText).IsEqualTo(Held);
+            vm.DocumentText += "# now editable\n";
+            await Assert.That(vm.CanSave).IsTrue();
+        });
+    }
+
+    // ── Results belong to the demo they were evaluated on ──────────────────────────────────────────
+
+    [Test]
+    public async Task DemoReset_ClearsThePreviousDemosResults()
+    {
+        ParsedDemo demo = DemoTestHelper.GetOrParse(DemoTestHelper.RequireDemo());
+
+        await WithTempRules(async (vm, _) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            FakeDemoContext context = new(demo);
+            vm.OnActivated(context);
+            await vm.EvaluateCommand.ExecuteAsync(null);
+            await Assert.That(vm.Boards.Count).IsGreaterThan(0);
+            await Assert.That(vm.TraceTargets.Count).IsGreaterThan(0);
+
+            context.RaiseDemoReset();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Boards.Count).IsEqualTo(0);
+                await Assert.That(vm.TraceTargets.Count).IsEqualTo(0);
+                await Assert.That(vm.TraceFires.Count).IsEqualTo(0);
+                await Assert.That(vm.EvalSummary).DoesNotContain("Evaluated");
+            }
+
+            vm.OnDeactivated();
+        });
+    }
+
+    [Test]
+    public async Task AnEvaluationThatFinishesAfterADemoReset_IsDropped()
+    {
+        ParsedDemo demo = DemoTestHelper.GetOrParse(DemoTestHelper.RequireDemo());
+
+        await WithTempRules(async (vm, _) =>
+        {
+            vm.NewFileCommand.Execute(null);
+            FakeDemoContext context = new(demo);
+            vm.OnActivated(context);
+
+            // The run is on the pool by the time ExecuteAsync returns; the reset lands before it finishes.
+            Task run = vm.EvaluateCommand.ExecuteAsync(null);
+            await Assert.That(vm.IsEvaluating).IsTrue();
+            context.RaiseDemoReset();
+            await run;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.IsEvaluating).IsFalse();
+                await Assert.That(vm.Boards.Count).IsEqualTo(0);
+                await Assert.That(vm.TraceTargets.Count).IsEqualTo(0);
+                await Assert.That(vm.EvalSummary).Contains("demo changed");
+            }
 
             vm.OnDeactivated();
         });

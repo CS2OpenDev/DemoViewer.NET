@@ -48,18 +48,18 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
-    private readonly Dictionary<string, DemoLibraryCacheEntry> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DemoLibraryCacheEntry> _cache = new(PathComparer.Paths);
     private readonly Lock _cacheLock = new();
     private readonly Lock _saveGate = new();
     private readonly string? _dataPath; // library.json, or null on WASM
 
     // The unified demo cache, dual-written alongside library.json during the transition. Null → legacy only.
     private readonly DemoCacheStore? _demoCache;
-    private readonly Dictionary<string, DemoEntry> _pendingFull = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DemoEntry> _pendingFull = new(PathComparer.Paths);
 
     // Demos a reconcile added for indexing that no rescan has handed to tier 2 yet. A newer rescan that
     // replaces one mid-flight finds them already in Entries, and indexes them from here rather than never.
-    private readonly HashSet<string> _awaitingIndex = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _awaitingIndex = new(PathComparer.Paths);
 
     private readonly Action<Action> _post; // marshal to the UI thread (Dispatcher in-app; inline in tests)
 
@@ -69,7 +69,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
     // Paths with a tier-2 replay in flight RIGHT NOW: a second concurrent replay of the same demo would be
     // wasted work and could flip Indexed↔Failed on a throw.
-    private readonly HashSet<string> _tier2InProgress = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _tier2InProgress = new(PathComparer.Paths);
 
     // Tier-2 backlog: _pendingFull is the working set of demos still needing a tier-2 parse (recomputed
     // each rescan; Wants(path) reads its membership). The scheduler's own outstanding set prevents
@@ -104,7 +104,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     // write time are the ones it was read at. Under its own lock.
     private readonly Dictionary<string, (long Size, long Ticks, IReadOnlyList<DemoContentFingerprint> Fingerprints)>
         _fingerprints =
-            new(StringComparer.OrdinalIgnoreCase);
+            new(PathComparer.Paths);
 
     // Per size, the windows of known demos' fingerprints taken with another window than the reader's: a file of
     // that size is fingerprinted with those windows too, so it still matches without a full read. Under its own lock.
@@ -685,7 +685,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             ContentGroups placed = ResolveContentIdentities(files);
             List<(string Path, long Size, DateTime Modified)> toHash =
                 [.. files.Where(f => placed.NeedHash.Contains(f.Path) && !unread.Contains(f.Path))];
-            HashSet<string> waiting = new(unread, StringComparer.OrdinalIgnoreCase);
+            HashSet<string> waiting = new(unread, PathComparer.Paths);
             waiting.UnionWith(toHash.Select(f => f.Path));
             List<DemoEntry> needMap = [], needFull = [];
             if (BeforeCopiesPlaced is { } hook)
@@ -779,7 +779,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
                          StringComparer.Ordinal))
             {
                 if (_demoCache.LocationOf(file.Path) is { Location.Confirmed: false } at
-                    && at.Location.Size == file.Size && at.Location.ModifiedTicks == file.Modified.Ticks
+                    && DemoFileStamp.Matches(at.Location.Size, at.Location.ModifiedTicks, file.Size, file.Modified.Ticks)
                     && _demoCache.TryGetByContentId(at.ContentId) is null && seen.Add(at.ContentId))
                 {
                     unconfirmed.Add(file);
@@ -1057,7 +1057,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         CancellationToken ct)
     {
         Func<string, string> folderOf = FolderLookup();
-        HashSet<string> unread = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> unread = new(PathComparer.Paths);
         await Task.WhenAll(files.GroupBy(f => folderOf(f.Path), StringComparer.Ordinal).Select(async folder =>
         {
             Queue<(string Path, long Size, DateTime Modified)> pending = new(folder);
@@ -1118,7 +1118,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         }
 
         if (_demoCache?.LocationOf(file.Path) is { Location.Confirmed: true } at
-            && at.Location.Size == file.Size && at.Location.ModifiedTicks == file.Modified.Ticks)
+            && DemoFileStamp.Matches(at.Location.Size, at.Location.ModifiedTicks, file.Size, file.Modified.Ticks))
         {
             if (fingerprints.FirstOrDefault(f => f.WindowBytes == ContentReader.WindowBytes) is { } current)
             {
@@ -1178,11 +1178,15 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
             // Only a row with nothing to show gets the "being analyzed" signal at SUBMIT time. The real one is
             // posted when the parse actually starts (IndexTier2Core); DemoEntry.IsIndexing is unique, and the
-            // half-score repair enlists already-indexed rows that must not all pulse at once.
-            if (captured.State != DemoIndexState.Indexed)
+            // half-score repair enlists already-indexed rows that must not all pulse at once. Checked when the post
+            // runs: the read can end before it, and its Indexed or Failed is the card's last word.
+            _post(() =>
             {
-                _post(() => captured.State = DemoIndexState.Indexing);
-            }
+                if (captured.State is not (DemoIndexState.Indexed or DemoIndexState.Failed))
+                {
+                    captured.State = DemoIndexState.Indexing;
+                }
+            });
 
             scheduler.DemoChanged(captured.FilePath);
         }
@@ -1196,7 +1200,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             return;
         }
 
-        HashSet<string> keep = new(wanted.Select(e => e.FilePath), StringComparer.OrdinalIgnoreCase);
+        HashSet<string> keep = new(wanted.Select(e => e.FilePath), PathComparer.Paths);
         lock (_tier2Lock)
         {
             foreach (string path in _pendingFull.Keys.Where(p => !keep.Contains(p)).ToList())
@@ -1501,7 +1505,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     private ScanScope Fold(List<(LibraryRootWalk Walk, bool Reached)> walks)
     {
         List<(string Path, long Size, DateTime Modified)> files = [];
-        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> seen = new(PathComparer.Paths);
         List<string> reached = [], unreachedDirectories = [], known = [];
         bool everyRootKnown = true;
 
@@ -1550,7 +1554,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     // Rows in either cache under a folder's real path.
     private int CachedRowsUnder(string root)
     {
-        HashSet<string> rows = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> rows = new(PathComparer.Paths);
         lock (_cacheLock)
         {
             rows.UnionWith(_cache.Keys.Where(p => IsUnder(p, root)));
@@ -1566,7 +1570,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
     private static bool IsUnder(string path, string root) =>
         path.StartsWith(root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase);
+            PathComparer.Comparison);
 
     private static string FullPathOrSelf(string folder)
     {
@@ -1639,7 +1643,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             return;
         }
 
-        HashSet<string> alive = new(scope.Files.Select(f => f.Path), StringComparer.OrdinalIgnoreCase);
+        HashSet<string> alive = new(scope.Files.Select(f => f.Path), PathComparer.Paths);
         List<string> doomed = [];
         List<string> unconfirmed =
         [
@@ -1648,7 +1652,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         ];
         lock (_cacheLock)
         {
-            foreach (string path in _cache.Keys.Concat(unconfirmed).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (string path in _cache.Keys.Concat(unconfirmed).Distinct(PathComparer.Paths))
             {
                 if (alive.Contains(path) || scope.UnreachedDirectories.Any(d => IsUnder(path, d)))
                 {
@@ -1794,8 +1798,8 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             countBySize[size] = countBySize.GetValueOrDefault(size) + 1;
         }
 
-        Dictionary<string, (string Key, bool Confirmed)> keyByPath = new(StringComparer.OrdinalIgnoreCase);
-        HashSet<string> unresolved = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, (string Key, bool Confirmed)> keyByPath = new(PathComparer.Paths);
+        HashSet<string> unresolved = new(PathComparer.Paths);
         // One change event for the scan's attaches, not one per file.
         using IDisposable? batch = _demoCache?.BeginBatch();
         foreach ((string path, long size, DateTime modified) in files)
@@ -1837,7 +1841,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         }
 
         List<(string, long, DateTime)> primaries = new(groups.Count);
-        Dictionary<string, IReadOnlyList<string>> shadowFolders = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, IReadOnlyList<string>> shadowFolders = new(PathComparer.Paths);
         foreach (List<(string Path, long Size, DateTime Modified)> list in groups.Values)
         {
             // Deterministic and stable across runs, so the same copy stays the card whatever the listing order.
@@ -1854,7 +1858,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
                     .. list.Skip(1)
                         .Select(s => Path.GetDirectoryName(s.Path) ?? "")
                         .Where(d => d.Length > 0)
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Distinct(PathComparer.Paths)
                 ];
                 if (folders.Count > 0)
                 {
@@ -1863,7 +1867,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             }
         }
 
-        Dictionary<string, (string Path, long Size, DateTime Modified)> listed = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, (string Path, long Size, DateTime Modified)> listed = new(PathComparer.Paths);
         foreach ((string Path, long Size, DateTime Modified) file in files)
         {
             listed.TryAdd(file.Path, file);
@@ -1879,7 +1883,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             foreach (DemoLocation location in locations.Where(l => l.Confirmed))
             {
                 if (listed.TryGetValue(location.Path, out (string Path, long Size, DateTime Modified) file)
-                    && file.Size == location.Size && file.Modified.Ticks == location.ModifiedTicks)
+                    && DemoFileStamp.Matches(location.Size, location.ModifiedTicks, file.Size, file.Modified.Ticks))
                 {
                     knownToFingerprint.Add(file);
                     listedHere = true;
@@ -1893,7 +1897,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             }
         }
 
-        HashSet<string> needHash = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> needHash = new(PathComparer.Paths);
         foreach ((string path, long size, DateTime _) in files)
         {
             if (unrecognisable.Contains(size) && !keyByPath[path].Key.StartsWith("sha:", StringComparison.Ordinal)
@@ -1933,6 +1937,11 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         {
             at = _demoCache.LocationOf(path);
         }
+        else if (at is not null)
+        {
+            // Listed a time zone shift away from these stamps: the same file, kept at the stamps it has now.
+            _demoCache!.Restamp(path, size, modified.Ticks);
+        }
 
         if (CachedSha(path, size, modified) is { } sha)
         {
@@ -1958,7 +1967,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             return null;
         }
 
-        if (row.Location.Size == size && row.Location.ModifiedTicks == modified.Ticks)
+        if (DemoFileStamp.Matches(row.Location.Size, row.Location.ModifiedTicks, size, modified.Ticks))
         {
             return (row.ContentId, row.Location.Confirmed);
         }
@@ -1977,7 +1986,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         {
             return _fingerprints.TryGetValue(path,
                     out (long Size, long Ticks, IReadOnlyList<DemoContentFingerprint> Fingerprints) read)
-                && read.Size == size && read.Ticks == modified.Ticks
+                && DemoFileStamp.Matches(read.Size, read.Ticks, size, modified.Ticks)
                     ? read.Fingerprints
                     : null;
         }
@@ -1988,7 +1997,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         lock (_cacheLock)
         {
             return _cache.TryGetValue(path, out DemoLibraryCacheEntry? c)
-                && c.Size == size && c.ModifiedTicks == modified.Ticks
+                && DemoFileStamp.Matches(c.Size, c.ModifiedTicks, size, modified.Ticks)
                     ? c.Sha256
                     : null;
         }
@@ -2006,7 +2015,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         lock (_cacheLock)
         {
             if (_cache.TryGetValue(path, out DemoLibraryCacheEntry? c)
-                && c.Size == size && c.ModifiedTicks == modified.Ticks && c.Sha256 is not null)
+                && DemoFileStamp.Matches(c.Size, c.ModifiedTicks, size, modified.Ticks) && c.Sha256 is not null)
             {
                 return (c.Sha256, null, true);
             }
@@ -2020,7 +2029,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             (sha, fingerprint) = read;
         }
         else if (_demoCache?.LocationOf(path) is { Location: { Confirmed: true } at } known
-                 && at.Size == size && at.ModifiedTicks == modified.Ticks)
+                 && DemoFileStamp.Matches(at.Size, at.ModifiedTicks, size, modified.Ticks))
         {
             (sha, cached) = (known.ContentId, true);
         }
@@ -2063,7 +2072,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         List<DemoEntry> needMap, List<DemoEntry> needFull, ScanScope? scope, string[] keepUnder,
         HashSet<string>? holdBack, List<string>? deferred)
     {
-        Dictionary<string, (long Size, DateTime Modified)> wanted = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, (long Size, DateTime Modified)> wanted = new(PathComparer.Paths);
         foreach ((string path, long size, DateTime modified) in primaries)
         {
             wanted[path] = (size, modified);
@@ -2086,26 +2095,34 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             ? _demoCache?.LocationOf(e.FilePath)?.ContentId == id
             : e.State == DemoIndexState.Indexed || StoredParse(e.FilePath, e.FileSizeBytes, e.Modified) is null;
 
-        List<DemoEntry> staying = [.. Entries.Where(Unchanged)];
+        // Asked ONCE per entry. The answer reads the store, which a tier-2 worker stamps while this runs, so a
+        // second ask can differ from the first: the card taken out below has to be the one counted out here.
+        List<DemoEntry> staying = [];
+        List<DemoEntry> leaving = [];
+        foreach (DemoEntry entry in Entries)
+        {
+            (Unchanged(entry) ? staying : leaving).Add(entry);
+        }
+
         lock (_tier2Lock)
         {
-            foreach (DemoEntry gone in Entries.Where(e => !Unchanged(e)))
+            foreach (DemoEntry gone in leaving)
             {
                 _pendingFull.Remove(gone.FilePath);
                 _awaitingIndex.Remove(gone.FilePath);
             }
         }
 
-        foreach (DemoEntry changed in Entries.Where(e => wanted.ContainsKey(e.FilePath) && !Unchanged(e)))
+        foreach (DemoEntry changed in leaving.Where(e => wanted.ContainsKey(e.FilePath)))
         {
             Scheduler?.ForgetFaults(changed.FilePath);
         }
 
-        if (staying.Count == Entries.Count - 1)
+        if (leaving.Count == 1)
         {
-            Entries.Remove(Entries.First(e => !Unchanged(e)));
+            Entries.Remove(leaving[0]);
         }
-        else if (staying.Count < Entries.Count)
+        else if (leaving.Count > 1)
         {
             Entries.ReplaceAll(staying);
         }
@@ -2119,7 +2136,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
         DropRekeyedCacheRows(wanted);
 
-        Dictionary<string, DemoEntry> byPath = Entries.ToDictionary(e => e.FilePath, StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, DemoEntry> byPath = Entries.ToDictionary(e => e.FilePath, PathComparer.Paths);
 
         List<DemoEntry> added = [];
         foreach ((string path, (long size, DateTime modified)) in wanted)
@@ -2130,7 +2147,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             {
                 // Already present (kept across rescans): just refresh its copy set (a twin may have
                 // appeared or vanished since the last scan).
-                if (!kept.DuplicateFolders.SequenceEqual(dupFolders, StringComparer.OrdinalIgnoreCase))
+                if (!kept.DuplicateFolders.SequenceEqual(dupFolders, PathComparer.Paths))
                 {
                     kept.DuplicateFolders = dupFolders;
                 }
@@ -2152,6 +2169,13 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
                     }
 
                     needFull.Add(kept);
+                }
+                else if (owed)
+                {
+                    // Still owed once its fingerprint is in, as a new row held back is. Left in the backlog it
+                    // is trimmed by this scan's KeepOnlyInTier2Backlog, and the reconcile after the
+                    // fingerprints would then find it owed nothing.
+                    HoldBackTier2([kept]);
                 }
 
                 continue;
@@ -2243,7 +2267,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     // the store last saw there.
     private (string ContentId, DemoCacheIndexEntry Row)? StoredParse(string path, long size, DateTime modified) =>
         _demoCache?.LocationOf(path) is { } at && at.Location.Size == size
-        && at.Location.ModifiedTicks == modified.Ticks
+        && DemoFileStamp.SameWriteTime(at.Location.ModifiedTicks, modified.Ticks)
         && _demoCache.TryGetIndex(path) is { ParseSchema: > 0 } row
             ? (at.ContentId, row)
             : null;
@@ -2719,16 +2743,25 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
     // A row keyed to an older size or mtime describes bytes that are gone. UpsertCache never re-keys an
     // existing row, so it must go before the file is indexed again, or the new results land on the old key.
+    // A row only a time zone shift away (DemoFileStamp) is the same file and takes the stamp it has now.
     private void DropRekeyedCacheRows(Dictionary<string, (long Size, DateTime Modified)> wanted)
     {
         lock (_cacheLock)
         {
             foreach ((string path, (long size, DateTime modified)) in wanted)
             {
-                if (_cache.TryGetValue(path, out DemoLibraryCacheEntry? c)
-                    && (c.Size != size || c.ModifiedTicks != modified.Ticks))
+                if (!_cache.TryGetValue(path, out DemoLibraryCacheEntry? c))
+                {
+                    continue;
+                }
+
+                if (!DemoFileStamp.Matches(c.Size, c.ModifiedTicks, size, modified.Ticks))
                 {
                     _cache.Remove(path);
+                }
+                else if (c.ModifiedTicks != modified.Ticks)
+                {
+                    c.ModifiedTicks = modified.Ticks;
                 }
             }
         }
@@ -2739,7 +2772,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         lock (_cacheLock)
         {
             if (_cache.TryGetValue(path, out DemoLibraryCacheEntry? c) &&
-                c.Size == size && c.ModifiedTicks == modified.Ticks)
+                DemoFileStamp.Matches(c.Size, c.ModifiedTicks, size, modified.Ticks))
             {
                 return c;
             }

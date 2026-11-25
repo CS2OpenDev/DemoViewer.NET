@@ -34,6 +34,26 @@ public class PathSafetyTests
     }
 
     [Test]
+    [Arguments("de_mirage", true)]
+    [Arguments("cs_office", true)]
+    [Arguments("de_dust2-v1.2", true)]
+    [Arguments("", false)]
+    [Arguments("..", false)]
+    [Arguments(".hidden", false)]
+    [Arguments("..\\..\\x", false)]
+    [Arguments("a/b", false)]
+    [Arguments("workshop/123/de_x", false)]
+    [Arguments("/etc/x", false)]
+    [Arguments("\\\\host\\share\\x", false)]
+    [Arguments("C:\\x", false)]
+    [Arguments("C:x", false)]
+    [Arguments("de mirage", false)]
+    public async Task IsMapFolderName_AcceptsOnlyOnePlainSegment(string mapName, bool safe)
+    {
+        await Assert.That(PathSafety.IsMapFolderName(mapName)).IsEqualTo(safe);
+    }
+
+    [Test]
     public async Task SafeRelativePath_JoinsWithThePlatformSeparator()
     {
         await Assert.That(PathSafety.SafeRelativePath("a\\b/c.json")).IsEqualTo(Path.Combine("a", "b", "c.json"));

@@ -1,5 +1,6 @@
 #region
 
+using System.Globalization;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 
 #endregion
@@ -28,7 +29,10 @@ public sealed record UtilityDemo(
 ///     HE H) and landing place, with the rounds it was thrown in and the median seconds after freeze end.
 /// </summary>
 /// <param name="Letter">"S", "M", "F" or "H".</param>
-/// <param name="Place">The landing place; "unplaced" when the map has none for it.</param>
+/// <param name="Place">
+///     The landing place; where the map has none for it, the mean landing point, as "(x, y, z)", of throws
+///     grouped by <see cref="GrenadeIndex.CellOf" />.
+/// </param>
 /// <param name="Landing">The mean landing point.</param>
 /// <param name="Throws">Grenades in the cluster.</param>
 /// <param name="MedianSeconds">The median release, seconds after freeze end.</param>
@@ -114,7 +118,9 @@ public static class UtilityTendencies
         ArgumentNullException.ThrowIfNull(demos);
         int rounds = 0;
         Dictionary<string, List<TendencyRound>> clock = new(StringComparer.Ordinal);
-        Dictionary<(string Letter, string Place), Group> groups = [];
+        // A throw without a place groups by its landing cell instead: one key for them all would draw every unplaced
+        // smoke as one cloud at the mean of landings that can be on opposite sides of the map.
+        Dictionary<(string Letter, string? Place, (int X, int Y, int Z)? Cell), Group> groups = [];
         foreach (UtilityDemo demo in demos)
         {
             if (demo.Grenades.Count == 0)
@@ -151,7 +157,7 @@ public static class UtilityTendencies
                         ClipAround(demo, round, thrown[0]));
                 }
 
-                HashSet<(string, string)> seen = [];
+                HashSet<(string, string?, (int, int, int)?)> seen = [];
                 foreach (IndexedGrenade g in thrown)
                 {
                     if (LetterOf(g.Kind) is not { } letter)
@@ -159,11 +165,13 @@ public static class UtilityTendencies
                         continue;
                     }
 
-                    string place = g.LandingPlace ?? "unplaced";
-                    if (!groups.TryGetValue((letter, place), out Group? group))
+                    (string, string?, (int, int, int)?) key = g.LandingPlace is { } place
+                        ? (letter, place, null)
+                        : (letter, null, GrenadeIndex.CellOf(g.Landing));
+                    if (!groups.TryGetValue(key, out Group? group))
                     {
                         group = new Group();
-                        groups[(letter, place)] = group;
+                        groups[key] = group;
                     }
 
                     double seconds = (g.Row.ReleaseTick - freeze) / (double)rate;
@@ -173,7 +181,7 @@ public static class UtilityTendencies
                     group.X += g.Landing.X;
                     group.Y += g.Landing.Y;
                     group.Z += g.Landing.Z;
-                    if (seen.Add((letter, place)))
+                    if (seen.Add(key))
                     {
                         group.Rounds.Add(ClipAround(demo, round, g));
                     }
@@ -270,13 +278,15 @@ public static class UtilityTendencies
 
         public double Z { get; set; }
 
-        public UtilityCluster ToCluster(string letter, string place)
+        public UtilityCluster ToCluster(string letter, string? place)
         {
             int n = Seconds.Count;
             List<double> sorted = [.. Seconds.Order()];
             double median = n % 2 == 1 ? sorted[n / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
-            return new UtilityCluster(letter, place, new WorldPoint((float)(X / n), (float)(Y / n), (float)(Z / n)), n,
-                median, Rounds) { Thrown = Thrown };
+            WorldPoint landing = new((float)(X / n), (float)(Y / n), (float)(Z / n));
+            return new UtilityCluster(letter,
+                place ?? string.Create(CultureInfo.InvariantCulture, $"({landing.X:0}, {landing.Y:0}, {landing.Z:0})"),
+                landing, n, median, Rounds) { Thrown = Thrown };
         }
     }
 }

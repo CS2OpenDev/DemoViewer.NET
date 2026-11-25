@@ -24,3 +24,40 @@ public interface IFrameSink : IAsyncDisposable
     /// <param name="ct">Cancels the write; the sink is still disposed afterwards.</param>
     ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct);
 }
+
+/// <summary>
+///     A sink that can be told its run has failed, before it is disposed.
+///     <para>
+///         Disposal is where a sink finalises its output, and it is called on every path. A sink that
+///         cannot tell a finished run from a failed one finalises both: a render failure half way
+///         through leaves a shorter file that plays normally at the path of a job reported Failed.
+///     </para>
+///     <para>
+///         Internal, and separate from <see cref="IFrameSink" />: that interface is published, and a
+///         caller's own sink owes this nothing. <c>SceneExportSession</c> asks for it by type.
+///     </para>
+/// </summary>
+internal interface IAbortableFrameSink
+{
+    /// <summary>Marks the run failed or cancelled, so the following disposal leaves no output behind.</summary>
+    void Abort();
+}
+
+/// <summary>
+///     A sink that can say whether it has opened its output file.
+///     <para>
+///         Most sinks open the file no later than their first frame. One that holds its frames and opens
+///         the file only when it is disposed has, until then, nothing at the path that is its own, however
+///         many frames it took. <c>PackExporter</c> asks for this by type before it removes the file of a
+///         clip that failed. Internal for the reason <see cref="IAbortableFrameSink" /> is.
+///     </para>
+/// </summary>
+internal interface IOutputOpeningFrameSink
+{
+    /// <summary>
+    ///     True once the sink has put a file at its output path: opened, and so truncated, it, or moved a
+    ///     finished file over it. A sink that encodes aside and moves into place on success is false on
+    ///     every failed run, so an earlier export at the path is not removed on its account.
+    /// </summary>
+    bool OutputOpened { get; }
+}

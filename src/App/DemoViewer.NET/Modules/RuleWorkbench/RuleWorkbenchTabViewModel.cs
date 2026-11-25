@@ -22,6 +22,7 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Playback2D.Zones;
+using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Diagnostics;
 using DemoViewer.NET.Services.Zones;
@@ -67,15 +68,25 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     // An extension's ruleset has no file; its entry carries this prefix, the owner and the id instead of a path.
     private const string ExtensionPathPrefix = "extension:";
 
+    // The evaluation line while there are no results to describe.
+    private const string EvalPrompt = "Evaluate the open ruleset against the loaded demo.";
+
     private IModuleContext? _context;
 
+    // Moves on whenever the results stop describing the loaded demo; a run in flight compares it.
+    private int _demoGeneration;
+
     private ICurrentDemoSource? _demoSource;
+
+    // The demo the last evaluation was started on. Weak: results outlive the demo they came from only
+    // until the tab is next shown, and must not keep a parsed demo alive until then.
+    private WeakReference<ParsedDemo>? _evaluatedDemo;
 
     [ObservableProperty]
     private string _documentText = "";
 
     [ObservableProperty]
-    private string _evalSummary = "Evaluate the open ruleset against the loaded demo.";
+    private string _evalSummary = EvalPrompt;
 
     /// <summary>Node count of the open ruleset's focused graph (0 = nothing open), the deterministic, sync test hook.</summary>
     [ObservableProperty]
@@ -103,7 +114,23 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     [NotifyCanExecuteChangedFor(nameof(EvaluateAdvancedCommand))]
     private bool _isEvaluating;
 
+    // The open file exists and its last load threw: the buffer is a blank stand-in, not the file's content.
+    private bool _loadFailed;
+
     private bool _loadingDocument; // guards the disk→buffer load from marking the doc dirty
+
+    // True while RefreshFiles rebuilds the dropdown's list. The ComboBox clears its selection when its list
+    // is emptied and writes that null back through the two-way binding, so the selection leaves and returns
+    // without the user having picked anything, and neither change may reload the buffer.
+    private bool _refreshingFiles;
+
+    // The file the buffer holds, by path. SelectedFile cannot say: it is null when the open file vanished
+    // under a dirty buffer, and by the time OnSelectedFileChanged runs it is already the NEW pick.
+    private string? _bufferPath;
+
+    // Edits to files that are not open right now, by path: a dirty buffer is parked here when another
+    // ruleset is picked (or New is pressed) and comes back when its file is picked again.
+    private readonly Dictionary<string, string> _stashedBuffers = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The open file's proposed save-as name (the read-only save-as prompt).</summary>
     [ObservableProperty]
@@ -123,6 +150,12 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     private string _summary = "Loading rulesets…";
 
     private bool _suppressWatcherReload;
+
+    // Set by a successful save and kept in front of every check summary until the next edit or pick, so the
+    // reload the save's own rename triggers (and Save As's reselect) cannot overwrite the restart notice.
+    private bool _savedNotice;
+
+    private const string SavedNotice = "Saved. Library-wide highlights and stats use the new rules after a restart.";
 
     /// <summary>The last evaluation's trace, source of the <see cref="TraceFires" /> lookups.</summary>
     private WorkbenchTraceReport _traceReport = WorkbenchTraceReport.Empty;
@@ -250,10 +283,14 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     public bool GraphSupported { get; } = !OperatingSystem.IsBrowser();
 
     /// <summary>Save-in-place is allowed only for an editable open file (user, or shipped in DeveloperMode) that is dirty.</summary>
-    public bool CanSave => _userDir is not null && SelectedFile is not null && IsDirty && !IsReadOnlyFile;
+    public bool CanSave =>
+        _userDir is not null && SelectedFile is not null && IsDirty && !IsReadOnlyFile && !_loadFailed;
 
-    /// <summary>Save-As is offered whenever a file is open and the user overlay is writable.</summary>
-    public bool CanSaveAs => _userDir is not null && SelectedFile is not null;
+    /// <summary>
+    ///     Save-As is offered whenever a file is open and the user overlay is writable, and for an edited
+    ///     buffer whose file vanished (nothing is selected, but the edits can still be saved under a name).
+    /// </summary>
+    public bool CanSaveAs => _userDir is not null && (SelectedFile is not null || IsDirty);
 
     /// <summary>
     ///     Evaluates the open ruleset (+ its sibling rulesets, the open file from the edited buffer)
@@ -289,6 +326,14 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     {
         _context = context;
         _demoSource = context as ICurrentDemoSource; // first-party demo access
+
+        // DemoReset is only heard while the tab is active, and a demo is usually opened from another tab.
+        if (_evaluatedDemo is { } evaluated
+            && !(evaluated.TryGetTarget(out ParsedDemo? on) && ReferenceEquals(on, _demoSource?.CurrentDemo)))
+        {
+            DropResultsOfThePreviousDemo();
+        }
+
         _context.Advanced += OnAdvanced;
         _context.DemoReset += OnDemoReset;
         RefreshFiles();
@@ -373,9 +418,18 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
 
         IsEvaluating = true;
         EvalSummary = $"Evaluating {scopeLabel}…";
+        _evaluatedDemo = new WeakReference<ParsedDemo>(demo);
+        int generation = _demoGeneration;
         try
         {
             EvalOutcome outcome = await Task.Run(() => ComputeEvaluation(docs, demo));
+            if (generation != _demoGeneration)
+            {
+                // Another demo was opened while this ran. Its boards, fire ticks and players are the
+                // previous demo's, and shown now they would read as this one's.
+                EvalSummary = "The demo changed while evaluating — evaluate again for the demo that is open now.";
+                return;
+            }
 
             // Back on the UI thread: apply the off-thread results to the observable collections.
             foreach (WorkbenchScoreboard board in outcome.Boards)
@@ -502,7 +556,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         GraphSummary = summary;
         if (GraphSupported)
         {
-            _ = GraphViewModel.SetGraphAsync([], []);
+            _ = LayOutGraphAsync([], [], null);
         }
     }
 
@@ -537,7 +591,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
                 + (demo is not null ? " (with demo)." : ".");
             if (GraphSupported)
             {
-                _ = GraphViewModel.SetGraphAsync(skeleton.Nodes, skeleton.Edges, skeleton.Groups);
+                _ = LayOutGraphAsync(skeleton.Nodes, skeleton.Edges, skeleton.Groups);
             }
         }
         catch (Exception ex)
@@ -545,6 +599,20 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             AppLog.OperationFailed(DiagLog, "render the rule graph", ex);
             GraphNodeCount = 0;
             GraphSummary = UserFacingError.Describe("render the rule graph", ex);
+        }
+    }
+
+    // Fired per edit and not awaited, so a layout failure would otherwise land on a discarded task.
+    private async Task LayOutGraphAsync(IReadOnlyList<IGraphNode> nodes, IReadOnlyList<IGraphEdge> edges,
+        IReadOnlyList<INodeGroup>? groups)
+    {
+        try
+        {
+            await GraphViewModel.SetGraphAsync(nodes, edges, groups);
+        }
+        catch (Exception ex)
+        {
+            AppLog.OperationFailed(DiagLog, "lay out the rule graph", ex);
         }
     }
 
@@ -713,7 +781,26 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         };
 
     private void OnAdvanced(IPlaybackSnapshot snapshot) => RefreshLivePlayers();
-    private void OnDemoReset() => RefreshLivePlayers();
+    private void OnDemoReset()
+    {
+        DropResultsOfThePreviousDemo();
+        RefreshLivePlayers();
+    }
+
+    // The boards, the trace and its ticks describe the demo they were evaluated on. Once another is loaded
+    // they are taken down, and a run still in flight is told to stand down (the generation) rather than
+    // put them back when it finishes.
+    private void DropResultsOfThePreviousDemo()
+    {
+        _demoGeneration++;
+        _evaluatedDemo = null;
+        Boards.Clear();
+        ClearTrace();
+        if (!IsEvaluating)
+        {
+            EvalSummary = EvalPrompt;
+        }
+    }
 
     private void RefreshLivePlayers()
     {
@@ -790,6 +877,15 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         OnPropertyChanged(nameof(IsExtensionFile));
         OnPropertyChanged(nameof(CanSave));
         OnPropertyChanged(nameof(CanSaveAs));
+        if (_refreshingFiles)
+        {
+            // The same file, re-selected under a rebuilt list (or gone from it). Loading here would replace
+            // an edited buffer with the file on disk, and a typed Save As name with the suggested one.
+            return;
+        }
+
+        _savedNotice = false;
+        StashDirtyBuffer();
         SaveAsName = SuggestSaveAsName(value);
         LoadSelected();
         RenderGraphForOpenFile(); // graph follows the open ruleset
@@ -803,7 +899,10 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         }
 
         IsDirty = true;
+        _savedNotice = false;
         OnPropertyChanged(nameof(CanSave));
+        OnPropertyChanged(nameof(CanSaveAs));
+        MarkUnsavedFiles();
         Check(); // buffer-aware, inline diagnostics track the edit
     }
 
@@ -840,6 +939,11 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             return; // a read-only shipped file must go through Save-As
         }
 
+        if (_loadFailed)
+        {
+            return; // the buffer is not this file's content; see LoadSelected
+        }
+
         WriteBuffer(SelectedFile.FullPath);
     }
 
@@ -866,15 +970,57 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             name = (name.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ? name[..^5] : name) + ".rules.yaml";
         }
 
+        // A file NAME, not a path: Path.Combine lets a rooted name replace the user folder outright and
+        // a "..\" one walk out of it. Checked before WriteBuffer, which stamps the buffer on its way in.
+        if (!string.Equals(Path.GetFileName(name), name, StringComparison.Ordinal)
+            || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            Summary = $"Not saved: \"{SaveAsName.Trim()}\" is not a file name. "
+                + "Rulesets save into the user rules folder.";
+            return;
+        }
+
+        // Save As makes a NEW ruleset. The open file's own name is a plain save; any other existing one
+        // is somebody else's work, and replacing it unasked loses it. Where file names are case-sensitive
+        // a name that differs only in case is another file, not the open one.
         string path = Path.Combine(_userDir, name);
-        WriteBuffer(path);
+        bool isOpenFile = SelectedFile is { } open
+            && string.Equals(open.FullPath, path,
+                OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                    ? StringComparison.OrdinalIgnoreCase
+                    : StringComparison.Ordinal);
+        if (!isOpenFile && (File.Exists(path) || Directory.Exists(path)))
+        {
+            Summary = $"Not saved: {name} already exists. "
+                + "Pick another name, or open that ruleset and save it in place.";
+            return;
+        }
+
+        if (isOpenFile && _loadFailed)
+        {
+            Summary = $"Not saved: {name} could not be read, so what is shown is not its content. "
+                + "Open it again, or pick another name.";
+            return;
+        }
+
+        if (!WriteBuffer(path))
+        {
+            return; // nothing was written, so there is no new file to open
+        }
+
         RefreshFiles();
         SelectedFile = FindOpenable(path);
+        _savedNotice = true; // the reselect cleared it; the new file was just saved
+        Check();
     }
 
-    /// <summary>Stamps + writes the buffer to <paramref name="path" />, clears dirty, and re-checks.</summary>
-    private void WriteBuffer(string path)
+    /// <summary>
+    ///     Stamps + writes the buffer to <paramref name="path" />, clears dirty, and re-checks. False when the
+    ///     write failed: the buffer stays dirty and <see cref="Summary" /> says why.
+    /// </summary>
+    private bool WriteBuffer(string path)
     {
+        Exception? failure = null;
         try
         {
             _suppressWatcherReload = true;
@@ -882,19 +1028,40 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             _loadingDocument = true; // stamping the buffer must not re-dirty it
             DocumentText = stamped;
             _loadingDocument = false;
-            File.WriteAllText(path, stamped);
+
+            // Through a temp file and a rename: this is the user's only copy, and a crash halfway through
+            // an in-place write leaves it truncated.
+            AtomicFile.WriteAllText(path, stamped);
             IsDirty = false;
+            _savedNotice = true;
+            _stashedBuffers.Remove(path);
         }
-        catch
+        catch (Exception ex)
         {
-            // best-effort; the check summary still reflects the buffer
+            AppLog.OperationFailed(DiagLog, "save the ruleset", ex);
+            failure = ex;
         }
         finally
         {
+            _loadingDocument = false;
             _suppressWatcherReload = false;
         }
 
         Check();
+        if (failure is not null)
+        {
+            // After the check, which writes its own summary: an unsaved buffer that reads as saved is the
+            // one thing this must not look like.
+            Summary = UserFacingError.Describe("save the ruleset", failure);
+        }
+        else
+        {
+            OnPropertyChanged(nameof(CanSave));
+            OnPropertyChanged(nameof(CanSaveAs));
+            MarkUnsavedFiles();
+        }
+
+        return failure is null;
     }
 
     /// <summary>Re-runs the demo-less check over the edited buffer + on-disk rulesets.</summary>
@@ -917,6 +1084,26 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         return file.IsShipped ? $"{stem}-copy" : stem;
     }
 
+    /// <summary>Parks the dirty buffer under its file's path before another ruleset replaces it.</summary>
+    private void StashDirtyBuffer()
+    {
+        if (IsDirty && !_loadFailed && _bufferPath is not null)
+        {
+            _stashedBuffers[_bufferPath] = DocumentText;
+        }
+    }
+
+    /// <summary>Stars the dropdown entries whose edits are not on disk: the open buffer and the stashed ones.</summary>
+    private void MarkUnsavedFiles()
+    {
+        foreach (RulesetFileRef file in OpenableFiles)
+        {
+            file.HasUnsavedEdits = _stashedBuffers.ContainsKey(file.FullPath)
+                || (IsDirty && !_loadFailed
+                    && string.Equals(file.FullPath, _bufferPath, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     private void LoadSelected()
     {
         if (SelectedFile is null)
@@ -925,16 +1112,36 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         }
 
         string path = SelectedFile.FullPath;
+        Exception? failure = null;
         try
         {
             _loadingDocument = true;
-            DocumentText = _extensionTexts.TryGetValue(path, out string? yaml) ? yaml
-                : File.Exists(path) ? File.ReadAllText(path) : "";
-            IsDirty = false;
+            if (_stashedBuffers.Remove(path, out string? stashed))
+            {
+                // Edits parked when another ruleset was picked: they, not the file, are what was open.
+                DocumentText = stashed;
+                IsDirty = true;
+            }
+            else
+            {
+                DocumentText = _extensionTexts.TryGetValue(path, out string? yaml) ? yaml
+                    : File.Exists(path) ? File.ReadAllText(path) : "";
+                IsDirty = false;
+            }
+
+            _loadFailed = false;
+            _bufferPath = path;
         }
-        catch
+        catch (Exception ex)
         {
+            // The file is there and did not read (held by another program, no access). The blank buffer
+            // stands in for it and is not its content: it is not dirty, whatever the file open before
+            // was, and it cannot be saved over the file until a load of it succeeds.
+            AppLog.OperationFailed(DiagLog, "open the ruleset", ex);
+            failure = ex;
             DocumentText = "";
+            IsDirty = false;
+            _loadFailed = true;
         }
         finally
         {
@@ -942,7 +1149,14 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         }
 
         OnPropertyChanged(nameof(CanSave));
+        OnPropertyChanged(nameof(CanSaveAs));
+        MarkUnsavedFiles();
         Check();
+        if (failure is not null)
+        {
+            // After the check, which writes its own summary.
+            Summary = UserFacingError.Describe("open the ruleset", failure);
+        }
     }
 
     /// <summary>
@@ -1008,6 +1222,13 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             IsClean = false;
             Summary = UserFacingError.Describe("check the rulesets", ex);
         }
+
+        if (_savedNotice)
+        {
+            // The background passes (highlight scan, staleness, round facts) read the rulesets once per
+            // session, so a saved edit reaches them only after a restart. Say so rather than let it look live.
+            Summary = IsClean ? SavedNotice : $"{SavedNotice} {Summary}";
+        }
     }
 
     private void OnZoneDiagnosticsChanged() => Dispatcher.UIThread.Post(Check);
@@ -1052,6 +1273,25 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     private void RefreshFiles()
     {
         string? previousPath = SelectedFile?.FullPath;
+        _refreshingFiles = true;
+        try
+        {
+            RebuildOpenableFiles();
+            if (previousPath is not null)
+            {
+                SelectedFile = FindOpenable(previousPath);
+            }
+        }
+        finally
+        {
+            _refreshingFiles = false;
+        }
+
+        RefreshEvaluableFiles();
+    }
+
+    private void RebuildOpenableFiles()
+    {
         OpenableFiles.Clear();
         foreach (string? dir in new[] { _shippedDir, _userDir })
         {
@@ -1073,12 +1313,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             OpenableFiles.Add(extension);
         }
 
-        if (previousPath is not null)
-        {
-            SelectedFile = FindOpenable(previousPath);
-        }
-
-        RefreshEvaluableFiles();
+        MarkUnsavedFiles();
     }
 
     private void StartWatcher()

@@ -67,6 +67,9 @@ public sealed class TagSession : IDisposable
     private readonly List<TagDelta> _undo = [];
     private readonly Func<DateTime> _utcNow;
 
+    // Bumped by every attach, detach and disposal. An attach that waited reads it again: a different number
+    // means the session was given another demo, or let go of this one, while it waited.
+    private int _attachSequence;
     private IDisposable? _checkOut;
     private CancellationTokenSource? _debounce;
     private bool _disposed;
@@ -173,6 +176,7 @@ public sealed class TagSession : IDisposable
         }
 
         _disposed = true;
+        _attachSequence++;
         if (_roundFacts is not null)
         {
             _roundFacts.Updated -= OnRoundFactsUpdated;
@@ -228,29 +232,51 @@ public sealed class TagSession : IDisposable
         ArgumentNullException.ThrowIfNull(demo);
         ArgumentNullException.ThrowIfNull(clock);
         ObjectDisposedException.ThrowIf(_disposed, this);
+        int sequence = ++_attachSequence;
 
         // Before the flush: a subscriber's last write to the old document goes out with it.
         Detaching?.Invoke();
         await FlushAsync().ConfigureAwait(true);
+        if (_disposed || sequence != _attachSequence)
+        {
+            return;
+        }
+
         if (Document is not null)
         {
-            Detach();
+            ReleaseDocument();
         }
 
         DemoPath = demoPath;
-        Rounds = string.IsNullOrEmpty(demoPath) || _roundsFor is null
+        IReadOnlyList<LibraryRound>? rounds = string.IsNullOrEmpty(demoPath) || _roundsFor is null
             ? null
             : await _roundsFor(demoPath).ConfigureAwait(true);
+
+        // The rounds are a queued record read on the host. A session disposed or detached while it was pending
+        // has already released whatever it held, so a check-out taken now would never be let go; one given a
+        // later demo since must not put this one's document under it.
+        if (_disposed || sequence != _attachSequence)
+        {
+            return;
+        }
+
+        Rounds = rounds;
         _factRows = null;
         _factRowsRead = false;
         _saveFailed = false;
 
-        TagLoadResult result = _store?.Load(demo.Sha256, clock) ?? TagLoadResult.Empty();
+        ReleaseCheckOut();
+        TagLoadResult result = TagLoadResult.Empty();
+        if (_store is not null)
+        {
+            result = _store.LoadAndCheckOut(demo.Sha256, clock, this, out IDisposable checkOut);
+            _checkOut = checkOut;
+        }
+
         ClockMismatch = result.ClockMismatch;
         DemoMismatch = result.DemoMismatch;
         Unreadable = result.Unreadable;
         Document = result.Document ?? TagDocument.Create(demo, clock);
-        _checkOut = _store?.CheckOut(Document.Demo.Sha256, this);
 
         // Loading is not editing, so nothing here is undoable; but a derived round is a change to the
         // stored document, so it bumps the version and saves like a refresh does. Facts are filled for an
@@ -285,6 +311,13 @@ public sealed class TagSession : IDisposable
 
     /// <summary>Flushes, releases the document and writes the store's index. The session is then unattached.</summary>
     public void Detach()
+    {
+        _attachSequence++;
+        ReleaseDocument();
+    }
+
+    // Detach without the sequence: what an attach does to the demo it replaces.
+    private void ReleaseDocument()
     {
         if (Document is not null)
         {
@@ -349,6 +382,28 @@ public sealed class TagSession : IDisposable
 
         mutate(Document);
         Touch();
+    }
+
+    /// <summary>
+    ///     <see cref="ApplyExternal" /> for a change the store routed here for one demo, applied only while the
+    ///     session still holds that demo's document: between the store reading its holder and the post running,
+    ///     the session may have let the demo go or attached another.
+    /// </summary>
+    /// <param name="sha256">The hash of the demo the change was made for.</param>
+    /// <param name="mutate">The change.</param>
+    /// <returns>False when the session does not hold that demo's document; nothing was applied.</returns>
+    internal bool TryApplyExternal(string sha256, Action<TagDocument> mutate)
+    {
+        ArgumentNullException.ThrowIfNull(mutate);
+        if (_disposed || Document is not { } document
+            || !string.Equals(document.Demo.Sha256, sha256, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        mutate(document);
+        Touch();
+        return true;
     }
 
     /// <summary>Writes any pending change now: on demo swap, tab deactivate and shutdown. Never throws.</summary>
@@ -645,7 +700,10 @@ public sealed class TagSession : IDisposable
     {
         try
         {
-            await Task.Delay(AutoSaveDelay, ct).ConfigureAwait(false);
+            // No ConfigureAwait(false), the annotation controller's rule: SaveNowAsync clones the document before
+            // its first wait, and a clone taken on a pool thread races the edit being applied on the UI thread.
+            // The write itself still leaves the context inside SaveNowAsync.
+            await Task.Delay(AutoSaveDelay, ct);
         }
         catch (OperationCanceledException)
         {

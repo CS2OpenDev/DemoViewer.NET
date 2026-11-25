@@ -129,6 +129,31 @@ public class StratSceneProjectionTests
     }
 
     [Test]
+    [Arguments("\"widthWorld\": 1e39, \"opacity\": 1, \"points\": [1, 2, 0.5, 3, 4, 0.5]")]
+    [Arguments("\"widthWorld\": 4, \"opacity\": 1e39, \"points\": [1, 2, 0.5, 3, 4, 0.5]")]
+    [Arguments("\"widthWorld\": 4, \"opacity\": 1, \"points\": [1e39, 2, 0.5, 3, -1e39, 1e39]")]
+    [Arguments("\"widthWorld\": 4, \"opacity\": 1, \"points\": [[1e39, 2], [3, 4, 1e39], [5, 6]]")]
+    public async Task AStrokeNumberPastFloatRange_NeverReadsAsInfinity_SoTheEditedStrokeStillWrites(string fields)
+    {
+        JsonObject stored = JsonNode.Parse("{ \"kind\": \"Arrow\", " + fields + " }")!.AsObject();
+
+        AnnotationElement element = StratStrokes.ToElement(stored, Guid.Empty, TimeEnvelope.Static)!;
+        JsonObject written = StratStrokes.ToJson(element, stored);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(float.IsFinite(element.Style.WidthWorld)).IsTrue();
+            await Assert.That(float.IsFinite(element.Style.Opacity)).IsTrue();
+            await Assert.That(element.Points.All(p =>
+                float.IsFinite(p.X) && float.IsFinite(p.Y) && float.IsFinite(p.Pressure))).IsTrue();
+            await Assert.That(element.Points.Count).IsGreaterThan(0);
+        }
+
+        // What applying the edit does with the node: an infinity cannot be written as JSON.
+        await Assert.That(written.ToJsonString()).Contains("\"points\"");
+    }
+
+    [Test]
     public async Task AnEntityStroke_IsNotDrawn()
     {
         JsonObject entity = JsonNode.Parse("""{ "kind": "Freehand", "space": "entity", "steamId": 7, "points": [] }""")!

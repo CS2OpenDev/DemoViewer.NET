@@ -1151,17 +1151,14 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     }
 
     /// <summary>
-    ///     Step 4, analysis finished: fill the final score and the basic scoreboard from the analysis engine's
+    ///     Step 4, analysis finished: fill the side wins and the basic scoreboard from the analysis engine's
     ///     own per-player game table, so the numbers are the SAME ones the Stats tab shows (no second
     ///     projection to drift out of sync). A null table, or one with no rows, is the legitimate
-    ///     "ran but produced nothing" outcome and surfaces as a message in place of the rows.
+    ///     "ran but produced nothing" outcome and surfaces as a message in place of the rows. The final
+    ///     score is not read here; it arrives through <see cref="SetTeamScores" />.
     /// </summary>
     /// <param name="subjectKey">Identity of the demo this run belongs to; a mismatch is dropped.</param>
     /// <param name="gameTable">The analysis per-player match table, or null when the run produced none.</param>
-    /// <param name="teamScoresBySort">
-    ///     Derived MATCH TOTALS per team, keyed by team-sort (0 = the team that finished CT, 1 = the team
-    ///     that finished T). Not per-side totals; see the SideWins fields.
-    /// </param>
     /// <param name="roundCount">Rounds the analysis resolved, or 0 when unknown.</param>
     /// <param name="accounts">
     ///     The account each slot opens in the Player Overview, coaches already left out. The roster was filled before
@@ -1170,7 +1167,6 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     public void SetAnalysis(
         string? subjectKey,
         MetricTable? gameTable,
-        IReadOnlyDictionary<int, int?>? teamScoresBySort,
         int roundCount,
         IReadOnlyDictionary<int, ulong>? accounts = null)
     {
@@ -1192,10 +1188,10 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         }
 
         // EVERY analysis-stage value is keyed off the one fact "did this run produce a table", not off the
-        // caller's other two arguments. A caller holding per-demo state that outlives an unload could
-        // otherwise hand over the PREVIOUS demo's score dict alongside a null table, and the page would paint
-        // the last match's 13–9 next to an empty scoreboard: the exact "two different scores for one match"
-        // this page must never show. Cheap to enforce here; impossible to notice if it ever happens.
+        // caller's round count. A caller holding per-demo state that outlives an unload could otherwise hand
+        // over the PREVIOUS demo's round count alongside a null table, and the page would paint the last
+        // match's numbers next to an empty scoreboard. Cheap to enforce here; impossible to notice if it ever
+        // happens.
         //
         // The subject key above now rules out the cross-demo case this defends against, but the check stays:
         // it also covers a SAME-demo re-run that produced no table, which no key can distinguish.
@@ -1214,7 +1210,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
             // ordering then falls back to kills, which every ruleset has.
             IEnumerable<OverviewStatRow> rows = gameTable.Rows
                 .Select(BuildStatRow)
-                .Where(r => r.Name.Length > 0)
+                .Where(r => r.Name.Length > 0 && !IsOffSideAndIdle(r))
                 .OrderBy(r => r.IsCt ? 0 : 1)
                 .ThenByDescending(r => ParseSortable(r.Rating))
                 .ThenByDescending(r => ParseSortable(r.Kills))
@@ -1531,7 +1527,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
                     ? CachedPlayer(owner).PlayerOverview
                     : PlayerOverviewEntry.None
             })
-            .Where(r => r.Name.Length > 0)
+            .Where(r => r.Name.Length > 0 && !IsOffSideAndIdle(r))
             .OrderBy(r => r.IsCt ? 0 : 1)
             .ThenByDescending(r => ParseSortable(r.Rating))
             .ThenByDescending(r => ParseSortable(r.Kills))
@@ -1635,11 +1631,16 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     // itself and returns false when the demo or the highlight is no longer cached (a rescan can drop a
     // highlight the page is still showing). Assuming success would leave a ✓ on a clip that is not in the
     // tray, and the tray is the thing that actually renders.
+    //
+    // Stage or unstage is decided by asking the tray too, not by the row's flag: the Reels tab can clear or
+    // trim the tray behind this page's back, and a stale ✓ then ran an unstage that did nothing.
     private void ToggleStage(OverviewHighlightRow row)
     {
         (string rulesetId, string highlightId) = SplitTypeKey(row.TypeKey);
 
-        if (row.IsStaged)
+        bool staged = _isClipStaged?.Invoke(row.DemoPath, rulesetId, highlightId, row.Tick, row.PlayerSlot)
+                      ?? row.IsStaged;
+        if (staged)
         {
             _unstageClip?.Invoke(row.DemoPath, rulesetId, highlightId, row.Tick, row.PlayerSlot);
             row.IsStaged = false;
@@ -1648,6 +1649,28 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
 
         row.IsStaged =
             _stageClip?.Invoke(row.DemoPath, rulesetId, highlightId, row.Tick, row.PlayerSlot) ?? false;
+    }
+
+    /// <summary>
+    ///     Re-reads every highlight row's staged flag from the tray. The rows are seeded only when the section is
+    ///     filled, and the tray changes on the Reels tab without telling this page, so the view calls this each
+    ///     time it is shown. Otherwise a cleared tray left ✓ rows that "Select all" then skipped.
+    /// </summary>
+    public void SyncStagedFlags()
+    {
+        if (_isClipStaged is null)
+        {
+            return;
+        }
+
+        foreach (OverviewHighlightGroup group in HighlightGroups)
+        {
+            foreach (OverviewHighlightRow row in group.Highlights)
+            {
+                (string rulesetId, string highlightId) = SplitTypeKey(row.TypeKey);
+                row.IsStaged = _isClipStaged(row.DemoPath, rulesetId, highlightId, row.Tick, row.PlayerSlot);
+            }
+        }
     }
 
     // TypeKey is "{rulesetId}.{highlightId}". Split on the FIRST dot: a ruleset id is a single segment while
@@ -1735,7 +1758,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         }
 
         MatchDateError = string.Empty;
-        _setMatchTime(key, utc);
+        ApplyMatchTime(key, utc);
     }
 
     [RelayCommand]
@@ -1743,7 +1766,21 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     {
         if (SubjectKey is { } key)
         {
-            _setMatchTime?.Invoke(key, null);
+            ApplyMatchTime(key, null);
+        }
+    }
+
+    // The date is the user's and lives only in the demo's record, so a record write that does not land is said
+    // here rather than passed over: nothing repaints, and the field would go on showing a date that is not kept.
+    private void ApplyMatchTime(string key, DateTime? utc)
+    {
+        try
+        {
+            _setMatchTime?.Invoke(key, utc);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MatchDateError = "Could not save: " + ex.Message;
         }
     }
 
@@ -1987,6 +2024,19 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
 
     private static string FormatScore(int? score) =>
         score is { } s ? s.ToString(CultureInfo.InvariantCulture) : Placeholder;
+
+    // Both scoreboard sources hold a row for every slot, including the ghost a reconnect leaves on the old slot
+    // (team 0) and a spectator (team 1), each with nothing done. Neither is on a side, and only IsCt picks the
+    // block, so they were drawn as T players. A slot off the sides with stats on it, a player who left, stays,
+    // as docs/player-match-format.md keeps such a row.
+    private static bool IsOffSideAndIdle(OverviewStatRow r) =>
+        r.Team is not (2 or 3)
+        && Nothing(r.Kills) && Nothing(r.Deaths) && Nothing(r.Assists) && Nothing(r.Adr);
+
+    // Zero, or no number at all: the live table's placeholder for a missing value, or a NaN a slot that played no
+    // round can carry for a per-round stat.
+    private static bool Nothing(string display) =>
+        ParseSortable(display) is var v && (v == 0 || v == double.MinValue || double.IsNaN(v));
 
     // Ordering key for an already-formatted cell: placeholders sort last.
     private static double ParseSortable(string display) =>

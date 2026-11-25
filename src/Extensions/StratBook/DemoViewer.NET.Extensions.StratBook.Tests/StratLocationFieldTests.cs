@@ -618,6 +618,37 @@ public partial class StratLocationFieldTests
     }
 
     [Test]
+    [Arguments("Alpha")]
+    [Arguments("2")]
+    [Arguments("Mid, Top")]
+    public async Task AChosenRow_StoresItsOwnPlace_WhateverItsPrimaryAliasSpells(string alias)
+    {
+        // Beta's primary alias is another place's name, digits, or text with a comma: none reads back as Beta.
+        CalloutResolver resolver = new(["Alpha", "Beta"],
+            new CalloutTable
+            {
+                Map = "de_test", Aliases = [new CalloutAlias { Alias = alias, Place = "Beta", Primary = true }]
+            });
+        PlaceFieldModel single = new() { Options = PlaceFieldOptions.For(resolver) };
+        single.Load([]);
+        single.Open();
+        IReadOnlyList<PlaceRef> chosen = single.Choose(single.Items.Single(i => i.Place == "Beta"));
+
+        PlaceFieldModel stored = new() { Options = PlaceFieldOptions.For(resolver) };
+        stored.Load([new PlaceRef { Place = "Beta", X = 5, Y = 6, LevelMinZ = 0 }]);
+        stored.Open();
+        IReadOnlyList<PlaceRef> same = stored.Choose(stored.Items.Single(i => i.Place == "Beta"));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(string.Join("|", chosen.Select(p => p.Place))).IsEqualTo("Beta");
+            await Assert.That(single.Text).IsEqualTo(alias).Because("the field shows the owner's word for it");
+            await Assert.That(same.Count == 1 && same[0] is { Place: "Beta", X: 5, Y: 6 }).IsTrue()
+                .Because("the place already stored keeps its point");
+        }
+    }
+
+    [Test]
     public async Task ATypedCoordinate_IsAPoint_WithTheStoredOrCurrentLevel_AndNumbersAreNeverAPlace()
     {
         PlaceFieldModel single = new() { Options = PlaceFieldOptions.For(_mirage), CurrentLevelMinZ = -512 };

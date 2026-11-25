@@ -180,8 +180,16 @@ public sealed class TeamRanksStore
         }
 
         bool changed = false;
+        int dropped = 0;
         foreach (RankEntry entry in file.Entries.Where(e => e.Rank > 0))
         {
+            if (teams.IsDropped(entry.TeamId))
+            {
+                dropped++;
+                ledger.CountSkipped();
+                continue;
+            }
+
             RankEntry incoming = new()
             {
                 Id = entry.Id, TeamId = teams.Map(entry.TeamId), System = entry.System, Rank = entry.Rank,
@@ -211,11 +219,49 @@ public sealed class TeamRanksStore
             }
         }
 
+        if (dropped > 0)
+        {
+            ledger.Report($"{dropped} team rank(s) were left out: their team was deleted on this machine");
+        }
+
         if (changed)
         {
             Save();
             Changed?.Invoke();
         }
+    }
+
+    /// <summary>
+    ///     Moves the ranks of a team that was merged away onto the team that took it over. A ranking and day the
+    ///     surviving team already has an entry for keeps that entry, since <see cref="Set" /> keeps one per day.
+    ///     UI thread, like every other mutator.
+    /// </summary>
+    /// <param name="from">The id the merge tombstoned.</param>
+    /// <param name="into">The team that took it over.</param>
+    /// <returns>False when nothing was filed under <paramref name="from" />.</returns>
+    internal bool Rekey(Guid from, Guid into)
+    {
+        List<RankEntry> moving = [.. _entries.Where(e => e.TeamId == from)];
+        if (from == into || moving.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (RankEntry entry in moving)
+        {
+            _entries.Remove(entry);
+            if (!_entries.Exists(e => e.TeamId == into && e.System == entry.System && e.AsOf == entry.AsOf))
+            {
+                _entries.Add(new RankEntry
+                {
+                    Id = entry.Id, TeamId = into, System = entry.System, Rank = entry.Rank, AsOf = entry.AsOf
+                });
+            }
+        }
+
+        Save();
+        Changed?.Invoke();
+        return true;
     }
 
     private void Load()

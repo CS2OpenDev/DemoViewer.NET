@@ -165,6 +165,12 @@ internal static class TrimVerifier
 
         if (trimmedTail.FileInfo is not { } fileInfoFrame)
         {
+            // No frame to resolve is only legitimate when the header says so: DemoTail also reads a
+            // dangling offset as "absent", which is the shape this method exists to catch.
+            report.Check(trimmedRaw.Length < 12 || BitConverter.ToInt32(trimmedRaw, 8) == 0,
+                "container: file header bytes 8-11 are 0 when there is no DEM_FileInfo",
+                string.Create(CultureInfo.InvariantCulture,
+                    $"offset={(trimmedRaw.Length < 12 ? 0 : BitConverter.ToInt32(trimmedRaw, 8))}"));
             return;
         }
 
@@ -173,8 +179,19 @@ internal static class TrimVerifier
             "container: rewritten DEM_FileInfo.playback_ticks describes the trimmed window",
             string.Create(CultureInfo.InvariantCulture,
                 $"expected {result.Window.EndTick}, got {info.PlaybackTicks}"));
-        report.Check(info.GameInfo?.Cs is not { } cs || cs.RoundStartTicks.All(t => t <= result.Window.EndTick),
-            "container: DEM_FileInfo.round_start_ticks confined to the retained window");
+
+        // Both ends, against the source's own list: an upper bound alone passed a checkpoint-entry
+        // trim that still carried the starts of the rounds dropped in front of it.
+        IReadOnlyList<int> expectedStarts =
+            sourceTail.FileInfo is { } sourceInfoFrame
+            && CDemoFileInfo.Parser.ParseFrom(DemoTail.Payload(sourceRaw, sourceInfoFrame)).GameInfo?.Cs
+                is { } sourceCs
+                ? DemoTrimWriter.RetainedRoundStartTicks(sourceCs.RoundStartTicks, result.Window)
+                : [];
+        IReadOnlyList<int> actualStarts = info.GameInfo?.Cs is { } cs ? [.. cs.RoundStartTicks] : [];
+        report.Check(info.GameInfo?.Cs is null || actualStarts.SequenceEqual(expectedStarts),
+            "container: DEM_FileInfo.round_start_ticks confined to the retained window",
+            $"expected [{string.Join(",", expectedStarts)}], got [{string.Join(",", actualStarts)}]");
 
         if (result.LeftUncompressed > 0)
         {

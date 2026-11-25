@@ -27,10 +27,12 @@ public static class UserFacingError
             UnauthorizedAccessException => "access to a file or folder was denied",
             FileNotFoundException or DirectoryNotFoundException => "a file it needs is missing",
             PathTooLongException => "a file path is too long for this system",
-            IOException => "a file could not be read or written",
-            OutOfMemoryException => "the app ran out of memory",
+
+            // Before IOException: EndOfStreamException is one, and would never get past that arm.
             InvalidDataException or EndOfStreamException =>
                 "the file's data is not in the expected format (it may be damaged or truncated)",
+            IOException => "a file could not be read or written",
+            OutOfMemoryException => "the app ran out of memory",
             NotSupportedException => "this file or format isn't supported",
             TimeoutException => "the operation timed out",
             _ => "an unexpected error occurred"

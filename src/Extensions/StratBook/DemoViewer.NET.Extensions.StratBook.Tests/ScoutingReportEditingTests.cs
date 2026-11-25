@@ -166,6 +166,47 @@ public class ScoutingReportEditingTests
     }
 
     [Test]
+    public async Task AFailedWrite_IsReported_AndClearedByTheNextWriteThatLands()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "dv-scouting-report-notes-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            // The notes file's folder is a regular file: every write fails, on every OS.
+            string blocker = Path.Combine(root, "config");
+            await File.WriteAllTextAsync(blocker, "not a folder");
+            string path = Path.Combine(blocker, ScoutingReportNotesStore.FileName);
+            ScoutingReportNotesStore store = new(StoredFile.At(path));
+            Guid team = Guid.NewGuid();
+            int changes = 0;
+            store.Changed += () => changes++;
+
+            store.AddNote(team, "watch the B apps smoke");
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.SaveProblem).IsNotNull()
+                    .Because("the note lives only in memory now, and the user has to be told");
+                await Assert.That(store.FileProblem).IsNull().Because("the file was read; it is not refused");
+                await Assert.That(changes).IsEqualTo(1);
+            }
+
+            File.Delete(blocker);
+            Directory.CreateDirectory(blocker);
+            store.SetSummary(team, "Aggressive CT.");
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.SaveProblem).IsNull();
+                await Assert.That(new ScoutingReportNotesStore(StoredFile.At(path)).For(team).Notes.Single().Text)
+                    .IsEqualTo("watch the B apps smoke").Because("the next write carries the edits the failed one held");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task TheStore_PersistsStarsEditsHiddenNotesAndSummary_BesideTeamsJson()
     {
         string root = Path.Combine(Path.GetTempPath(), "dv-scouting-report-notes-" + Guid.NewGuid().ToString("N"));
@@ -290,6 +331,34 @@ public class ScoutingReportEditingTests
     }
 
     [Test]
+    public async Task AnEditInProgress_SurvivesARebuildOfTheSameTeam_AndNotATeamChange()
+    {
+        ScoutingReportNotesStore store = new(null);
+        ScoutingReportEditorViewModel editor = new(store);
+        Guid team = Guid.NewGuid();
+        editor.Load(team, "Falcons", "3 demos across 2 maps", Sources());
+        ScoutingReportFindingViewModel nuke = editor.Findings.Single(f => f.Key == NukeKey);
+        nuke.BeginEditCommand.Execute(null);
+        nuke.EditText = "de_nuke: half typed";
+
+        // The long form landing, a background stamp, or a note added while the line is open.
+        editor.Load(team, "Falcons", "3 demos across 2 maps", [.. Sources().Reverse()]);
+        editor.NewNoteText = "they stack B";
+        editor.AddNoteCommand.Execute(null);
+        ScoutingReportFindingViewModel again = editor.Findings.Single(f => f.Key == NukeKey);
+        using (Assert.Multiple())
+        {
+            await Assert.That(again.IsEditing).IsTrue();
+            await Assert.That(again.EditText).IsEqualTo("de_nuke: half typed");
+            await Assert.That(editor.Findings.Count(f => f.IsEditing)).IsEqualTo(1);
+        }
+
+        editor.Load(Guid.NewGuid(), "Vitality", "2 demos", Sources());
+        await Assert.That(editor.Findings.Any(f => f.IsEditing)).IsFalse()
+            .Because("another team's line under the same key is not the one being rewritten");
+    }
+
+    [Test]
     public async Task TheEditor_StarsRewritesLeavesOutAndAddsNotes_AndKeepsThemAcrossARebuild()
     {
         ScoutingReportNotesStore store = new(null);
@@ -382,6 +451,54 @@ public class ScoutingReportEditingTests
     }
 
     [Test]
+    public async Task AStoreFileThatCouldNotBeRead_IsSaidWhereItsEditsAreMade()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"dv-report-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            string notesPath = Path.Combine(root, ScoutingReportNotesStore.FileName);
+            string vetoPath = Path.Combine(root, VetoHistoryStore.FileName);
+            await File.WriteAllTextAsync(notesPath, "{ \"schemaVersion\": 99 }");
+            await File.WriteAllTextAsync(vetoPath, "{ \"schemaVersion\": 99 }");
+            ScoutingReportNotesStore notes = new(StoredFile.At(notesPath));
+            VetoHistoryStore vetoes = new(StoredFile.At(vetoPath));
+            DemoCacheStore cache = new(null);
+            TeamIdentityService teams = new(TestFiles.Teams(null), cache.Library(), run: _inline);
+            using ScoutingReportTabViewModel tab = new(teams, cache.Library(), vetoes, isBrowser: false,
+                post: a => a(), notes: notes, runSection: _ => _inline);
+            List<string?> raised = [];
+            tab.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+            tab.Editor.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(tab.HasVetoProblem).IsTrue();
+                await Assert.That(tab.VetoProblem).IsEqualTo(vetoes.FileProblem);
+                await Assert.That(tab.Editor.HasNotesProblem).IsTrue();
+                await Assert.That(tab.Editor.NotesProblem).IsEqualTo(notes.FileProblem);
+            }
+
+            // The file is deleted out from under the store and re-read: edits stick again, and the line goes.
+            File.Delete(notesPath);
+            File.Delete(vetoPath);
+            notes.Reload();
+            vetoes.Reload();
+            using (Assert.Multiple())
+            {
+                await Assert.That(tab.HasVetoProblem).IsFalse();
+                await Assert.That(tab.Editor.HasNotesProblem).IsFalse();
+                await Assert.That(raised).Contains(nameof(ScoutingReportTabViewModel.HasVetoProblem));
+                await Assert.That(raised).Contains(nameof(ScoutingReportEditorViewModel.HasNotesProblem));
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
     public async Task Export_WritesTheOnePagerAsHtml_ByDefault_AndTheChosenFormOtherwise()
     {
         List<(string Text, string Stem, string Extension)> written = [];
@@ -435,6 +552,36 @@ public class ScoutingReportEditingTests
             await Assert.That(browser.ExportCommand.CanExecute(null)).IsFalse();
             await Assert.That(browser.HasExportUnavailableNote).IsTrue();
             await Assert.That(browser.MarkdownText()).StartsWith("# Falcons one-pager");
+        }
+    }
+
+    [Test]
+    public async Task AnExport_WhoseTeamChangedWhileThePicturesWereDrawn_WritesNothing()
+    {
+        List<string> written = [];
+        ScoutingReportEditorViewModel editor = new(new ScoutingReportNotesStore(null), export: (_, stem, ext) =>
+        {
+            written.Add(stem);
+            return stem + ext;
+        });
+        TaskCompletionSource<IReadOnlyList<ScoutingReportBuyStage>> drawing = new();
+        editor.BuyStages = _ => drawing.Task;
+        editor.Load(Guid.NewGuid(), "Falcons", "3 demos", Sources());
+        editor.ToggleStarCommand.Execute(editor.Findings[0]);
+
+        Task export = editor.ExportCommand.ExecuteAsync(null);
+        string whileDrawing = editor.ExportLine;
+        editor.Load(Guid.NewGuid(), "Vitality", "2 demos", Sources());
+        editor.ToggleStarCommand.Execute(editor.Findings[0]);
+        drawing.SetResult([]);
+        await export;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(whileDrawing).StartsWith("drawing the buy pictures");
+            await Assert.That(written).IsEmpty()
+                .Because("the pictures are the first team's and the lines would be the second's");
+            await Assert.That(editor.ExportLine).IsEqualTo("").Because("the new team has exported nothing");
         }
     }
 
@@ -650,6 +797,106 @@ public class ScoutingReportEditingTests
             await Assert.That(store.For(team).Seeded).IsEquivalentTo([SetupKey], CollectionOrdering.Matching);
             await Assert.That(editor.StarredCount).IsEqualTo(0);
         }
+    }
+
+    [Test]
+    public async Task AnInspectorStarUnderAWindowOrABuy_PrintsOnTheLongFormsLine_AndUnstarsFromIt()
+    {
+        // The long form builds every layer at All with no AWP window; the inspector files a star under the window
+        // and the buy in view. Setups carries its own per-row buy, so its lines exist under each buy.
+        const string awpLong = "de_nuke|CT|awp|All||route Outside → Ramp";
+        const string awpContact = "de_nuke|CT|awp|All|contact|route Outside → Ramp";
+        const string utilLong = "de_nuke|CT|util|All||most thrown smoke at Outside";
+        const string utilFull = "de_nuke|CT|util|Full||most thrown smoke at Outside";
+        const string setupsEco = "de_nuke|CT|setups|Eco||read";
+        ScoutingReportFindingSource[] sources =
+        [
+            new(awpLong, "de_nuke CT · AWP", "route Outside → Ramp: 4 rounds"),
+            new(utilLong, "de_nuke CT · Utility", "most thrown smoke at Outside: 6"),
+            new(SetupKey, "de_nuke CT · Setups", "Full buy: BombsiteA held"),
+            new(setupsEco, "de_nuke CT · Setups", "Eco: BombsiteB stacked")
+        ];
+        ScoutingReportNotesStore store = new(null);
+        ScoutingReportEditorViewModel editor = new(store);
+        Guid team = Guid.NewGuid();
+        editor.Load(team, "Falcons", "", sources);
+
+        editor.SetStarred(awpContact, true);
+        editor.SetStarred(utilFull, true);
+        editor.SetStarred(SetupKey, true);
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.StarredCount).IsEqualTo(3);
+            await Assert.That(editor.Starred.Select(r => r.Key))
+                .IsEquivalentTo([awpLong, utilLong, SetupKey], CollectionOrdering.Matching);
+            await Assert.That(editor.Document().Findings.Where(f => f.IsStarred).Select(f => f.Key))
+                .IsEquivalentTo([awpLong, utilLong, SetupKey], CollectionOrdering.Matching);
+            await Assert.That(editor.Findings.Single(f => f.Key == setupsEco).IsStarred).IsFalse()
+                .Because("a line the long form lists under its own buy keeps its own star");
+        }
+
+        // The same holds after a rebuild, and unstarring the long form's line takes the inspector's star off too.
+        editor.Load(team, "Falcons", "", sources);
+        await Assert.That(editor.StarredCount).IsEqualTo(3);
+        editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Key == awpLong));
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.StarredCount).IsEqualTo(2);
+            await Assert.That(editor.IsStarred(awpContact)).IsFalse();
+            await Assert.That(store.For(team).Starred).DoesNotContain(awpContact);
+        }
+
+        // The one-pager preview unstars by the row's key, which the store never held.
+        editor.SetStarred(awpContact, true);
+        await Assert.That(editor.StarredCount).IsEqualTo(3);
+        editor.SetStarred(awpLong, false);
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.StarredCount).IsEqualTo(2);
+            await Assert.That(store.For(team).Starred).DoesNotContain(awpContact);
+        }
+
+        editor.SetStarred(utilFull, false);
+        await Assert.That(editor.StarredCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AnInspectorStarMatchingSeveralLines_StarsOnlyThePlainOne_AndUnstarsNoOther()
+    {
+        // The same words under two buys the long form lists, and an inspector star under a third it does not.
+        const string utilAll = "de_nuke|CT|util|All||most thrown smoke at Outside";
+        const string utilEco = "de_nuke|CT|util|Eco||most thrown smoke at Outside";
+        const string utilFull = "de_nuke|CT|util|Full||most thrown smoke at Outside";
+        ScoutingReportFindingSource[] sources =
+        [
+            new(utilEco, "de_nuke CT · Utility", "Eco: most thrown smoke at Outside: 2"),
+            new(utilAll, "de_nuke CT · Utility", "most thrown smoke at Outside: 6")
+        ];
+        ScoutingReportNotesStore store = new(null);
+        ScoutingReportEditorViewModel editor = new(store);
+        Guid team = Guid.NewGuid();
+        editor.Load(team, "Falcons", "", sources);
+
+        editor.SetStarred(utilFull, true);
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.StarredCount).IsEqualTo(1);
+            await Assert.That(editor.Starred.Select(r => r.Key)).IsEquivalentTo([utilAll]);
+        }
+
+        // Starring the Eco line on its own and then unstarring the All line leaves the Eco line starred.
+        editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Key == utilEco));
+        editor.ToggleStarCommand.Execute(editor.Findings.Single(f => f.Key == utilAll));
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.Starred.Select(r => r.Key)).IsEquivalentTo([utilEco]);
+            await Assert.That(store.For(team).Starred).DoesNotContain(utilFull);
+        }
+
+        // Unstarring the Eco line by its key does not take the inspector's star off the All line.
+        editor.SetStarred(utilFull, true);
+        editor.SetStarred(utilEco, false);
+        await Assert.That(editor.Starred.Select(r => r.Key)).IsEquivalentTo([utilAll]);
     }
 
     private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];

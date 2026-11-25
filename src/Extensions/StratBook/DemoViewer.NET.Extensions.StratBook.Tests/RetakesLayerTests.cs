@@ -185,13 +185,47 @@ public class RetakesLayerTests
             await Assert.That(man[0].Note).IsEqualTo("1 without positions");
             await Assert.That(man[0].OpenTitle).IsEqualTo("de_nuke CT · retakes at 4v4");
             await Assert.That(saves.Select(r => $"{r.Label} | {r.Value}")).IsEquivalentTo(
-                ["4v4 · saved | 1 of 7 rounds", "2v4 · saved | 4 of 5 rounds"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                ["4v4 · saved | 1 of 6 rounds", "2v4 · saved | 4 of 5 rounds"],
+                TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                .Because("the 4v4 round without positions could not have been a save");
+            await Assert.That(saves[0].Note).IsEqualTo("1 without positions");
             await Assert.That(saves[1].Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([30, 31, 32, 33]);
             await Assert.That(top[1].Value).IsEqualTo("13 of 14 rounds").Because("13 of the 14 CT rounds had a plant");
             await Assert.That(result.CountLabel).IsEqualTo("13 plants");
             await Assert.That(result.Reads.Single().Text)
                 .IsEqualTo("Retakes collapse at 2 CTs alive and below: they save in 4 of 5 rounds.");
+        }
+    }
+
+    [Test]
+    public async Task RoundsWithoutPositions_AreNotInTheRetakeOrSaveRate_AndAreSaidToBeMissing()
+    {
+        List<RetakeRound> rounds =
+        [
+            .. Many(6, n => R(n, 5, 4, RetakeKind.Retook, n < 4)),
+            R(10, 4, 3, RetakeKind.Saved, false),
+            .. Many(3, n => R(20 + n, 4, 3, RetakeKind.Unread, false)),
+            R(30, 3, 3, RetakeKind.Saved, false),
+            .. Many(2, n => R(40 + n, 5, 4, RetakeKind.Unread, false))
+        ];
+
+        ScoutingLayerResult result = RetakesLayer.Compose(Prefix, rounds);
+        ScoutingInspectorRow saved = Section(result, "Saves").Single(r => r.Label == "4v3 · saved");
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(result.Reads.Single().Text).IsEqualTo(
+                    "They retake 6 of 8 rounds after the plant and win 4 of them; they save in 2. 5 planted rounds without positions are not counted.")
+                .Because("five of the thirteen plants were never read, and an unread round is not a failed retake");
+            await Assert.That(saved.Value).IsEqualTo("1 of 1 round");
+            await Assert.That(saved.BarPercent).IsEqualTo(100.0);
+            await Assert.That(saved.Note).IsEqualTo("3 without positions");
+            await Assert.That(Section(result, "CTs alive at the plant").Single(r => r.Label == "4v3 · retook 0 · saved 1").Value)
+                .IsEqualTo("saved 1 of 1").Because("the man-count row counts the same read rounds as the Saves row");
+            await Assert.That(Section(RetakesLayer.Compose(Prefix, [R(1, 2, 2, RetakeKind.Unread, false)]),
+                "CTs alive at the plant").Single().Value).IsEqualTo("no positions");
+            await Assert.That(RetakesLayer.Read([R(1, 4, 4, RetakeKind.Saved, false), R(2, 4, 4, RetakeKind.Unread, false)]))
+                .IsEqualTo("They save in 1 of 1 planted round. 1 planted round without positions is not counted.");
         }
     }
 

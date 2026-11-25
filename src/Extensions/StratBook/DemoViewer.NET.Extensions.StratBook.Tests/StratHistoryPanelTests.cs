@@ -63,6 +63,24 @@ public class StratHistoryPanelTests
     }
 
     [Test]
+    public async Task AHistoryRemovedFromTheQueueBeforeItRan_IsNotLeftComputing()
+    {
+        StratStore store = new(null);
+        TagStore tags = new(null);
+        StratDocument created = Minimal(HistoryId);
+        store.Save(created, [], null);
+        using StratHistoryPanelViewModel panel = new(store,
+            new StratEvidenceService(tags, jobs: new RemovedJobs()), tags, new CalloutResolverSource(store),
+            debounce: TimeSpan.Zero);
+
+        panel.Configure(created);
+        await panel.Pending;
+
+        await Assert.That(panel.IsComputing).IsFalse()
+            .Because("no newer request is coming to clear it");
+    }
+
+    [Test]
     public async Task ACommitWithSeveralOps_ShowsTheItemizedChangeList()
     {
         using Fixture fixture = new();
@@ -150,6 +168,28 @@ public class StratHistoryPanelTests
         {
             await Assert.That(fixture.Panel.HasStrat).IsFalse();
             await Assert.That(fixture.Panel.HasEntries).IsFalse();
+        }
+    }
+
+    // Closing the strat cancels the rebuild in flight, and nothing is left to say about it: the pane is empty.
+    [Test]
+    public async Task ClosingTheStratWhileItsHistoryIsComputing_LeavesNoStatus()
+    {
+        StratStore store = new(null);
+        TagStore tags = new(null);
+        StratDocument created = Minimal(HistoryId);
+        store.Save(created, [], null);
+        using StratHistoryPanelViewModel panel = new(store, new StratEvidenceService(tags), tags,
+            new CalloutResolverSource(store), debounce: TimeSpan.FromSeconds(30));
+
+        panel.Configure(created);
+        panel.Configure(null);
+        await panel.Pending;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(panel.StatusLine).IsEqualTo("");
+            await Assert.That(panel.IsComputing).IsFalse();
         }
     }
 

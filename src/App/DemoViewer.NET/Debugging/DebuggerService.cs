@@ -16,6 +16,17 @@ namespace DemoViewer.NET.Debugging;
 /// </summary>
 public sealed class DebuggerService
 {
+    // What the parser check walks. The check runs on the entity seek's pool thread while the panel edits
+    // Breakpoints on the UI thread, so it reads a copy replaced on every edit rather than the live list.
+    private Breakpoint[] _parserSnapshot = [];
+    private volatile bool _suppress;
+
+    /// <summary>Creates an empty debugger.</summary>
+    public DebuggerService()
+    {
+        Breakpoints.CollectionChanged += (_, _) => Volatile.Write(ref _parserSnapshot, [.. Breakpoints]);
+    }
+
     /// <summary>All breakpoints, in insertion order. UI lists bind to this.</summary>
     public ObservableCollection<Breakpoint> Breakpoints { get; } = [];
 
@@ -37,7 +48,11 @@ public sealed class DebuggerService
     ///     without recording hits. Used by the UI when auto-navigating to a captured hit frame
     ///     so the back-navigation seek doesn't re-trigger the same breakpoint.
     /// </summary>
-    public bool Suppress { get; set; }
+    public bool Suppress
+    {
+        get => _suppress;
+        set => _suppress = value;
+    }
 
     // ── Add / remove ─────────────────────────────────────────────────────────
 
@@ -101,12 +116,24 @@ public sealed class DebuggerService
     public void CheckParserState(int packetCount, bool hasNewDecodeError, int newDeltaUnknownDelta,
         int currentFrameIndex)
     {
+        if (MatchParserState(packetCount, hasNewDecodeError, newDeltaUnknownDelta) is { } bp)
+        {
+            RecordParserHit(bp, currentFrameIndex);
+        }
+    }
+
+    /// <summary>
+    ///     The Tier 3 breakpoint the tracker's state trips, without recording it. Safe on any thread:
+    ///     it reads the snapshot, never the live list.
+    /// </summary>
+    internal Breakpoint? MatchParserState(int packetCount, bool hasNewDecodeError, int newDeltaUnknownDelta)
+    {
         if (Suppress)
         {
-            return;
+            return null;
         }
 
-        foreach (Breakpoint bp in Breakpoints)
+        foreach (Breakpoint bp in Volatile.Read(ref _parserSnapshot))
         {
             if (!bp.Enabled)
             {
@@ -123,13 +150,30 @@ public sealed class DebuggerService
 
             if (hit)
             {
-                bp.HitCount++;
-                LastHit = bp;
-                LastHitFrameIndex = currentFrameIndex;
-                StateChanged?.Invoke();
-                return;
+                return bp;
             }
         }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Records a hit <see cref="MatchParserState" /> found. UI thread only: it raises
+    ///     <see cref="StateChanged" />, which the panel turns into bound property changes. Dropped when
+    ///     suppression came on between the match and now, so a hit queued from a replay cannot overwrite
+    ///     the stop a command has just recorded.
+    /// </summary>
+    internal void RecordParserHit(Breakpoint bp, int currentFrameIndex)
+    {
+        if (Suppress)
+        {
+            return;
+        }
+
+        bp.HitCount++;
+        LastHit = bp;
+        LastHitFrameIndex = currentFrameIndex;
+        StateChanged?.Invoke();
     }
 
     /// <summary>Clear.</summary>

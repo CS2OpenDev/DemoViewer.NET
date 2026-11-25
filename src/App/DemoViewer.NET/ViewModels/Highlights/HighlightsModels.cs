@@ -1,5 +1,6 @@
 #region
 
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CS2DemoKit.Analysis.Abstractions;
 using DemoViewer.NET.Services.DemoCache;
@@ -60,6 +61,13 @@ public sealed record HighlightSelection(DemoCacheRecord Record, CachedHighlightE
 
     /// <summary>SteamID64, or empty. Used as a filter key, so it must not be null.</summary>
     public string SteamId64 => Player?.SteamId64 ?? "";
+
+    /// <summary>
+    ///     The player's identity within the demo: the tray group and coalescing key. The SteamID64, except for a
+    ///     bot, whose id is "0" for every bot in the demo, so the slot stands in and two bots stay two players.
+    /// </summary>
+    public string PlayerKey =>
+        SteamId64 == "0" ? "slot:" + Highlight.PlayerSlot.ToString(CultureInfo.InvariantCulture) : SteamId64;
 }
 
 /// <summary>

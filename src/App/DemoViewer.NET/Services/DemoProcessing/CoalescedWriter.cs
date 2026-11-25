@@ -2,7 +2,7 @@ namespace DemoViewer.NET.Services.DemoProcessing;
 
 /// <summary>
 ///     One store's saves: the newest snapshot wins, at most one write is scheduled at a time, and a failed
-///     write is logged and never stops later ones. <see cref="Flush" /> writes what is pending on the
+///     write is reported and never stops later ones; its snapshot stays pending for the next post or flush. <see cref="Flush" /> writes what is pending on the
 ///     calling thread and never throws, for shutdown.
 /// </summary>
 /// <typeparam name="T">The snapshot a write takes; it must not change after it is posted.</typeparam>
@@ -152,6 +152,14 @@ public sealed class CoalescedWriter<T> where T : class
         }
         catch (Exception ex)
         {
+            // The snapshot goes back unless a newer one arrived meanwhile, so a Flush at shutdown still has it
+            // to retry. Nothing is scheduled here: against a disk that keeps failing the next Post or Flush
+            // is the retry, not a loop.
+            lock (_gate)
+            {
+                _pending ??= snapshot;
+            }
+
             _failed(ex);
             return false;
         }

@@ -228,7 +228,8 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
     ///     ANOTHER demo replaces the data context rather than re-activating as the others do: the window is
     ///     about one demo, and re-activating it would show the user the previous demo's report under a
     ///     command they invoked from a different one. A second open on the SAME demo re-activates, because
-    ///     the live view-model holds notes the user has typed and not yet saved.
+    ///     the live view-model holds notes the user has typed and not yet saved. So does ANOTHER demo while
+    ///     those notes are unsaved: the window stays on the first report and says to save or close it first.
     /// </summary>
     public void ShowErrorReport(ErrorReportViewModel viewModel)
     {
@@ -239,6 +240,13 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
             if (live.DataContext is ErrorReportViewModel open
                 && string.Equals(open.DemoPath, viewModel.DemoPath, StringComparison.OrdinalIgnoreCase))
             {
+                live.Activate();
+                return;
+            }
+
+            if (live.DataContext is ErrorReportViewModel { IsDirty: true } unsaved)
+            {
+                unsaved.NoteOpenBlocked();
                 live.Activate();
                 return;
             }
@@ -357,14 +365,32 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
         ArgumentNullException.ThrowIfNull(viewModel);
 
         FirstRunWizardWindow window = new() { DataContext = viewModel };
+        bool completed = false;
 
         void OnCompleted(object? sender, EventArgs e)
         {
+            completed = true;
             window.Close();
         }
 
         viewModel.Completed += OnCompleted;
-        window.Closed += (_, _) => viewModel.Completed -= OnCompleted;
+
+        // Closed with the app (a shutdown, the OS ending the session, the main window going) is not the user
+        // leaving the wizard: there is no session left to stop waiting in, and a dismissal turns every pack on
+        // and queues a re-index on the way out. Unanswered, the wizard simply comes back next launch.
+        bool closedWithApp = false;
+        window.Closing += (_, e) => closedWithApp = e.CloseReason is WindowCloseReason.ApplicationShutdown
+            or WindowCloseReason.OSShutdown or WindowCloseReason.OwnerWindowClosing;
+        window.Closed += (_, _) =>
+        {
+            viewModel.Completed -= OnCompleted;
+            // The close box or Alt+F4: no Finish or Skip, so nothing was written. The host must not go on
+            // waiting for an answer that is not coming this session.
+            if (!completed && !closedWithApp)
+            {
+                viewModel.Dismiss();
+            }
+        };
 
         Window? owner = Owner();
         if (owner is not null)

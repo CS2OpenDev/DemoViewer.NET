@@ -8,7 +8,9 @@ using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Export.Pack;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Export;
+using DemoViewer.NET.Services.Export.Pack;
 using DemoViewer.NET.Services.Review;
 
 #endregion
@@ -197,6 +199,21 @@ public class PackExportTests
         SceneExportSession.Validate(request.Core);
     }
 
+    [Test]
+    public async Task Plan_HoldsALargeGifClip_ToWhatTheMemoryBudgetFits()
+    {
+        PackSettings settings = PackSettings.For("/p/x.gif", ExportFormats.Gif) with { Side = 1920 };
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64 * 200)], settings, Exists);
+
+        Scene2DExportRequest? request =
+            PackPlanner.BuildClipRequest(plan.Clips[0], plan.Settings, Frames(0, 64 * 200), 64);
+
+        // 1920² RGBA is 14,745,600 bytes a frame; 2 GiB holds 145 of them.
+        await Assert.That(plan.Clips[0].MaxFrames).IsEqualTo(145);
+        await Assert.That(request!.Core.FrameCount).IsEqualTo(145);
+        SceneExportSession.Validate(request.Core);
+    }
+
     // ── The stitch ────────────────────────────────────────────────────────────
 
     [Test]
@@ -307,6 +324,190 @@ public class PackExportTests
         await Assert.That(File.Exists(path)).IsFalse();
     }
 
+    /// <summary>
+    ///     A cancel after the last clip, before the pack's file is closed. The sink then closes quietly and
+    ///     writes nothing, so the pack must not report a file that is not there.
+    /// </summary>
+    [Test]
+    public async Task Export_Video_CancelledAfterTheLastClip_Throws_RatherThanReportingAFileItDidNotWrite()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}");
+        string path = Path.Combine(root, "scrims.mp4");
+        using CancellationTokenSource cts = new();
+        PackPlan plan = PackPlanner.Plan(Queue(), Settings(path), Exists);
+        int last = plan.Clips[^1].Number;
+        FakeClips clips = new(framesPerClip: 2)
+        {
+            OnRendered = n =>
+            {
+                if (n == last)
+                {
+                    cts.Cancel();
+                }
+            }
+        };
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await new PackExporter(clips, new ManagedGifEncoder()).ExportAsync(plan, null, cts.Token));
+            await Assert.That(File.Exists(path)).IsFalse();
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    ///     Closing the file is where it is muxed, so a pack whose every clip rendered can still fail there.
+    ///     It is reported as the failure it is, and what was written goes with it.
+    /// </summary>
+    [Test]
+    public async Task Export_Video_RemovesTheFile_WhenTheEncoderFailsClosingIt()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}.mp4");
+        await File.WriteAllTextAsync(path, "half a video");
+        FakeEncoder encoder = new() { FailOnDispose = true };
+        PackPlan plan = PackPlanner.Plan(Queue(), Settings(path), Exists);
+
+        try
+        {
+            await Assert.ThrowsAsync<IOException>(async () =>
+                await new PackExporter(new FakeClips(framesPerClip: 2), encoder).ExportAsync(plan, null,
+                    CancellationToken.None));
+            await Assert.That(File.Exists(path)).IsFalse();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    ///     A pack that ends before a frame reached its encoder has written nothing, so there is nothing of
+    ///     its own to remove. The tab's default path is fixed for the session: what sits there is the pack
+    ///     the last Export made, and cancelling a second one while its first demo parses must not cost it.
+    /// </summary>
+    [Test]
+    public async Task Export_Video_CancelledBeforeAnyFrame_LeavesTheFileThatWasAlreadyThere()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}.mp4");
+        await File.WriteAllTextAsync(path, "last week's pack");
+        using CancellationTokenSource cts = new();
+        FakeClips clips = new(framesPerClip: 2) { OnRender = _ => cts.Cancel() };
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64, "opener")], Settings(path), Exists);
+
+        try
+        {
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await new PackExporter(clips, new FakeEncoder()).ExportAsync(plan, null, cts.Token));
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("last week's pack");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task Export_Video_WithNoClipThatRenders_LeavesTheFileThatWasAlreadyThere()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}.mp4");
+        await File.WriteAllTextAsync(path, "last week's pack");
+        FakeClips clips = new(framesPerClip: 2) { FailOn = 1 };
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64, "opener")], Settings(path), Exists);
+
+        try
+        {
+            await Assert.ThrowsAsync<ExportValidationException>(async () =>
+                await new PackExporter(clips, new FakeEncoder()).ExportAsync(plan, null, CancellationToken.None));
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("last week's pack");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>The GIF pack's half: a clip that fails before its sink saw a frame leaves the earlier GIF of that name.</summary>
+    [Test]
+    public async Task Export_Gif_AClipThatFailsBeforeAnyFrame_LeavesTheFileThatWasAlreadyThere()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}");
+        PackPlan plan = PackPlanner.Plan(
+            [Clip("/d/a.dem", 0, 64, "opener"), Clip("/d/b.dem", 0, 64, "smokes")],
+            Settings(Path.Combine(root, "scrims.gif"), ExportFormats.Gif), Exists);
+        string failing = plan.Clips[0].OutputPath!;
+        string written = plan.Clips[1].OutputPath!;
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(failing)!);
+            await File.WriteAllTextAsync(failing, "last week's gif");
+            await File.WriteAllTextAsync(written, "half a gif");
+
+            // Clip 1 fails before a frame; clip 2 writes one frame and then fails.
+            FakeClips clips = new(framesPerClip: 2) { FailOn = 1, FailAfterFramesOn = 2 };
+            PackResult? result = null;
+            try
+            {
+                result = await new PackExporter(clips, new FakeEncoder()).ExportAsync(plan, null,
+                    CancellationToken.None);
+            }
+            catch (ExportValidationException)
+            {
+                // Neither clip rendered, which is the pack's own refusal; the files are the subject here.
+            }
+
+            await Assert.That(result).IsNull();
+            await Assert.That(await File.ReadAllTextAsync(failing)).IsEqualTo("last week's gif");
+            await Assert.That(File.Exists(written)).IsFalse();
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     The GIF written with no ffmpeg opens its file only when it is disposed, and never once the session
+    ///     has told it the clip failed. A clip that fails part way has put frames into the sink and nothing
+    ///     on disk, so the GIF at the path is still the earlier pack's.
+    /// </summary>
+    [Test]
+    public async Task Export_Gif_AManagedGifClipThatFailsPartWay_LeavesTheFileThatWasAlreadyThere()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}");
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64, "opener")],
+            Settings(Path.Combine(root, "scrims.gif"), ExportFormats.Gif), Exists);
+        string failing = plan.Clips[0].OutputPath!;
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(failing)!);
+            await File.WriteAllTextAsync(failing, "last week's gif");
+            FakeClips clips = new(framesPerClip: 2) { FailAfterFramesOn = 1, AbortOnFailure = true };
+
+            await Assert.ThrowsAsync<ExportValidationException>(async () =>
+                await new PackExporter(clips, new ManagedGifEncoder()).ExportAsync(plan, null,
+                    CancellationToken.None));
+
+            await Assert.That(await File.ReadAllTextAsync(failing)).IsEqualTo("last week's gif");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, true);
+            }
+        }
+    }
+
     [Test]
     public async Task Export_Refuses_AQueueWithNothingToRender_BeforeOpeningAFile()
     {
@@ -355,12 +556,12 @@ public class PackExportTests
     public async Task SegmentSink_EndsTheSegment_NotThePacksSink_AndSaysWhoseFailureItWas()
     {
         RecordingSink inner = new() { FailAfter = 1 };
-        PackSegmentSink segment = new(inner);
+        PackSegmentSink segment = new(inner, CancellationToken.None);
 
         await segment.WriteAsync(new byte[4], 1, 1, CancellationToken.None);
         await segment.DisposeAsync();
 
-        PackSegmentSink second = new(inner);
+        PackSegmentSink second = new(inner, CancellationToken.None);
         await Assert.ThrowsAsync<IOException>(async () =>
             await second.WriteAsync(new byte[4], 1, 1, CancellationToken.None));
         using (Assert.Multiple())
@@ -461,7 +662,237 @@ public class PackExportTests
         await Assert.That(vm.ExportPackCommand.CanExecute(null)).IsTrue();
     }
 
+    /// <summary>
+    ///     The pack's encoder lives as long as the pack, not as the clip that wrote its first frame. ffmpeg
+    ///     links the token of its first write; when that was a clip's (the pack's token joined with its
+    ///     demo's visit), a visit stopped mid-clip killed the encode every later clip writes into.
+    /// </summary>
+    [Test]
+    public async Task Export_Video_AVisitStoppedInTheFirstClip_FailsThatClip_AndThePackGoesOn()
+    {
+        PackPlan plan = PackPlanner.Plan(Queue(), Settings(), Exists);
+        LinkingEncoder encoder = new();
+
+        PackResult result = await new PackExporter(new LeaseClips { StopVisitOn = plan.Clips[0].Number }, encoder)
+            .ExportAsync(plan, null, CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(plan.Segments[0] is PackClip).IsTrue().Because("the first write is a clip's");
+            await Assert.That(result.Failed.Count).IsEqualTo(1);
+            await Assert.That(result.ClipsRendered).IsEqualTo(plan.Clips.Count);
+            await Assert.That(encoder.Sink!.KilledAtClose).IsFalse();
+        }
+    }
+
+    /// <summary>...and the pack's own cancel still reaches the encoder once that first clip is over.</summary>
+    [Test]
+    public async Task Export_Video_CancelledAfterTheFirstClip_StopsTheEncoder()
+    {
+        PackPlan plan = PackPlanner.Plan(Queue(), Settings(), Exists);
+        LinkingEncoder encoder = new();
+        using CancellationTokenSource cts = new();
+        LeaseClips clips = new()
+        {
+            OnRender = n =>
+            {
+                if (n == plan.Clips[1].Number)
+                {
+                    cts.Cancel();
+                }
+            }
+        };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await new PackExporter(clips, encoder).ExportAsync(plan, null, cts.Token));
+        await Assert.That(encoder.Sink!.KilledAtClose).IsTrue();
+    }
+
     // ── Fakes ─────────────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task ALeaseWhoseVisitWasStopped_IsNotReusedForTheNextClipOfItsDemo()
+    {
+        List<CancellationTokenSource> visits = [];
+        int released = 0;
+        using PackClipRenderer renderer = new((_, _) =>
+        {
+            CancellationTokenSource visit = new();
+            visits.Add(visit);
+            return Task.FromResult(new DemoLease(SyntheticParsedDemo.Create(),
+                () => Interlocked.Increment(ref released), visit.Token));
+        }, null, loadMap: _ => null);
+        // The demo has no frames, so a clip stops at its range: after its demo's lease is taken and kept.
+        PackClip clip = new(Clip("/d/a.dem", 0, 64), 1, null, 0, null, null);
+
+        await Assert.ThrowsAsync<ExportValidationException>(async () =>
+            await renderer.RenderAsync(clip, Settings(), new RecordingSink(), CancellationToken.None));
+        await Assert.ThrowsAsync<ExportValidationException>(async () =>
+            await renderer.RenderAsync(clip, Settings(), new RecordingSink(), CancellationToken.None));
+        int whileHeld = visits.Count;
+        await visits[0].CancelAsync();
+        await Assert.ThrowsAsync<ExportValidationException>(async () =>
+            await renderer.RenderAsync(clip, Settings(), new RecordingSink(), CancellationToken.None));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(whileHeld).IsEqualTo(1).Because("consecutive clips of one demo share its lease");
+            await Assert.That(visits.Count).IsEqualTo(2)
+                .Because("a stopped visit gave its slot away, so the next clip joins a visit again");
+            await Assert.That(released).IsEqualTo(1).Because("the stopped lease is disposed, the new one held");
+        }
+
+        foreach (CancellationTokenSource visit in visits)
+        {
+            visit.Dispose();
+        }
+    }
+
+    [Test]
+    public async Task AVisitStoppedMidClip_FailsThatClip_AndAUserCancelStillCancels()
+    {
+        List<CancellationTokenSource> visits = [];
+        int released = 0;
+        using PackClipRenderer renderer = new((_, _) =>
+        {
+            CancellationTokenSource visit = new();
+            visits.Add(visit);
+            return Task.FromResult(new DemoLease(SyntheticParsedDemo.Create(Frames(0, 640), mapName: ""),
+                () => Interlocked.Increment(ref released), visit.Token));
+        }, null, loadMap: _ => null);
+        PackClip clip = new(Clip("/d/a.dem", 0, 640), 1, null, 0, null, null);
+
+        // The visit is torn down under the clip once its first frame is out.
+        Exception? failure = null;
+        try
+        {
+            await renderer.RenderAsync(clip, Settings(), new CallbackSink(() => visits[^1].Cancel()),
+                CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+
+        int releasedAfterStop = released;
+        using CancellationTokenSource user = new();
+        Exception? cancelled = null;
+        try
+        {
+            await renderer.RenderAsync(clip, Settings(), new CallbackSink(user.Cancel), user.Token);
+        }
+        catch (Exception ex)
+        {
+            cancelled = ex;
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(failure).IsNotNull().Because("the clip stops with its visit");
+            await Assert.That(failure is OperationCanceledException).IsFalse()
+                .Because("the pack treats a cancel as the user's, and this one was not");
+            await Assert.That(failure!.Message).Contains("stopped");
+            await Assert.That(releasedAfterStop).IsEqualTo(1).Because("the stopped lease is let go at once");
+            await Assert.That(cancelled is OperationCanceledException).IsTrue()
+                .Because("the user's own cancel still cancels the pack");
+        }
+
+        foreach (CancellationTokenSource visit in visits)
+        {
+            visit.Dispose();
+        }
+    }
+
+    /// <summary>A sink that, as ffmpeg's does, stops for good when the token of its first write is cancelled.</summary>
+    private sealed class LinkingSink : IFrameSink
+    {
+        private CancellationTokenSource? _kill;
+
+        public bool? KilledAtClose { get; private set; }
+
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
+        {
+            _kill ??= CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _kill.Token.ThrowIfCancellationRequested();
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            KilledAtClose = _kill?.IsCancellationRequested ?? false;
+            _kill?.Dispose();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class LinkingEncoder : IPackEncoder
+    {
+        public LinkingSink? Sink { get; private set; }
+
+        public void Prepare(PackSettings settings, CancellationToken ct)
+        {
+        }
+
+        public IFrameSink Open(string outputPath, PackSettings settings) => Sink = new LinkingSink();
+    }
+
+    /// <summary>
+    ///     A clip renderer shaped like <see cref="PackClipRenderer" />: each clip writes under the pack's
+    ///     token joined with its visit's, and a stopped visit fails that clip and not the pack.
+    /// </summary>
+    private sealed class LeaseClips : IPackClipRenderer
+    {
+        public int? StopVisitOn { get; init; }
+
+        public Action<int>? OnRender { get; init; }
+
+        public async Task RenderAsync(PackClip clip, PackSettings settings, IFrameSink sink, CancellationToken ct)
+        {
+            using CancellationTokenSource visit = new();
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct, visit.Token);
+            try
+            {
+                OnRender?.Invoke(clip.Number);
+                byte[] frame = new byte[settings.Side * settings.Side * 4];
+                for (int i = 0; i < 3; i++)
+                {
+                    linked.Token.ThrowIfCancellationRequested();
+                    await sink.WriteAsync(frame, settings.Side, settings.Side, linked.Token);
+                    if (clip.Number == StopVisitOn)
+                    {
+                        await visit.CancelAsync();
+                    }
+                }
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && visit.IsCancellationRequested)
+            {
+                throw new InvalidOperationException("the demo's visit was stopped before the clip finished", ex);
+            }
+            finally
+            {
+                await sink.DisposeAsync();
+            }
+        }
+    }
+
+    /// <summary>A sink that runs <paramref name="onFirst" /> after its first frame.</summary>
+    private sealed class CallbackSink(Action onFirst) : IFrameSink
+    {
+        private int _frames;
+
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (++_frames == 1)
+            {
+                onFirst();
+            }
+
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
 
     /// <summary>Progress reported on the calling thread, so a test sees every report in order.</summary>
     private sealed class InlineProgress(Action<PackProgress> report) : IProgress<PackProgress>
@@ -480,6 +911,8 @@ public class PackExportTests
 
         public int? FailAfter { get; init; }
 
+        public bool FailOnDispose { get; init; }
+
         public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -496,7 +929,9 @@ public class PackExportTests
         public ValueTask DisposeAsync()
         {
             DisposeCount++;
-            return ValueTask.CompletedTask;
+            return FailOnDispose
+                ? ValueTask.FromException(new IOException("the disk is full"))
+                : ValueTask.CompletedTask;
         }
     }
 
@@ -510,15 +945,27 @@ public class PackExportTests
 
         public int? FailAfter { get; init; }
 
+        public bool FailOnDispose { get; init; }
+
         public void Prepare(PackSettings settings, CancellationToken ct) => Prepared = true;
 
         public IFrameSink Open(string outputPath, PackSettings settings)
         {
             Opened.Add(outputPath);
-            RecordingSink sink = new() { FailAfter = FailAfter };
+            RecordingSink sink = new() { FailAfter = FailAfter, FailOnDispose = FailOnDispose };
             Sinks.Add(sink);
             return sink;
         }
+    }
+
+    /// <summary>The ladder's floor: the real managed GIF sink, which opens its file only at disposal.</summary>
+    private sealed class ManagedGifEncoder : IPackEncoder
+    {
+        public void Prepare(PackSettings settings, CancellationToken ct)
+        {
+        }
+
+        public IFrameSink Open(string outputPath, PackSettings settings) => new ManagedGifSink(outputPath, 10);
     }
 
     /// <summary>A session's shape without a demo: frames stamped with the clip's number, then the sink disposed.</summary>
@@ -530,11 +977,21 @@ public class PackExportTests
 
         public Action<int>? OnRender { get; init; }
 
+        /// <summary>Runs once a clip's frames are written, before its sink is closed.</summary>
+        public Action<int>? OnRendered { get; init; }
+
+        /// <summary>The clip that writes one frame and then fails.</summary>
+        public int? FailAfterFramesOn { get; init; }
+
+        /// <summary>Tells the sink its run failed before disposing it, as the export session does.</summary>
+        public bool AbortOnFailure { get; init; }
+
         public async Task RenderAsync(PackClip clip, PackSettings settings, IFrameSink sink, CancellationToken ct)
         {
             try
             {
                 OnRender?.Invoke(clip.Number);
+                ct.ThrowIfCancellationRequested();
                 Demos.Add(clip.Entry.DemoPath);
                 if (clip.Number == FailOn)
                 {
@@ -546,7 +1003,18 @@ public class PackExportTests
                 for (int i = 0; i < framesPerClip; i++)
                 {
                     await sink.WriteAsync(frame, settings.Side, settings.Side, ct);
+                    if (clip.Number == FailAfterFramesOn)
+                    {
+                        throw new ExportValidationException("the demo ended early");
+                    }
                 }
+
+                OnRendered?.Invoke(clip.Number);
+            }
+            catch when (AbortOnFailure)
+            {
+                (sink as IAbortableFrameSink)?.Abort();
+                throw;
             }
             finally
             {

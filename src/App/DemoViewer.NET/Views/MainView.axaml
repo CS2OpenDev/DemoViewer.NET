@@ -120,13 +120,31 @@
                     <Button.Flyout>
                         <Flyout>
                             <Border Background="{DynamicResource CardBg}" Padding="4" MinWidth="280">
-                                <Grid RowDefinitions="Auto,*">
-                                    <TextBlock Grid.Row="0"
+                                <Grid RowDefinitions="Auto,Auto,*">
+                                    <Grid Grid.Row="0"
+                                          ColumnDefinitions="*,Auto"
+                                          IsVisible="{Binding Bookmarks.HasLegacyNotice}"
+                                          MaxWidth="320" Margin="6 4">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Bookmarks.LegacyNotice}"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextDim}"
+                                                   FontSize="11" />
+                                        <Button Grid.Column="1" Content="✕"
+                                                AutomationProperties.Name="Dismiss notice"
+                                                ToolTip.Tip="Dismiss"
+                                                Command="{Binding Bookmarks.DismissLegacyNoticeCommand}"
+                                                Background="Transparent" BorderThickness="0"
+                                                VerticalAlignment="Top"
+                                                FontSize="11" Padding="6 0"
+                                                Foreground="{DynamicResource TextDim}" />
+                                    </Grid>
+                                    <TextBlock Grid.Row="1"
                                                Text="No bookmarks yet"
                                                IsVisible="{Binding !Bookmarks.HasBookmarks}"
                                                Foreground="{DynamicResource TextDim}"
                                                FontSize="11" Margin="6 4" />
-                                    <ListBox Grid.Row="1"
+                                    <ListBox Grid.Row="2"
                                              MaxHeight="320"
                                              ItemsSource="{Binding Bookmarks.Bookmarks}"
                                              SelectedItem="{Binding Bookmarks.Selected, Mode=TwoWay}"
@@ -134,16 +152,26 @@
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
                                                 <Grid ColumnDefinitions="*,Auto" Margin="2">
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="{Binding Label}"
-                                                                   Foreground="{DynamicResource TextBright}"
-                                                                   FontSize="12" />
-                                                        <TextBlock
-                                                            Text="{Binding FrameIndex, StringFormat='frame {0}'}"
-                                                            Foreground="{DynamicResource TextDim}"
-                                                            FontFamily="Consolas,Menlo,monospace"
-                                                            FontSize="10" />
-                                                    </StackPanel>
+                                                    <!-- A click jumps through the command, not the selection: the
+                                                         row already selected would not change and so never seek. -->
+                                                    <Button Grid.Column="0"
+                                                            AutomationProperties.Name="Jump to bookmark"
+                                                            Command="{Binding $parent[ListBox].((shell:MainViewModel)DataContext).Bookmarks.JumpCommand, FallbackValue={x:Null}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="Transparent" BorderThickness="0" Padding="0"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Label}"
+                                                                       Foreground="{DynamicResource TextBright}"
+                                                                       FontSize="12" />
+                                                            <TextBlock
+                                                                Text="{Binding FrameIndex, StringFormat='frame {0}'}"
+                                                                Foreground="{DynamicResource TextDim}"
+                                                                FontFamily="Consolas,Menlo,monospace"
+                                                                FontSize="10" />
+                                                        </StackPanel>
+                                                    </Button>
                                                     <Button Grid.Column="1" Content="✕"
                                                             AutomationProperties.Name="Remove bookmark"
                                                             Command="{Binding $parent[ListBox].((shell:MainViewModel)DataContext).Bookmarks.RemoveCommand, FallbackValue={x:Null}}"

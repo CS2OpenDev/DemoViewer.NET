@@ -180,14 +180,22 @@ public sealed class RetakesLayer() : ScoutingLayerBase("retakes", "Retakes and s
 
         List<RetakeRound> retakes = [.. planted.Where(r => r.Kind == RetakeKind.Retook)];
         int saves = planted.Count(r => r.Kind == RetakeKind.Saved);
+
+        // A round without positions can be neither a retake nor a save, so it is not in the rate: the collapse
+        // check above leaves it out the same way. A plant with no CT alive stays in; nobody could retake it.
+        int unread = planted.Count(r => r.Kind == RetakeKind.Unread);
+        int read = planted.Count - unread;
+        string notRead = unread == 0 ? "" :
+            unread == 1 ? " 1 planted round without positions is not counted." :
+            $" {Plural(unread, "planted round")} without positions are not counted.";
         if (retakes.Count == 0)
         {
             return saves == 0
                 ? $"Opponents plant on them in {Plural(planted.Count, "round")}; no retake or save is read."
-                : $"They save in {saves} of {Plural(planted.Count, "planted round")}.";
+                : $"They save in {saves} of {Plural(read, "planted round")}.{notRead}";
         }
 
-        return $"They retake {CountText(retakes.Count, planted.Count)} after the plant and win {retakes.Count(r => r.Won)} of them; they save in {saves}.";
+        return $"They retake {CountText(retakes.Count, read)} after the plant and win {retakes.Count(r => r.Won)} of them; they save in {saves}.{notRead}";
     }
 
     // One row per man count, the most CTs first: "4v4 · retook 8 · saved 1", "won 3 of 8", opening every round at it.
@@ -206,7 +214,9 @@ public sealed class RetakesLayer() : ScoutingLayerBase("retakes", "Retakes and s
                 bool none = g.Key.CtAlive == 0 || all.All(r => r.Kind == RetakeKind.NoCtAlive);
                 return Open(
                     none ? $"{count} · no CT alive" : $"{count} · retook {retook} · saved {saved}",
-                    none ? Plural(all.Count, "round") : retook > 0 ? $"won {won} of {retook}" : $"saved {saved} of {all.Count}",
+                    // Saves over the rounds that were read, as the Saves rows count them.
+                    none ? Plural(all.Count, "round") : retook > 0 ? $"won {won} of {retook}"
+                    : unread == all.Count ? "no positions" : $"saved {saved} of {all.Count - unread}",
                     $"at the plant {count}", all, $"{prefix} · retakes at {count}") with
                 {
                     BarPercent = retook > 0 ? 100.0 * won / retook : null,
@@ -226,10 +236,16 @@ public sealed class RetakesLayer() : ScoutingLayerBase("retakes", "Retakes and s
             {
                 List<RetakeRound> saved = [.. g.Where(r => r.Kind == RetakeKind.Saved)];
                 string count = g.First().ManCount;
-                return Open($"{count} · saved", CountText(saved.Count, g.Count()), $"saved at {count}", saved,
+
+                // Over the rounds that were read: one without positions could not have been a save.
+                int unread = g.Count(r => r.Kind == RetakeKind.Unread);
+                int read = g.Count() - unread;
+                return Open($"{count} · saved", CountText(saved.Count, read), $"saved at {count}", saved,
                     $"{prefix} · saved at {count}") with
                 {
-                    BarPercent = 100.0 * saved.Count / g.Count(), Swatch = ScoutingColor.Neutral
+                    BarPercent = 100.0 * saved.Count / read,
+                    Swatch = ScoutingColor.Neutral,
+                    Note = unread > 0 ? $"{unread} without positions" : null
                 };
             })
     ];

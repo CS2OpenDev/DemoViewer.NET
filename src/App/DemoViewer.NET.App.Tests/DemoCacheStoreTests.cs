@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.DemoProcessing;
 
 #endregion
 
@@ -55,6 +56,83 @@ public class DemoCacheStoreTests
         CtClan = "NAVI",
         TClan = "FaZe"
     };
+
+    /// <summary>
+    ///     A record file that is there but does not parse is not "no record". Whatever a later tier fill writes,
+    ///     the bytes it could not read are kept beside it, since they may hold what the user typed.
+    /// </summary>
+    [Test]
+    public async Task ARecordFileThatDoesNotParse_IsKeptAside_NotWrittenOver()
+    {
+        string root = TempRoot();
+        try
+        {
+            DemoCacheStore store = new(root);
+            store.Upsert(Record("/demos/unparsed.dem"));
+            store.SaveIndex();
+            string file = store.SidecarPathFor("/demos/unparsed.dem")!;
+            byte[] damaged = "{ \"Path\": \"/demos/unparsed.dem\", \"Size\": \"not a number\" }"u8.ToArray();
+            await File.WriteAllBytesAsync(file, damaged);
+
+            // A second store: the first still holds the record it wrote in its one-record cache.
+            DemoCacheStore reopened = new(root);
+            reopened.UpdateExisting("/demos/unparsed.dem", r => r.AnalysisState = DemoAnalysisState.Pending);
+
+            string[] aside = Directory.GetFiles(Path.GetDirectoryName(file)!, "unreadable-*." + Path.GetFileName(file));
+            using (Assert.Multiple())
+            {
+                await Assert.That(aside.Length).IsEqualTo(1);
+                await Assert.That(aside.Length == 1 && File.ReadAllBytes(aside[0]).AsSpan().SequenceEqual(damaged))
+                    .IsTrue();
+                await Assert.That(reopened.TryLoadRecord("/demos/unparsed.dem")!.AnalysisState)
+                    .IsEqualTo(DemoAnalysisState.Pending).Because("the write itself still lands");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    ///     A record file something else holds open reads as nothing for a moment. A tier fill that started from
+    ///     a fresh record then would replace everything the file holds, so it waits for a later pass instead.
+    /// </summary>
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ARecordFileThatIsHeld_IsNotReplacedByAFreshRecord(bool throughUpdate)
+    {
+        string root = TempRoot();
+        try
+        {
+            DemoCacheStore store = new(root);
+            store.Upsert(Record("/demos/held.dem"));
+            store.SaveIndex();
+            string file = store.SidecarPathFor("/demos/held.dem")!;
+
+            DemoCacheStore reopened = new(root);
+            using (new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                if (throughUpdate)
+                {
+                    reopened.Update("/demos/held.dem", 1000, 2000, r => r.AnalysisState = DemoAnalysisState.Pending);
+                }
+                else
+                {
+                    reopened.UpdateExisting("/demos/held.dem", r => r.AnalysisState = DemoAnalysisState.Pending);
+                }
+            }
+
+            DemoCacheRecord? after = new DemoCacheStore(root).TryLoadRecord("/demos/held.dem");
+            await Assert.That(after!.Players).Count().IsEqualTo(4)
+                .Because("a file that could not be read was not replaced by a record with nothing in it");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
 
     [Test]
     public async Task Upsert_WritesASidecar_AndTheIndexRoundTripsAcrossReopen()
@@ -533,6 +611,184 @@ public class DemoCacheStoreTests
             await Assert.That(keepsItsOwn.ExcludedRulesets).IsNull()
                 .Because("a row that already has the tier keeps its own answer, null included");
             await Assert.That(keepsItsOwn.ConfigFingerprint).IsEqualTo("fp-own");
+        }
+    }
+
+    /// <summary>
+    ///     A read takes the cache's lock twice, once to look and once to remember, and reads the file in
+    ///     between with no lock held. A write that lands in that gap has already put the newer record in the
+    ///     cache; the read must not put its older one back, or the next read-modify-write starts from the
+    ///     record as it was before that write and saves it without it.
+    /// </summary>
+    [Test]
+    public async Task AReadOvertakenByAWrite_DoesNotCacheTheRecordFromBeforeIt()
+    {
+        const string Path = "/demos/raced.dem";
+        DemoCacheStore store = new(null);
+        store.Upsert(Record(Path));
+        DemoCacheRecord other = Record("/demos/other.dem");
+        other.Sha256 = "sha-other";
+        store.Upsert(other); // the capacity-1 cache now holds this one, so the read below goes to the file
+
+        bool written = false;
+        store.RecordReadForTest = () =>
+        {
+            if (!written)
+            {
+                written = true;
+                store.UpdateExisting(Path, r => r.Server = "Valve");
+            }
+        };
+        store.TryLoadRecord(Path);
+        store.RecordReadForTest = null;
+        await Assert.That(written).IsTrue();
+
+        await Assert.That(store.TryLoadRecord(Path)!.Server).IsEqualTo("Valve");
+
+        store.UpdateExisting(Path, r => r.Map = "de_nuke");
+        DemoCacheRecord after = store.TryLoadRecord(Path)!;
+        using (Assert.Multiple())
+        {
+            await Assert.That(after.Map).IsEqualTo("de_nuke");
+            await Assert.That(after.Server).IsEqualTo("Valve").Because("the second write builds on the first");
+        }
+    }
+
+    /// <summary>
+    ///     A write caches its record before its file lands. A read that starts in between, with the cache's one
+    ///     slot taken by another demo meanwhile, fetches the file from before the write; once the write lands
+    ///     that read's record must not be the cached one, or the next read-modify-write starts from it.
+    /// </summary>
+    [Test]
+    public async Task AReadWhileAWriteHasNotLanded_DoesNotLeaveTheRecordFromBeforeItCached()
+    {
+        const string Path = "/demos/inflight.dem";
+        const string Other = "/demos/other.dem";
+        DemoCacheStore store = new(null);
+        store.Upsert(Record(Path));
+        DemoCacheRecord other = Record(Other);
+        other.Sha256 = "sha-other";
+        store.Upsert(other);
+
+        bool read = false;
+        store.RecordWriteForTest = () =>
+        {
+            if (!read)
+            {
+                read = true;
+                store.TryLoadRecord(Other); // takes the cache's one slot from the record being written
+                store.TryLoadRecord(Path); // and this one fetches the file the write has not replaced yet
+            }
+        };
+        store.UpdateExisting(Path, r => r.Server = "Valve");
+        store.RecordWriteForTest = null;
+        await Assert.That(read).IsTrue();
+
+        await Assert.That(store.TryLoadRecord(Path)!.Server).IsEqualTo("Valve");
+
+        store.UpdateExisting(Path, r => r.Map = "de_nuke");
+        DemoCacheRecord after = store.TryLoadRecord(Path)!;
+        using (Assert.Multiple())
+        {
+            await Assert.That(after.Map).IsEqualTo("de_nuke");
+            await Assert.That(after.Server).IsEqualTo("Valve").Because("the second write builds on the first");
+        }
+    }
+
+    /// <summary>
+    ///     A user's change whose record write fails throws, and the store is as it was before the call. For a
+    ///     demo with no row yet that means no row: one left behind lists the demo with the unsaved change and
+    ///     no record file behind it, and the next index save writes it down.
+    /// </summary>
+    [Test]
+    public async Task AFailedMustLandWriteForADemoWithNoRow_LeavesNoRowBehind()
+    {
+        string root = TempRoot();
+        try
+        {
+            const string Path = "/demos/never-indexed.dem";
+            DemoCacheStore store = new(root);
+            store.RecordWriteForTest = () => throw new IOException("There is not enough space on the disk.");
+
+            await Assert.That(() => store.UpdateExistingOrThrow(Path, r => r.Map = "de_inferno")).Throws<IOException>();
+            store.RecordWriteForTest = null;
+            store.SaveIndex();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.TryGetIndex(Path)).IsNull();
+                await Assert.That(new DemoCacheStore(root).TryGetIndex(Path)).IsNull();
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>...and for a path whose row the write would have moved to another key, the row it had.</summary>
+    [Test]
+    public async Task AFailedMustLandWriteThatWouldMoveARow_LeavesTheRowItHad()
+    {
+        string root = TempRoot();
+        try
+        {
+            const string Path = "/demos/provisional.dem";
+            DemoCacheStore store = new(root);
+            DemoCacheRecord provisional = Record(Path);
+            provisional.Sha256 = null;
+            store.Upsert(provisional);
+            store.RecordWriteForTest = () => throw new IOException("There is not enough space on the disk.");
+
+            await Assert.That(() => store.UpdateExistingOrThrow(Path, r =>
+            {
+                r.SetContentHash("sha-moved", null);
+                r.Map = "de_inferno";
+            })).Throws<IOException>();
+            store.RecordWriteForTest = null;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.TryGetIndex(Path)?.Sha256).IsNull();
+                await Assert.That(store.TryGetIndex(Path)?.Map).IsEqualTo("de_dust2");
+                await Assert.That(store.HoldsContent("sha-moved")).IsFalse();
+                await Assert.That(store.TryLoadRecord(Path)?.Map).IsEqualTo("de_dust2");
+            }
+
+            store.UpdateExisting(Path, r => r.Server = "Valve");
+            await Assert.That(new DemoCacheStore(root).TryLoadRecord(Path)?.Server).IsEqualTo("Valve")
+                .Because("the row still leads to its record file");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>The same failed write in a store with no folder: rolled back, and passed on only when it must land.</summary>
+    [Test]
+    public async Task AFailedWriteInMemory_IsHandledAsOnDisk()
+    {
+        const string Path = "/demos/provisional.dem";
+        DemoCacheStore store = new(null);
+        DemoCacheRecord provisional = Record(Path);
+        provisional.Sha256 = null;
+        store.Upsert(provisional);
+        store.RecordWriteForTest = () => throw new IOException("There is not enough space on the disk.");
+
+        await Assert.That(() => store.UpdateExistingOrThrow(Path, r =>
+        {
+            r.SetContentHash("sha-moved", null);
+            r.Map = "de_inferno";
+        })).Throws<IOException>();
+        await Assert.That(() => store.UpdateExisting(Path, r => r.Server = "Valve")).ThrowsNothing();
+        store.RecordWriteForTest = null;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(store.TryGetIndex(Path)?.Sha256).IsNull();
+            await Assert.That(store.HoldsContent("sha-moved")).IsFalse();
+            await Assert.That(store.TryLoadRecord(Path)?.Map).IsEqualTo("de_dust2");
         }
     }
 }

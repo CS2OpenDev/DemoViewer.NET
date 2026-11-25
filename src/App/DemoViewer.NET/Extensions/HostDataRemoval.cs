@@ -38,6 +38,17 @@ internal sealed class HostDataRemoval : IExtensionDataRemoval
         _afterReleaseForTests = afterReleaseForTests;
     }
 
+    /// <summary>
+    ///     Why the delete is refused, or null when it may run. An extension whose registration failed or whose
+    ///     Contribute threw this session contributed nothing, so the passes whose stamps the delete strips are
+    ///     not known, and pass ids carry no owner prefix to find them by. Deleting the rest would leave those
+    ///     stamps saying its passes ran on data that is gone, and the result has no way to say so.
+    /// </summary>
+    internal string? Refusal => _pack.ContributionsUnknown
+        ? "Nothing was deleted: this extension did not start this session, so the analysis data it wrote "
+        + "cannot be identified. Delete its data once it starts again."
+        : null;
+
     /// <inheritdoc />
     public string FeatureId => _pack.DataRemovalContribution?.FeatureId ?? _pack.Pack.FeatureId;
 
@@ -77,6 +88,11 @@ internal sealed class HostDataRemoval : IExtensionDataRemoval
     /// <inheritdoc />
     public async Task<ExtensionDataRemovalResult> DeleteAsync()
     {
+        if (Refusal is not null)
+        {
+            return ExtensionDataRemovalResult.NotRun;
+        }
+
         IFeatureGate? gate = _sp.GetService<IFeatureGate>();
         string featureId = _pack.Pack.FeatureId;
         if (gate?.IsEnabled(featureId) == true)
@@ -98,7 +114,9 @@ internal sealed class HostDataRemoval : IExtensionDataRemoval
             ? await custom.DeleteAsync().ConfigureAwait(true)
             : await Remover().DeleteAsync(_pack.Pack.Id, Stores,
                 [
-                    .. _pack.Passes.Select(p => p.Id),
+                    // A pass id is global. One the registry refused because it was taken never ran for this
+                    // extension, so a stamp carrying it was written by whoever does hold the id.
+                    .. _pack.Passes.Select(p => p.Id).Where(id => !_pack.PassIdsOfOthers.Contains(id)),
                     .. _pack.Rulesets.Where(r => r.ReadBy is null).Select(r => StampedFacts.StampId(r.RulesetId))
                 ], featureId,
                 Label + ": delete extension data", () => gate?.IsEnabled(featureId) != true).ConfigureAwait(true);

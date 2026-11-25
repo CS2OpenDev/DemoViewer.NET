@@ -78,6 +78,11 @@ public partial class TimelineControl : UserControl
         }
     }
 
+    // The contact ended without a release reaching this bar: the window lost the pointer mid-drag.
+    // Ends the scrub and seeks nowhere. A normal release lands here too, after Capture(null), by which
+    // time the flag is already down.
+    private void OnScrubCaptureLost(object? sender, PointerCaptureLostEventArgs e) => _scrubbing = false;
+
     private void OnScrubReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (!_scrubbing)

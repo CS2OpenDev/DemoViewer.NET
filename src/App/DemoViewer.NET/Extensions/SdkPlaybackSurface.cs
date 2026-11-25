@@ -35,15 +35,27 @@ internal sealed class SdkPlaybackContribution(SdkP.IPlaybackContribution inner, 
     // Detach undoes what Attach added even when the extension forgot a handle or threw.
     public void Detach()
     {
-        guard.Run("playback detach", Inner.Detach);
-        _surface?.Dispose();
-        _surface = null;
+        try
+        {
+            guard.Run("playback detach", Inner.Detach);
+            _surface?.Dispose();
+        }
+        finally
+        {
+            _surface = null;
+        }
     }
 
     public void Dispose()
     {
-        _surface?.Dispose();
-        _surface = null;
+        try
+        {
+            _surface?.Dispose();
+        }
+        finally
+        {
+            _surface = null;
+        }
     }
 }
 
@@ -122,6 +134,15 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
         CoreTrack core = new(track, _guard);
         IHostLaneHandle handle = _surface.AddLane(core, TimelineBandRow.Lane,
             behaviour is null ? null : new LaneBehaviour(behaviour, _guard));
+
+        // The timeline answers an id it already has with the lane that has it. Wrapped around this track,
+        // that handle would steer the other lane and unregister it on dispose, while this track never drew.
+        if (!ReferenceEquals(handle.Track, core))
+        {
+            core.Detach();
+            throw new ArgumentException($"A lane with the id '{core.Id}' is already on the timeline.", nameof(track));
+        }
+
         LaneHandle lane = new(track, core, handle);
         _owned.Add(lane);
         return lane;
@@ -131,8 +152,8 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
     {
         ArgumentNullException.ThrowIfNull(items);
         Func<SdkP.PlaybackBand, IEnumerable<SdkP.MenuEntry>> guarded =
-            _guard.Wrap<SdkP.PlaybackBand, IEnumerable<SdkP.MenuEntry>>("band menu", b => [.. items(b)], []);
-        return Own(_surface.AddBandMenu(band => Menu(guarded(Band(band)), _guard)));
+            _guard.Wrap<SdkP.PlaybackBand, IEnumerable<SdkP.MenuEntry>>("band menu", b => Menu(items(b), _guard), []);
+        return Own(_surface.AddBandMenu(band => guarded(Band(band))));
     }
 
     public IDisposable AddModeToggle(SdkP.ModeToggle toggle)
@@ -259,9 +280,11 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
     {
         _surface.KeymapChanged -= OnKeymapChanged;
         _surface.Deactivated -= OnDeactivated;
+        // One at a time under the guard: a pane's view model or Closed handler that throws is the extension's
+        // fault, and must not leave the registrations after it on the tab.
         foreach (IDisposable owned in _owned.ToArray())
         {
-            owned.Dispose();
+            _guard.Run("playback detach", owned.Dispose);
         }
 
         _owned.Clear();
@@ -270,6 +293,8 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
     internal static SdkP.PlaybackBand Band(TimelineBandViewModel band) =>
         new(band.TrackId, band.StartFrameIndex, band.EndFrameIndex, band.Label, band.Tooltip);
 
+    // Called inside the guard, never after it: a null entry or an entry with no Run throws here, and that is
+    // the extension's fault to count, not an exception out of the timeline's right-click.
     private static List<SdkP.MenuEntry> Menu(IEnumerable<SdkP.MenuEntry> entries, ExtensionGuard guard) =>
         [.. entries.Select(e => e with { Run = guard.Wrap("menu entry", e.Run) })];
 
@@ -378,8 +403,7 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
             guard.Run("lane band press", () => inner.OnBandPressed(Band(band)));
 
         public IEnumerable<SdkP.MenuEntry> MenuFor(TimelineBandViewModel band) =>
-            Menu(guard.Run<IReadOnlyList<SdkP.MenuEntry>>("lane menu", () => [.. inner.MenuFor(Band(band))], []),
-                guard);
+            guard.Run<IReadOnlyList<SdkP.MenuEntry>>("lane menu", () => Menu(inner.MenuFor(Band(band)), guard), []);
 
         public void OnLabelRequested(int frame) => guard.Run("lane label", () => inner.OnLabelRequested(frame));
 

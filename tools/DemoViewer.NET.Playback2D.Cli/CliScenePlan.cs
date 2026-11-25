@@ -88,6 +88,25 @@ internal static class CliScenePlan
     }
 
     /// <summary>
+    ///     Refuses an asset root the caller named (<c>--assets</c> or <c>DV2D_ASSETS</c>) that does not
+    ///     exist. The resolver reports it as a null path, and every consumer would otherwise carry on
+    ///     with no radar and no authoritative floors.
+    /// </summary>
+    /// <param name="assets">The resolved root.</param>
+    /// <exception cref="DirectoryNotFoundException">The named root is missing.</exception>
+    internal static void RequireAssetsRoot(AssetsRoot assets)
+    {
+        ArgumentNullException.ThrowIfNull(assets);
+
+        if (assets is { Source: AssetsRootSource.Flag or AssetsRootSource.Env, Path: null })
+        {
+            throw new DirectoryNotFoundException(
+                $"the asset root given by --assets/{AssetsRootResolver.EnvironmentVariable} does not exist: " +
+                string.Join(", ", assets.Probed));
+        }
+    }
+
+    /// <summary>
     ///     Builds a settled request, reporting what the plan found and refusing what the tool must not
     ///     silently accept. The plan is the caller's to dispose.
     /// </summary>
@@ -97,6 +116,7 @@ internal static class CliScenePlan
     public static SceneRenderPlan Build(ScenePlanOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        RequireAssetsRoot(options.Assets);
 
         SceneRenderPlan plan;
         try

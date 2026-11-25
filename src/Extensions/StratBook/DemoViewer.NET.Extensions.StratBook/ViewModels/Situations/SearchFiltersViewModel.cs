@@ -30,6 +30,12 @@ public sealed class SearchFilterField<T> : ExtensionViewModel
 {
     private SearchFilterOption<T>? _selected;
 
+    // The any option, kept apart from the list: Options is empty for a moment inside Replace.
+    private SearchFilterOption<T> _any;
+
+    // True while Replace swaps the list: the selections written meanwhile are not the user's.
+    private bool _replacing;
+
     /// <param name="label">The field's label on the rail.</param>
     /// <param name="options">The choices, "any" first.</param>
     public SearchFilterField(string label, IEnumerable<SearchFilterOption<T>> options)
@@ -47,7 +53,8 @@ public sealed class SearchFilterField<T> : ExtensionViewModel
             throw new ArgumentException("a field needs its any option", nameof(options));
         }
 
-        _selected = Options[0];
+        _any = Options[0];
+        _selected = _any;
     }
 
     /// <summary>The field's label on the rail.</summary>
@@ -66,16 +73,19 @@ public sealed class SearchFilterField<T> : ExtensionViewModel
             {
                 OnPropertyChanged(nameof(Value));
                 OnPropertyChanged(nameof(IsAny));
-                Changed?.Invoke();
+                if (!_replacing)
+                {
+                    Changed?.Invoke();
+                }
             }
         }
     }
 
     /// <summary>The value the selection means; the any option's null when nothing is chosen.</summary>
-    public T Value => _selected is { } selected ? selected.Value : Options[0].Value;
+    public T Value => (_selected ?? _any).Value;
 
     /// <summary>True when the field narrows nothing.</summary>
-    public bool IsAny => _selected is null || ReferenceEquals(_selected, Options[0]);
+    public bool IsAny => _selected is null || ReferenceEquals(_selected, _any);
 
     /// <summary>The selection moved.</summary>
     public event Action? Changed;
@@ -98,13 +108,30 @@ public sealed class SearchFilterField<T> : ExtensionViewModel
             throw new ArgumentException("a field needs its any option", nameof(options));
         }
 
-        Options.Clear();
-        foreach (SearchFilterOption<T> option in next)
+        // One Changed for the whole swap, and only when the selection ends on another option: a bound ComboBox
+        // writes null as the list empties, and a listener reading the field then would see neither list.
+        SearchFilterOption<T>? before = _selected;
+        _replacing = true;
+        try
         {
-            Options.Add(option);
+            _any = next[0];
+            Options.Clear();
+            foreach (SearchFilterOption<T> option in next)
+            {
+                Options.Add(option);
+            }
+
+            Selected = next.FirstOrDefault(o => EqualityComparer<T>.Default.Equals(o.Value, keep)) ?? next[0];
+        }
+        finally
+        {
+            _replacing = false;
         }
 
-        Selected = next.FirstOrDefault(o => EqualityComparer<T>.Default.Equals(o.Value, keep)) ?? next[0];
+        if (!ReferenceEquals(before, _selected))
+        {
+            Changed?.Invoke();
+        }
     }
 }
 

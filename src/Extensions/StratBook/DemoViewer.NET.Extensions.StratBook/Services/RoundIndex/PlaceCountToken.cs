@@ -110,6 +110,10 @@ public static class PlaceCountToken
     /// <param name="token">The stored token.</param>
     public static int AliveCount(string token) => Decode(token).Sum(p => p.Count);
 
+    /// <summary>Whether a place name can be written into a token: it holds neither separator.</summary>
+    /// <param name="place">A place name.</param>
+    internal static bool CanHold(string place) => !place.Contains(CountSeparator) && !place.Contains(PairSeparator);
+
     private static string Normalize(string? place)
     {
         if (string.IsNullOrEmpty(place))

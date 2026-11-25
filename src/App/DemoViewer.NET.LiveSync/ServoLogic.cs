@@ -14,7 +14,7 @@ internal static class ServoLogic
         /// <summary>In the locked band, speed already natural — do nothing.</summary>
         None,
 
-        /// <summary>Back in the locked band after servo bending — restore 1×.</summary>
+        /// <summary>Back in the locked band after servo bending — restore the base speed.</summary>
         RestoreSpeed,
 
         /// <summary>Bend playback speed toward CS2's clock.</summary>
@@ -34,20 +34,23 @@ internal static class ServoLogic
     ///     Decides the correction for a drift error (CS2's mapped DV tick minus DV's current
     ///     tick; positive = DV is behind). <paramref name="servoEngaged" /> is whether a previous
     ///     decision bent the speed (so re-entering the locked band restores 1×).
+    ///     <paramref name="baseSpeed" /> is the speed CS2 is actually running at: 1× normally, the
+    ///     user's mirrored speed under "timescale-set". Every returned speed is relative to it, so
+    ///     the servo never pulls DV off a timescale CS2 keeps running at.
     /// </summary>
-    public static (Correction Kind, double Speed) Decide(long error, bool servoEngaged)
+    public static (Correction Kind, double Speed) Decide(long error, bool servoEngaged, double baseSpeed = 1.0)
     {
         long magnitude = Math.Abs(error);
         if (magnitude <= LockedBand)
         {
-            return servoEngaged ? (Correction.RestoreSpeed, 1.0) : (Correction.None, 1.0);
+            return servoEngaged ? (Correction.RestoreSpeed, baseSpeed) : (Correction.None, baseSpeed);
         }
 
         if (magnitude <= ServoBand)
         {
-            return (Correction.AdjustSpeed, Math.Clamp(1.0 + error / 256.0, 0.75, 1.5));
+            return (Correction.AdjustSpeed, baseSpeed * Math.Clamp(1.0 + error / 256.0, 0.75, 1.5));
         }
 
-        return (Correction.HardResync, 1.0);
+        return (Correction.HardResync, baseSpeed);
     }
 }

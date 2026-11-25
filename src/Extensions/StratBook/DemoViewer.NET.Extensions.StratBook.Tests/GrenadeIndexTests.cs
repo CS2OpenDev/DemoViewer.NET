@@ -1,6 +1,7 @@
 #region
 
 using System.Numerics;
+using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -8,6 +9,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using CS2DemoKit.Analysis.Visibility;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
@@ -149,6 +151,36 @@ public class GrenadeIndexTests
 
     private static GrenadeQuery SmokesIntoCt(IReadOnlySet<string>? demos = null) => new(Mirage,
         new HashSet<GrenadeKind> { GrenadeKind.Smoke }, new HashSet<string> { "CTSpawn" }, DemoPaths: demos);
+
+    // The evaluator rewrites a demo's rows and merges them while Load is between reading the old rows and
+    // installing them: the rows the evaluator installed are the newer ones, and Load must not replace them.
+    [Test]
+    public async Task ALoadThatReadTheOldRows_DoesNotReplaceTheRowsOfANewerWrite()
+    {
+        DemoCacheStore cache = new(null);
+        MemoryDemoData memory = cache.Data();
+        RacingData racing = new(memory);
+        Indexed(cache, DemoPath(1), Mirage, "sha1",
+            [Row("a", GrenadeKind.Smoke, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170))]);
+        using GrenadeIndex index = new(cache.Library(),
+            new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)), store: new GrenadeStore(racing));
+        racing.AfterFirstRead = () =>
+        {
+            // The stamp is the wall clock's; the second write must not share the first one's tick.
+            Thread.Sleep(20);
+            Indexed(cache, DemoPath(1), Mirage, "sha1",
+            [
+                Row("a", GrenadeKind.Smoke, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170)),
+                Row("f", GrenadeKind.Flash, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170))
+            ]);
+            index.Load();
+        };
+
+        index.Load();
+
+        await Assert.That(index.Rows(new GrenadeQuery(Mirage)).Count).IsEqualTo(2)
+            .Because("the rows read first were superseded before they were installed");
+    }
 
     [Test]
     public async Task ALineupId_SurvivesARestart_AndALaterDemoJoinsItRatherThanMintingAnother()
@@ -557,6 +589,30 @@ public class GrenadeIndexTests
         }
     }
 
+    // A Library Transfer import writes a current facet with no walk behind it, so the evaluator's Walked never
+    // comes; the store's own Changed is the only word the index gets.
+    [Test]
+    public async Task RowsWrittenCurrentWithNoWalk_JoinTheLoadedIndex()
+    {
+        DemoCacheStore cache = new(null);
+        Indexed(cache, DemoPath(1), Mirage, "sha1", MirageRows(1));
+        using GrenadeIndex index = Loaded(cache);
+
+        // The read runs off the thread the store raised on, so the test waits for it.
+        Indexed(cache, DemoPath(2), Mirage, "sha2", MirageRows(2));
+        for (int i = 0; i < 1000 && !index.IsLoaded(DemoPath(2)); i++)
+        {
+            await Task.Delay(10);
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(index.IsLoaded(DemoPath(2))).IsTrue();
+            await Assert.That(index.DemoCount).IsEqualTo(2);
+            await Assert.That(index.Rows(SmokesIntoCt()).Count(r => r.Demo.Path == DemoPath(2))).IsGreaterThan(0);
+        }
+    }
+
     [Test]
     public async Task LineupId_IsStableAcrossAReindex_EvenWhenTheRepresentativeThrowChanges()
     {
@@ -755,6 +811,42 @@ public class GrenadeIndexTests
     }, map);
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task TheCard_DoesNotSayCopied_WhenNothingReachedTheClipboard(bool gated)
+    {
+        DemoCacheStore cache = new(null);
+        for (int n = 1; n <= 2; n++)
+        {
+            GrenadeRow row = Row("a", GrenadeKind.Smoke, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170));
+            row.ReleaseEyePitch = -18.12f;
+            row.ReleaseEyeYaw = -15.3f;
+            Indexed(cache, DemoPath(n), Mirage, $"sha{n}", [row]);
+        }
+
+        using GrenadeIndex index = Loaded(cache);
+        using UtilityBookTabViewModel vm = new(index, isBrowser: false, loadMapAsset: _ => null);
+        if (gated)
+        {
+            vm.Clipboard = _ => throw new InvalidOperationException("the host gates clipboard writes");
+        }
+
+        vm.SelectedMap = Mirage;
+        vm.ClickLanding(vm.Groups.Single().Id);
+        vm.ClickThrow(vm.Document.Throws.Single().Id);
+        LineupDetail detail = vm.Detail!;
+        await detail.CopyConsoleCommand.ExecuteAsync(null);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(detail.HasConsole).IsTrue();
+            await Assert.That(detail.CopyStatus).IsNotEqualTo("copied")
+                .Because(gated ? "the write threw" : "no view has given the tab a clipboard");
+            await Assert.That(detail.CopyStatus).IsNotEmpty().Because("the user is told to select the line instead");
+        }
+    }
+
+    [Test]
     public async Task TheCard_CopiesTheSetposSetangLine()
     {
         DemoCacheStore cache = new(null);
@@ -830,6 +922,67 @@ public class GrenadeIndexTests
                     .Because("a strat step that stored either id still resolves");
             }
         }
+    }
+
+    // The host drops the view on every deactivation and keeps the view model: a handler left on it keeps each
+    // dropped view alive, and the clipboard writer of a view model the view has moved off points at that view.
+    [Test]
+    [Category("Integration")]
+    public async Task ADetachedUtilityView_LeavesNoHandlerOnItsViewModel_NorAClipboardOnOneItMovedOff()
+    {
+        bool shown = false, dropped = true, back = false, neverShown = true, stale = true, current = false;
+        await HeadlessSession.RunOnUi(() =>
+        {
+            using GrenadeIndex index = Loaded(Library());
+            using UtilityBookTabViewModel vm = new(index, new RecordingPlayback(), isBrowser: false);
+            using UtilityBookTabViewModel other = new(index, new RecordingPlayback(), isBrowser: false);
+            UtilityBookTabView view = new() { DataContext = vm };
+            neverShown = Listens(vm, view);
+            Window window = new() { Width = 1280, Height = 860, Content = view };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            shown = Listens(vm, view) && vm.Clipboard is not null;
+
+            window.Content = null;
+            Dispatcher.UIThread.RunJobs();
+            dropped = Listens(vm, view) || vm.Clipboard is not null;
+
+            window.Content = view;
+            Dispatcher.UIThread.RunJobs();
+            back = Listens(vm, view) && vm.Clipboard is not null;
+
+            view.DataContext = other;
+            Dispatcher.UIThread.RunJobs();
+            stale = Listens(vm, view) || vm.Clipboard is not null;
+            current = Listens(other, view) && other.Clipboard is not null;
+            window.Close();
+            return Task.CompletedTask;
+        });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(neverShown).IsFalse().Because("a view not on screen listens to nothing");
+            await Assert.That(shown).IsTrue();
+            await Assert.That(dropped).IsFalse().Because("the view model outlives the view");
+            await Assert.That(back).IsTrue().Because("a view shown again listens again");
+            await Assert.That(stale).IsFalse().Because("the view moved to another view model");
+            await Assert.That(current).IsTrue();
+        }
+    }
+
+    // Whether the view is among the view model's PropertyChanged handlers (the bindings hold theirs weakly).
+    private static bool Listens(UtilityBookTabViewModel vm, UtilityBookTabView view)
+    {
+        for (Type? type = vm.GetType(); type is not null; type = type.BaseType)
+        {
+            if (type.GetField(nameof(vm.PropertyChanged), BindingFlags.Instance | BindingFlags.NonPublic
+                                                           | BindingFlags.DeclaredOnly)?.GetValue(vm) is Delegate handlers)
+            {
+                return handlers.GetInvocationList().Any(h => ReferenceEquals(h.Target, view));
+            }
+        }
+
+        return false;
     }
 
     [Test]
@@ -933,6 +1086,51 @@ public class GrenadeIndexTests
         }
 
         return count;
+    }
+
+    // Hands back the rows it read, then lets a test change the store before the reader goes on.
+    private sealed class RacingData(MemoryDemoData inner) : IExtensionDemoData
+    {
+        public Action? AfterFirstRead { get; set; }
+
+        public bool IsAvailable => inner.IsAvailable;
+
+        public event Action<string?>? Changed
+        {
+            add => inner.Changed += value;
+            remove => inner.Changed -= value;
+        }
+
+        public DemoDataStamp? Stamp(string demoPath, string facet) => inner.Stamp(demoPath, facet);
+
+        public IReadOnlyList<DemoDataStamp> Stamps(string facet) => inner.Stamps(facet);
+
+        public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null)
+        {
+            byte[]? read = inner.Read(demoPath, facet, schema, fingerprint, part);
+            if (AfterFirstRead is { } then)
+            {
+                AfterFirstRead = null;
+                then();
+            }
+
+            return read;
+        }
+
+        public DemoDataRecord? ReadAny(string demoPath, string facet, string? part = null) =>
+            inner.ReadAny(demoPath, facet, part);
+
+        public DemoDataStamp? Write(string demoPath, DemoDataWrite write) => inner.Write(demoPath, write);
+
+        public void MarkFailed(string demoPath, string facet) => inner.MarkFailed(demoPath, facet);
+
+        public void ClearFailed(string demoPath, string facet) => inner.ClearFailed(demoPath, facet);
+
+        public void Invalidate(string facet, string? demoPath = null) => inner.Invalidate(facet, demoPath);
+
+        public void SetCount(string demoPath, string facet, int count) => inner.SetCount(demoPath, facet, count);
+
+        public void Delete(string demoPath, string facet) => inner.Delete(demoPath, facet);
     }
 
     private sealed class SwitchableZones(IZonePlaceResolver current) : IZonePlaceResolverSource

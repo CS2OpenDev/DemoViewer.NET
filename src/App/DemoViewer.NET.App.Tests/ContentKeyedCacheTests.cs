@@ -640,7 +640,7 @@ public class ContentKeyedCacheTests
             await Assert.That(store.LoadRecords().Select(r => r.Path))
                 .IsEquivalentTo(["/m/x.dem", "/m/y.dem"]);
             await Assert.That(store.TryGetPrimary("/n/x.dem")!.Path).IsEqualTo("/m/x.dem");
-            await Assert.That(store.TryGetPrimary("/n/X.DEM")).IsSameReferenceAs(store.TryGetPrimary("/m/x.dem"));
+            await Assert.That(store.TryGetPrimary(PathCase.Other("/n/x.dem"))).IsSameReferenceAs(store.TryGetPrimary("/m/x.dem"));
             await Assert.That(store.TryGetPrimary("/m/z.dem")).IsNull();
         }
     }
@@ -656,11 +656,11 @@ public class ContentKeyedCacheTests
         using (Assert.Multiple())
         {
             await Assert.That(store.DemoKeyOf("/n/x.dem")).IsEqualTo("sha-x");
-            await Assert.That(store.DemoKeyOf("/M/X.dem")).IsEqualTo("sha-x");
+            await Assert.That(store.DemoKeyOf(PathCase.Other("/m/x.dem"))).IsEqualTo("sha-x");
             await Assert.That(store.DemoKeyOf("/m/y.dem")).IsEqualTo("/m/y.dem");
             await Assert.That(store.DemoKeyOf("/m/z.dem")).IsEqualTo("/m/z.dem");
             await Assert.That(store.SameDemo("/n/x.dem", "/m/x.dem")).IsTrue();
-            await Assert.That(store.SameDemo("/m/y.dem", "/M/Y.dem")).IsTrue();
+            await Assert.That(store.SameDemo("/m/y.dem", PathCase.Other("/m/y.dem"))).IsTrue();
             await Assert.That(store.SameDemo("/m/x.dem", "/m/y.dem")).IsFalse();
         }
 

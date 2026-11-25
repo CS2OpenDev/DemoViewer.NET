@@ -55,18 +55,29 @@ internal sealed class PanZoomHandler
         return false;
     }
 
-    internal bool OnPointerWheelChanged(Control control, PointerWheelEventArgs e)
+    internal bool OnPointerWheelChanged(Control control, PointerWheelEventArgs e, double originX, double originY) =>
+        ZoomAbout(e.GetPosition(control), originX, originY, e.Delta.Y > 0 ? 1.15 : 1 / 1.15);
+
+    /// <summary>
+    ///     Zooms by <paramref name="factor" />, keeping what is under <paramref name="anchor" /> under it.
+    ///     <para>
+    ///         The view draws at <c>screen = pan + origin + logical * baseScale * zoom</c>. The origin is
+    ///         where the layout starts at zero pan (its letterbox centring), and it does not scale with
+    ///         the zoom, so the anchor is taken relative to it. Solving without it moves the point under
+    ///         the cursor by <c>origin * (ratio - 1)</c> on every notch.
+    ///     </para>
+    /// </summary>
+    internal bool ZoomAbout(Point anchor, double originX, double originY, double factor)
     {
-        double factor = e.Delta.Y > 0 ? 1.15 : 1 / 1.15;
         double newZoom = Math.Clamp(Zoom * factor, 0.15, 5.0);
         if (Math.Abs(newZoom - Zoom) < 1e-10)
         {
             return false;
         }
 
-        Point pos = e.GetPosition(control);
-        PanX = pos.X - (pos.X - PanX) * (newZoom / Zoom);
-        PanY = pos.Y - (pos.Y - PanY) * (newZoom / Zoom);
+        double ratio = newZoom / Zoom;
+        PanX = anchor.X - originX - (anchor.X - originX - PanX) * ratio;
+        PanY = anchor.Y - originY - (anchor.Y - originY - PanY) * ratio;
         Zoom = newZoom;
         return true;
     }

@@ -558,8 +558,16 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         // maths (tickRate / tickCount / rounds) no longer exists, and the plan would silently be wrong.
         List<HighlightSelection> restored = [];
         int dropped = 0;
-        foreach (StagedClipState clip in s.StagedClips ?? [])
+        foreach (StagedClipState? clip in s.StagedClips ?? [])
         {
+            // A null element or a null path binds from a hand-edited or corrupt session file without a
+            // JsonException; it names no clip, so it is dropped like a vanished one.
+            if (clip?.FilePath is null)
+            {
+                dropped++;
+                continue;
+            }
+
             if (Resolve(new HighlightKey(clip.FilePath, clip.RulesetId, clip.HighlightId, clip.Tick,
                     clip.PlayerSlot)) is { } selection)
             {
@@ -1000,8 +1008,12 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         DemoCacheRecord record = selection.Record;
         CachedHighlightEvent h = selection.Highlight;
         int rate = record.TickRate > 0 ? record.TickRate : 64;
+        // Floored at the round start only when the reel is: that option is off by default.
+        int? roundStart = ReelConfig.DontCrossRoundStart
+            ? ClipWindows.RoundStartFor(record.Rounds.ToClipRounds(), h.Tick)
+            : null;
         (long start, long end) = ClipWindows.Compute(
-            h.Tick, ClipWindows.RoundStartFor(record.Rounds.ToClipRounds(), h.Tick), rate,
+            h.Tick, roundStart, rate,
             ReelConfig.LeadInSeconds, ReelConfig.LeadOutSeconds, record.TickCount, 0, h.ClipStartTick);
         return ReviewEntry.Clip(record.Path, (int)start, (int)end, h.RenderedTitle, ReviewSources.Highlight,
             rate, record.Sha256, new ReviewHighlightRef(h.RulesetId, h.HighlightId, h.Tick, h.PlayerSlot));
@@ -1076,5 +1088,5 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     }
 
     private string GroupKeyOf(HighlightKey key) =>
-        ClipTrayKeys.Group(key.FilePath, _selection.GetValueOrDefault(key)?.SteamId64);
+        ClipTrayKeys.Group(key.FilePath, _selection.GetValueOrDefault(key)?.PlayerKey);
 }

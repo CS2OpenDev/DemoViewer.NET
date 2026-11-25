@@ -1,5 +1,6 @@
 #region
 
+using Avalonia.Rendering.Composition;
 using Avalonia.Threading;
 using CS2DemoKit.Analysis.Visibility;
 using DemoViewer.NET.Playback2D;
@@ -14,8 +15,10 @@ namespace DemoViewer.NET.Modules.Playback2D;
 
 /// <summary>
 ///     The one map-bundle registry in the process: one decode per map however many tabs, views and
-///     extensions hold it. Callable from any thread. The last release disposes the bundle one dispatcher hop
-///     later, because the render thread may still be replaying a picture that draws its radar images.
+///     extensions hold it. Callable from any thread. The last release disposes the bundle only once the
+///     render thread has rendered a composition batch committed after it: a draw operation already queued
+///     there may still hold a level whose radar images the bundle owns, and on a cache miss it re-records
+///     from them. A disposed image handed to Skia is an access violation, not an exception.
 ///     <para>
 ///         An entry is dropped from the registry as its last hold ends, not when the deferred dispose runs,
 ///         so a map re-acquired in that window decodes afresh rather than resurrecting a bundle on its way
@@ -104,14 +107,47 @@ internal static class MapBundleLeases
 
         if (bundle is not null)
         {
-            Dispatcher.UIThread.Post(bundle.Dispose, DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(() => DisposeAfterRender(bundle), DispatcherPriority.Background);
         }
+    }
+
+    // On the UI thread, after the render pass this release rode in on: the host that let the bundle go has
+    // already committed the frame that no longer draws it. A batch requested now is rendered after that one,
+    // so once it has been, no queued operation still reaches the old images. With no shared compositor (the
+    // browser head, a test with no platform) the dispatcher hop is all there is, as before.
+    private static void DisposeAfterRender(LoadedMapAsset bundle)
+    {
+        Task rendered;
+        try
+        {
+            if (Compositor.TryGetDefaultCompositor() is not { } compositor)
+            {
+                bundle.Dispose();
+                return;
+            }
+
+            rendered = compositor.RequestCompositionBatchCommitAsync().Rendered;
+        }
+        catch (InvalidOperationException)
+        {
+            bundle.Dispose();
+            return;
+        }
+
+        _ = rendered.ContinueWith(_ => Dispatcher.UIThread.Post(bundle.Dispose, DispatcherPriority.Background),
+            CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
     private static LoadedMapAsset? Decode(string map)
     {
         // The overlay lives under the config root, which only the App knows, and the bundle reads zones
         // lazily and off the UI thread, so the directory has to be in place before the Lazy publishes.
+        // The map name is the demo header's; one that is not a plain folder name has no bundle.
+        if (!PathSafety.IsMapFolderName(map))
+        {
+            return null;
+        }
+
         string? dir = MapAssetBundleReader.FindBundleDirectory(map);
         if (dir is null || MapAssetPipeline.TryLoadFromDirectory(dir, AppPaths.ZonesDirectory) is not { } bundle)
         {

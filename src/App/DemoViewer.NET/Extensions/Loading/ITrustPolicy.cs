@@ -97,6 +97,23 @@ public static class TrustPolicy
     }
 
     /// <summary>
+    ///     <see cref="ForLaunch(bool)" /> over a setting read again at every judgement. For a judge that outlives
+    ///     one reading of the setting: the updater stages for the next launch, which reads the setting as it is
+    ///     then, not as it was when the updater was built.
+    /// </summary>
+    public static ITrustPolicy ForLaunch(Func<bool> allowUnverified) =>
+        ForLaunch(allowUnverified, static name => Environment.GetEnvironmentVariable(name));
+
+    /// <summary><see cref="ForLaunch(Func{bool})" /> over an injected environment.</summary>
+    public static ITrustPolicy ForLaunch(Func<bool> allowUnverified, Func<string, string?> getEnvironmentVariable)
+    {
+        ArgumentNullException.ThrowIfNull(allowUnverified);
+        ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
+        return new LiveLaunchPolicy(allowUnverified, ForLaunch(false, getEnvironmentVariable),
+            ForLaunch(true, getEnvironmentVariable));
+    }
+
+    /// <summary>
     ///     <see cref="SignedTrustPolicy" /> over <paramref name="publisherKeysBase64Spki" />, falling back
     ///     to <see cref="UnsignedOptIn" /> when nothing in that list verifies the directory. On a full
     ///     refusal the reported reason is the signing failure's, not the opt-in's, since that is the one a
@@ -121,6 +138,15 @@ public static class TrustPolicy
     {
         public bool IsTrusted(string directory, ExtensionManifest manifest) =>
             string.Equals(getEnvironmentVariable(TrustUnsignedEnvVar)?.Trim(), "1", StringComparison.Ordinal);
+    }
+
+    private sealed class LiveLaunchPolicy(Func<bool> allowUnverified, ITrustPolicy off, ITrustPolicy on)
+        : ITrustPolicy
+    {
+        public bool IsTrusted(string directory, ExtensionManifest manifest) => Judge(directory, manifest).Trusted;
+
+        public TrustVerdict Judge(string directory, ExtensionManifest manifest) =>
+            (allowUnverified() ? on : off).Judge(directory, manifest);
     }
 
     private sealed class SignedOrOptInPolicy(ITrustPolicy signed, ITrustPolicy optIn) : ITrustPolicy

@@ -200,7 +200,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     public Action? OnSeekCompleted { get; set; }
 
     /// <summary>
-    ///     Optional callback that runs at the end of every seek. MainViewModel uses it
+    ///     Optional callback that runs at the end of every seek a newer seek did not supersede.
+    ///     MainViewModel uses it
     ///     to clear <c>Debugger.Suppress</c> (the JumpToHitFrame helper sets this so
     ///     the back-navigation seek doesn't re-fire the same breakpoint).
     /// </summary>
@@ -263,7 +264,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             RebuildEntities(tracker);
         }
 
-        AutoSelectFirstChangedEntity();
+        AutoSelectFirstChangedEntity(tracker);
 
         OnSeekCompleted?.Invoke();
 
@@ -295,15 +296,24 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     {
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
+        // Taken now: the next seek disposes this source, and Token throws once it has.
+        CancellationToken token = cts.Token;
         SeekCts = cts;
         oldCts?.Cancel();
         oldCts?.Dispose();
 
         try
         {
-            await Task.Delay(150, cts.Token);
+            await Task.Delay(150, token);
         }
         catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // The delay may have finished before a newer seek cancelled this one, with the continuation
+        // still queued behind it on the UI thread.
+        if (token.IsCancellationRequested)
         {
             return;
         }
@@ -325,7 +335,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                     "EntityTrackingTabViewModel.SeekService must be wired before SeekEntitiesAsync.");
             }
 
-            SeekResult result = await Task.Run(() => SeekService.SeekToFrame(frameIndex, frames), cts.Token);
+            SeekResult result = await Task.Run(() => SeekService.SeekToFrame(frameIndex, frames), token);
 
             if (cts.IsCancellationRequested)
             {
@@ -348,7 +358,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 RebuildEntities(tracker);
             }
 
-            AutoSelectFirstChangedEntity();
+            AutoSelectFirstChangedEntity(tracker);
 
             OnSeekCompleted?.Invoke();
 
@@ -373,7 +383,12 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 IsSeekingEntities = false;
             }
 
-            OnSeekFinally?.Invoke();
+            // Cancelling does not stop a replay already running, so a superseded seek can land here while
+            // the newer one is still replaying; only a seek nothing newer replaced may end the pipeline.
+            if (SeekCts is null || ReferenceEquals(SeekCts, cts))
+            {
+                OnSeekFinally?.Invoke();
+            }
         }
     }
 
@@ -387,15 +402,24 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     {
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
+        // Taken now: the next seek disposes this source, and Token throws once it has.
+        CancellationToken token = cts.Token;
         SeekCts = cts;
         oldCts?.Cancel();
         oldCts?.Dispose();
 
         try
         {
-            await Task.Delay(150, cts.Token);
+            await Task.Delay(150, token);
         }
         catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // The delay may have finished before a newer seek cancelled this one, with the continuation
+        // still queued behind it on the UI thread.
+        if (token.IsCancellationRequested)
         {
             return;
         }
@@ -418,7 +442,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             }
 
             SeekResult result = await Task.Run(
-                () => SeekService.SeekToFrameNoSnapshot(frameIndex, frames), cts.Token);
+                () => SeekService.SeekToFrameNoSnapshot(frameIndex, frames), token);
 
             if (cts.IsCancellationRequested)
             {
@@ -439,7 +463,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 RebuildEntities(tracker);
             }
 
-            AutoSelectFirstChangedEntity();
+            AutoSelectFirstChangedEntity(tracker);
 
             OnSeekCompleted?.Invoke();
 
@@ -464,7 +488,12 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 IsSeekingEntities = false;
             }
 
-            OnSeekFinally?.Invoke();
+            // Cancelling does not stop a replay already running, so a superseded seek can land here while
+            // the newer one is still replaying; only a seek nothing newer replaced may end the pipeline.
+            if (SeekCts is null || ReferenceEquals(SeekCts, cts))
+            {
+                OnSeekFinally?.Invoke();
+            }
         }
     }
 
@@ -477,15 +506,24 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     {
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
+        // Taken now: the next seek disposes this source, and Token throws once it has.
+        CancellationToken token = cts.Token;
         SeekCts = cts;
         oldCts?.Cancel();
         oldCts?.Dispose();
 
         try
         {
-            await Task.Delay(150, cts.Token);
+            await Task.Delay(150, token);
         }
         catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // The delay may have finished before a newer seek cancelled this one, with the continuation
+        // still queued behind it on the UI thread.
+        if (token.IsCancellationRequested)
         {
             return;
         }
@@ -513,7 +551,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             SeekResult result = await Task.Run(
                 () => SeekService.SeekToFrameWithSnapshotAt(snapshotAt, endFrameIdx, takeSnapshot, frames),
-                cts.Token);
+                token);
 
             if (cts.IsCancellationRequested)
             {
@@ -536,7 +574,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 RebuildEntities(tracker);
             }
 
-            AutoSelectFirstChangedEntity();
+            AutoSelectFirstChangedEntity(tracker);
 
             EntityStatusText = tracker.LastEntityError is { } err
                 ? $"⚠ {err}"
@@ -559,7 +597,12 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 IsSeekingEntities = false;
             }
 
-            OnSeekFinally?.Invoke();
+            // Cancelling does not stop a replay already running, so a superseded seek can land here while
+            // the newer one is still replaying; only a seek nothing newer replaced may end the pipeline.
+            if (SeekCts is null || ReferenceEquals(SeekCts, cts))
+            {
+                OnSeekFinally?.Invoke();
+            }
         }
     }
 
@@ -576,18 +619,19 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         ClassBrowser.Filter is { Length: > 0 } f ? f : null,
         false);
 
-    private void AutoSelectFirstChangedEntity()
+    private void AutoSelectFirstChangedEntity(EntityTracker tracker)
     {
-        if (FirstChangedEntity is null)
+        object? selectedBefore = SelectedEntityItem;
+        if (FirstChangedEntity is not null)
         {
-            return;
+            EntityListItem? item = EntityListItems.FirstOrDefault(i => i.Entity == FirstChangedEntity);
+            if (item is not null)
+            {
+                SelectedEntityListItem = item;
+            }
         }
 
-        EntityListItem? item = EntityListItems.FirstOrDefault(i => i.Entity == FirstChangedEntity);
-        if (item is not null)
-        {
-            SelectedEntityListItem = item;
-        }
+        RefreshRetainedSelection(tracker, selectedBefore);
     }
 
     /// <summary>
@@ -616,6 +660,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
     private void RebuildEntities(EntityTracker tracker)
     {
+        // No snapshot, so nothing changed: the entity a previous delta rebuild picked must not be re-selected.
+        FirstChangedEntity = null;
         HasEntities = LiveEntities(tracker).Any();
         RebuildEntityListItems(tracker, null);
     }
@@ -795,6 +841,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         {
             RebuildEntities(tracker);
         }
+
+        RefreshRetainedSelection(tracker, SelectedEntityItem);
     }
 
     private void ApplyClassFilterToNodes()
@@ -885,10 +933,41 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         }
     }
 
-    partial void OnSelectedEntityItemChanged(object? value)
+    partial void OnSelectedEntityItemChanged(object? value) => ShowSelectedEntity(value, false);
+
+    /// <summary>
+    ///     Re-projects the selected entity after a rebuild that kept the selection. The tracker mutates an
+    ///     <see cref="EntityState" /> in place, so a step or the pause snap leaves the same reference selected and
+    ///     the changed handler never runs; without this the panel keeps the values from the tick it was picked at.
+    ///     An entity the rebuilt tracker no longer holds is deselected instead.
+    /// </summary>
+    private void RefreshRetainedSelection(EntityTracker tracker, object? selectedBefore)
+    {
+        if (SelectedEntityItem is not EntityState entity || !ReferenceEquals(entity, selectedBefore))
+        {
+            return; // Nothing selected, or the rebuild's auto-select already showed a new entity.
+        }
+
+        foreach ((int _, EntityState e) in tracker.CurrentEntities.AllIndexed())
+        {
+            if (ReferenceEquals(e, entity))
+            {
+                ShowSelectedEntity(entity, true);
+                return;
+            }
+        }
+
+        SelectedEntityItem = null;
+    }
+
+    private void ShowSelectedEntity(object? value, bool keepDeltaFilter)
     {
         AllEntityFieldNodes = null;
-        ShowDeltaFieldsOnly = false;
+        if (!keepDeltaFilter)
+        {
+            ShowDeltaFieldsOnly = false;
+        }
+
         EntityFieldNodes.Clear();
         EntityFieldRows = [];
         EntityHeaderText = "";

@@ -35,6 +35,7 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
     private readonly Func<(ParsedDemo? Demo, string? Path)>? _openDemo;
     private readonly MergedRulesBuild? _rules;
     private DemoErrorReportSnapshot _snapshot = new();
+    private bool _closing;
 
     /// <summary>
     ///     Design-time instance for <c>Design.DataContext</c>, the capture variants and the view tests.
@@ -61,6 +62,7 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
             + "one tick early, so the explosion is attributed to round 15.\n\nAlso s1mple's 4k in round 9 shows "
             + "as a 3k in the scoreboard but the highlight on the overview says 4k.";
         DiagnosticGroups = DesignGroups();
+        IsDirty = false;
     }
 
     /// <param name="demoPath">The demo this report is about. May not be the demo the shell has open.</param>
@@ -98,6 +100,9 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
         LastSavedText = stored is { UpdatedUtcTicks: > 0 } u ? "Last saved " + Local(u.UpdatedUtcTicks) : "";
 
         Recapture(record);
+
+        // Assigning the stored notes above raised OnNotesChanged; loading is not an edit.
+        IsDirty = false;
     }
 
     /// <summary>The demo's file name: the report's headline identity.</summary>
@@ -123,6 +128,17 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
     /// <summary>When the report was first started, in words. Empty for a report that does not exist yet.</summary>
     [ObservableProperty]
     private string _createdText = "";
+
+    /// <summary>
+    ///     True when the notes have been edited since they were loaded or last saved. The window host reads it
+    ///     before replacing or closing the window, because the notes live nowhere else until Save.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isDirty;
+
+    /// <summary>True while the discard-or-keep prompt is up, after a close was asked for with unsaved notes.</summary>
+    [ObservableProperty]
+    private bool _isClosePromptOpen;
 
     /// <summary>When it was last saved, in words.</summary>
     [ObservableProperty]
@@ -182,6 +198,7 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
             }
 
             IsExistingReport = true;
+            IsDirty = false;
             LastSavedText = "Last saved " + Local(now.ToUniversalTime().Ticks);
 
             // An empty CreatedText means there was no stored report, so this save is its creation.
@@ -212,12 +229,52 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
 
     private static bool CanSubmitForReview() => false;
 
-    /// <summary>Closes the window. Does not save: the footer's Save is the explicit act.</summary>
+    /// <summary>
+    ///     Closes the window, asking first when there are unsaved notes. Does not save: the footer's Save is
+    ///     the explicit act.
+    /// </summary>
     [RelayCommand]
-    private void Close() => CloseRequested?.Invoke(this, EventArgs.Empty);
+    private void Close()
+    {
+        if (TryClose())
+        {
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>
+    ///     Asks to close. Returns true when the window may close now; false when the discard prompt is up, and
+    ///     the window closes later through <see cref="CloseRequested" /> if the user lets it.
+    /// </summary>
+    public bool TryClose()
+    {
+        if (!IsDirty || _closing)
+        {
+            _closing = true;
+            return true;
+        }
+
+        IsClosePromptOpen = true;
+        return false;
+    }
+
+    /// <summary>Tells the user why a report for another demo was not opened over this one.</summary>
+    public void NoteOpenBlocked() => StatusText = "Save or close the open report first.";
+
+    [RelayCommand]
+    private void DiscardAndClose()
+    {
+        _closing = true;
+        IsClosePromptOpen = false;
+        CloseRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void KeepEditing() => IsClosePromptOpen = false;
 
     partial void OnNotesChanged(string value)
     {
+        IsDirty = true;
         OnPropertyChanged(nameof(CopyDiagnosticsText));
         StatusText = "";
     }

@@ -13,8 +13,9 @@ public readonly record struct FloorSlice(double MinZ, double MaxZ)
 
 /// <summary>
 ///     Heuristic multi-floor (Z) splitter. Buckets observed player Z values into a running
-///     histogram and finds clusters separated by an empty-bucket gap ≥ G (a player can't span floors within
-///     one tick). Each cluster is a <see cref="FloorSlice" />, ordered low→high. A single cluster ⇒ one
+///     histogram and finds dwell peaks separated by a density valley (an empty-gap rule merges Nuke's two
+///     floors once stair traffic fills the gap; see <c>ComputeSlices</c>). Each cluster is a
+///     <see cref="FloorSlice" />, ordered low→high. A single cluster ⇒ one
 ///     slice (the common case). Metadata-free: when per-map Z thresholds arrive they replace the
 ///     heuristic boundaries, same slice abstraction.
 ///     <para>
@@ -27,6 +28,10 @@ internal sealed class FloorSplitter
     // 3.4e38 ≈ float.MaxValue is the engine's "unused section" sentinel; anything at/above this (and 0 for
     // unused trailing slots) is not a real boundary.
     private const double SectionSentinel = 3.0e38;
+
+    // Well past any playable Z (the Source 2 world is +-16384 units), and small enough that the dense
+    // histogram over the whole range stays a few thousand buckets.
+    private const double MaxAbsZ = 1e5;
 
     // Peak-and-valley tuning (#1). A floor is a DWELL PEAK holding ≥ this fraction of all observed Z samples
     // (filters transient catwalk/box-jump noise). Nuke's lightly-used upper floor is ~5% of samples, so this
@@ -85,18 +90,13 @@ internal sealed class FloorSplitter
 
     /// <summary>Creates a splitter. A non-positive argument takes its default.</summary>
     /// <param name="bucketWidth">The Z histogram bucket width, in world units.</param>
-    /// <param name="gapThreshold">The empty Z span, in world units, that separates two floors.</param>
-    public FloorSplitter(double bucketWidth = 64, double gapThreshold = 180)
+    public FloorSplitter(double bucketWidth = 64)
     {
         BucketWidth = bucketWidth > 0 ? bucketWidth : 64;
-        GapThreshold = gapThreshold > 0 ? gapThreshold : 180;
     }
 
     /// <summary>Histogram bucket width in world units (fixed, e.g. 64u).</summary>
     private double BucketWidth { get; }
-
-    /// <summary>Minimum empty-Z gap (world units) that separates two floors (e.g. ~180u).</summary>
-    public double GapThreshold { get; }
 
     /// <summary>True when authoritative (bundle-supplied) floor bands are in force (histogram bypassed).</summary>
     public bool HasAuthoritativeFloors => _authoritativeFloors is { Count: > 0 };
@@ -253,13 +253,18 @@ internal sealed class FloorSplitter
         return true;
     }
 
-    /// <summary>Folds one observed Z value into the running histogram. Non-finite samples are ignored.</summary>
+    /// <summary>
+    ///     Folds one observed Z value into the running histogram. Non-finite samples, and samples further
+    ///     from 0 than any map reaches, are ignored.
+    /// </summary>
     public void Observe(double z)
     {
         // (int)Math.Floor(NaN / w) is 0 under .NET's saturating conversions, so an unfiltered bad sample
         // does not throw. It invents a phantom dwell band at Z ∈ [0, BucketWidth) and can split a
-        // single-floor map in two.
-        if (!double.IsFinite(z))
+        // single-floor map in two. A finite but wild Z is worse: the histogram is a dense array over the
+        // observed bucket extent, so 1e10 sizes it at gigabytes, and 1e12 saturates the bucket index and
+        // wraps the extent negative so every Slices read throws until Reset.
+        if (!double.IsFinite(z) || Math.Abs(z) > MaxAbsZ)
         {
             return;
         }

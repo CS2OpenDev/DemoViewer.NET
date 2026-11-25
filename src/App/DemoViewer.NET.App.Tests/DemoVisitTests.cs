@@ -544,6 +544,42 @@ public class DemoVisitTests
         await Assert.That(ran).IsEquivalentTo(["grenades", "highlights"], CollectionOrdering.Matching);
     }
 
+    [Test]
+    public async Task APassThatRunsOutOfMemory_StillEndsItsVisit_AndTheLaneMovesOn()
+    {
+        List<(string, PassOutcome)> ended = [];
+        using DemoProcessingQueue queue = Queue();
+        FakePass broken = new("broken") { OnRun = _ => throw new InsufficientMemoryException("no room for the run") };
+        FakePass behind = new("behind", "broken");
+
+        IDemoQueueHandle visit = queue.SubmitVisit(Visit(PassLevel.Background,
+            (p, outcome, _) =>
+            {
+                lock (ended)
+                {
+                    ended.Add((p.Id, outcome));
+                }
+            }, broken, behind));
+        await visit.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        bool jobRan = false;
+        IDemoQueueHandle job = queue.SubmitJob(new QueueJobRequest(QueueJobKind.PackExport, "user", "test",
+            DemoJobPriority.UserRequested, _ =>
+            {
+                jobRan = true;
+                return Task.CompletedTask;
+            }));
+        await job.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(visit.State).IsEqualTo(DemoQueueItemState.Failed);
+            await Assert.That(ended).IsEquivalentTo(
+                [("broken", PassOutcome.Failed), ("behind", PassOutcome.Failed)], CollectionOrdering.Matching)
+                .Because("every submitter hears its pass ended, or the scheduler never plans it again");
+            await Assert.That(jobRan).IsTrue().Because("a visit left Running holds every other heavy job off");
+        }
+    }
+
     private sealed class FakePass(string id, params string[] after) : IDemoPass
     {
         public List<string> Ran { get; init; } = [];

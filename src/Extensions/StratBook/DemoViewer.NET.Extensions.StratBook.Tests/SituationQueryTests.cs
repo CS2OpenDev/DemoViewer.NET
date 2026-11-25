@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -353,6 +354,40 @@ public class SituationQueryTests
         h.Dispose();
     }
 
+    // A Library Transfer import stamps a written sidecar with no evaluator write behind it, so Written never comes;
+    // the store's own Changed is the only word the index gets.
+    [Test]
+    public async Task ASidecarWrittenWithNoEvaluatorWrite_JoinsTheLoadedIndex_WithNoIndexedEvent()
+    {
+        using Harness h = new(null, null);
+        Indexed(h.Cache, h.Sidecars, DemoA, DocA());
+        h.Index.Load();
+        List<RoundIndexedEvent> indexed = [];
+        int changed = 0;
+        h.Index.Indexed += indexed.Add;
+        h.Index.Changed += () => Interlocked.Increment(ref changed);
+
+        // The read runs off the thread the store raised on, so the test waits for it.
+        Indexed(h.Cache, h.Sidecars, DemoB, DocB());
+        for (int i = 0; i < 1000 && h.Index.IndexedDemoCount < 2; i++)
+        {
+            await Task.Delay(10);
+        }
+
+        for (int i = 0; i < 100 && Volatile.Read(ref changed) == 0; i++)
+        {
+            await Task.Delay(10);
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(h.Index.IndexedDemoCount).IsEqualTo(2);
+            await Assert.That(h.Index.IndexedAtTicks(DemoB)).IsGreaterThan(0);
+            await Assert.That(Volatile.Read(ref changed)).IsGreaterThan(0);
+            await Assert.That(indexed).IsEmpty().Because("a fill is a restart's load, not a new write to watch");
+        }
+    }
+
     [Test]
     public async Task AStaleFingerprint_StillLoads_AndIsCounted()
     {
@@ -493,6 +528,83 @@ public class SituationQueryTests
             .. Enumerable.Range(0, count)
                 .Select(_ => new PlaceQuery(places[random.Next(places.Length)], random.Next(1, 4)))
         ];
+    }
+
+    // The evaluator rewrites a demo's sidecar and merges it while Load is between reading the old file and
+    // installing it: the rows the evaluator installed are the newer ones, and Load must not replace them.
+    [Test]
+    public async Task ALoadThatReadTheOldSidecar_DoesNotReplaceTheRowsOfANewerWrite()
+    {
+        DemoCacheStore cache = new(null);
+        MemoryDemoData memory = cache.Data();
+        RacingData racing = new(memory);
+        RoundIndexDocument older = Document("de_nuke", _fingerprint,
+            (1, 5000, 9000, [new RoundIndexRun(0, 2, "BombsiteA:4|Outside:1", "Lobby:5")]));
+        RoundIndexDocument newer = Document("de_nuke", _fingerprint,
+            (1, 5000, 9000, [new RoundIndexRun(0, 2, "Hell:5", "Lobby:5")]));
+        Indexed(cache, new RoundIndexStore(memory), DemoA, older, computedAt: 100);
+        using SituationIndex index = new(cache.Library(), new RoundIndexStore(racing),
+            new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn));
+        racing.AfterFirstRead = () =>
+        {
+            Indexed(cache, new RoundIndexStore(memory), DemoA, newer, computedAt: 200);
+            index.Load();
+        };
+
+        index.Load();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(index.Count(Q("de_nuke", ct: [new PlaceQuery("Hell", 5)]))).IsEqualTo(1);
+            await Assert.That(index.Count(Q("de_nuke", ct: [new PlaceQuery("BombsiteA", 4)]))).IsEqualTo(0)
+                .Because("the sidecar those rows came from was superseded before they were installed");
+            await Assert.That(index.IndexedDemoCount).IsEqualTo(1);
+        }
+    }
+
+    // Hands back what it read, then lets a test change the store before the reader goes on.
+    private sealed class RacingData(MemoryDemoData inner) : IExtensionDemoData
+    {
+        public Action? AfterFirstRead { get; set; }
+
+        public bool IsAvailable => inner.IsAvailable;
+
+        public event Action<string?>? Changed
+        {
+            add => inner.Changed += value;
+            remove => inner.Changed -= value;
+        }
+
+        public DemoDataStamp? Stamp(string demoPath, string facet) => inner.Stamp(demoPath, facet);
+
+        public IReadOnlyList<DemoDataStamp> Stamps(string facet) => inner.Stamps(facet);
+
+        public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null) =>
+            inner.Read(demoPath, facet, schema, fingerprint, part);
+
+        public DemoDataRecord? ReadAny(string demoPath, string facet, string? part = null)
+        {
+            DemoDataRecord? read = inner.ReadAny(demoPath, facet, part);
+            if (part is null && AfterFirstRead is { } then)
+            {
+                AfterFirstRead = null;
+                then();
+            }
+
+            return read;
+        }
+
+        public DemoDataStamp? Write(string demoPath, DemoDataWrite write) => inner.Write(demoPath, write);
+
+        public void MarkFailed(string demoPath, string facet) => inner.MarkFailed(demoPath, facet);
+
+        public void ClearFailed(string demoPath, string facet) => inner.ClearFailed(demoPath, facet);
+
+        public void Invalidate(string facet, string? demoPath = null) => inner.Invalidate(facet, demoPath);
+
+        public void SetCount(string demoPath, string facet, int count) => inner.SetCount(demoPath, facet, count);
+
+        public void Delete(string demoPath, string facet) => inner.Delete(demoPath, facet);
     }
 
     private sealed class Harness : IDisposable

@@ -1,5 +1,6 @@
 #region
 
+using System.Globalization;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
@@ -143,14 +144,19 @@ public sealed class OpeningTendenciesService
             }
 
             Dictionary<int, string> names = [];
+            Dictionary<int, string> steamIds = [];
             foreach (LibraryPlayer player in detail.Players)
             {
                 names[player.Slot] = DisplayText.Sanitize(player.Name);
+                if (player.SteamId64 != 0)
+                {
+                    steamIds[player.Slot] = player.SteamId64.ToString(CultureInfo.InvariantCulture);
+                }
             }
 
             HashSet<string> roster = new(assignment.Side(endSide).Key, StringComparer.Ordinal);
             DemoContext context = new(demo.Path, record.Sha256, rate, names, grenades.Count > 0 ? grenades : null,
-                positions, roster);
+                positions, roster, steamIds);
             foreach (RoundFacts round in rows.Rounds.OrderBy(x => x.Number))
             {
                 if (!round.IsLive || _teams.SideAtRound(demo.Path, teamId, round.Number) is not { } side)
@@ -314,7 +320,8 @@ public sealed class OpeningTendenciesService
         IReadOnlyDictionary<int, string> Names,
         IReadOnlyList<IndexedGrenade>? Grenades,
         RoundPositionsDocument? Positions,
-        IReadOnlySet<string>? Roster = null)
+        IReadOnlySet<string>? Roster = null,
+        IReadOnlyDictionary<int, string>? SteamIds = null)
     {
         // The team's own players by SteamID; the side at the throw only when the row names no player.
         public bool Throws(IndexedGrenade g, int side) =>
@@ -386,6 +393,11 @@ public sealed class OpeningTendenciesService
         private readonly Buckets _lurkers = new();
         private readonly List<LurkSample> _lurkSamples = [];
         private readonly List<TendencyRound> _rounds = [];
+
+        // Entries per site and lurks by SteamID: names change between demos, the account does not.
+        private readonly Dictionary<string, (Dictionary<string, int> EntrySites, int Lurks)> _players =
+            new(StringComparer.Ordinal);
+
         private readonly Buckets _sites = new();
         private readonly Buckets _utilityClock = new();
         private readonly Buckets _utilityPlaces = new();
@@ -451,6 +463,11 @@ public sealed class OpeningTendenciesService
                 _entry.Add($"{NameOf(demo, duel.Slot)} at {site}",
                     Clip(demo, round, duel.Kill.Tick - ClipLeadSeconds * rate,
                         duel.Kill.Tick + ClipTailSeconds * rate));
+                if (demo.SteamIds?.GetValueOrDefault(duel.Slot) is { } steamId)
+                {
+                    Dictionary<string, int> sites = Player(steamId).EntrySites;
+                    sites[site] = sites.GetValueOrDefault(site) + 1;
+                }
             }
 
             if (demo.Positions is { } positions && positions.Round(round.Number) is not null)
@@ -462,6 +479,10 @@ public sealed class OpeningTendenciesService
                         lurk.Tick + 2 * ClipTailSeconds * rate);
                     _lurkClock.Add(ClockLabel(Seconds(lurk.Tick)), clip);
                     _lurkers.Add(NameOf(demo, lurk.Slot), clip);
+                    if (demo.SteamIds?.GetValueOrDefault(lurk.Slot) is { } steamId)
+                    {
+                        _players[steamId] = (Player(steamId).EntrySites, Player(steamId).Lurks + 1);
+                    }
                     _lurkSamples.Add(new LurkSample(opening, round.T.BuyType,
                         LurkRoutes.Describe(positions, round, lurk, NameOf(demo, lurk.Slot), clip, rate)));
                 }
@@ -487,8 +508,24 @@ public sealed class OpeningTendenciesService
             LurkClock = _lurkClock.Clock(NoLurk),
             Lurkers = _lurkers.Ranked(),
             LurkRounds = _lurkRounds,
-            LurkSamples = [.. _lurkSamples]
+            LurkSamples = [.. _lurkSamples],
+            Players = _players.ToDictionary(p => p.Key,
+                p => new TendencyPlayer(p.Value.EntrySites.Values.Sum(),
+                    p.Value.EntrySites.OrderByDescending(s => s.Value).ThenBy(s => s.Key, StringComparer.Ordinal)
+                        .Select(s => s.Key).FirstOrDefault() ?? "",
+                    p.Value.Lurks), StringComparer.Ordinal)
         };
+
+        private (Dictionary<string, int> EntrySites, int Lurks) Player(string steamId)
+        {
+            if (!_players.TryGetValue(steamId, out (Dictionary<string, int> EntrySites, int Lurks) player))
+            {
+                player = (new Dictionary<string, int>(StringComparer.Ordinal), 0);
+                _players[steamId] = player;
+            }
+
+            return player;
+        }
 
         // The clip for a round, clamped to the live window: never before freeze end, never past the end.
         private static TendencyRound Clip(DemoContext demo, RoundFacts round, int from, int to)

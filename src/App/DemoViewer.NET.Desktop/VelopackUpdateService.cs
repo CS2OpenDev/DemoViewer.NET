@@ -52,6 +52,18 @@ internal sealed class VelopackUpdateService : IUpdateService
     /// </summary>
     private (UpdateManager Manager, UpdateInfo Info, bool IsBeta)? _pending;
 
+    // _pending is written on a pool thread after a check and read on the UI thread by the download.
+    private readonly Lock _pendingGate = new();
+
+    /// <summary>
+    ///     Downloaded and waiting for the process to exit. Set by <see cref="DownloadAndApplyAsync" />,
+    ///     applied by <see cref="ApplyStagedUpdate" /> once the Avalonia lifetime has returned.
+    /// </summary>
+    private (UpdateManager Manager, UpdateInfo Info)? _staged;
+
+    /// <summary>Whether an update is staged, in which case <see cref="ApplyStagedUpdate" /> restarts the app.</summary>
+    internal bool HasStagedUpdate => _staged is not null;
+
     /// <param name="subscribedToBeta">Read on every check, so the Settings toggle applies without a restart.</param>
     public VelopackUpdateService(Func<bool> subscribedToBeta) => _subscribedToBeta = subscribedToBeta;
 
@@ -71,7 +83,8 @@ internal sealed class VelopackUpdateService : IUpdateService
 
         try
         {
-            _pending = null;
+            // The last check's answer stands until this one completes: the banner may still offer it, and a
+            // check that fails or is cancelled must not withdraw an update already found.
             UpdateInfo? best = await Task.Run(stable.CheckForUpdatesAsync, ct).ConfigureAwait(false);
             (UpdateManager Manager, UpdateInfo Info, bool IsBeta)?
                 pending = best is null ? null : (stable, best, false);
@@ -94,7 +107,10 @@ internal sealed class VelopackUpdateService : IUpdateService
                 pending = chosen with { Info = new UpdateInfo(chosen.Info.TargetFullRelease, false) };
             }
 
-            _pending = pending;
+            lock (_pendingGate)
+            {
+                _pending = pending;
+            }
 
             return best is null
                 ? UpdateCheckResult.UpToDate()
@@ -116,7 +132,13 @@ internal sealed class VelopackUpdateService : IUpdateService
     public async Task<bool> DownloadAndApplyAsync(IProgress<int>? progress = null, CancellationToken ct = default)
     {
         // A beta found before the user unsubscribed is not installed after it.
-        if (_pending is not { } pending || (pending.IsBeta && !_subscribedToBeta()))
+        (UpdateManager Manager, UpdateInfo Info, bool IsBeta)? current;
+        lock (_pendingGate)
+        {
+            current = _pending;
+        }
+
+        if (current is not { } pending || (pending.IsBeta && !_subscribedToBeta()))
         {
             return false;
         }
@@ -128,9 +150,10 @@ internal sealed class VelopackUpdateService : IUpdateService
                         ct), ct)
                 .ConfigureAwait(false);
 
-            // Replaces the process. Nothing after this line runs on the success path, which is why
-            // the caller must have already persisted anything it cares about.
-            pending.Manager.ApplyUpdatesAndRestart(pending.Info);
+            // Staged only. ApplyUpdatesAndRestart replaced the process from here, so the shutdown
+            // handler never ran: no session save, no store flush, and live sync, a reel or an export
+            // left running. The caller now closes the app normally and Main applies this on the way out.
+            _staged = (pending.Manager, pending.Info);
             return true;
         }
         catch (OperationCanceledException)
@@ -142,6 +165,19 @@ internal sealed class VelopackUpdateService : IUpdateService
             // A failed download leaves the install untouched. Velopack stages into a packages dir
             // and only swaps on apply. Reporting false keeps the user on a working version.
             return false;
+        }
+    }
+
+    /// <summary>
+    ///     Hands a staged update to Velopack's updater, which waits for this process to exit, applies it
+    ///     and restarts the app. Called from <c>Main</c> after the lifetime returns, so the shutdown
+    ///     handler has already saved and torn everything down. A no-op when nothing is staged.
+    /// </summary>
+    public void ApplyStagedUpdate()
+    {
+        if (_staged is { } staged)
+        {
+            staged.Manager.WaitExitThenApplyUpdates(staged.Info, silent: false, restart: true);
         }
     }
 

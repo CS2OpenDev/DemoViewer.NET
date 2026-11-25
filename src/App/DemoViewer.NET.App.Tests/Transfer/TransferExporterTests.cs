@@ -1,6 +1,7 @@
 #region
 
 using System.Collections.ObjectModel;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -21,7 +22,7 @@ namespace DemoViewer.NET.AppTests.Transfer;
 ///     Export: a populated config root and library go into a bundle folder that import can trust, and the
 ///     source is not touched. Demos not hashed yet carry no data, demos the queue is working on are flagged and
 ///     still exported, a FAT32 drive refuses a 4 GiB file, a cancelled run leaves no manifest, and an export into
-///     the same bundle again rewrites only what changed.
+///     a folder that already holds a bundle or other files is refused.
 /// </summary>
 public class TransferExporterTests
 {
@@ -29,6 +30,7 @@ public class TransferExporterTests
     private const string ExtensionId = "net.demoviewer.pack.stratbook";
     private const string StoresExtensionId = "dev.example.lib";
     private static readonly string[] _rootEntries = ["config", "library", "out"];
+    private static readonly string[] _userFileOnly = ["notes.txt"];
 
     [Test]
     public async Task AnExport_ChangesNothingAtTheSource_AndWritesOnlyTheBundle()
@@ -137,6 +139,57 @@ public class TransferExporterTests
             await Assert.That(Directory.Exists(Path.Combine(plan.BundleFolder, TransferLayout.LibraryDirectory)))
                 .IsFalse();
         }
+    }
+
+    [Test]
+    public async Task TheBundle_CarriesNoAbsolutePathOfThisMachine_InRecordsFacetsOrTheReviewQueue()
+    {
+        using Fixture fx = Fixture.Populated();
+        TransferExporter exporter = fx.Exporter(new DemoCacheStore(fx.CacheRoot));
+        ExportPlan plan = await exporter.PlanAsync(ExportRequest.All(fx.OutRoot, false), CancellationToken.None);
+        TransferSummary summary = await exporter.RunAsync(plan, null, CancellationToken.None);
+        string bundle = plan.BundleFolder;
+        TransferManifest manifest = TransferManifest.Read(bundle);
+        // Every local path of the fixture runs through its temp root's name, which JSON does not escape.
+        string root = Path.GetFileName(fx.Root);
+        TransferFile[] scanned =
+        [
+            .. manifest.Demos.SelectMany(d => d.Files)
+                .Where(f => f.Path.Contains("/cache/", StringComparison.Ordinal)
+                            || f.Path.Contains("/ext/", StringComparison.Ordinal))
+                .Concat(manifest.Shared)
+        ];
+        Dictionary<string, string> texts = [];
+        foreach (TransferFile file in scanned)
+        {
+            byte[] bytes = await File.ReadAllBytesAsync(TransferLayout.FullPath(bundle, file.Path));
+            await Assert.That(bytes.LongLength).IsEqualTo(file.Size);
+            await Assert.That(Convert.ToHexStringLower(SHA256.HashData(bytes))).IsEqualTo(file.Sha256)
+                .Because("the manifest hashes the bytes as written, after the paths came out");
+            texts[file.Path] = Encoding.UTF8.GetString(bytes is [0x1F, 0x8B, ..] ? Gunzip(bytes) : bytes);
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Failed).IsEmpty();
+            await Assert.That(texts.Keys).Contains($"data/{fx.ShaA}/cache/demo.json.gz");
+            await Assert.That(texts.Keys).Contains($"data/{fx.ShaA}/ext/{ExtensionId}/grenades/demo.json.gz");
+            await Assert.That(texts.Keys).Contains($"shared/{TransferLayout.ReviewQueueFileName}");
+            await Assert.That(texts.Where(t => t.Value.Contains(root, StringComparison.Ordinal)).Select(t => t.Key))
+                .IsEmpty();
+            await Assert.That(texts.Where(t => t.Value.Contains("/elsewhere/", StringComparison.Ordinal))
+                .Select(t => t.Key)).IsEmpty();
+            await Assert.That(texts[$"data/{fx.ShaA}/ext/{ExtensionId}/grenades/demo.json.gz"])
+                .Contains("grenades of a").Because("only the header changes");
+        }
+    }
+
+    private static byte[] Gunzip(byte[] bytes)
+    {
+        using GZipStream gzip = new(new MemoryStream(bytes), CompressionMode.Decompress);
+        using MemoryStream plain = new();
+        gzip.CopyTo(plain);
+        return plain.ToArray();
     }
 
     [Test]
@@ -328,49 +381,63 @@ public class TransferExporterTests
     }
 
     [Test]
-    public async Task ExportingIntoTheSameBundleAgain_RewritesOnlyWhatChanged()
+    public async Task ExportingIntoAnExistingBundle_IsRefused_AndChangesNothingThere()
     {
         using Fixture fx = Fixture.Populated();
         TransferExporter exporter = fx.Exporter(new DemoCacheStore(fx.CacheRoot));
         ExportPlan first = await exporter.PlanAsync(ExportRequest.All(fx.OutRoot, true), CancellationToken.None);
         await exporter.RunAsync(first, null, CancellationToken.None);
         string bundle = first.BundleFolder;
+        Dictionary<string, string> before = Fingerprint(bundle);
 
-        DateTime old = new(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        foreach (string file in Directory.EnumerateFiles(bundle, "*", SearchOption.AllDirectories))
-        {
-            File.SetLastWriteTimeUtc(file, old);
-        }
-
-        string damaged = TransferLayout.FullPath(bundle, $"data/{fx.ShaA}/cache/demo{Sibling}");
-        byte[] bytes = await File.ReadAllBytesAsync(damaged);
-        bytes[^1] ^= 0xFF;
-        await File.WriteAllBytesAsync(damaged, bytes);
-        File.SetLastWriteTimeUtc(damaged, old);
-        string removed = TransferLayout.FullPath(bundle, TransferLayout.DemFile(fx.ShaB));
-        File.Delete(removed);
-
-        ExportPlan again = await exporter.PlanAsync(ExportRequest.All(bundle, true), CancellationToken.None);
+        // A narrower export into the same bundle would leave the earlier, wider one's files in it.
+        ExportPlan again = await exporter.PlanAsync(ExportRequest.Chosen([fx.ShaA], bundle, false, false, false),
+            CancellationToken.None);
         TransferSummary summary = await exporter.RunAsync(again, null, CancellationToken.None);
-        string[] rewritten =
-        [
-            .. Directory.EnumerateFiles(bundle, "*", SearchOption.AllDirectories)
-                .Where(f => File.GetLastWriteTimeUtc(f) != old)
-                .Select(f => Path.GetRelativePath(bundle, f).Replace('\\', '/')).Order(StringComparer.Ordinal)
-        ];
 
         using (Assert.Multiple())
         {
-            await Assert.That(again.BundleFolder).IsEqualTo(bundle).Because("picking a bundle resumes into it");
+            await Assert.That(again.BundleFolder).IsEqualTo(bundle);
+            await Assert.That(again.CanRun).IsFalse();
+            await Assert.That(again.Warnings.Single(w => w.Kind == TransferWarningKind.TargetNotEmpty).Blocking)
+                .IsTrue();
+            await Assert.That(summary.Transferred).IsEmpty();
+            await Assert.That(summary.Warnings.Select(w => w.Kind)).Contains(TransferWarningKind.TargetNotEmpty);
+            await Assert.That(Fingerprint(bundle)).IsEquivalentTo(before)
+                .Because("a refused export deletes nothing there, the old manifest and .dem copies included");
+        }
+    }
+
+    [Test]
+    public async Task ABundleNamedFolderWithOtherFiles_IsRefused_AndAnEmptyOneIsWrittenInto()
+    {
+        using Fixture fx = Fixture.Populated();
+        TransferExporter exporter = fx.Exporter(new DemoCacheStore(fx.CacheRoot));
+        string cluttered = Path.Combine(fx.OutRoot, TransferLayout.BundleNamePrefix + "mine");
+        Directory.CreateDirectory(cluttered);
+        await File.WriteAllTextAsync(Path.Combine(cluttered, "notes.txt"), "keep me");
+        string empty = Path.Combine(fx.OutRoot, TransferLayout.BundleNamePrefix + "empty");
+        Directory.CreateDirectory(empty);
+
+        ExportPlan intoCluttered = await exporter.PlanAsync(ExportRequest.All(cluttered, false),
+            CancellationToken.None);
+        TransferSummary refused = await exporter.RunAsync(intoCluttered, null, CancellationToken.None);
+        ExportPlan intoEmpty = await exporter.PlanAsync(ExportRequest.All(empty, false), CancellationToken.None);
+        TransferSummary summary = await exporter.RunAsync(intoEmpty, null, CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(intoCluttered.BundleFolder).IsEqualTo(cluttered);
+            await Assert.That(intoCluttered.CanRun).IsFalse();
+            await Assert.That(intoCluttered.Warnings.Select(w => w.Kind))
+                .Contains(TransferWarningKind.TargetNotEmpty);
+            await Assert.That(refused.Transferred).IsEmpty();
+            await Assert.That(Directory.EnumerateFileSystemEntries(cluttered).Select(e => Path.GetFileName(e)!))
+                .IsEquivalentTo(_userFileOnly);
+            await Assert.That(intoEmpty.BundleFolder).IsEqualTo(empty);
+            await Assert.That(intoEmpty.CanRun).IsTrue();
             await Assert.That(summary.Failed).IsEmpty();
-            // The plain demo is hashed only by copying it, so it is the one file always written again.
-            await Assert.That(rewritten).IsEquivalentTo(new[]
-            {
-                $"data/{fx.ShaA}/cache/demo{Sibling}", TransferLayout.DemFile(fx.ShaB),
-                TransferLayout.DemFile(fx.ShaC), TransferLayout.ManifestFileName
-            }.Order(StringComparer.Ordinal));
-            await Assert.That(await File.ReadAllBytesAsync(damaged)).IsNotEquivalentTo(bytes);
-            await Assert.That(TransferManifest.Read(bundle).Demos.Count).IsEqualTo(3);
+            await Assert.That(File.Exists(Path.Combine(empty, TransferLayout.ManifestFileName))).IsTrue();
         }
     }
 

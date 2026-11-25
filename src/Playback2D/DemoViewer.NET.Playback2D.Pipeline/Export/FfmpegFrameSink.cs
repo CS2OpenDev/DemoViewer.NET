@@ -12,7 +12,10 @@ using ChannelClosedException = System.Threading.Channels.ChannelClosedException;
 namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 
 /// <summary>How an <see cref="FfmpegFrameSink" /> is configured.</summary>
-/// <param name="OutputPath">Where the encoded file goes. Overwritten.</param>
+/// <param name="OutputPath">
+///     Where the encoded file goes. Overwritten only by a finished encode: ffmpeg writes a sibling
+///     <c>.partial-</c> file that is moved into place once it has exited cleanly.
+/// </param>
 /// <param name="FormatId">One of <see cref="ExportFormats" />.</param>
 /// <param name="Width">Frame width; must match what the session renders.</param>
 /// <param name="Height">Frame height.</param>
@@ -32,7 +35,10 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///         keeps <c>BinaryFolder</c> off <c>GlobalFFOptions</c>.
 ///     </para>
 /// </param>
-/// <param name="DeletePartialOnCancel">Remove a half-written file when the export is cancelled.</param>
+/// <param name="DeletePartialOnCancel">
+///     Remove the half-written file when the export is cancelled or fails part way. When false it is kept
+///     under its <c>.partial-</c> name; the file at <paramref name="OutputPath" /> is never touched.
+/// </param>
 /// <param name="Log">Optional line sink for ffmpeg's stderr.</param>
 public sealed record FfmpegSinkOptions(
     string OutputPath,
@@ -65,42 +71,73 @@ public sealed record FfmpegSinkOptions(
 ///     <para>
 ///         <b>Cancellation kills ffmpeg.</b> The first write links the caller's token into the sink's own
 ///         source, which is what <c>CancellableThrough</c> watches; tripping it terminates the process,
-///         and <see cref="DisposeAsync" /> then removes the partial output.
+///         and <see cref="DisposeAsync" /> then removes the partial output. A cancel that lands while
+///         disposal is draining ffmpeg is rethrown from it once the output is gone, so the caller cannot
+///         mistake the close for a finished file. One already requested when disposal starts is the
+///         caller's to report, and the close stays quiet rather than throw over the caller's own exception.
 ///     </para>
 ///     <para>
-///         <b>Disposal waits up to 30 seconds</b> for ffmpeg to drain before giving up on it.
+///         <b>Disposal gives up on an ffmpeg that has said nothing for 30 seconds</b> while draining:
+///         it stops the process, removes the output, and throws <see cref="FfmpegEncodeException" />.
 ///     </para>
 /// </summary>
-public sealed class FfmpegFrameSink : IFrameSink
+public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink, IOutputOpeningFrameSink
 {
     /// <summary>How many trailing stderr lines are kept to explain a failure.</summary>
     private const int StderrTailLines = 6;
 
-    /// <summary>How long <see cref="DisposeAsync" /> waits for ffmpeg to drain before giving up.</summary>
+    /// <summary>How long ffmpeg may stay silent while <see cref="DisposeAsync" /> drains it before it is stopped.</summary>
     private static readonly TimeSpan _shutdownTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>How long a stopped ffmpeg is given to actually go away.</summary>
+    private static readonly TimeSpan _killGrace = TimeSpan.FromSeconds(5);
+
+    // Wall time, for the drain's silence limit only. ExportClock rather than a tick count of our own:
+    // it is the one type in the export path BannedApiTests lets read a clock.
+    private readonly ExportClock _clock = ExportClock.Start();
     private readonly ChannelVideoFrameSource _frames = new();
     private readonly FfmpegSinkOptions _options;
+
+    // What ffmpeg actually writes. Moved over the output path only after a clean drain, so a cancelled or
+    // failed export leaves an earlier export at that path as it was.
+    private readonly string _encodePath;
     private readonly Queue<string> _stderrTail = new(StderrTailLines);
+    private bool _aborted;
     private bool _disposed;
+    private bool _placed;
     private Task<bool>? _encoder;
     private CancellationTokenSource? _kill;
+    private long _lastStderrMs;
 
     /// <summary>Creates the sink. No process is started until the first frame arrives.</summary>
     /// <param name="options">Output path, format and encoder settings.</param>
     public FfmpegFrameSink(FfmpegSinkOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        RequireQuotablePath(options.OutputPath);
 
         // Before anything is rendered: ffmpeg will not create it, and its refusal would otherwise land
         // after the whole range has been encoded into a pipe going nowhere.
         ExportOutputPath.EnsureDirectory(options.OutputPath);
 
         _options = options;
+        _encodePath = ExportOutputPath.StagingPath(options.OutputPath);
     }
+
+    /// <summary>The file ffmpeg writes until the encode is finished. A test's stand-in encoder writes here.</summary>
+    internal string EncodePath => _encodePath;
 
     /// <summary>Frames handed to the encoder so far.</summary>
     private int FramesWritten { get; set; }
+
+    /// <summary>The drain wait. Settable so a test can reach the timeout without a 30 s encode.</summary>
+    internal TimeSpan ShutdownTimeout { get; init; } = _shutdownTimeout;
+
+    /// <summary>
+    ///     Stands in for the ffmpeg process, given the token that stops it. Settable so a test can end the
+    ///     encoder the way a full disk does, at a moment of its choosing, without a child process.
+    /// </summary>
+    internal Func<CancellationToken, Task<bool>>? StartEncoder { get; init; }
 
     /// <inheritdoc />
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
@@ -134,7 +171,8 @@ public sealed class FfmpegFrameSink : IFrameSink
         if (_encoder is null)
         {
             _kill = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            _encoder = BuildProcessor(_kill.Token).ProcessAsynchronously(true, BuildOptions(_options));
+            _encoder = StartEncoder?.Invoke(_kill.Token)
+                       ?? BuildProcessor(_kill.Token).ProcessAsynchronously(true, BuildOptions(_options));
 
             // The pump task is the channel's ONLY reader. If ffmpeg exits early (a bad output path, a
             // full disk, a codec the located build does not carry), nothing will ever drain the queue
@@ -155,6 +193,28 @@ public sealed class FfmpegFrameSink : IFrameSink
     }
 
     /// <inheritdoc />
+    bool IOutputOpeningFrameSink.OutputOpened => _placed;
+
+    /// <summary>
+    ///     Stops ffmpeg where it is, so the disposal that follows removes the output rather than muxing it.
+    ///     <para>
+    ///         Without this a run that failed for a reason of its own (a frame that would not decode)
+    ///         still ended its stream cleanly, and a clean end of stream is what tells ffmpeg to
+    ///         finalise the container: a shorter video that plays, where a failed export was reported.
+    ///     </para>
+    /// </summary>
+    void IAbortableFrameSink.Abort()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _aborted = true;
+        _kill?.Cancel();
+    }
+
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
@@ -164,7 +224,9 @@ public sealed class FfmpegFrameSink : IFrameSink
 
         _disposed = true;
 
+        // Whether the output is to be removed: the run was aborted or cancelled, or the drain below fails.
         bool cancelled = _kill?.IsCancellationRequested ?? false;
+        bool discard = _aborted || cancelled;
         _frames.Complete();
 
         if (_encoder is not null)
@@ -173,31 +235,67 @@ public sealed class FfmpegFrameSink : IFrameSink
             {
                 // A timeout rather than an unbounded await: R2's failure mode is a deadlock between the
                 // pump and the writer, and a diagnosable "ffmpeg did not exit in 30 s" beats a hang.
-                await _encoder.WaitAsync(_shutdownTimeout).ConfigureAwait(false);
+                await WaitForDrainAsync(_encoder).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
-                cancelled = true;
+                discard = true;
+
+                // A cancel that landed during the drain, after the caller's last look at its token: the
+                // output is about to be removed, and returning normally would read as a finished file.
+                // An aborted run, or one whose token was cancelled before the close, already knows; a
+                // throw here would only replace the caller's own exception in its finally.
+                if (!_aborted && !cancelled)
+                {
+                    throw;
+                }
             }
             catch (TimeoutException)
             {
-                _options.Log?.Invoke("ffmpeg did not exit within 30 s; the output may be truncated.");
-                cancelled = true;
+                // Abandoning the wait stops nothing: the child would go on encoding with nobody waiting
+                // for it, and holding the output open against the delete below. Stop it, and say so:
+                // returning normally here is what the session reports as Completed.
+                string message = string.Create(CultureInfo.InvariantCulture,
+                    $"ffmpeg said nothing for {ShutdownTimeout.TotalSeconds:0.###} s while finishing the file and was stopped; the export is incomplete.");
+                _options.Log?.Invoke(message);
+                discard = true;
+                await StopEncoderAsync(_encoder).ConfigureAwait(false);
+                throw new FfmpegEncodeException(message);
             }
             catch (Exception ex)
             {
+                // Every frame was taken and ffmpeg then failed to finish the file: a full disk under a
+                // GIF's palette pass or MP4's faststart rewrite, which both run after the last frame.
+                // Nothing aborted this run, so this is the only place that learns the file is not one.
                 _options.Log?.Invoke($"ffmpeg failed: {ex.Message}");
-                throw;
+                discard = true;
+
+                if (ex is FfmpegEncodeException)
+                {
+                    throw;
+                }
+
+                // The same naming of the cause AwaitEncoderAsync does for a failure seen by a write.
+                string tail = StderrTail();
+                throw tail.Length == 0
+                    ? new FfmpegEncodeException($"ffmpeg failed: {ex.Message}", ex)
+                    : new FfmpegEncodeException($"ffmpeg failed: {tail}", ex);
             }
             finally
             {
                 _frames.Dispose();
                 _kill?.Dispose();
 
-                if (cancelled && _options.DeletePartialOnCancel)
+                if (discard && _options.DeletePartialOnCancel)
                 {
                     TryDeleteOutput();
                 }
+            }
+
+            if (!discard)
+            {
+                ExportOutputPath.Commit(_encodePath, _options.OutputPath);
+                _placed = true;
             }
 
             return;
@@ -205,6 +303,63 @@ public sealed class FfmpegFrameSink : IFrameSink
 
         _frames.Dispose();
         _kill?.Dispose();
+    }
+
+    /// <summary>
+    ///     Waits for the encoder to finish, for as long as ffmpeg keeps talking.
+    ///     <para>
+    ///         The limit is on <b>silence</b>, not on the drain as a whole. A GIF's palette pass does all
+    ///         of its work after the last frame, so on a long clip the drain legitimately outlasts any
+    ///         flat limit; ffmpeg reports progress on stderr the whole time, and a process that is still
+    ///         reporting is not the deadlock this wait exists to end.
+    ///     </para>
+    /// </summary>
+    /// <exception cref="TimeoutException">ffmpeg wrote nothing for <see cref="ShutdownTimeout" />.</exception>
+    private async Task WaitForDrainAsync(Task encoder)
+    {
+        Volatile.Write(ref _lastStderrMs, NowMs());
+
+        while (!encoder.IsCompleted)
+        {
+            TimeSpan remaining = ShutdownTimeout -
+                                 TimeSpan.FromMilliseconds(NowMs() - Volatile.Read(ref _lastStderrMs));
+            if (remaining <= TimeSpan.Zero)
+            {
+                throw new TimeoutException();
+            }
+
+            try
+            {
+                await encoder.WaitAsync(remaining).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // Go round: stderr may have moved since the wait began. Unfiltered on purpose. The
+                // encoder can finish between the wait's timer firing and this handler running, and a
+                // filter on "still running" then lets the wait's timeout out as if it were the stall:
+                // a finished file deleted and the export failed. The loop condition and the await below
+                // read the encoder's own outcome; the throw above is the only stall there is.
+            }
+        }
+
+        await encoder.ConfigureAwait(false);
+    }
+
+    private long NowMs() => (long)_clock.Elapsed.TotalMilliseconds;
+
+    /// <summary>Stops ffmpeg through the token <c>CancellableThrough</c> watches and waits briefly for it to go.</summary>
+    private async Task StopEncoderAsync(Task encoder)
+    {
+        try
+        {
+            await _kill!.CancelAsync().ConfigureAwait(false);
+            await encoder.WaitAsync(_killGrace).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Whatever a stopped encoder ends with (cancellation, a broken pipe, a non-zero exit, or
+            // still nothing at all) is not the news. The stall is, and the caller is about to report it.
+        }
     }
 
     /// <summary>
@@ -243,6 +398,7 @@ public sealed class FfmpegFrameSink : IFrameSink
 
     private void OnStderr(string line)
     {
+        Volatile.Write(ref _lastStderrMs, NowMs());
         _options.Log?.Invoke(line);
 
         if (string.IsNullOrWhiteSpace(line))
@@ -302,14 +458,49 @@ public sealed class FfmpegFrameSink : IFrameSink
     }
 
     private FFMpegArgumentProcessor BuildProcessor(CancellationToken ct) =>
-        Build(_options, new RawVideoPipeSource(_frames) { FrameRate = _options.Fps })
+        Build(_options with { OutputPath = _encodePath }, new RawVideoPipeSource(_frames) { FrameRate = _options.Fps })
             .CancellableThrough(ct)
             .NotifyOnError(OnStderr);
 
-    private static FFMpegArgumentProcessor Build(FfmpegSinkOptions options, RawVideoPipeSource source) =>
-        FFMpegArguments
+    private static FFMpegArgumentProcessor Build(FfmpegSinkOptions options, RawVideoPipeSource source)
+    {
+        RequireQuotablePath(options.OutputPath);
+
+        return FFMpegArguments
             .FromPipeInput(source)
             .OutputToFile(options.OutputPath, true, arguments => Configure(arguments, options));
+    }
+
+    /// <summary>
+    ///     Refuses an output path that cannot sit inside the quotes FFMpegCore puts round it.
+    ///     <para>
+    ///         FFMpegCore writes the path as <c>"path"</c>, escaping nothing, and the whole command line
+    ///         goes to the process as one string. A double quote in the path closes that token early and
+    ///         the rest of the name is read as ffmpeg options; a trailing backslash escapes the closing
+    ///         quote and swallows the arguments after it. A double quote is a legal file-name character
+    ///         on Linux and macOS, and a strat's name is the default file name.
+    ///     </para>
+    ///     <para>
+    ///         Refused rather than escaped: the quoting belongs to FFMpegCore, and the escaping rules
+    ///         (backslash runs before a quote) are the platform's argument parser's, not ours to guess.
+    ///     </para>
+    /// </summary>
+    private static void RequireQuotablePath(string outputPath)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(outputPath);
+
+        if (outputPath.Contains('"', StringComparison.Ordinal))
+        {
+            throw new ExportValidationException(
+                "The output path contains a double quote, which cannot be passed to ffmpeg. Rename the file.");
+        }
+
+        if (outputPath.EndsWith('\\'))
+        {
+            throw new ExportValidationException(
+                "The output path ends in a backslash, which cannot be passed to ffmpeg. Name a file.");
+        }
+    }
 
     private static void Configure(FFMpegArgumentOptions arguments, FfmpegSinkOptions options)
     {
@@ -364,9 +555,9 @@ public sealed class FfmpegFrameSink : IFrameSink
     {
         try
         {
-            if (File.Exists(_options.OutputPath))
+            if (File.Exists(_encodePath))
             {
-                File.Delete(_options.OutputPath);
+                File.Delete(_encodePath);
             }
         }
         catch (IOException ex)

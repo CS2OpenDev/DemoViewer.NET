@@ -41,6 +41,35 @@ public class TransferWizardViewModelTests
     // ── Export ───────────────────────────────────────────────────────────────────────────────────
 
     [Test]
+    public async Task Export_PreviewNamesTheFolderTheExporterWrites()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            string bundleNamed = Path.Combine(dir, TransferLayout.BundleNamePrefix + "earlier");
+            Directory.CreateDirectory(bundleNamed);
+            string taken = Path.Combine(dir, "DemoViewer Transfer 2026-11-11 1530");
+            Directory.CreateDirectory(taken);
+            ExportWizardViewModel vm = NewExport(new FakeExporter());
+
+            vm.DestinationFolder = bundleNamed;
+            string intoBundle = vm.BundleFolderPreview;
+            vm.DestinationFolder = dir;
+            string beside = vm.BundleFolderPreview;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(intoBundle).IsEqualTo(bundleNamed);
+                await Assert.That(beside).IsEqualTo(Path.Combine(dir, "DemoViewer Transfer 2026-11-11 1530 (2)"));
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Test]
     public async Task Export_WalksDemosOptionsDestinationReview_AndPlansOnLeavingDestination()
     {
         FakeExporter exporter = new();

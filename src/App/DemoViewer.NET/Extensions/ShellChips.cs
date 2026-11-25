@@ -189,6 +189,12 @@ internal sealed class ExportChipSlot(string id, string featureId) : IShellChip
     /// <summary>An idle job shows nothing: the mount happens on the first Export, long before the first Start.</summary>
     public bool IsShown => _status is { } status && (status.IsRunning || !status.IsIdle && !_dismissed);
 
+    /// <summary>True while the mounted job is exporting. Holds idle off, as the 2D tab's own export does.</summary>
+    public bool IsRunning => _status is { IsRunning: true };
+
+    /// <summary>The mounted job's status, or null before the first mount.</summary>
+    public Playback2DExportStatusViewModel? Status => _status;
+
     public event Action? Changed;
 
     public void Attach()

@@ -88,4 +88,20 @@ public class MatchInfoReaderTests
         await Assert.That(MatchInfoReader.Read([]).MatchTimeUtc).IsNull()
             .Because("an empty message is a message with no fields");
     }
+
+    [Test]
+    public async Task AMatchTimePastTheCalendar_IsNoTime_AndTheRestStillReads()
+    {
+        // matchtime = 1 << 40 seconds, then one round with reservation 7 and a packed team_scores [16, 9].
+        byte[] bytes =
+            [0x10, 0x80, 0x80, 0x80, 0x80, 0x80, 0x20, 0x2A, 0x06, 0x08, 0x07, 0x62, 0x02, 16, 9];
+        MatchInfo info = MatchInfoReader.Read(bytes);
+        using (Assert.Multiple())
+        {
+            await Assert.That(info.MatchTimeUtc).IsNull()
+                .Because("a second count no date holds is a corrupt field, not a reason to throw");
+            await Assert.That(info.ReservationId).IsEqualTo(7UL);
+            await Assert.That(info.TeamScores).IsEquivalentTo([16, 9], CollectionOrdering.Matching);
+        }
+    }
 }

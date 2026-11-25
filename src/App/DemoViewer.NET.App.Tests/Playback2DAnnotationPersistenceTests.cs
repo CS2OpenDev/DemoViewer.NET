@@ -1,6 +1,8 @@
 #region
 
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using Avalonia.Threading;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Modules.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Annotations;
@@ -84,6 +86,218 @@ public class Playback2DAnnotationPersistenceTests
         await Assert.That(loaded.Elements).IsEmpty();
     }
 
+    /// <summary>
+    ///     Annotations a transfer import parked in app-data load for a demo whose folder has no sidecar.
+    ///     Erasing every one of them wrote nothing, because nothing was beside the demo to correct, so the
+    ///     app-data copy fed them back on the next open.
+    /// </summary>
+    [Test]
+    public async Task Controller_ErasingEveryImportedStroke_Sticks()
+    {
+        using TempDemo demo = new();
+        static string Key(string _) => "imported";
+        AnnotationElement stroke = Stroke();
+        await new AnnotationStore(demo.AppData, Key).SaveAsync(demo.DemoPath,
+            AnnotationStore.IdentityFor(demo.DemoPath), demo.Clock, [stroke]);
+        string imported = AnnotationStore.AppDataFile(demo.AppData, "imported");
+        Directory.CreateDirectory(Path.GetDirectoryName(imported)!);
+        File.Move(demo.SidecarPath, imported);
+
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData, Key), null)
+        {
+            AutoSaveDelay = TimeSpan.FromMilliseconds(20)
+        };
+
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+
+        controller.Document.Apply(new DocDelta.Remove(stroke.Id));
+        await controller.FlushAsync();
+
+        AnnotationLoadResult reopened = await new AnnotationStore(demo.AppData, Key)
+            .LoadAsync(demo.DemoPath, demo.Clock);
+        await Assert.That(reopened.Elements).IsEmpty();
+    }
+
+    /// <summary>
+    ///     Someone else (a transfer import) writes the open demo's file. The controller saves its strokes first,
+    ///     writes nothing while the file is written, even on a flush, then shows the written file with the stroke
+    ///     drawn meanwhile put back, and saves that.
+    /// </summary>
+    [Test]
+    public async Task Controller_AnExternalWrite_IsBracketedBySaveHoldAndReload()
+    {
+        using TempDemo demo = new();
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        AnnotationElement before = Stroke(), theirs = Stroke(), during = Stroke();
+        controller.Document.Apply(new DocDelta.Add(before, 0));
+
+        await controller.BeginExternalWriteAsync();
+        AnnotationLoadResult saved = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+        await new AnnotationStore(demo.AppData).SaveAsync(demo.DemoPath, AnnotationStore.IdentityFor(demo.DemoPath),
+            demo.Clock, [before, theirs]);
+        controller.Document.Apply(new DocDelta.Add(during, int.MaxValue));
+        await controller.FlushAsync();
+        AnnotationLoadResult held = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+        await controller.EndExternalWriteAsync(true);
+        await controller.FlushAsync();
+        AnnotationLoadResult after = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(saved.Elements.Select(e => e.Id)).IsEquivalentTo([before.Id])
+                .Because("the unsaved stroke is saved before the write, so the writer can merge it");
+            await Assert.That(held.Elements.Select(e => e.Id)).IsEquivalentTo([before.Id, theirs.Id])
+                .Because("no save lands while the file is written");
+            await Assert.That(controller.Document.Elements.Select(e => e.Id))
+                .IsEquivalentTo([before.Id, theirs.Id, during.Id]);
+            await Assert.That(after.Elements.Select(e => e.Id)).IsEquivalentTo([before.Id, theirs.Id, during.Id]);
+        }
+    }
+
+    /// <summary>With auto-save off nothing reaches the file, so a reload after an external write keeps it all.</summary>
+    [Test]
+    public async Task Controller_AnExternalWrite_WithAutoSaveOff_KeepsTheSessionOnlyStrokes()
+    {
+        using TempDemo demo = new();
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        controller.AutoSave = false; // after the attach, which seeds it from settings
+        AnnotationElement mine = Stroke(), theirs = Stroke();
+        controller.Document.Apply(new DocDelta.Add(mine, 0));
+
+        await controller.BeginExternalWriteAsync();
+        await new AnnotationStore(demo.AppData).SaveAsync(demo.DemoPath, AnnotationStore.IdentityFor(demo.DemoPath),
+            demo.Clock, [theirs]);
+        await controller.EndExternalWriteAsync(true);
+
+        await Assert.That(controller.Document.Elements.Select(e => e.Id)).IsEquivalentTo([theirs.Id, mine.Id]);
+    }
+
+    /// <summary>
+    ///     Two tabs on one demo, the second failing to save before the hold. The hold fails, and the first tab,
+    ///     held by then, saves again: nothing would ever end its hold.
+    /// </summary>
+    [Test]
+    public async Task Coordinator_ASessionFailingToHold_LeavesNoOtherSessionHeld()
+    {
+        using TempDemo demo = new();
+        AnnotationWriteCoordinator sessions = new();
+        using AnnotationSessionController first = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using AnnotationSessionController second = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using IDisposable firstRegistration = sessions.Register(first);
+        using IDisposable secondRegistration = sessions.Register(second);
+        await first.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        await second.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        second.Document.Apply(new DocDelta.Add(Stroke(), 0));
+        second.StateChanged += () => throw new InvalidOperationException("status line");
+
+        await Assert.That(async () => await sessions.HoldAsync([demo.DemoPath])).Throws<InvalidOperationException>();
+        AnnotationElement drawn = Stroke();
+        first.Document.Apply(new DocDelta.Add(drawn, 0));
+        await first.FlushAsync();
+        AnnotationLoadResult saved = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+
+        await Assert.That(saved.Elements.Select(e => e.Id)).Contains(drawn.Id);
+    }
+
+    /// <summary>
+    ///     Two tabs on one demo, the first failing to end the hold. The second still ends it and saves again,
+    ///     and the failure still reaches the writer.
+    /// </summary>
+    [Test]
+    public async Task Coordinator_ASessionFailingToEnd_StillEndsTheOthers()
+    {
+        using TempDemo demo = new();
+        AnnotationWriteCoordinator sessions = new();
+        using AnnotationSessionController first = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using AnnotationSessionController second = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using IDisposable firstRegistration = sessions.Register(first);
+        using IDisposable secondRegistration = sessions.Register(second);
+        await first.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        await second.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+        AnnotationWriteCoordinator.Hold hold = await sessions.HoldAsync([demo.DemoPath]);
+        first.Document.Apply(new DocDelta.Add(Stroke(), 0));
+        first.Document.Changed += () => throw new InvalidOperationException("layer");
+        await Assert.That(() => hold.EndAsync(true)).Throws<InvalidOperationException>();
+        AnnotationElement drawn = Stroke();
+        second.Document.Apply(new DocDelta.Add(drawn, 0));
+        await second.FlushAsync();
+        AnnotationLoadResult saved = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+
+        await Assert.That(saved.Elements.Select(e => e.Id)).Contains(drawn.Id);
+    }
+
+    /// <summary>
+    ///     On Linux a demo whose path differs only by case is another file: writing its annotations holds no tab
+    ///     open on this one.
+    /// </summary>
+    [Test]
+    public async Task OnLinux_Coordinator_HoldsNoSessionOnADemoWhosePathDiffersOnlyByCase()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new TUnit.Core.Exceptions.SkipTestException("only a Linux file system keeps two names that differ only by case");
+        }
+
+        using TempDemo demo = new();
+        string other = Path.Combine(Path.GetDirectoryName(demo.DemoPath)!, "Match.dem");
+        File.WriteAllBytes(other, "PBDEMS2\0"u8);
+        AnnotationWriteCoordinator sessions = new();
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using IDisposable registration = sessions.Register(controller);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+        AnnotationWriteCoordinator.Hold hold = await sessions.HoldAsync([other]);
+        AnnotationElement drawn = Stroke();
+        controller.Document.Apply(new DocDelta.Add(drawn, 0));
+        await controller.FlushAsync();
+        AnnotationLoadResult saved = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+        await hold.EndAsync(true);
+
+        await Assert.That(saved.Elements.Select(e => e.Id)).Contains(drawn.Id);
+    }
+
+    /// <summary>On Linux, re-activating the tab on the demo whose path differs only by case attaches that demo.</summary>
+    [Test]
+    public async Task OnLinux_Controller_AttachesADemoWhosePathDiffersOnlyByCase()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new TUnit.Core.Exceptions.SkipTestException("only a Linux file system keeps two names that differ only by case");
+        }
+
+        using TempDemo demo = new();
+        string other = Path.Combine(Path.GetDirectoryName(demo.DemoPath)!, "Match.dem");
+        File.WriteAllBytes(other, "PBDEMS2\0"u8);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+        await controller.AttachDemoAsync(other, demo.Clock, force: false); // a tab re-activation
+
+        await Assert.That(controller.AttachedDemoPath).IsEqualTo(other);
+    }
+
     [Test]
     public async Task Controller_AutosavesAfterDebounce()
     {
@@ -153,6 +367,45 @@ public class Playback2DAnnotationPersistenceTests
                 "surviving a tab switch and vanishing");
     }
 
+    /// <summary>
+    ///     A flush writes what was drawn, and with nothing drawn since the load it writes nothing. The document
+    ///     is then only a copy of the file as it was read: a transfer import that wrote the demo's annotations
+    ///     meanwhile would be replaced by that copy on the next tab switch, or erased when the copy is empty.
+    /// </summary>
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Controller_AFlushWithNothingDrawn_LeavesWhatWasWrittenSinceTheLoad(bool hadAnnotations)
+    {
+        using TempDemo demo = new();
+        AnnotationElement mine = Stroke();
+        AnnotationElement imported = Stroke();
+        AnnotationStore other = new(demo.AppData);
+        if (hadAnnotations)
+        {
+            await other.SaveAsync(demo.DemoPath, AnnotationStore.IdentityFor(demo.DemoPath), demo.Clock, [mine]);
+        }
+
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+        AnnotationElement[] merged = hadAnnotations ? [mine, imported] : [imported];
+        await other.SaveAsync(demo.DemoPath, AnnotationStore.IdentityFor(demo.DemoPath), demo.Clock, merged);
+        await controller.FlushAsync();
+
+        AnnotationLoadResult loaded = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+        using (Assert.Multiple())
+        {
+            await Assert.That(loaded.Elements.Select(e => e.Id)).IsEquivalentTo(merged.Select(e => e.Id));
+            await Assert.That(controller.SaveCount).IsEqualTo(0);
+        }
+
+        // What is drawn afterwards is still saved.
+        controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
+        await controller.FlushAsync();
+        await Assert.That(controller.SaveCount).IsEqualTo(1);
+    }
+
     [Test]
     public async Task Controller_GateOff_NeverTouchesDisk()
     {
@@ -217,6 +470,27 @@ public class Playback2DAnnotationPersistenceTests
     }
 
     /// <summary>
+    ///     A sidecar the store cannot parse opens as empty, and the status line names the file it was moved
+    ///     to, so the user can find what they had.
+    /// </summary>
+    [Test]
+    public async Task Controller_AnUnreadableSidecar_IsMovedAside_AndTheStatusLineNamesWhere()
+    {
+        using TempDemo demo = new();
+        await File.WriteAllTextAsync(demo.SidecarPath, "{ \"schemaVersion\": 1, \"elements\": [");
+
+        using AnnotationSessionController controller =
+            new(new AnnotationStore(demo.AppData), null, static () => false);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        string[] aside = Directory.GetFiles(Path.GetDirectoryName(demo.SidecarPath)!,
+            Path.GetFileName(demo.SidecarPath) + ".unreadable-*");
+
+        await Assert.That(aside.Length).IsEqualTo(1);
+        await Assert.That(File.Exists(demo.SidecarPath)).IsFalse();
+        await Assert.That(controller.StatusText).Contains("moved to " + Path.GetFileName(aside[0]));
+    }
+
+    /// <summary>
     ///     On the browser head the status line must NOT name a sidecar path. System.IO writes there land
     ///     in the WASM runtime's in-memory virtual FS, so the store finds a "writable" location, reports
     ///     it, and the user reads a filename as a promise the next reload breaks. Annotations
@@ -244,6 +518,52 @@ public class Playback2DAnnotationPersistenceTests
         await Assert.That(browser.StatusText).DoesNotContain(".dvann.json");
         await Assert.That(browser.StatusText).Contains("session only");
         await Assert.That(browser.StatusText).Contains("reload");
+    }
+
+    /// <summary>
+    ///     The browser head has one thread, so the blocking flush a tab deactivation calls cannot wait on
+    ///     a save that resumes on the pool: the wait throws or never ends. Holding the save serializer
+    ///     stands in for that missing second thread; the flush has to return anyway, and the save still
+    ///     lands once the serializer frees up.
+    /// </summary>
+    [Test]
+    public async Task Controller_OnBrowser_BlockingFlushDoesNotWaitOnTheSave()
+    {
+        using TempDemo demo = new();
+        using AnnotationSessionController controller =
+            new(new AnnotationStore(demo.AppData), null, static () => true)
+            {
+                AutoSaveDelay = TimeSpan.FromSeconds(30)
+            };
+
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
+
+        SemaphoreSlim serializer = (SemaphoreSlim)typeof(AnnotationSessionController)
+            .GetField("_saveSerializer", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(controller)!;
+        await serializer.WaitAsync();
+        bool returned;
+        try
+        {
+            Task flush = Task.Run(controller.Flush);
+            returned = await Task.WhenAny(flush, Task.Delay(TimeSpan.FromSeconds(5))) == flush;
+        }
+        finally
+        {
+            serializer.Release();
+        }
+
+        await Assert.That(returned).IsTrue()
+            .Because("a blocking wait on the single-threaded WASM runtime throws or hangs the tab switch");
+
+        for (int i = 0; i < 100 && controller.SaveCount == 0; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        await Assert.That(controller.SaveCount).IsEqualTo(1)
+            .Because("the flush still writes, it just does not wait for the write");
     }
 
     /// <summary>
@@ -354,6 +674,248 @@ public class Playback2DAnnotationPersistenceTests
             new(new AnnotationStore(demo.AppData), null, static () => false);
         await desktop.AttachDemoAsync(demo.DemoPath, demo.Clock);
         await Assert.That(desktop.CanAutoSave).IsTrue();
+    }
+
+    /// <summary>
+    ///     The document is UI-thread state: the timeline rebuilds bound collections off its Changed. An
+    ///     attach started on the UI thread has to come back to it, even when the flush it waits on was
+    ///     finished by a pool thread, which is what an autosave still writing the previous ink does.
+    /// </summary>
+    [Test]
+    public async Task Controller_AttachStartedOnTheUiThread_TouchesTheDocumentOnlyThere()
+    {
+        using TempDemo demo = new();
+        using KeyGate gate = new();
+
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData, gate.Resolve), null)
+            {
+                AutoSaveDelay = TimeSpan.FromMilliseconds(10)
+            };
+            await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+            // An autosave that is inside the store, holding the save serializer, on its own thread.
+            gate.Arm();
+            controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
+            await WaitFor(() => gate.Entered, TimeSpan.FromSeconds(10));
+
+            List<bool> onUiThread = [];
+            controller.Document.Changed += () => onUiThread.Add(Dispatcher.UIThread.CheckAccess());
+
+            Task attach = controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+            await Assert.That(attach.IsCompleted).IsFalse().Because("its flush is queued behind the autosave");
+            gate.Release();
+            await attach;
+
+            await Assert.That(onUiThread).IsNotEmpty();
+            await Assert.That(onUiThread).DoesNotContain(false);
+            await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+        });
+    }
+
+    /// <summary>
+    ///     The debounced save comes back to the UI thread to copy the element list, which is only safe to
+    ///     read where it is written. The write that follows must not stay there: it stats, may hash, and
+    ///     serializes the whole document.
+    /// </summary>
+    [Test]
+    public async Task Controller_DebouncedSave_DoesNotWriteOnTheUiThread()
+    {
+        using TempDemo demo = new();
+        using KeyGate gate = new();
+
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData, gate.Resolve), null)
+            {
+                AutoSaveDelay = TimeSpan.FromMilliseconds(10)
+            };
+            await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+            gate.Arm();
+            controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
+            await WaitFor(() => gate.Entered, TimeSpan.FromSeconds(10));
+
+            // Still on the UI thread, and the save is parked inside the store: it is not being written here.
+            await Assert.That(gate.EnteredOnUiThread).IsFalse();
+            gate.Release();
+            await WaitFor(() => controller.SaveCount > 0, TimeSpan.FromSeconds(10));
+            await Assert.That(File.Exists(demo.SidecarPath)).IsTrue();
+        });
+    }
+
+    /// <summary>
+    ///     Between an attach emptying the document and its sidecar arriving, the document is a
+    ///     placeholder. A flush in that window (a tab switch, shutdown) must not write it: an empty
+    ///     document over an existing sidecar is how the user clearing their ink is spelled.
+    /// </summary>
+    [Test]
+    public async Task Controller_AFlushWhileTheSidecarIsLoading_DoesNotWriteTheEmptyPlaceholder()
+    {
+        using TempDemo demo = new();
+        const string Sha = "5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e";
+        AnnotationElement seeded = Stroke();
+        await new AnnotationStore(demo.AppData).SaveAsync(demo.DemoPath,
+            new DemoIdentity(Sha, "match.dem", 8), demo.Clock, [seeded]);
+
+        using KeyGate gate = new() { Keys = _ => Sha };
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData, gate.Resolve), null);
+
+        // The load has read the file and not yet returned.
+        gate.Arm();
+        Task attach = Task.Run(() => controller.AttachDemoAsync(demo.DemoPath, demo.Clock));
+        await Assert.That(gate.WaitEntered(TimeSpan.FromSeconds(10))).IsTrue();
+
+        controller.Flush();
+
+        gate.Release();
+        await attach;
+
+        AnnotationLoadResult onDisk =
+            await new AnnotationStore(demo.AppData, _ => Sha).LoadAsync(demo.DemoPath, demo.Clock);
+        using (Assert.Multiple())
+        {
+            await Assert.That(onDisk.Elements.Count).IsEqualTo(1);
+            await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+            await Assert.That(controller.Document.Elements[0]).IsEqualTo(seeded);
+        }
+    }
+
+    /// <summary>
+    ///     An attach that another attach has overtaken stands down: its sidecar belongs to a demo the
+    ///     controller is no longer on, and applying it would put that demo's ink under this one's name for
+    ///     the next save to write there.
+    /// </summary>
+    [Test]
+    public async Task Controller_ALoadThatFinishesAfterTheNextDemoAttached_IsNotApplied()
+    {
+        using TempDemo first = new();
+        using TempDemo second = new();
+        const string FirstSha = "aa1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e";
+        const string SecondSha = "bb1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e";
+        string Sha(string path) =>
+            string.Equals(path, first.DemoPath, StringComparison.OrdinalIgnoreCase) ? FirstSha : SecondSha;
+
+        AnnotationElement firstInk = Stroke();
+        AnnotationElement secondInk = Stroke();
+        AnnotationStore seed = new(first.AppData);
+        await seed.SaveAsync(first.DemoPath, new DemoIdentity(FirstSha, "match.dem", 8), first.Clock, [firstInk]);
+        await seed.SaveAsync(second.DemoPath, new DemoIdentity(SecondSha, "match.dem", 8), second.Clock,
+            [secondInk]);
+
+        using KeyGate gate = new() { Keys = Sha, Only = first.DemoPath };
+        using AnnotationSessionController controller = new(new AnnotationStore(first.AppData, gate.Resolve), null);
+
+        gate.Arm();
+        Task slow = Task.Run(() => controller.AttachDemoAsync(first.DemoPath, first.Clock));
+        await Assert.That(gate.WaitEntered(TimeSpan.FromSeconds(10))).IsTrue();
+
+        // The user opens the next demo before the first one's sidecar has come back.
+        await controller.AttachDemoAsync(second.DemoPath, second.Clock);
+
+        gate.Release();
+        await slow;
+
+        await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+        await Assert.That(controller.Document.Elements[0]).IsEqualTo(secondInk);
+
+        await controller.FlushAsync();
+        AnnotationStore reader = new(first.AppData, Sha);
+        AnnotationLoadResult firstOnDisk = await reader.LoadAsync(first.DemoPath, first.Clock);
+        AnnotationLoadResult secondOnDisk = await reader.LoadAsync(second.DemoPath, second.Clock);
+        using (Assert.Multiple())
+        {
+            await Assert.That(firstOnDisk.Elements.Count).IsEqualTo(1);
+            await Assert.That(firstOnDisk.Elements[0]).IsEqualTo(firstInk);
+            await Assert.That(secondOnDisk.Elements.Count).IsEqualTo(1);
+            await Assert.That(secondOnDisk.Elements[0]).IsEqualTo(secondInk);
+        }
+    }
+
+    /// <summary>
+    ///     A load that throws leaves the document a placeholder no save will write, so nothing drawn from then
+    ///     on reaches a file. The status line has to say so rather than keep naming the last demo's sidecar.
+    /// </summary>
+    [Test]
+    public async Task Controller_ALoadThatThrows_SaysTheInkIsSessionOnly()
+    {
+        using TempDemo good = new();
+        using TempDemo bad = new();
+        const string Sha = "cc1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e5c1f0b7e";
+        AnnotationStore seed = new(good.AppData);
+        await seed.SaveAsync(good.DemoPath, new DemoIdentity(Sha, "match.dem", 8), good.Clock, [Stroke()]);
+        await seed.SaveAsync(bad.DemoPath, new DemoIdentity(Sha, "match.dem", 8), bad.Clock, [Stroke()]);
+
+        string Key(string path) =>
+            string.Equals(path, bad.DemoPath, StringComparison.OrdinalIgnoreCase)
+                ? throw new InvalidOperationException("no key for this demo")
+                : Sha;
+
+        using AnnotationSessionController controller = new(new AnnotationStore(good.AppData, Key), null);
+        await controller.AttachDemoAsync(good.DemoPath, good.Clock);
+        await Assert.That(controller.Document.Elements.Count).IsEqualTo(1);
+
+        bool threw = false;
+        try
+        {
+            await controller.AttachDemoAsync(bad.DemoPath, bad.Clock);
+        }
+        catch (InvalidOperationException)
+        {
+            threw = true;
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(threw).IsTrue();
+            await Assert.That(controller.StatusText).IsEqualTo("annotations could not be loaded — session only");
+        }
+    }
+
+    // Parks the store's first key lookup after Arm() until Release(). The store asks for a demo's key from
+    // inside a load (once the file is read) and from inside a save (once it holds the save serializer), so
+    // this is the one place a test can hold either open without a seam in the controller.
+    private sealed class KeyGate : IDisposable
+    {
+        private readonly ManualResetEventSlim _entered = new(false);
+        private readonly ManualResetEventSlim _release = new(false);
+        private int _state;
+
+        public Func<string, string> Keys { get; init; } = static _ => "";
+
+        /// <summary>The only demo path whose lookup is parked, or null for any.</summary>
+        public string? Only { get; init; }
+
+        public bool Entered => _entered.IsSet;
+
+        public bool EnteredOnUiThread { get; private set; }
+
+        public void Dispose()
+        {
+            _release.Set();
+            _entered.Dispose();
+            _release.Dispose();
+        }
+
+        public void Arm() => Volatile.Write(ref _state, 1);
+
+        public bool WaitEntered(TimeSpan timeout) => _entered.Wait(timeout);
+
+        public void Release() => _release.Set();
+
+        public string Resolve(string path)
+        {
+            if ((Only is null || string.Equals(path, Only, StringComparison.OrdinalIgnoreCase))
+                && Interlocked.CompareExchange(ref _state, 2, 1) == 1)
+            {
+                EnteredOnUiThread = Dispatcher.UIThread.CheckAccess();
+                _entered.Set();
+                _release.Wait(TimeSpan.FromSeconds(30));
+            }
+
+            return Keys(path);
+        }
     }
 
     private static AnnotationElement Stroke() =>

@@ -311,6 +311,36 @@ public class SuggestedTagsQueueTests
     }
 
     [Test]
+    public async Task SavingAfterABackgroundReload_AdvancesToTheNextSuggestion()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, _) = Queue(_opener, _execute, _default);
+            using (h)
+            {
+                queue.ReviewCommand.Execute(null);
+                string editing = queue.Selected!.Proposal.Id;
+                string next = queue.Rows[queue.Rows.IndexOf(queue.Selected) + 1].Proposal.Id;
+                await Assert.That(next).IsNotEqualTo(queue.Rows[^1].Proposal.Id)
+                    .Because("the fixture needs a row between the edited one and the last");
+                queue.Execute(StratBookActions.SuggestionEdit);
+
+                // The service's Changed for the open demo, as a sweep raises it: every row object is replaced.
+                queue.Reload();
+                await Assert.That(queue.IsEditing).IsTrue().Because("the edited suggestion is still there");
+                queue.Editor!.SaveCommand.Execute(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts.ContainsKey(editing)).IsTrue();
+                    await Assert.That(queue.Selected?.Proposal.Id).IsEqualTo(next)
+                        .Because("the save advances from the edited suggestion, not to the end of the queue");
+                }
+            }
+        });
+    }
+
+    [Test]
     public async Task AnotherCode_AcceptsAsRecoded_WithTheNewCodeAndPositions()
     {
         await HeadlessSession.RunOnUi(async () =>
@@ -363,6 +393,42 @@ public class SuggestedTagsQueueTests
                     await Assert.That(queue.Editor.Note).IsEqualTo("check the timing");
                     await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts).IsEmpty().Because("a draft is not a verdict");
                 }
+            }
+        });
+    }
+
+    // A proposal id names a detector, round, side, site and bucket but no demo, so another demo's proposal can
+    // carry the same one: the draft typed against the first demo must not open on the second.
+    [Test]
+    public async Task ADraft_DoesNotFollowTheQueueOntoAnotherDemo_WithTheSameProposalId()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, _) = Queue(_execute);
+            using (h)
+            {
+                queue.ReviewCommand.Execute(null);
+                queue.Execute(StratBookActions.SuggestionEdit);
+                queue.Editor!.Note = "about the first demo";
+                queue.Editor.CancelCommand.Execute(null);
+
+                const string other = "/d/other.dem";
+                string otherSha = new('b', 64);
+                h.Cache.Upsert(RoundIndexTestData.ParsedRecord(other, SuggestedTagsTestData.Map, otherSha,
+                    SuggestedTagsReviewHarness.Rows()));
+                h.Proposals.Write(other,
+                    new ProposalDocument
+                    {
+                        Demo = new ProposalDemoHeader { Sha256 = otherSha, FileName = "other.dem" },
+                        Clock = new RoundFactsClock { TickRate = 64, FrameCount = 2, FirstTick = 1, LastTick = 20000 },
+                        DetectorSet = new ProposalDetectorSet { Fingerprint = "fp", ProfileId = "team-default" },
+                        Proposals = [StoredProposal.From(_execute, FreezeEnd)]
+                    }, "fp", 1);
+                queue.Attach(other, otherSha);
+                queue.ReviewCommand.Execute(null);
+                queue.Execute(StratBookActions.SuggestionEdit);
+
+                await Assert.That(queue.Editor!.Note).IsNotEqualTo("about the first demo");
             }
         });
     }

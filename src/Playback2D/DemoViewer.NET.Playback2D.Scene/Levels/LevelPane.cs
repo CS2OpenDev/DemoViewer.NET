@@ -106,8 +106,7 @@ public sealed class LevelPane
     /// <returns>True when the epoch was bumped.</returns>
     public bool SyncCameraEpoch()
     {
-        SliceCamera probe = new(_epochTransform);
-        if (probe.IsSettledAt(Camera.Current))
+        if (MaxCornerShift(_epochTransform, Camera.Current) < EpochShiftPixels)
         {
             return false;
         }
@@ -115,6 +114,38 @@ public sealed class LevelPane
         _epochTransform = Camera.Current;
         CameraEpoch++;
         return true;
+    }
+
+    // Not SliceCamera.IsSettledAt: that is the animation's stop rule, and its 0.5% scale tolerance
+    // lets a cached radar sit pixels off the live markers at the pane edge, at rest, since the camera
+    // snaps to its target inside the tolerance and nothing records again.
+    private const double EpochShiftPixels = 0.5;
+
+    // How far, in screen pixels, the pane's farthest corner moves between two transforms. The map is
+    // affine, so the largest shift over the pane is at a corner. A resize or a NaN reads as infinite.
+    private static double MaxCornerShift(ViewportTransform from, ViewportTransform to)
+    {
+        if (!from.ViewWidth.Equals(to.ViewWidth) || !from.ViewHeight.Equals(to.ViewHeight))
+        {
+            return double.PositiveInfinity;
+        }
+
+        // Called every frame per pane, so the four corners are walked without an array.
+        double max = 0;
+        for (int corner = 0; corner < 4; corner++)
+        {
+            double sx = (corner & 1) * to.ViewWidth;
+            double sy = (corner >> 1) * to.ViewHeight;
+            (double wx, double wy) = to.ScreenToWorld(sx, sy);
+            (double px, double py) = from.WorldToScreen(wx, wy);
+            double shift = Math.Max(Math.Abs(px - sx), Math.Abs(py - sy));
+            if (!(shift <= max))
+            {
+                max = double.IsFinite(shift) ? shift : double.PositiveInfinity;
+            }
+        }
+
+        return max;
     }
 
     /// <summary>An immutable copy of everything the render thread is allowed to see about this pane.</summary>

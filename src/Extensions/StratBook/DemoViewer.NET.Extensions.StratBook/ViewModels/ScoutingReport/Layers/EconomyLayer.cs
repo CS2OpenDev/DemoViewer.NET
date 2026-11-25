@@ -91,12 +91,15 @@ public sealed class EconomyLayer() : ScoutingLayerBase("econ", "Economy", Scouti
             }
 
             string side = context.Side.Label();
+            // Of the pistols that have a following round, which is what the follow-up rows count: a pistol the
+            // service leaves out (no live round after it on the same side) is in none of them.
+            int followedUp = b.PistolFollowUp.Sum(next => next.Count);
             sections.AddRange(
             [
                 new ScoutingInspectorSection($"Pistols · {side}", [
                     .. Situation(context, b.PistolRounds, sideRounds, "pistols", "pistol rounds"),
                     .. Rows(context, b.PistolOutcomes, pistols, "pistol"),
-                    .. Rows(context, b.PistolFollowUp, pistols, "")
+                    .. Rows(context, b.PistolFollowUp, followedUp, "")
                 ]),
                 new ScoutingInspectorSection($"Against a low buy · {side}", [
                     .. Situation(context, b.AntiEcoRounds, sideRounds, "vs low buy"),
@@ -109,9 +112,11 @@ public sealed class EconomyLayer() : ScoutingLayerBase("econ", "Economy", Scouti
                     .. Rows(context, b.ManAdvantage, b.ManAdvantageRounds.Count, "led"),
                     .. Rows(context, b.ManAdvantageOutcomes, b.ManAdvantageRounds.Count, "man advantage")
                 ]),
+                // Of the losses that have a next round, which is what the rows count: a loss the service leaves
+                // out (a map's last round, a next round the team cannot be placed in) is in none of them.
                 new ScoutingInspectorSection($"After a loss · {side}", [
                     .. Situation(context, b.RoundsLost, sideRounds, "losses"),
-                    .. Rows(context, b.SaveDiscipline, b.RoundsLost.Count, "after a loss,")
+                    .. Rows(context, b.SaveDiscipline, b.SaveDiscipline.Sum(next => next.Count), "after a loss,")
                 ])
             ]);
             if (rounds.Count == 0)
@@ -131,7 +136,7 @@ public sealed class EconomyLayer() : ScoutingLayerBase("econ", "Economy", Scouti
                 :
                 [
                     .. Situation(context, b.PistolRounds, b.SideRounds.Count, "pistols", "pistol rounds"),
-                    .. Rows(context, b.PistolFollowUp, b.PistolRounds.Count, "").Take(2)
+                    .. Rows(context, b.PistolFollowUp, b.PistolFollowUp.Sum(next => next.Count), "").Take(2)
                 ]
         };
     }

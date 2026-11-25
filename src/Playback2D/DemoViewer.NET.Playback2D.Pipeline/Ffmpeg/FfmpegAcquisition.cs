@@ -95,7 +95,9 @@ public static class FfmpegAcquisition
     /// <param name="progress">Download fraction in [0,1]; null to skip reporting.</param>
     /// <param name="http">An injected client (tests supply a fake handler); null builds and disposes one.</param>
     /// <param name="ct">Cancels the transfer and the extraction; leaves no partial file.</param>
-    /// <exception cref="FfmpegAcquisitionException">Download failed, hash mismatched, or the archive was wrong.</exception>
+    /// <exception cref="FfmpegAcquisitionException">
+    ///     Download failed or timed out, hash mismatched, the archive was wrong, or the target could not be written.
+    /// </exception>
     public static async Task<FfmpegLocation> AcquireAsync(
         FfmpegDownloadOffer offer,
         Func<FfmpegDownloadOffer, string, CancellationToken, Task<bool>> consent,
@@ -106,7 +108,14 @@ public static class FfmpegAcquisition
         ArgumentNullException.ThrowIfNull(offer);
         ArgumentNullException.ThrowIfNull(consent);
 
-        Directory.CreateDirectory(offer.TargetDirectory);
+        try
+        {
+            Directory.CreateDirectory(offer.TargetDirectory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw DiskFailure(offer, ex);
+        }
 
         // Download to *.part and only ever rename on success: a cancelled or failed acquisition must
         // never leave something that Locate() would then report as a working install.
@@ -141,6 +150,20 @@ public static class FfmpegAcquisition
                 $"Could not download the pinned ffmpeg build ({offer.ReleaseTag}): {ex.Message}. " +
                 "Install ffmpeg yourself, or export GIF.", ex);
         }
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            // HttpClient reports its own timeout as a cancellation nobody asked for.
+            throw new FfmpegAcquisitionException(
+                $"The download of the pinned ffmpeg build ({offer.ReleaseTag}) timed out. " +
+                "Install ffmpeg yourself, or export GIF.", ex);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            // A full disk, a target the user cannot write, a binary an export or a scanner holds open, or an
+            // archive that hashes right but will not open. A connection reset mid-transfer surfaces from the
+            // stream read as an IOException too.
+            throw DiskFailure(offer, ex);
+        }
         finally
         {
             TryDelete(archivePath);
@@ -157,6 +180,10 @@ public static class FfmpegAcquisition
             ? new FfmpegLocation(true, offer.TargetDirectory, FfmpegOrigin.Managed)
             : FfmpegLocation.NotFound;
     }
+
+    private static FfmpegAcquisitionException DiskFailure(FfmpegDownloadOffer offer, Exception ex) =>
+        new($"Could not install the pinned ffmpeg build ({offer.ReleaseTag}) into {offer.TargetDirectory}: " +
+            $"{ex.Message} Install ffmpeg yourself, or export GIF.", ex);
 
     private static async Task<string> DownloadAndHashAsync(HttpClient client, FfmpegDownloadOffer offer,
         string archivePath, IProgress<double>? progress, CancellationToken ct)

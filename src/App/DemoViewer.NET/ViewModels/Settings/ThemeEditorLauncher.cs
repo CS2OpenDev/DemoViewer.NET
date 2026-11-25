@@ -13,6 +13,9 @@ public sealed class ThemeEditorLauncher(IWindowService windows, UserThemeStore s
     /// <summary>False on the browser head, which has no themes folder to save into.</summary>
     public static bool IsSupported => !OperatingSystem.IsBrowser() && UserThemeStore.IsAvailable;
 
+    // The host the editor previews through, for tests that drive the preview without opening a window.
+    internal ThemeEditorHost Host => host;
+
     /// <summary>Opens the window on <paramref name="themeId" />, or re-targets the open one.</summary>
     public void Open(string? themeId, bool missingOnly = false) =>
         windows.ShowThemeEditor((id, missing) => new ThemeEditorViewModel(store, host, id, missing), themeId,

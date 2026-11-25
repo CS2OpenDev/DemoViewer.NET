@@ -232,19 +232,41 @@ internal sealed class ExtensionContext : IExtensionContext
             }
             remove
             {
-                if (gate is not null && value is not null && _forwards.Remove(value, out EventHandler? handler))
+                if (gate is null || value is null)
+                {
+                    return;
+                }
+
+                EventHandler? handler = null;
+                lock (_forwards)
+                {
+                    // The last subscription of an equal delegate, as a plain event removes.
+                    int at = _forwards.FindLastIndex(f => f.Value == value);
+                    if (at >= 0)
+                    {
+                        handler = _forwards[at].Handler;
+                        _forwards.RemoveAt(at);
+                    }
+                }
+
+                if (handler is not null)
                 {
                     gate.Changed -= handler;
                 }
             }
         }
 
-        private readonly Dictionary<Action, EventHandler> _forwards = [];
+        // One pair per subscription: a delegate added twice has two forwarders on the gate, each removable.
+        private readonly List<(Action Value, EventHandler Handler)> _forwards = [];
 
         private EventHandler Forward(Action value)
         {
             EventHandler handler = (_, _) => guard.Run("feature change handler", value);
-            _forwards[value] = handler;
+            lock (_forwards)
+            {
+                _forwards.Add((value, handler));
+            }
+
             return handler;
         }
     }
@@ -710,7 +732,8 @@ internal sealed class ExtensionPasses(string extensionId, Func<DemoScheduler?> s
         }
     }
 
-    // Only the extension's own passes reach its handlers, on the UI thread.
+    // Only the extension's own passes reach its handlers, on the UI thread. One post per handler: the post
+    // guards what it is given as one call, so a handler that throws would otherwise skip the ones after it.
     private void OnOutstandingChanged(string passId)
     {
         Action? handlers;
@@ -722,7 +745,10 @@ internal sealed class ExtensionPasses(string extensionId, Func<DemoScheduler?> s
         if (handlers is not null && _subscribed is { } source
             && string.Equals(source.OwnerOf(passId), extensionId, StringComparison.Ordinal))
         {
-            _post(handlers);
+            foreach (Action handler in handlers.GetInvocationList().Cast<Action>())
+            {
+                _post(handler);
+            }
         }
     }
 

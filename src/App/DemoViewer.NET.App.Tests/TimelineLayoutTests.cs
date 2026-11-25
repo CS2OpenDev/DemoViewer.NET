@@ -234,6 +234,52 @@ public class TimelineLayoutTests
         await Assert.That(vm.PlayheadX).IsGreaterThan(0);
     }
 
+    // Bands is every Rounds-row track's bands back to back in registration order, so it is sorted only
+    // while the round track is the one track on the row. A binary search over it walked off into another
+    // track's bands and reported no round at all.
+    [Test]
+    public async Task RoundLabel_IsTheRoundTracksBand_WhenAnotherTrackSharesTheRow()
+    {
+        Playback2DTimelineViewModel vm = new();
+        vm.RegisterTrack(new BandsOnlyTrack("ext", (250, 260), (262, 270), (272, 280), (282, 290)));
+        vm.RegisterTrack(new RoundTrack());
+        vm.PixelWidth = 600;
+
+        FakeTimelineData data = new(300) { EventFrames = { ["round_freeze_end"] = [50, 200] } };
+        vm.Rebuild(data);
+        await Assert.That(vm.Bands.Count).IsEqualTo(7);
+
+        vm.UpdatePlayhead(10, 10);
+        await Assert.That(vm.CurrentRoundLabel).IsEqualTo("wu");
+
+        vm.UpdatePlayhead(120, 120);
+        await Assert.That(vm.CurrentRoundLabel).IsEqualTo("1");
+
+        vm.UpdatePlayhead(255, 255);
+        await Assert.That(vm.CurrentRoundLabel).IsEqualTo("2")
+            .Because("another track's band over the playhead is not the round");
+    }
+
+    private sealed class BandsOnlyTrack(string id, params (int Start, int End)[] bands) : ITimelineTrack
+    {
+        public string Id => id;
+
+        public string DisplayName => id;
+
+        public event Action? Changed
+        {
+            add { }
+            remove { }
+        }
+
+        public bool IsAvailable(ITimelineData data) => true;
+
+        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
+            [.. bands.Select(b => new TimelineBand(id, b.Start, b.End, id, id, 0u))];
+
+        public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
+    }
+
     [Test]
     public async Task RequestSeek_RaisesSeekRequestedWithMappedFrame()
     {

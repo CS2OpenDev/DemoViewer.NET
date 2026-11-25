@@ -2,6 +2,7 @@
 
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Avalonia.Threading;
@@ -67,6 +68,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     // The long form's layer lines for the current loads, by map; empty until every load has landed.
     private IReadOnlyList<ScoutingReportFindingSource> _layerFindings = [];
+
+    // The long form the last Land asked for: an older one landing after it is dropped.
+    private Task? _longForm;
     private ScoutingReportData? _data;
     private bool _disposed;
     private readonly IDisposable? _minedWatch;
@@ -79,6 +83,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     // The player whose CT setup the map shows alone (SteamID64), or null.
     private string? _isolated;
     private bool _shown = true;
+
+    // True while Refresh replaces the picker's rows: the selections written meanwhile are not a team change.
+    private bool _reselecting;
 
     [ObservableProperty]
     private ScoutingBuy _buy = ScoutingBuy.All;
@@ -325,6 +332,11 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     public bool VetoesAreSessionOnly => _vetoes.IsSessionOnly;
 
+    /// <summary>Set when the veto file could not be read, so the section says why entries do not stick.</summary>
+    public string VetoProblem => _vetoes.FileProblem ?? "";
+
+    public bool HasVetoProblem => _vetoes.FileProblem is not null;
+
     public bool IsCt
     {
         get => Side == ScoutingSide.Ct;
@@ -440,16 +452,48 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         _minedWatch?.Dispose();
     }
 
-    // Strat Mining published or dropped its patterns: only the two layers that read them rebuild, in place.
+    // Strat Mining published or dropped its patterns: only the two layers that read them rebuild, in place. The
+    // long form reads them too, so it lands again under the new patterns' key; the maps and players stay put.
     private void OnMinedPatternsChanged()
     {
-        if (!_disposed)
+        if (_disposed)
         {
-            Layers.Rebuild(_stratLayerIds);
+            return;
+        }
+
+        Layers.Rebuild(_stratLayerIds);
+        if (_data is { } data)
+        {
+            LoadTask = Task.WhenAll(LoadTask, Land(data, Volatile.Read(ref _generation)));
         }
     }
 
+    // Which patterns the miner holds now, for the long form's key: a re-mine publishes new pattern objects.
+    private string MinedStamp()
+    {
+        if (_sources.MinedPatterns?.Invoke() is not { } patterns)
+        {
+            return "";
+        }
+
+        HashCode hash = new();
+        foreach (MinedPattern pattern in patterns)
+        {
+            hash.Add(RuntimeHelpers.GetHashCode(pattern));
+        }
+
+        return string.Create(CultureInfo.InvariantCulture, $"{patterns.Count}:{hash.ToHashCode()}");
+    }
+
     partial void OnSelectedTeamChanged(ScoutingReportTeamRow? value)
+    {
+        if (!_reselecting)
+        {
+            TeamChanged(value);
+        }
+    }
+
+    private void TeamChanged(ScoutingReportTeamRow? value)
     {
         VrsRank.SetTeam(value?.Id);
         HltvRank.SetTeam(value?.Id);
@@ -539,7 +583,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         _vetoes.Add(new VetoEntry
         {
             OpponentTeamId = team.Id,
-            Order = Vetoes.Count + 1,
+            // Past the highest step, as the store's merge numbers: a removal leaves a gap, not a free number.
+            Order = _vetoes.For(team.Id).Select(v => v.Order).DefaultIfEmpty(0).Max() + 1,
             Map = NewVetoMap.Trim(),
             Action = NewVetoAction,
             ByOpponent = NewVetoByOpponent
@@ -622,19 +667,38 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             return;
         }
 
+        // The team in view comes back as a new row, and a bound picker writes null as the rows are cleared:
+        // neither is the user picking a team, so the toggles, the typed veto map and the map in view stay.
         Guid? keep = SelectedTeam?.Id;
-        Teams.Clear();
-        foreach (ScoutingReportTeamRow row in rows)
+        _reselecting = true;
+        try
         {
-            Teams.Add(row);
+            Teams.Clear();
+            foreach (ScoutingReportTeamRow row in rows)
+            {
+                Teams.Add(row);
+            }
+
+            SelectedTeam = keep is { } id ? Teams.FirstOrDefault(t => t.Id == id) : null;
+        }
+        finally
+        {
+            _reselecting = false;
         }
 
         OnPropertyChanged(nameof(HasTeams));
         OnPropertyChanged(nameof(IsAwaitingTeam));
-        SelectedTeam = keep is { } id ? Teams.FirstOrDefault(t => t.Id == id) : null;
-        if (keep is not null && SelectedTeam is null)
+        if (SelectedTeam is { } kept)
         {
-            Project();
+            OnPropertyChanged(nameof(TeamName));
+            if (ProjectionKey(kept) != _projectedKey)
+            {
+                Project();
+            }
+        }
+        else if (keep is not null)
+        {
+            TeamChanged(null);
         }
     }
 
@@ -713,15 +777,16 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     }
 
     // Once every load is in: the pool's team-scoped columns, the notices, the players and the long form. The long
-    // form is built once per load and layer set, whichever tab asks first.
+    // form is built once per load, layer set and mined patterns, whichever tab asks first.
     private Task Land(ScoutingReportData data, int generation)
     {
         Task<IReadOnlyList<ScoutingReportFindingSource>> longForm = _loads.Share(data, "long-form",
-            string.Join(',', Layers.All.Select(c => c.Id)),
+            string.Join(',', Layers.All.Select(c => c.Id)) + "|" + MinedStamp(),
             () => data.All.IsCompleted
                 ? BuildLongForm(data)
                 : data.All.ContinueWith(_ => BuildLongForm(data), CancellationToken.None,
                     TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default).Unwrap());
+        _longForm = longForm;
         if (longForm.IsCompleted)
         {
             Landed(data, generation, longForm);
@@ -734,7 +799,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     private void Landed(ScoutingReportData data, int generation, Task<IReadOnlyList<ScoutingReportFindingSource>> longForm)
     {
-        if (_disposed || generation != Volatile.Read(ref _generation) || !ReferenceEquals(data, _data))
+        if (_disposed || generation != Volatile.Read(ref _generation) || !ReferenceEquals(data, _data)
+            || !ReferenceEquals(longForm, _longForm))
         {
             return;
         }
@@ -1010,20 +1076,28 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private void SetIsolated(string? key)
     {
         _isolated = key;
-        if (Layers.Find("setups")?.Layer is SetupsLayer setups)
-        {
-            setups.Isolated = key;
-        }
+        Layers.Isolated = key;
     }
 
     // Rebuilds only the Setups layer for the scope in view, so an isolate does not rebuild the whole stage.
     private void RebuildSetups()
     {
-        if (Side != ScoutingSide.Ct || Layers.Find("setups") is not { Context: { } context } chip)
+        if (Side != ScoutingSide.Ct || Layers.Find("setups") is not { } chip)
         {
             return;
         }
 
+        if (chip.Context is not { } shown)
+        {
+            // The scope's own build is still out, with the isolation it started under.
+            Layers.Rebuild(chip.Id);
+            return;
+        }
+
+        ScoutingLayerContext context = new(shown.Data, shown.Map, shown.Side, shown.Buy, shown.Window)
+        {
+            Isolated = _isolated
+        };
         Task<ScoutingLayerResult> build = ScoutingLayerRegistry.Build(chip.Layer, context, CancellationToken.None);
         if (build.IsCompleted)
         {
@@ -1036,7 +1110,10 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
         void Take(Task<ScoutingLayerResult> landed)
         {
-            if (_disposed || !ReferenceEquals(chip.Context, context) || !landed.IsCompletedSuccessfully)
+            // Dropped behind another scope, and behind a later isolate or Show all.
+            if (_disposed || !landed.IsCompletedSuccessfully || context.Isolated != _isolated
+                || chip.Context is not { } now || !ReferenceEquals(now.Data, shown.Data) || now.Map != shown.Map
+                || now.Side != shown.Side || now.Buy != shown.Buy || now.Window != shown.Window)
             {
                 return;
             }
@@ -1083,6 +1160,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         }
 
         OnPropertyChanged(nameof(VetoesAreSessionOnly));
+        OnPropertyChanged(nameof(VetoProblem));
+        OnPropertyChanged(nameof(HasVetoProblem));
         OnPropertyChanged(nameof(HasVetoes));
         if (collect)
         {

@@ -190,14 +190,15 @@ jobs:
       contents: write
       id-token: write       # attest-build-provenance signs through Sigstore with this job's OIDC identity
       attestations: write
+    # GH_TOKEN is set only on the steps that call gh, so the signing tool's build never sees it.
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       EXT_ID: ${{ needs.build-and-pack.outputs.id }}
       REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false  # only gh talks to the remote, through GH_TOKEN
 
       - uses: ./.github/actions/dotnet-sdk
 
@@ -218,6 +219,7 @@ jobs:
       - name: Merge and validate the rolling feed
         id: feed_merge
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ALLOW_DOWNGRADE: ${{ github.event.inputs.allow_downgrade }}
         run: |
           set -euo pipefail
@@ -261,6 +263,8 @@ jobs:
       # failed after this step (the url check below, or the feed publish step).
       - name: Publish the per-version release and verify its asset URL
         id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           OUT="artifacts/extension-release/$EXT_ID"
@@ -300,6 +304,7 @@ jobs:
 
       - name: Publish the rolling feed
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ROLLING_EXISTED: ${{ steps.feed_merge.outputs.rolling_existed }}
         run: |
           set -euo pipefail

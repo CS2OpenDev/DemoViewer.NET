@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using static DemoViewer.NET.AppTests.SuggestedTagsReviewHarness;
@@ -40,6 +41,46 @@ public class SuggestedTagsReviewTests
                 .Because("nothing has a verdict yet, and the index mirrors the pending count");
             await Assert.That(h.Service.Wants(DemoPath)).IsFalse().Because("the stamp is current");
         }
+    }
+
+    [Test]
+    [Arguments("{\"schemaVersion\":1,\"proposals\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"demo\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"clock\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"proposals\":[null]}")]
+    [Arguments("{\"schemaVersion\":1,\"proposals\":[{\"factors\":null}]}")]
+    [Arguments("{\"schemaVersion\":1,\"proposals\":[{\"evidence\":[null]}]}")]
+    public async Task AStoredDocumentWithANullWhereTheReadersLook_ReadsAsAbsent(string json)
+    {
+        using SuggestedTagsReviewHarness h = new();
+        h.Seed();
+        h.Proposals.Data.Write(DemoPath,
+            new DemoDataWrite(ProposalStore.Facet, ProposalStore.Schema, "bundle",
+                System.Text.Encoding.UTF8.GetBytes(json)));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ProposalDocument.TryDeserialize(json)).IsNull();
+            await Assert.That(h.Service.Load(DemoPath).Entries).IsEmpty()
+                .Because("a file that does not read is absent, and the queue opens empty");
+        }
+    }
+
+    [Test]
+    [Arguments("{\"schemaVersion\":1,\"clock\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"events\":null}")]
+    [Arguments("{\"schemaVersion\":1,\"events\":[null]}")]
+    public async Task AStoredDetonationDocumentWithANull_ReadsAsAbsent(string json)
+    {
+        using SuggestedTagsReviewHarness h = new();
+        h.Seed();
+        DetonationStore store = new(h.Proposals.Data);
+        store.Write(DemoPath, new DetonationDocument());
+        h.Proposals.Data.Write(DemoPath,
+            new DemoDataWrite(DetonationStore.Facet, DetonationDocument.CurrentSchemaVersion,
+                store.Stamp(DemoPath)!.Fingerprint, System.Text.Encoding.UTF8.GetBytes(json)));
+
+        await Assert.That(store.TryRead(DemoPath)).IsNull();
     }
 
     [Test]
@@ -437,5 +478,83 @@ public class SuggestedTagsReviewTests
         h.Seed(sha: new string('b', 64));
 
         await Assert.That(h.Service.Load(DemoPath).Entries).IsEmpty();
+    }
+
+    // The build counts the pending proposals against the verdicts, then writes the count with the proposals; a
+    // verdict from the queue between the two must not leave the stamp one high.
+    [Test]
+    public async Task AVerdictBetweenARebuildsCountAndItsWrite_IsCountedOnTheStamp()
+    {
+        using SuggestedTagsReviewHarness h = new();
+        h.Build();
+        HookedData data = new(h.Cache.Data());
+        SuggestedTagsService service = new(h.Cache.Library(), h.Cache.RoundFacts(), new ProposalStore(data), h.Tags,
+            h.Regions, () => h.Profile, () => true, () => true, walk: _ => Walk(), utcNow: () => Now);
+        await Assert.That(service.Load(DemoPath).Pending.Count).IsGreaterThan(1);
+
+        Thread? verdict = null;
+        data.BeforeWrite = write =>
+        {
+            if (write.Facet != ProposalStore.Facet)
+            {
+                return;
+            }
+
+            data.BeforeWrite = null;
+            verdict = new Thread(() => service.Reject(DemoPath, ExecuteId));
+            verdict.Start();
+            // Long enough for an unguarded verdict to finish; a guarded one waits for the build instead.
+            verdict.Join(TimeSpan.FromSeconds(1));
+        };
+        service.Request(DemoPath);
+        service.Evaluate(DemoPath, Parse());
+        await Assert.That(verdict).IsNotNull();
+        await Assert.That(verdict!.Join(TimeSpan.FromSeconds(10))).IsTrue();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(service.Load(DemoPath).Pending.Any(e => e.Proposal.Id == ExecuteId)).IsFalse();
+            await Assert.That(new ProposalStore(data).Stamp(DemoPath)!.Count)
+                .IsEqualTo(service.Load(DemoPath).Pending.Count);
+        }
+    }
+
+    private sealed class HookedData(IExtensionDemoData inner) : IExtensionDemoData
+    {
+        public Action<DemoDataWrite>? BeforeWrite { get; set; }
+
+        public bool IsAvailable => inner.IsAvailable;
+
+        public event Action<string?>? Changed
+        {
+            add => inner.Changed += value;
+            remove => inner.Changed -= value;
+        }
+
+        public DemoDataStamp? Stamp(string demoPath, string facet) => inner.Stamp(demoPath, facet);
+
+        public IReadOnlyList<DemoDataStamp> Stamps(string facet) => inner.Stamps(facet);
+
+        public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null) =>
+            inner.Read(demoPath, facet, schema, fingerprint, part);
+
+        public DemoDataRecord? ReadAny(string demoPath, string facet, string? part = null) =>
+            inner.ReadAny(demoPath, facet, part);
+
+        public DemoDataStamp? Write(string demoPath, DemoDataWrite write)
+        {
+            BeforeWrite?.Invoke(write);
+            return inner.Write(demoPath, write);
+        }
+
+        public void MarkFailed(string demoPath, string facet) => inner.MarkFailed(demoPath, facet);
+
+        public void ClearFailed(string demoPath, string facet) => inner.ClearFailed(demoPath, facet);
+
+        public void Invalidate(string facet, string? demoPath = null) => inner.Invalidate(facet, demoPath);
+
+        public void SetCount(string demoPath, string facet, int count) => inner.SetCount(demoPath, facet, count);
+
+        public void Delete(string demoPath, string facet) => inner.Delete(demoPath, facet);
     }
 }

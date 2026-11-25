@@ -241,6 +241,36 @@ public class RenderCorrectnessTests
         await Assert.That(layer.RenderCalls).IsEqualTo(1);
     }
 
+    // ── A radar image disposed under a queued frame ─────────────────────────────────────────────────
+
+    [Test]
+    public async Task ARadarImageAlreadyDisposed_DrawsTheGrid_RatherThanTheFreedHandle()
+    {
+        // A frame queued on the render thread can still carry a level whose bundle was released and
+        // disposed. Its radar SKImage then has a zero handle, and handing that to Skia (even reading its
+        // Width) is an access violation, not an exception. This cannot be shown failing: before the
+        // guard it kills the test host. It pins that the layer falls back to the grid instead.
+        SKImage source = SolidImage(64, 64, SKColors.Magenta);
+        source.Dispose();
+        await Assert.That(source.Handle).IsEqualTo(IntPtr.Zero);
+
+        foreach (bool cached in new[] { false, true })
+        {
+            using RadarLayer layer = new();
+            layer.CacheScaledImage = cached;
+            layer.RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100);
+            using CpuSurfaceProvider provider = new();
+            using SKSurface surface = provider.CreateSurface(new SKSizeI(128, 128));
+            surface.Canvas.Clear(ScenePalette.Dark.Background);
+
+            layer.Render(surface.Canvas, RadarContext(source, 128, 128));
+
+            using SKImage drawn = surface.Snapshot();
+            using SKBitmap bitmap = SKBitmap.FromImage(drawn);
+            await Assert.That(bitmap.GetPixel(64, 64)).IsNotEqualTo(SKColors.Magenta);
+        }
+    }
+
     // ── RadarLayer.ScaledFor leaves a dangling disposed SKImage ──────────────────────────────────────
 
     [Test]

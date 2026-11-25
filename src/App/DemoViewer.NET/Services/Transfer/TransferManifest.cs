@@ -188,7 +188,10 @@ public sealed record TransferManifest
                 return $"demo {demo.Sha256} has a malformed fingerprint";
             }
 
-            if (demo.FacetCounts?.Any(c => c.Value < 0 || !demo.Files.Any(f => f.Path == c.Key)) == true)
+            // Looked up, not scanned for: the counts and the files are both as many as the manifest's author
+            // wrote, and a scan per count is quadratic in a file that is read before anything else is checked.
+            HashSet<string> listed = new(demo.Files.Select(f => f.Path), StringComparer.Ordinal);
+            if (demo.FacetCounts?.Any(c => c.Value < 0 || !listed.Contains(c.Key)) == true)
             {
                 return $"demo {demo.Sha256} has a facet count for a file it does not list";
             }
@@ -206,6 +209,11 @@ public sealed record TransferManifest
                 if (!file.Path.StartsWith(own, StringComparison.Ordinal))
                 {
                     return $"'{file.Path}' is outside demo {demo.Sha256}'s folder";
+                }
+
+                if (!IsPortablePath(file.Path))
+                {
+                    return $"'{file.Path}' has a segment that is not portable";
                 }
 
                 paths.Add(file.Path);
@@ -240,6 +248,11 @@ public sealed record TransferManifest
                 return $"'{file.Path}' is outside the shared folder";
             }
 
+            if (!IsPortablePath(file.Path))
+            {
+                return $"'{file.Path}' has a segment that is not portable";
+            }
+
             paths.Add(file.Path);
         }
 
@@ -259,6 +272,7 @@ public sealed record TransferManifest
     private string? CheckExtensionData(List<string> paths)
     {
         Dictionary<string, TransferDemo> demos = Demos.ToDictionary(d => d.Sha256, StringComparer.Ordinal);
+        Dictionary<string, HashSet<TransferFile>> filesOf = new(StringComparer.Ordinal);
         HashSet<string> described = new(StringComparer.Ordinal);
         List<string> keys = [];
         foreach (TransferExtensionFile file in ExtensionData)
@@ -311,8 +325,18 @@ public sealed record TransferManifest
 
             if (file.DemoSha256 is { } demoSha)
             {
-                if (!demos.TryGetValue(demoSha, out TransferDemo? demo)
-                    || !demo.Files.Contains(new TransferFile(file.Path, file.Size, file.Sha256)))
+                if (!demos.TryGetValue(demoSha, out TransferDemo? demo))
+                {
+                    return $"'{file.Path}' is not a file of demo {demoSha}";
+                }
+
+                // One set per demo, built at its first entry: a scan of the demo's files per entry is quadratic.
+                if (!filesOf.TryGetValue(demoSha, out HashSet<TransferFile>? files))
+                {
+                    filesOf[demoSha] = files = [.. demo.Files];
+                }
+
+                if (!files.Contains(new TransferFile(file.Path, file.Size, file.Sha256)))
                 {
                     return $"'{file.Path}' is not a file of demo {demoSha}";
                 }
@@ -347,6 +371,12 @@ public sealed record TransferManifest
         string? duplicate = PathSafety.FindCaseDuplicate(keys);
         return duplicate is null ? null : $"'{duplicate}' is listed twice, or twice differing only by case";
     }
+
+    // Every path the exporter writes for a demo or into the shared folder is built from portable segments
+    // (TransferLayout). The importer takes an extension id and a facet from these paths and keys its merge on
+    // them as written, while Windows drops a trailing dot and maps a device name to the device: "facet." would
+    // be written into the folder of "facet" under a name the merge rule never compared.
+    private static bool IsPortablePath(string path) => path.Split('/').All(TransferLayout.IsPortableSegment);
 
     private static string? CheckFile(TransferFile file)
     {

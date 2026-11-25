@@ -371,12 +371,28 @@ public class ExternalExtensionTests
             bool caseInsensitive = ExtensionStartup.ReadAllowUnverified(file);
             await File.WriteAllTextAsync(file, "{ not json");
             bool broken = ExtensionStartup.ReadAllowUnverified(file);
+            // The settings service takes comments and trailing commas, so this read must too.
+            await File.WriteAllTextAsync(file, "{ // mine\n \"Extensions\": { \"AllowUnverified\": true, }, }");
+            bool lenient = ExtensionStartup.ReadAllowUnverified(file);
+            // A duplicated key threw ArgumentException out of Program.Main, before any crash handler, on every
+            // launch. The settings service refuses such a file and reads defaults, so this reads off.
+            await File.WriteAllTextAsync(file,
+                "{ \"Extensions\": { \"AllowUnverified\": true, \"AllowUnverified\": true } }");
+            Func<bool> duplicateInSection = () => ExtensionStartup.ReadAllowUnverified(file);
+            bool sectionResult = false;
+            await Assert.That(() => sectionResult = duplicateInSection()).ThrowsNothing();
+            await File.WriteAllTextAsync(file, "{ \"Theme\": \"a\", \"Theme\": \"b\", \"Extensions\": {} }");
+            bool rootResult = false;
+            await Assert.That(() => rootResult = ExtensionStartup.ReadAllowUnverified(file)).ThrowsNothing();
 
             using (Assert.Multiple())
             {
                 await Assert.That(on).IsTrue();
                 await Assert.That(caseInsensitive).IsTrue();
                 await Assert.That(broken).IsFalse();
+                await Assert.That(lenient).IsTrue();
+                await Assert.That(sectionResult).IsFalse();
+                await Assert.That(rootResult).IsFalse();
                 await Assert.That(ExtensionStartup.ReadAllowUnverified(Path.Combine(root, "missing.json"))).IsFalse();
                 await Assert.That(new Configuration.AppSettings().Extensions.AllowUnverified).IsFalse()
                     .Because("off by default, whatever the user category");
@@ -769,6 +785,37 @@ public class LaunchTrustPolicyTests
                 await Assert.That(settingOff).IsFalse();
                 await Assert.That(settingOn).IsTrue();
                 await Assert.That(settingOnNoOptIn).IsFalse();
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     The updater's policy lives as long as the app does, and the setting can change under it. A copy staged
+    ///     after the user turned the setting off is judged as the next launch will judge it.
+    /// </summary>
+    [Test]
+    public async Task APolicyOverALiveSetting_FollowsTheSettingAsItChanges()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "dv-trust-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            ExtensionManifest manifest = FakeManifests.For("net.demoviewer.pack.fake");
+            bool allow = true;
+            ITrustPolicy policy = TrustPolicy.ForLaunch(() => allow, static _ => "1");
+            bool whileOn = policy.Judge(dir, manifest).Trusted;
+            allow = false;
+            bool afterOff = policy.Judge(dir, manifest).Trusted;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(whileOn).IsTrue();
+                await Assert.That(afterOff).IsFalse();
+                await Assert.That(policy.IsTrusted(dir, manifest)).IsFalse();
             }
         }
         finally

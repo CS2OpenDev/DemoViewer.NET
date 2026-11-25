@@ -632,11 +632,12 @@ public sealed class DemoCacheRecord : IJsonOnDeserialized
         AnalysisState != DemoAnalysisState.Failed && !IsAnalysisCurrent(currentFingerprint);
 
     /// <summary>
-    ///     Does this record still describe the file on disk? Size + mtime, exactly as the library cache keys
-    ///     freshness today: cheap, and a content hash is not affordable per reconcile pass.
+    ///     Does this record still describe the file on disk? Size + mtime, as the library cache keys freshness
+    ///     (<see cref="DemoFileStamp" />, so a time zone change is no change): cheap, and a content hash is not
+    ///     affordable per reconcile pass.
     /// </summary>
     public bool MatchesFile(long size, long modifiedTicks) =>
-        Size == size && ModifiedTicks == modifiedTicks;
+        DemoFileStamp.Matches(Size, ModifiedTicks, size, modifiedTicks);
 
     /// <summary>The small always-loaded projection of this record.</summary>
     public DemoCacheIndexEntry ToIndexEntry() => new()
@@ -923,7 +924,7 @@ public sealed class DemoCacheIndexEntry : IJsonOnDeserialized
                 || string.Equals(ConfigFingerprint, currentFingerprint, StringComparison.Ordinal)));
 
     public bool MatchesFile(long size, long modifiedTicks) =>
-        Size == size && ModifiedTicks == modifiedTicks;
+        DemoFileStamp.Matches(Size, ModifiedTicks, size, modifiedTicks);
 
     internal DemoCacheIndexEntry Copy() => (DemoCacheIndexEntry)MemberwiseClone();
 

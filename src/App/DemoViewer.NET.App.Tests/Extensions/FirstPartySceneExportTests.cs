@@ -1,7 +1,9 @@
 #region
 
+using System.Collections.Concurrent;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Export;
@@ -67,6 +69,64 @@ public class FirstPartySceneExportTests
             Directory.Delete(root, true);
         }
     }
+
+    /// <summary>
+    ///     One export serves every pane an extension opens, and a run reads its log sink and its refusal copy
+    ///     while it runs. Both are the pane's that started the run, whichever pane was opened last.
+    /// </summary>
+    [Test]
+    public async Task ARun_LogsToThePaneThatStartedIt_AndRefusesInThatPanesWords() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            string root = Path.Combine(Path.GetTempPath(), "dv-scene-export-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                using HeavyJobGate gate = new();
+                using ExtensionSceneExport export = new("dev.example.export", "pack.fake",
+                    new FirstPartyExports(gate, null!), null, null, new FaultRig().Guard, null);
+                ConcurrentQueue<string> first = [];
+                ConcurrentQueue<string> second = [];
+                using ISceneExportPane started = export.OpenPane(PaneRequest("first", first.Enqueue));
+                using ISceneExportPane opened = export.OpenPane(PaneRequest("second", second.Enqueue));
+
+                Playback2DExportDialogViewModel dialog = (Playback2DExportDialogViewModel)started.ViewModel;
+                dialog.OutputPath = Path.Combine(root, "scene.gif");
+                dialog.StartCommand.Execute(null);
+
+                // The capture is null, so the run is refused as soon as it is set up, on the pool. The refusal
+                // reaches the log while the job is still running, and the banner says so until it ends.
+                for (int i = 0; i < 400 && ((first.IsEmpty && second.IsEmpty) || dialog.ErrorBanner is not null); i++)
+                {
+                    await Task.Delay(25);
+                }
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(dialog.ErrorBanner).IsNull();
+                    await Assert.That(second).IsEmpty().Because("the pane opened last started nothing");
+                    await Assert.That(first.Any(line => line.Contains("nothing in first", StringComparison.Ordinal)))
+                        .IsTrue().Because("the run is the first pane's, so the refusal is its copy in its log");
+                }
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        });
+
+    private static SceneExportPaneRequest PaneRequest(string name, Action<string> log) =>
+        new()
+        {
+            Title = "Export " + name,
+            FileStem = name,
+            Ranges = [new SceneExportRange("all", 0, 99)],
+            Choices = new SceneExportChoices(SceneExportFormats.Gif, 20, 640, 640, true, true, true, false),
+            OutputFrameCount = static (start, end, _, _) => end - start + 1,
+            Capture = static () => null,
+            NothingToExport = "nothing in " + name,
+            Log = log
+        };
 
     private sealed class RecordingJob : IExportJobService
     {

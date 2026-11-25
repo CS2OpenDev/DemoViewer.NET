@@ -26,14 +26,32 @@ public static class ExtensionStaging
     /// <summary>
     ///     The file under <c>extensions/&lt;id&gt;/</c> that asks the next start to delete the whole id folder.
     ///     A file, not a folder, so <see cref="Loading.ExtensionLoader.Discover" /> never sees it as a version.
+    ///     Under <c>extensions/&lt;id&gt;/&lt;version&gt;/</c> it asks the same for that one version, and
+    ///     <see cref="Loading.ExtensionLoader.Discover" /> passes the version over until it is gone.
     /// </summary>
     public const string RemovalMarkerName = ".remove";
 
     /// <summary>A zip with more entries than this is refused.</summary>
     private const int MaxEntries = 4096;
 
+    /// <summary>
+    ///     How much of the zip may be read before its entries are listed: the end record and the whole central
+    ///     directory. ZipArchive reads every directory record it finds before it can count them, so this is what
+    ///     keeps <see cref="MaxEntries" /> a bound on memory; 256 bytes a record is far past any real name.
+    /// </summary>
+    private const long MaxDirectoryBytes = MaxEntries * 256L;
+
     /// <summary>A zip whose entries would unpack to more than this, or whose download is larger, is refused.</summary>
     public const long MaxBytes = 512L * 1024 * 1024;
+
+    /// <summary>
+    ///     The largest <c>extension.json</c> read: it is read whole before the trust check, so it is bounded on
+    ///     its own and not only by <see cref="MaxBytes" />.
+    /// </summary>
+    internal const long MaxManifestBytes = 1024 * 1024;
+
+    private static string ManifestTooLarge =>
+        $"the archive's {ExtensionManifest.FileName} is larger than {MaxManifestBytes / 1024} KB";
 
     /// <summary><c>&lt;extensions&gt;/.staging</c>.</summary>
     public static string StagingRoot(string extensionsDirectory) =>
@@ -74,8 +92,94 @@ public static class ExtensionStaging
     }
 
     /// <summary>
+    ///     Asks the next start to delete one staged version, <c>extensions/&lt;id&gt;/&lt;version&gt;/</c>: a copy
+    ///     that failed to load, whose assembly stays mapped until this process exits. Until then
+    ///     <see cref="Loading.ExtensionLoader.Discover" /> no longer lists it. False when the folder is not under
+    ///     an id folder in <paramref name="extensionsDirectory" /> or the marker could not be written.
+    /// </summary>
+    internal static bool MarkVersionForRemoval(string extensionsDirectory, string versionDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(extensionsDirectory);
+        ArgumentNullException.ThrowIfNull(versionDirectory);
+        string idFolder = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(versionDirectory)))!;
+        if (!IsInside(extensionsDirectory, versionDirectory) || !IsInside(extensionsDirectory, idFolder)
+            || !Directory.Exists(versionDirectory))
+        {
+            return false;
+        }
+
+        try
+        {
+            File.WriteAllText(Path.Combine(versionDirectory, RemovalMarkerName), string.Empty);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///     The file under <c>extensions/&lt;id&gt;/</c> naming the last staged version that failed to load and
+    ///     the app version it failed under, one per line. A file, so the loader never sees it as a version.
+    /// </summary>
+    internal const string FailedLoadRecordName = ".failed-load";
+
+    /// <summary>
+    ///     Remembers that <paramref name="version" /> of <paramref name="id" /> failed to load under
+    ///     <paramref name="appVersion" />, so the automatic stage does not download it again. Never throws.
+    /// </summary>
+    internal static void RecordFailedLoad(string extensionsDirectory, string id, SemVersion version,
+        SemVersion? appVersion)
+    {
+        string idFolder = Path.Combine(extensionsDirectory, id);
+        if (!IsInside(extensionsDirectory, idFolder) || !Directory.Exists(idFolder))
+        {
+            return;
+        }
+
+        try
+        {
+            File.WriteAllText(Path.Combine(idFolder, FailedLoadRecordName), version + "\n" + appVersion);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Without the record the automatic stage downloads the version again, as it did before.
+        }
+    }
+
+    /// <summary>
+    ///     True when <see cref="RecordFailedLoad" /> holds exactly <paramref name="version" /> under
+    ///     <paramref name="appVersion" />: an app update may load what this one could not.
+    /// </summary>
+    internal static bool FailedToLoadBefore(string extensionsDirectory, string id, SemVersion version,
+        SemVersion? appVersion)
+    {
+        try
+        {
+            string[] lines = File.ReadAllText(Path.Combine(extensionsDirectory, id, FailedLoadRecordName)).Split('\n');
+            return lines.Length == 2 && lines[0] == version.ToString() && lines[1] == (appVersion?.ToString() ?? "");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Forgets <see cref="RecordFailedLoad" /> for <paramref name="id" />. Never throws.</summary>
+    internal static void ForgetFailedLoad(string extensionsDirectory, string id)
+    {
+        string idFolder = Path.Combine(extensionsDirectory, id);
+        if (IsInside(extensionsDirectory, idFolder))
+        {
+            TryDeleteFile(Path.Combine(idFolder, FailedLoadRecordName));
+        }
+    }
+
+    /// <summary>
     ///     Deletes every id folder under <paramref name="extensionsDirectory" /> that carries
-    ///     <see cref="RemovalMarkerName" />, as <see cref="ApplyPendingRemoval" /> does for one. Only safe before
+    ///     <see cref="RemovalMarkerName" />, as <see cref="ApplyPendingRemoval" /> does for one, and every version
+    ///     folder that carries it (<see cref="MarkVersionForRemoval" />). Only safe before
     ///     any extension is loaded, which is before logging is up, so it logs nothing: it returns the folders it
     ///     deleted whole for the caller to log. Never follows a link; never throws.
     /// </summary>
@@ -101,13 +205,66 @@ public static class ExtensionStaging
         foreach (string idFolder in idFolders)
         {
             string id = Path.GetFileName(idFolder);
-            if (!id.StartsWith('.') && ApplyPendingRemoval(extensionsDirectory, id, null))
+            if (id.StartsWith('.'))
+            {
+                continue;
+            }
+
+            if (ApplyPendingRemoval(extensionsDirectory, id, null))
             {
                 removed.Add(idFolder);
+            }
+            else
+            {
+                ApplyPendingVersionRemovals(extensionsDirectory, idFolder, removed);
             }
         }
 
         return removed;
+    }
+
+    // The version folders under idFolder that carry the marker. The marker goes last, so a folder that did not
+    // delete whole stays passed over by the loader and keeps asking at the next start.
+    private static void ApplyPendingVersionRemovals(string extensionsDirectory, string idFolder, List<string> removed)
+    {
+        try
+        {
+            if (!IsInside(extensionsDirectory, idFolder))
+            {
+                return;
+            }
+
+            foreach (string versionFolder in Directory.GetDirectories(idFolder))
+            {
+                string marker = Path.Combine(versionFolder, RemovalMarkerName);
+                if (!IsInside(extensionsDirectory, versionFolder) || !File.Exists(marker))
+                {
+                    continue;
+                }
+
+                foreach (string child in Directory.EnumerateFileSystemEntries(versionFolder))
+                {
+                    if (!string.Equals(child, marker, StringComparison.Ordinal))
+                    {
+                        DeleteTree(child);
+                    }
+                }
+
+                if (Directory.EnumerateFileSystemEntries(versionFolder)
+                    .Any(c => !string.Equals(c, marker, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                TryDeleteFile(marker);
+                Directory.Delete(versionFolder, false);
+                removed.Add(versionFolder);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Left for the next start, still passed over by the loader.
+        }
     }
 
     /// <summary>
@@ -195,11 +352,14 @@ public static class ExtensionStaging
         string target = Path.GetFullPath(targetDirectory);
         try
         {
-            using ZipArchive archive = ZipFile.OpenRead(zipPath);
+            using ReadBudgetStream budgeted = new(File.OpenRead(zipPath), MaxDirectoryBytes);
+            using ZipArchive archive = new(budgeted, ZipArchiveMode.Read);
             if (archive.Entries.Count > MaxEntries)
             {
                 return $"the archive has {archive.Entries.Count} entries; the most allowed is {MaxEntries}";
             }
+
+            budgeted.Lift();
 
             long total = 0;
             List<(ZipArchiveEntry Entry, string Path, bool IsDirectory)> plan = [];
@@ -221,6 +381,12 @@ public static class ExtensionStaging
                 if (relative is null)
                 {
                     return $"the archive entry '{shortName}' has an unsafe path";
+                }
+
+                if (entry.Length > MaxManifestBytes
+                    && string.Equals(relative, ExtensionManifest.FileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return ManifestTooLarge;
                 }
 
                 bool isDirectory = entry.FullName.EndsWith('/') || entry.FullName.EndsWith('\\');
@@ -257,6 +423,10 @@ public static class ExtensionStaging
 
             return null;
         }
+        catch (DirectoryTooLargeException)
+        {
+            return "the archive's list of entries is larger than allowed";
+        }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException
                                        or NotSupportedException)
         {
@@ -278,6 +448,12 @@ public static class ExtensionStaging
         if (!File.Exists(path))
         {
             problem = $"the archive has no {ExtensionManifest.FileName} at its root";
+            return null;
+        }
+
+        if (new FileInfo(path).Length > MaxManifestBytes)
+        {
+            problem = ManifestTooLarge;
             return null;
         }
 
@@ -424,6 +600,64 @@ public static class ExtensionStaging
         catch (UnauthorizedAccessException)
         {
             return true;
+        }
+    }
+
+    private sealed class DirectoryTooLargeException : Exception
+    {
+    }
+
+    // A read-only view of the zip that throws once more than the budget has been read, until Lift. Opening the
+    // archive and listing its entries happen under the budget; unpacking the entries after Lift does not.
+    private sealed class ReadBudgetStream(Stream inner, long budget) : Stream
+    {
+        private long _read;
+        private bool _lifted;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => inner.CanSeek;
+        public override bool CanWrite => false;
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        public void Lift() => _lifted = true;
+
+        public override int Read(byte[] buffer, int offset, int count) => Count(inner.Read(buffer, offset, count));
+
+        public override int Read(Span<byte> buffer) => Count(inner.Read(buffer));
+
+        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+
+        public override void Flush()
+        {
+        }
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                inner.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
+        private int Count(int read)
+        {
+            if (!_lifted && (_read += read) > budget)
+            {
+                throw new DirectoryTooLargeException();
+            }
+
+            return read;
         }
     }
 }

@@ -535,14 +535,15 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
             {
                 MarkFailed(path);
             }
-            finally
+        }).ContinueWith(_ =>
+        {
+            // Whether or not the body ran: removed from the queue before it ran, the demo would otherwise be
+            // held back from every later plan for the rest of the session.
+            lock (_lifecycle)
             {
-                lock (_lifecycle)
-                {
-                    _openHarvestPending.Remove(path);
-                }
+                _openHarvestPending.Remove(path);
             }
-        });
+        }, TaskScheduler.Default);
     }
 
     /// <summary>

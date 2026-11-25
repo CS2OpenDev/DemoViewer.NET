@@ -13,7 +13,7 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 ///     <list type="bullet">
 ///         <item>The marks: one dot per player per round at their held spot, and a ringed dot on each player's
 ///         most-held spot, in the player's colour from the players table (grey for anyone off the current roster).
-///         <see cref="Isolated" /> fades every other player.</item>
+///         <see cref="ScoutingLayerContext.Isolated" /> fades every other player; a key not in the scope fades nobody.</item>
 ///         <item>The read: the buy in view's, or with every buy the most sampled buy's, saying so.</item>
 ///         <item>The inspector, in three tabs. Players: the places each player held ("41 of 50"). Shape: the CTs per
 ///         area (A · mid · B) with their win %. Both follow the buy filter. By buy: one row per buy with its rounds
@@ -47,18 +47,6 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         [ScoutingBuy.Force] = BuyType.Force,
         [ScoutingBuy.Full] = BuyType.Full
     };
-
-    private volatile string? _isolated;
-
-    /// <summary>
-    ///     The player (SteamID64 as text) whose setup is shown alone, others fading; null shows everyone. Read at
-    ///     build time: the players table sets it and rebuilds the layer. A key not in the scope fades nobody.
-    /// </summary>
-    public string? Isolated
-    {
-        get => _isolated;
-        set => _isolated = value;
-    }
 
     /// <inheritdoc />
     public override bool UsesBuy => true;
@@ -130,7 +118,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         return new ScoutingLayerResult
         {
             CountLabel = $"{rounds.Count} rds",
-            Marks = Marks(rounds, places, colors, Isolated, names,
+            Marks = Marks(rounds, places, colors, context.Isolated, names,
                 [.. heatmaps.SelectMany(h => h.Rounds.Select(r => (r, ScoutingReportLines.BuyLabelFor(h.Buy))))]),
             Reads = [ReadFor(context, heatmaps, names)],
             Sections = sections,

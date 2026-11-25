@@ -372,6 +372,42 @@ public class Playback2DExportDialogTests
         await Assert.That(persisted.Playback2D.ExportEncoder).IsEqualTo("av1_nvenc");
     }
 
+    // Opened while an export renders, the pane refuses; once that export ends it must stop refusing on its own,
+    // not only after the user edits a field or reopens it.
+    [Test]
+    public async Task TheRunningExportRefusal_ClearsWhenTheJobEnds()
+    {
+        string? running = null, after = "unset";
+        bool canStart = false;
+        int subscribers = -1;
+
+        // On the UI thread, where the service raises StatusChanged: once the suite's headless session is up,
+        // the pane's marshalling posts there from any other thread.
+        await HeadlessSession.RunOnUi(() =>
+        {
+            SettableExportJobService job = new();
+            job.Set(ExportPhase.Rendering);
+            Playback2DExportDialogViewModel vm = Dialog(job: job);
+            running = vm.ErrorBanner;
+
+            job.Set(ExportPhase.Completed);
+            after = vm.ErrorBanner;
+            canStart = vm.CanStart;
+
+            vm.Dispose();
+            subscribers = job.Subscribers;
+            return Task.CompletedTask;
+        });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(running).IsEqualTo("An export is already running.");
+            await Assert.That(after).IsNull();
+            await Assert.That(canStart).IsTrue();
+            await Assert.That(subscribers).IsEqualTo(0).Because("the job outlives the pane");
+        }
+    }
+
     [Test]
     public async Task Start_CarriesTheChoicesOntoTheRequest()
     {
@@ -533,6 +569,35 @@ public class Playback2DExportDialogTests
     }
 
     /// <summary>
+    ///     A saved size that is no preset was a custom one. It used to reopen as the 720p preset with the
+    ///     custom fields hidden, and the next Start wrote 720p over it.
+    /// </summary>
+    [Test]
+    public async Task ACustomSize_SeedsAsCustom_AndPersistsBack()
+    {
+        AppSettings written = new();
+        Playback2DExportDialogViewModel vm = Dialog(
+            defaults: new Playback2DSettings { ExportWidth = 1000, ExportHeight = 560 },
+            job: new StubExportJobService(),
+            persist: mutate => mutate(written));
+
+        await Assert.That(vm.UseCustomSize).IsTrue();
+        await Assert.That(vm.ResolvedSize.Width).IsEqualTo(1000);
+        await Assert.That(vm.ResolvedSize.Height).IsEqualTo(560);
+
+        vm.StartCommand.Execute(null);
+
+        await Assert.That(written.Playback2D.ExportWidth).IsEqualTo(1000);
+        await Assert.That(written.Playback2D.ExportHeight).IsEqualTo(560);
+
+        // A preset stays a preset.
+        Playback2DExportDialogViewModel preset = Dialog(
+            defaults: new Playback2DSettings { ExportWidth = 1920, ExportHeight = 1080 });
+        await Assert.That(preset.UseCustomSize).IsFalse();
+        await Assert.That(preset.SelectedSize!.Width).IsEqualTo(1920);
+    }
+
+    /// <summary>
     ///     The fileless branch, explicitly. <c>SettingsWasmRoundTripTests</c> reflects over the whole class
     ///     and would catch a missing <c>WriteInMemory</c> row too, but a key that only ever travels is
     ///     half a setting: this one asserts the round trip AND the dialog reading it back.
@@ -671,6 +736,28 @@ public class Playback2DExportDialogTests
         public Task CancelAsync() => Task.CompletedTask;
     }
 
+    /// <summary>A job whose status the test sets, raising StatusChanged as the real service does.</summary>
+    private sealed class SettableExportJobService : IExportJobService
+    {
+        public ExportJobStatus Status { get; private set; } = ExportJobStatus.Idle;
+
+        public int Subscribers => StatusChanged?.GetInvocationList().Length ?? 0;
+
+        public event EventHandler<ExportJobStatus>? StatusChanged;
+
+        public void Set(ExportPhase phase)
+        {
+            Status = new ExportJobStatus(phase, 0, 10, 0, TimeSpan.Zero, "/out/x.mp4", null);
+            StatusChanged?.Invoke(this, Status);
+        }
+
+        public void Start(Scene2DExportRequest request)
+        {
+        }
+
+        public Task CancelAsync() => Task.CompletedTask;
+    }
+
     /// <summary>Every request, in order. A single-slot stub cannot show what two Starts do.</summary>
     private sealed class RecordingExportJobService : IExportJobService
     {
@@ -804,6 +891,25 @@ public class Playback2DExportFfmpegDownloadTests
             await vm.DownloadFfmpegCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(10));
 
             await Assert.That(vm.FfmpegDownloadStatus!).Contains("pinned checksum");
+            await Assert.That(vm.IsDownloadingFfmpeg).IsFalse();
+        });
+
+    /// <summary>
+    ///     An injected acquisition that fails with a disk-side exception rather than the acquisition's own
+    ///     type must still land as a message: the command runs on the UI thread, and anything it rethrows
+    ///     there takes the app down.
+    /// </summary>
+    [Test]
+    public async Task AnIoFailure_DegradesToTheMessage_NeverToACrash() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            Playback2DExportDialogViewModel vm = Dialog(() => false,
+                (_, _, _) => throw new IOException("The process cannot access the file 'ffmpeg.exe'."));
+
+            await vm.DownloadFfmpegCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(10));
+
+            await Assert.That(vm.FfmpegDownloadStatus).IsNotNull();
+            await Assert.That(vm.FfmpegDownloadStatus!).DoesNotContain("Downloading");
             await Assert.That(vm.IsDownloadingFfmpeg).IsFalse();
         });
 

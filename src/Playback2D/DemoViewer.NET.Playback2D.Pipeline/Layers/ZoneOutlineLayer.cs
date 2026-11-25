@@ -127,8 +127,17 @@ public sealed class ZoneOutlineLayer : ISceneLayer
             return;
         }
 
-        _baked.Color = ctx.Palette.Label.WithAlpha(0xA0);
-        _custom.Color = ctx.Palette.TeamT;
+        // The pictures bake the paint colour at record time, and the compositor's InvalidateCaches on a
+        // theme switch never reaches this private cache, so a new palette re-records them here.
+        SKColor baked = ctx.Palette.Label.WithAlpha(0xA0);
+        SKColor custom = ctx.Palette.TeamT;
+        if (baked != _baked.Color || custom != _custom.Color)
+        {
+            ClearPictures();
+        }
+
+        _baked.Color = baked;
+        _custom.Color = custom;
 
         SKMatrix matrix = ViewportMatrix.From(ctx.Transform);
         foreach (double floorKey in FloorsFor(in ctx, resolver))

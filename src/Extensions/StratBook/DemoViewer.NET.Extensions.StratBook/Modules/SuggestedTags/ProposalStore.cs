@@ -49,13 +49,25 @@ public sealed class ProposalDocument
     {
         try
         {
-            return JsonSerializer.Deserialize(json, SuggestedTagsJsonContext.Default.ProposalDocument);
+            return JsonSerializer.Deserialize(json, SuggestedTagsJsonContext.Default.ProposalDocument) is { } document
+                   && IsWellFormed(document)
+                ? document
+                : null;
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    // The serializer writes a JSON null over an initialised property, and a facet can come from a transfer
+    // bundle. The readers dereference all of these, so a document missing one is not a document.
+    private static bool IsWellFormed(ProposalDocument document) =>
+        document.Demo is not null && document.Clock is not null && document.DetectorSet is not null
+        && document.Proposals is not null
+        && document.Proposals.TrueForAll(p =>
+            p is { Id: not null, Detector: not null, Code: not null, Factors: not null, Labels: not null }
+            && p.Evidence is not null && p.Evidence.TrueForAll(e => e is not null));
 
     /// <summary>The proposals as the detectors made them.</summary>
     public IReadOnlyList<TagProposal> ToProposals() => [.. Proposals.Select(p => p.ToProposal())];
@@ -216,8 +228,12 @@ public sealed class ProposalStore
     /// <summary>Every demo's stamp.</summary>
     public IReadOnlyList<DemoDataStamp> Stamps() => Data.Stamps(Facet);
 
-    /// <summary>Proposals with no verdict yet across every demo: the badge.</summary>
-    public int PendingTotal() => Stamps().Sum(s => s.Count);
+    /// <summary>
+    ///     Proposals with no verdict yet across every demo: the badge. Summed wide and capped, because a stamp's
+    ///     count can come from a transfer bundle's manifest and a checked int sum over two made-up counts would
+    ///     throw out of the tab that shows the badge.
+    /// </summary>
+    public int PendingTotal() => (int)Math.Min(int.MaxValue, Stamps().Sum(s => (long)s.Count));
 
     /// <summary>Are the demo's proposals current under <paramref name="fingerprint" /> (the detector set)?</summary>
     /// <param name="demoPath">The demo's path.</param>

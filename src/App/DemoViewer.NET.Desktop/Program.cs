@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CS2DemoKit.Analysis.Diagnostics;
@@ -13,6 +14,7 @@ using DemoViewer.NET.LiveSync;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Startup;
 using DemoViewer.NET.ViewModels.Diagnostics;
+using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.Options;
 using Velopack;
 
@@ -22,6 +24,10 @@ namespace DemoViewer.NET.Desktop;
 
 internal static class Program
 {
+    // Set by Restart, started by Main once the lifetime has returned: the old process saves, tears down
+    // and flushes first, so the new one does not race it on settings.json or a patched CS2 install.
+    private static ProcessStartInfo? s_pendingRestart;
+
     // Avalonia configuration, don't remove; also used by visual designer.
     /// <summary>Build avalonia app.</summary>
     [UsedImplicitly]
@@ -65,6 +71,30 @@ internal static class Program
 
         builder.Run();
 
+        // One instance per config root: the stores under it load once and write their whole state back, so a
+        // second process would write its stale copy over the first's changes. A second launch hands its demo
+        // (or just the request to come forward) to the running window and exits before it writes anything,
+        // the launch-state file included. A relaunch waits for the old process to let go: see SingleInstance.
+        SingleInstanceClaim claim = SingleInstance.Claim(AppPaths.ConfigRoot, SingleInstance.DemoArgument(args));
+        if (claim.HandedOff)
+        {
+            return;
+        }
+
+        if (claim.Blocked)
+        {
+            // Held by a process that is alive but does not answer; starting beside it would clobber its stores.
+            Console.Error.WriteLine(
+                $"DemoViewer.NET is already running for {AppPaths.ConfigRoot} and did not respond. Close it and try again.");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        using SingleInstance? instance = claim.Instance;
+
+        // Answer later launches now, not after the slow start below: what they send waits for the window.
+        instance?.Listen();
+
         // The extensions this build ships, each replaced by a newer copy staged
         // under <config root>/extensions/ when one is compatible and trusted. The app assembly
         // references none of them; the composition root and the static registries read this list, so it is
@@ -106,7 +136,7 @@ internal static class Program
             }
         };
 
-        AppHostHooks.Restart = () => Restart(launch);
+        AppHostHooks.Restart = Restart;
 
         // CSVG live sync: the engine lives in the desktop-only
         // DemoViewer.NET.LiveSync project (CSVG + ASP.NET Core: the App/Browser projects must
@@ -132,7 +162,9 @@ internal static class Program
         // Browser head). VelopackApp.Build().Run() above handles install/update HOOKS only; it never
         // contacts a server. Without this factory the published releases.{channel}.json feeds would
         // go on being written and never read, which is exactly the state v0.5.1 shipped in.
-        AppHostHooks.UpdateServiceFactory = static () => new VelopackUpdateService(static () =>
+        // Kept here so the update a user accepted is applied after the lifetime returns, below.
+        VelopackUpdateService? updater = null;
+        AppHostHooks.UpdateServiceFactory = () => updater ??= new VelopackUpdateService(static () =>
             (App.Services?.GetService(typeof(IOptionsMonitor<AppSettings>)) as IOptionsMonitor<AppSettings>)
             ?.CurrentValue.Updates.SubscribeToBeta ?? false);
 
@@ -142,20 +174,39 @@ internal static class Program
         // on Windows (this is a WinExe) it only appears when launched from a terminal or via `dotnet run`.
         // Live / per-moment capture without any of this is available via dotnet-counters / dotnet-trace.
         using ProfilingSession? session = ProfilingSession.StartFromEnvironment();
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        // Requests reach the handler once Avalonia is set up: it posts to the UI dispatcher, which must not be
+        // first reached from the listener's pool thread before the platform exists. Earlier ones are held.
+        BuildAvaloniaApp()
+            .AfterSetup(_ => instance?.Listen(static demoPath => Dispatcher.UIThread.Post(() => Activate(demoPath, 0))))
+            .StartWithClassicDesktopLifetime(args);
         launch.MarkExited();
+
+        // Let go before the relaunch below starts, so it takes the lock at once rather than waiting out this
+        // process. Everything that writes under the config root has flushed by now.
+        instance?.Dispose();
+
+        // After ShutdownRequested has saved the session and torn down live sync, reels and exports.
+        // Velopack restarts the app itself after applying a staged update, so a requested restart only
+        // starts the replacement when nothing is staged; otherwise two instances would launch.
+        updater?.ApplyStagedUpdate();
+        if (s_pendingRestart is { } restart && updater?.HasStagedUpdate != true)
+        {
+            using Process? started = Process.Start(restart);
+        }
     }
 
     // The same executable with the same arguments minus --safe-mode. Under `dotnet run` the process is the
-    // dotnet host, whose first argument is the app's own assembly.
-    private static void Restart(LaunchGuard launch)
+    // dotnet host, whose first argument is the app's own assembly. The exit is a posted TryShutdown, not
+    // Shutdown: a forced Shutdown raises no ShutdownRequested, and that handler saves the session, tears
+    // down live sync, reels and exports and flushes the stores. Main marks the clean exit and starts the
+    // replacement after the lifetime returns.
+    private static void Restart()
     {
         if (Environment.ProcessPath is not { } executable)
         {
             return;
         }
 
-        launch.MarkExited();
         string[] commandLine = Environment.GetCommandLineArgs();
         ProcessStartInfo start = new(executable) { UseShellExecute = false };
         if (string.Equals(Path.GetFileNameWithoutExtension(executable), "dotnet", StringComparison.OrdinalIgnoreCase))
@@ -168,10 +219,47 @@ internal static class Program
             start.ArgumentList.Add(arg);
         }
 
-        using Process? started = Process.Start(start);
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        s_pendingRestart = start;
+        Dispatcher.UIThread.Post(static () =>
         {
-            desktop.Shutdown();
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.TryShutdown();
+            }
+        });
+    }
+
+    // A later launch's request: bring the window forward and open its demo, if it named one. One that arrives
+    // before the window is up waits for it, for a few seconds.
+    private static void Activate(string? demoPath, int attempt)
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime
+            {
+                MainWindow: { IsVisible: true } window
+            })
+        {
+            if (attempt < 40)
+            {
+                DispatcherTimer.RunOnce(() => Activate(demoPath, attempt + 1), TimeSpan.FromMilliseconds(250));
+            }
+
+            return;
+        }
+
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = WindowState.Normal;
+        }
+
+        // A background process may not take the foreground on Windows; topmost for a moment brings it over
+        // the window the user launched from.
+        window.Topmost = true;
+        window.Topmost = false;
+        window.Activate();
+
+        if (demoPath is not null && window.DataContext is MainViewModel shell)
+        {
+            _ = shell.LoadDemoFromPathAsync(demoPath);
         }
     }
 

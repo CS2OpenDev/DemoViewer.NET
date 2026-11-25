@@ -65,11 +65,18 @@ public sealed class ReelJobService(
                 throw new InvalidOperationException("A highlight reel is already being generated.");
             }
 
+            // Running BEFORE the job is scheduled: the guard above reads Status, and the job's own
+            // first SetStatus runs later on the pool, so a second Start in that gap would pass.
+            // Only the property is set here; the job's first SetStatus raises StatusChanged with
+            // this same value, and raising it from here could land after a fast terminal status.
+            Status = new ReelJobStatus(ReelJobPhase.StartingSession, 0, request.Clips.Count, null, null, null, []);
             _lastRequest = request;
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
             CancellationToken token = _cts.Token;
-            _job = Task.Run(() => RunAsync(request, token), token);
+            // No token on Task.Run: a cancel before scheduling would skip RunAsync entirely and
+            // leave Status at StartingSession forever. RunAsync observes the token itself.
+            _job = Task.Run(() => RunAsync(request, token));
         }
     }
 
@@ -151,9 +158,17 @@ public sealed class ReelJobService(
             // Single-CS2 interlock: stop a live sync session first; its chip shows
             // "Paused for reel render" throughout. OwnsSessionResources, not IsSessionActive:
             // a Faulted sync session still holds the gRPC host (and port 50051) for fast retry.
-            if (liveSync is not null && (liveSync.State.IsSessionActive || liveSync.OwnsSessionResources))
+            // Parked even when sync was off: SuspendedForReel is what refuses Enable/Reconnect, and
+            // an Enable mid-reel would fight the reel for port 50051, the install and the one CS2.
+            bool syncHeldCs2 = false;
+            if (liveSync is not null)
             {
-                log?.Invoke("Suspending live sync for the reel render.");
+                syncHeldCs2 = liveSync.State.IsSessionActive || liveSync.OwnsSessionResources;
+                if (syncHeldCs2)
+                {
+                    log?.Invoke("Suspending live sync for the reel render.");
+                }
+
                 await liveSync.SuspendForReelAsync().ConfigureAwait(false);
                 suspendedSync = true;
             }
@@ -188,7 +203,7 @@ public sealed class ReelJobService(
             // suspended sync session's CS2 can still be exiting here, and the guard refuses a running CS2.
             if (!request.DryRun)
             {
-                if (suspendedSync)
+                if (syncHeldCs2)
                 {
                     await InstallRecovery
                         .WaitForCs2ExitAsync(InstallRecovery.Cs2ExitTimeout, cancellationToken, isCs2Running)
@@ -269,14 +284,8 @@ public sealed class ReelJobService(
             {
                 Cs2CompilationResult result = await session
                     .RunCompilationAsync(compilation, cancellationToken).ConfigureAwait(false);
-                completed = result.ClipResults.Count(r => r.Success);
-                failed = [.. result.ClipResults.Where(r => !r.Success).Select(r => r.ClipIndex)];
-                terminal = new ReelJobStatus(
-                    result.Success ? ReelJobPhase.Completed : ReelJobPhase.Failed,
-                    completed, request.Clips.Count, null,
-                    result.Success ? null : $"{failed.Count} clip(s) failed to capture.",
-                    request.Concatenate ? compilation.Settings.GetConcatenatedOutputPath() : request.OutputDirectory,
-                    failed);
+                terminal = CompilationTerminalStatus(request, result, cancellationToken.IsCancellationRequested,
+                    request.Concatenate ? compilation.Settings.GetConcatenatedOutputPath() : request.OutputDirectory);
             }
             finally
             {
@@ -307,7 +316,15 @@ public sealed class ReelJobService(
                     // Teardown is best-effort; the install restore is CSVG's stop path.
                 }
 
-                await host.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await host.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Best-effort: a failed container dispose must not skip the gate release, the
+                    // sync un-suspend and the terminal status below.
+                }
             }
 
             reelSlot?.Dispose();
@@ -466,6 +483,45 @@ public sealed class ReelJobService(
             })
         ]
     };
+
+    /// <summary>
+    ///     The real reel's terminal status. CSVG's runner is fail-fast and never throws: the first
+    ///     failed clip, a demo that fails to load and a cancellation all come back as a Failed result
+    ///     holding only the clips it started. So the retryable set is every requested clip without a
+    ///     successful result (matched by <see cref="Cs2ClipResult.ClipIndex" />, because the runner
+    ///     records grouped by demo and start tick, not in request order), and the token decides
+    ///     Cancelled, for a run that did not succeed: the token is read after the runner returns, so a
+    ///     cancel can arrive once every clip is captured and the reel is on disk, and that run completed.
+    ///     <see cref="UnfinishedIndices" />' contiguous-tail assumption does not hold here.
+    /// </summary>
+    internal static ReelJobStatus CompilationTerminalStatus(
+        ReelRequest request, Cs2CompilationResult result, bool cancelled, string? outputPath)
+    {
+        HashSet<int> captured = [.. result.ClipResults.Where(r => r.Success).Select(r => r.ClipIndex)];
+        List<int> unfinished = [.. Enumerable.Range(0, request.Clips.Count).Where(i => !captured.Contains(i))];
+        if (cancelled && !result.Success)
+        {
+            return new ReelJobStatus(ReelJobPhase.Cancelled, captured.Count, request.Clips.Count, null,
+                "Cancelled.", null, unfinished);
+        }
+
+        string? error = null;
+        if (!result.Success)
+        {
+            error = $"{unfinished.Count} clip(s) not captured.";
+            if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+            {
+                error += " " + result.ErrorMessage;
+            }
+        }
+
+        return new ReelJobStatus(
+            result.Success ? ReelJobPhase.Completed : ReelJobPhase.Failed,
+            captured.Count, request.Clips.Count, null,
+            error,
+            outputPath,
+            unfinished);
+    }
 
     private static string ClipLabel(ReelRequest request, int index) =>
         index >= 0 && index < request.Clips.Count ? request.Clips[index].Label : $"clip {index + 1}";

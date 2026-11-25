@@ -1,9 +1,11 @@
 #region
 
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Modules.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
@@ -223,6 +225,27 @@ public class TransferImporterTests
     }
 
     [Test]
+    [Arguments(500, new[] { "mine", "theirs" })]
+    [Arguments(900, new[] { "mine" })]
+    public async Task KeepBoth_MergesAnnotationsOnlyFromTheSameParseClock(int theirFrames, string[] annotations)
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string config = temp.New();
+        OneDemo(root, (b, files) => files.Add(b.AnnotationsWithClock(Sha, theirFrames, "theirs"))).Write();
+        string mineFile = AnnotationStore.AppDataFile(config, Sha);
+        Directory.CreateDirectory(Path.GetDirectoryName(mineFile)!);
+        File.WriteAllBytes(mineFile, BundleBuilder.AnnotationDocumentWithClock(Sha, 500, "mine"));
+        TransferImporter importer = new(new DemoCacheStore(null), config);
+
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        await importer.RunAsync(ImportRequest.DataOnly(root, ConflictPolicy.KeepBoth), preview, null,
+            CancellationToken.None);
+
+        await Assert.That(BundleBuilder.ElementIds(mineFile)).IsEquivalentTo(annotations, CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task Annotations_WithNoLocalCopy_GoToAppData_NotBesideTheDemo()
     {
         using TempFolders temp = new();
@@ -245,6 +268,63 @@ public class TransferImporterTests
                 .IsEquivalentTo(["theirs"]);
         }
     }
+
+    /// <summary>
+    ///     A demo open in the 2D tab, its annotations in app-data (its folder cannot be written), with a stroke
+    ///     drawn and not saved yet. The import merges into the file the tab loaded; the tab's next flush used to
+    ///     write its own copy back over the merge, so the imported stroke was gone though the summary said merged.
+    /// </summary>
+    [Test]
+    public async Task AnImportIntoADemoOpenIn2D_KeepsItsUnsavedStrokes_AndShowsTheImportedOnes()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string config = temp.New();
+        string demo = Path.Combine(temp.New(), "unreachable", "match.dem");
+        ClockIdentity clock = new(ClockIdentity.DvFrameClock, 64, 1000, 0, 0);
+        AnnotationElement mine = Stroke(), drawn = Stroke(), theirs = Stroke();
+
+        string elsewhere = temp.New();
+        AnnotationStore theirStore = new(elsewhere, _ => Sha);
+        await theirStore.SaveAsync(demo, theirStore.IdentityOf(demo), clock, [theirs]);
+        byte[] theirBytes = await File.ReadAllBytesAsync(AnnotationStore.AppDataFile(elsewhere, Sha));
+        OneDemo(root, (b, files) => files.Add(b.File(TransferLayout.AnnotationsFile(Sha), theirBytes))).Write();
+
+        DemoCacheStore cache = new(null);
+        cache.Upsert(new DemoCacheRecord { Path = demo, Size = 4096, Sha256 = Sha });
+        AnnotationStore store = new(config, _ => Sha);
+        await store.SaveAsync(demo, store.IdentityOf(demo), clock, [mine]);
+
+        AnnotationWriteCoordinator sessions = new();
+        using AnnotationSessionController controller = new(new AnnotationStore(config, _ => Sha), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using IDisposable registration = sessions.Register(controller);
+        await controller.AttachDemoAsync(demo, clock);
+        controller.Document.Apply(new DocDelta.Add(drawn, int.MaxValue));
+
+        TransferImporter importer = new(cache, config, annotationSessions: sessions);
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        TransferSummary summary = await importer.RunAsync(ImportRequest.DataOnly(root, ConflictPolicy.KeepBoth),
+            preview, null, CancellationToken.None);
+        await controller.FlushAsync(); // a tab switch
+        AnnotationLoadResult reopened = await new AnnotationStore(config, _ => Sha).LoadAsync(demo, clock);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Items.Single().Outcome).IsNotEqualTo(TransferOutcome.Failed);
+            await Assert.That(controller.Document.Elements.Select(e => e.Id))
+                .IsEquivalentTo([mine.Id, drawn.Id, theirs.Id]).Because("the tab shows the merged file");
+            await Assert.That(reopened.Elements.Select(e => e.Id))
+                .IsEquivalentTo([mine.Id, drawn.Id, theirs.Id]).Because("no stroke from either side is lost");
+        }
+    }
+
+    private static AnnotationElement Stroke() =>
+        new(Guid.NewGuid(), AnnotationKind.Freehand, AnnotationStyle.Default, new SpaceRef.World(0),
+            TimeEnvelope.Static,
+            [new InkPoint(0, 0, 0.5f), new InkPoint(40, 10, 0.5f), new InkPoint(80, 0, 0.5f)], null);
 
     [Test]
     public async Task ImportedAnnotations_LoadFromAppData_WhileTheDemosFolderHasNone()
@@ -293,6 +373,44 @@ public class TransferImporterTests
                 .IsEquivalentTo(["mine"]);
             await Assert.That(File.Exists(AnnotationStore.AppDataFile(config, Sha))).IsFalse();
             await Assert.That(summary.Items.Single().Reason).Contains("beside the demo were kept");
+        }
+    }
+
+    /// <summary>
+    ///     A record with a JSON null where a member belongs fails its own demo and nothing else: the run goes
+    ///     on to the demos after it and to the steps after the demos.
+    /// </summary>
+    [Test]
+    public async Task ADemoWhoseRecordHasANullMember_FailsAlone_AndTheRunGoesOn()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        const string Bad = "4444444444444444444444444444444444444444444444444444444444444444";
+        BundleBuilder bundle = new(root);
+        System.Text.Json.Nodes.JsonObject node =
+            System.Text.Json.JsonSerializer.SerializeToNode(BundleBuilder.ParsedRecord(Bad, 4096))!.AsObject();
+        node["Header"] = null;
+        bundle.Demo(Bad, "bad.dem", 4096,
+        [
+            bundle.File(TransferLayout.CacheFile(Bad, TransferLayout.DemoFileName(DemoCacheStore.RecordSuffix)),
+                SidecarJson.Gzip(Encoding.UTF8.GetBytes(node.ToJsonString())))
+        ]);
+        bundle.Demo(Sha, "match.dem", 4096, [bundle.Record(BundleBuilder.ParsedRecord(Sha, 4096))]);
+        bundle.Write();
+        DemoCacheStore cache = new(null);
+        TransferImporter importer = new(cache);
+
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        TransferSummary summary = await importer.RunAsync(ImportRequest.DataOnly(root), preview, null,
+            CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Items.Single(i => i.Sha256 == Bad).Outcome).IsEqualTo(TransferOutcome.Failed);
+            await Assert.That(summary.Items.Single(i => i.Sha256 == Sha).Outcome)
+                .IsEqualTo(TransferOutcome.Transferred);
+            await Assert.That(cache.HoldsContent(Bad)).IsFalse();
+            await Assert.That(cache.HoldsContent(Sha)).IsTrue();
         }
     }
 
@@ -540,6 +658,25 @@ public class TransferImporterTests
     }
 
     [Test]
+    public async Task KeepBoth_ImportingTheSameDifferingClipTwice_AddsItOnce()
+    {
+        ReviewQueue review = new(null);
+        review.ImportClips([ReviewEntry.Clip("", 10, 20, "a", ReviewSources.Manual, 64, Sha)], ConflictPolicy.TakeImported);
+        ReviewEntry[] theirs = [ReviewEntry.Clip("", 10, 20, "b", ReviewSources.Manual, 64, Sha)];
+
+        ReviewImportResult first = review.ImportClips(theirs, ConflictPolicy.KeepBoth);
+        ReviewImportResult second = review.ImportClips(theirs, ConflictPolicy.KeepBoth);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(first.Added).IsEqualTo(1);
+            await Assert.That(second.Added).IsEqualTo(0);
+            await Assert.That(second.Kept).IsEqualTo(1);
+            await Assert.That(review.Clips.Count).IsEqualTo(2);
+        }
+    }
+
+    [Test]
     public async Task AReviewFile_ResolvesItsClipsWithNoPath_AsItLoads()
     {
         using TempFolders temp = new();
@@ -642,5 +779,220 @@ public class TransferImporterTests
         }
 
         store.StopFollowingLibrary();
+    }
+
+    /// <summary>
+    ///     Windows drops a trailing dot and ignores case, so <c>rounds.</c> and <c>Rounds</c> are the folder
+    ///     <c>rounds</c> there. Imported under such a name the files would replace the local facet's without the
+    ///     merge rule ever comparing the two, so the name is refused and the local facet is left as it was.
+    /// </summary>
+    [Test]
+    [Arguments("rounds.")]
+    [Arguments("Rounds")]
+    public async Task AFacetNameThatAliasesALocalFacetsFolder_IsRefused(string alias)
+    {
+        using TempFolders temp = new();
+        DemoCacheStore cache = new(null);
+        ExtensionDemoDataStore store = new("dev.example.data", temp.New(), cache, a => a(), "1.0.0");
+        store.Import(Sha, "rounds",
+        [
+            new KeyValuePair<string, byte[]>(Sha + ".json.gz",
+                BundleBuilder.FacetFile("rounds", null, 5, "fp", Sha, "", "mine")),
+            new KeyValuePair<string, byte[]>(Sha + ".positions.json.gz",
+                BundleBuilder.FacetFile("rounds", "positions", 5, "fp", Sha, "", "my part"))
+        ]);
+        string main = Path.Combine(store.Root, "rounds", Sha + ".json.gz");
+        string part = Path.Combine(store.Root, "rounds", Sha + ".positions.json.gz");
+        byte[] before = await File.ReadAllBytesAsync(main);
+
+        bool refused = false;
+        try
+        {
+            store.Import(Sha, alias,
+            [
+                new KeyValuePair<string, byte[]>(Sha + ".json.gz",
+                    BundleBuilder.FacetFile(alias, null, 1, null, Sha, "", "theirs"))
+            ]);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            refused = true;
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(refused).IsTrue();
+            await Assert.That(await File.ReadAllBytesAsync(main)).IsEquivalentTo(before);
+            await Assert.That(File.Exists(part)).IsTrue().Because("the local write's parts are not the import's to sweep");
+            await Assert.That(Directory.GetDirectories(store.Root).Select(d => Path.GetFileName(d) ?? ""))
+                .IsEquivalentTo(["rounds"]);
+        }
+
+        store.StopFollowingLibrary();
+    }
+
+    /// <summary>
+    ///     An extension id that differs only by case from one with data here names the same folder on Windows
+    ///     and macOS. Its facets are left out: a second store over that folder would save a competing index.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task AnExtensionIdThatDiffersOnlyByCaseFromOneHere_IsLeftOut(bool loaded)
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string extData = temp.New();
+        const string Extension = "dev.example.data";
+        const string Alias = "Dev.Example.Data";
+        OneDemo(root, (b, files) =>
+            files.Add(b.File(TransferLayout.ExtensionFacetFile(Sha, Alias, "rounds", TransferLayout.DemoFileName(".json.gz")),
+                BundleBuilder.FacetFile("rounds", null, 2, "fp", Sha, @"D:\source\match.dem", "payload")))).Write();
+        DemoCacheStore cache = new(null);
+        ExtensionDemoDataStore live = new(Extension, Path.Combine(extData, Extension), cache, a => a(), "1.0.0");
+        Directory.CreateDirectory(Path.Combine(extData, Extension));
+        TransferImporter importer = new(cache,
+            extensionData: id => loaded && string.Equals(id, Extension, StringComparison.OrdinalIgnoreCase) ? live : null,
+            extensionDataRoot: extData);
+
+        ImportPreview preview = await importer.PreviewAsync(root, CancellationToken.None);
+        TransferSummary summary = await importer.RunAsync(ImportRequest.DataOnly(root), preview, null,
+            CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Items.Single().Reason).Contains(Alias + " data was left out");
+            await Assert.That(cache.HoldsContent(Sha)).IsTrue();
+            await Assert.That(Directory.Exists(Path.Combine(extData, Extension, ExtensionDemoDataStore.DirectoryName)))
+                .IsFalse().Because("nothing was written into the folder the alias resolves to");
+            await Assert.That(Directory.GetDirectories(extData).Select(d => Path.GetFileName(d) ?? "")).IsEquivalentTo([Extension]);
+        }
+
+        live.StopFollowingLibrary();
+    }
+
+    [Test]
+    public async Task AFacetFile_ThatInflatesPastTheCeiling_IsRefused()
+    {
+        using TempFolders temp = new();
+        DemoCacheStore cache = new(null);
+        ExtensionDemoDataStore store = new("dev.example.data", temp.New(), cache, a => a(), "1.0.0");
+        byte[] header;
+        using (MemoryStream plain = new())
+        {
+            using (GZipStream inflate = new(new MemoryStream(BundleBuilder.FacetFile("rounds", null, 2, "fp", Sha, "",
+                       "")), CompressionMode.Decompress))
+            {
+                inflate.CopyTo(plain);
+            }
+
+            header = plain.ToArray();
+        }
+
+        // A header line, then zeros past the store's 256 MB ceiling: about a third of a megabyte of gzip.
+        byte[] bomb;
+        using (MemoryStream gz = new())
+        {
+            using (GZipStream gzip = new(gz, CompressionLevel.Fastest, true))
+            {
+                gzip.Write(header);
+                byte[] zeros = new byte[1 << 20];
+                for (int i = 0; i < 257; i++)
+                {
+                    gzip.Write(zeros);
+                }
+            }
+
+            bomb = gz.ToArray();
+        }
+
+        await Assert.That(() => store.Import(Sha, "rounds", [new KeyValuePair<string, byte[]>(Sha + ".json.gz", bomb)]))
+            .Throws<InvalidDataException>();
+        store.StopFollowingLibrary();
+    }
+
+    [Test]
+    [Arguments("null", 0)]
+    [Arguments("[null]", 0)]
+    [Arguments("[null, CLIP]", 1)]
+    public async Task ABundlesReviewQueue_WithNullEntries_DoesNotStopTheImport(string entries, int clips)
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        BundleBuilder bundle = OneDemo(root);
+        string clip = JsonSerializer.Serialize(
+            ReviewEntry.Clip(@"D:\source\match.dem", 10, 20, "a retake", ReviewSources.Manual, 64, Sha),
+            ReviewQueueFile.JsonOptions);
+        bundle.Shared(TransferLayout.ReviewQueueFileName,
+            Encoding.UTF8.GetBytes("{\"schemaVersion\":1,\"entries\":" + entries.Replace("CLIP", clip,
+                StringComparison.Ordinal) + "}"));
+        bundle.Write();
+        ReviewQueue review = new(null);
+        TransferImporter importer = new(new DemoCacheStore(null), review: review);
+
+        TransferSummary summary = await importer.RunAsync(ImportRequest.DataOnly(root),
+            await importer.PreviewAsync(root, CancellationToken.None), null, CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(summary.Items.Single(i => i.Sha256 == Sha).Outcome)
+                .IsNotEqualTo(TransferOutcome.Failed);
+            await Assert.That(review.Clips.Count).IsEqualTo(clips);
+        }
+    }
+
+    [Test]
+    public async Task ABundlesBreakpoints_WithANullList_DoNotStopTheImport()
+    {
+        using TempFolders temp = new();
+        string root = temp.New();
+        string config = temp.New();
+        string extData = temp.New();
+        const string Extension = "dev.example.data";
+        BundleBuilder bundle = new(root);
+        TransferFile main = bundle.File(
+            TransferLayout.ExtensionFacetFile(Sha, Extension, "rounds", TransferLayout.DemoFileName(".json.gz")),
+            BundleBuilder.FacetFile("rounds", null, 2, "fp", Sha, @"D:\source\match.dem", "payload"));
+        bundle.Demo(Sha, "match.dem", 4096, [bundle.Record(BundleBuilder.ParsedRecord(Sha, 4096)), main],
+            facetCounts: new Dictionary<string, int> { [main.Path] = 24 });
+        bundle.Shared(TransferLayout.GraphBreakpointsFileName, Encoding.UTF8.GetBytes($"{{\"{Sha}\": null}}"));
+        bundle.Write();
+        GraphBreakpointStore store = new(Path.Combine(config, "GraphBreakpoints.v2.json"));
+        TransferImporter importer = new(new DemoCacheStore(null), config, store, extensionDataRoot: extData);
+
+        await importer.RunAsync(ImportRequest.DataOnly(root), await importer.PreviewAsync(root, CancellationToken.None),
+            null, CancellationToken.None);
+        string storeRoot = Path.Combine(extData, Extension, ExtensionDemoDataStore.DirectoryName);
+
+        await Assert.That(ExtensionDemoDataStore.CountsIn(storeRoot).GetValueOrDefault((Sha, "rounds")))
+            .IsEqualTo(24).Because("the extension data after the breakpoints is still imported");
+    }
+
+    [Test]
+    public async Task ImportedNullBreakpoints_AreDropped_AndAFileHoldingThemHeals()
+    {
+        using TempFolders temp = new();
+        string config = temp.New();
+        string breakpointsFile = Path.Combine(config, "GraphBreakpoints.v2.json");
+        GraphBreakpointStore store = new(breakpointsFile);
+        const string Other = "4444444444444444444444444444444444444444444444444444444444444444";
+
+        IReadOnlyList<string> changed = store.ImportMerge(new Dictionary<string, List<PersistedGraphBreakpoint>>
+        {
+            [Sha] = [null!, _theirs], [Other] = null!
+        }, ConflictPolicy.KeepBoth);
+        File.WriteAllText(Path.Combine(config, "poisoned.json"), $"{{\"{Sha}\": [null], \"{Other}\": null}}");
+        GraphBreakpointStore poisoned = new(Path.Combine(config, "poisoned.json"));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(changed).IsEquivalentTo([Sha]);
+            await Assert.That(store.Load(Sha)).IsEquivalentTo([_theirs], CollectionOrdering.Matching);
+            await Assert.That(GraphBreakpointStore.Parse(Encoding.UTF8.GetBytes(
+                    $"{{\"{Sha}\": [null], \"{Other}\": null}}")).SelectMany(p => p.Value ?? [null!]))
+                .IsEmpty();
+            await Assert.That(poisoned.Load(Sha)).IsEmpty();
+            await Assert.That(poisoned.LoadAll().Values.Any(l => l is null)).IsFalse();
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DemoViewer.NET.Extensions;
 
 #endregion
 
@@ -45,11 +46,27 @@ public sealed partial class ExtensionDataActionViewModel(IExtensionDataRemoval r
             return; // a second click landing before the UI disables the button must not start a second count
         }
 
+        if (Refused())
+        {
+            return;
+        }
+
         IsBusy = true;
         StatusText = "Counting…";
         try
         {
-            ExtensionDataInventory inventory = await removal.InventoryAsync();
+            ExtensionDataInventory inventory;
+            try
+            {
+                inventory = await removal.InventoryAsync();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                IsConfirming = false;
+                StatusText = "Could not count the extension's data: " + ex.Message;
+                return;
+            }
+
             if (inventory.TotalBytes == 0 && inventory.Items.All(i => i.FileCount == 0))
             {
                 IsConfirming = false;
@@ -85,12 +102,27 @@ public sealed partial class ExtensionDataActionViewModel(IExtensionDataRemoval r
             return; // two near-simultaneous clicks must delete once, not twice
         }
 
+        if (Refused())
+        {
+            return;
+        }
+
         IsConfirming = false;
         IsBusy = true;
         StatusText = "Deleting…";
         try
         {
-            ExtensionDataRemovalResult result = await removal.DeleteAsync();
+            ExtensionDataRemovalResult result;
+            try
+            {
+                result = await removal.DeleteAsync();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                StatusText = "Could not delete the extension's data: " + ex.Message;
+                return;
+            }
+
             StatusText = result.Ran
                 ? $"Deleted {result.Removed.Items.Sum(i => i.FileCount)} files ({FormatBytes(result.Removed.TotalBytes)})."
                 + (result.Skipped > 0
@@ -102,6 +134,20 @@ public sealed partial class ExtensionDataActionViewModel(IExtensionDataRemoval r
         {
             IsBusy = false;
         }
+    }
+
+    // The host's delete refuses an extension that did not start this session; say why instead of counting.
+    private bool Refused()
+    {
+        if (removal is not HostDataRemoval { Refusal: { } refusal })
+        {
+            return false;
+        }
+
+        IsConfirming = false;
+        ConfirmationText = null;
+        StatusText = refusal;
+        return true;
     }
 
     private static string BuildConfirmation(ExtensionDataInventory inventory)

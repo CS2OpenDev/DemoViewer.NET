@@ -5,6 +5,7 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoProcessing;
@@ -183,6 +184,9 @@ public class LineupClipTests
 
             // Planned for a's and b's own reads; a's read is held, so b's clips still wait.
             service.Plan();
+            // Switch only once the worker is inside a's held read: a worker that starts late would otherwise
+            // pick up the unheld renderer and render b's clips itself, leaving the visit nothing to take over.
+            await Assert.That(SpinWait.SpinUntil(() => queued.Calls.Count > 0, TimeSpan.FromSeconds(10))).IsTrue();
             current = renderer;
             int written = service.RenderOn("/d/b.dem", SyntheticParsedDemo.Create(), CancellationToken.None);
             queued.Hold!.SetResult();
@@ -723,6 +727,122 @@ public class LineupClipTests
     }
 
     [Test]
+    public async Task ARepresentativeWhoseDemoIsGone_IsShownFromAThrowInADemoThatIsThere()
+    {
+        GrenadeCluster cluster = TwoLineups();
+        string clips = TempClips();
+        try
+        {
+            IReadOnlyList<LineupClipJob> jobs = LineupClipPlanner.PlanEvery([cluster], clips);
+            FileRenderer renderer = new();
+            using LineupClipService service = new(() => [cluster], PackStores.At(clips), () => true, renderer);
+            // a.dem was deleted, or sits on a drive that is unplugged; b.dem is there.
+            service.DemoExists = path => path == "/d/b.dem";
+            await Assert.That(service.Plan()).IsEqualTo(2);
+            await service.WorkerTask;
+
+            List<LineupClipJob> rendered = [.. renderer.Calls.SelectMany(c => c.Jobs)];
+            using (Assert.Multiple())
+            {
+                await Assert.That(jobs.Any(j => j.DemoPath == "/d/a.dem")).IsTrue()
+                    .Because("the representative of at least one lineup is in a.dem");
+                await Assert.That(renderer.Calls.Select(c => c.Demo)).IsEquivalentTo(["/d/b.dem"]);
+                await Assert.That(rendered.Select(j => j.Key).Order())
+                    .IsEquivalentTo(jobs.Select(j => j.Key).Order(), CollectionOrdering.Matching)
+                    .Because("the clip keeps the representative's key, so the pair is the one the card finds");
+                await Assert.That(jobs.All(j => HasPair(clips, j.Stem))).IsTrue();
+            }
+        }
+        finally
+        {
+            System.IO.Directory.Delete(clips, true);
+        }
+    }
+
+    [Test]
+    public async Task AnEvictedPositionsCard_SaysSo_AndRenderClipBringsItBack()
+    {
+        GrenadeCluster cluster = TwoLineups();
+        string clips = TempClips();
+        try
+        {
+            IReadOnlyList<LineupClipJob> jobs = LineupClipPlanner.PlanEvery([cluster], clips);
+            await File.WriteAllTextAsync(Path.Combine(clips, LineupClipService.EvictedFileName), jobs[0].Stem);
+            FileRenderer renderer = new();
+            using LineupClipService service = new(() => [cluster], PackStores.At(clips), () => true, renderer);
+            await Assert.That(service.Plan()).IsEqualTo(1).Because("the other lineup is not evicted");
+            await service.WorkerTask;
+
+            GrenadeLineup evicted = cluster.Lineups.Single(l => l.Id == jobs[0].LineupId);
+            LineupDetail card = new(new LandingGroup(cluster, cluster.Lineups), evicted, _ => null,
+                _ => Task.CompletedTask, _ => Task.CompletedTask, clipDirectory: clips, clips: service);
+            using (Assert.Multiple())
+            {
+                await Assert.That(card.HasClip).IsFalse();
+                await Assert.That(card.ClipLine).IsEqualTo(LineupDetail.EvictedClipLine);
+                await Assert.That(card.CanRenderClip).IsTrue();
+            }
+
+            await card.RenderClipCommand.ExecuteAsync(null);
+            await service.WorkerTask;
+            using (Assert.Multiple())
+            {
+                await Assert.That(HasPair(clips, jobs[0].Stem)).IsTrue();
+                await Assert.That(service.Evicted).IsEmpty();
+                await Assert.That(card.CanRenderClip).IsFalse();
+                await Assert.That(card.ClipLine).IsNotEqualTo(LineupDetail.EvictedClipLine);
+            }
+        }
+        finally
+        {
+            System.IO.Directory.Delete(clips, true);
+        }
+    }
+
+    [Test]
+    public async Task RaisingTheCap_ClearsTheEvictions_AndTheirClipsArePlannedAgain()
+    {
+        GrenadeCluster cluster = TwoLineups();
+        string clips = TempClips();
+        try
+        {
+            IReadOnlyList<LineupClipJob> jobs = LineupClipPlanner.PlanEvery([cluster], clips);
+            foreach (LineupClipJob job in jobs)
+            {
+                WritePair(clips, job.Stem, 100, DateTime.UtcNow);
+            }
+
+            File.Delete(jobs[0].GifPath);
+            File.Delete(jobs[0].SetposPath);
+            await File.WriteAllTextAsync(Path.Combine(clips, LineupClipService.EvictedFileName), jobs[0].Stem);
+            long cap = 1024 * 1024;
+            using LineupClipService service = new(() => [cluster], PackStores.At(clips), () => true,
+                new FileRenderer(), maxBytes: () => cap);
+            await Assert.That(service.Plan()).IsEqualTo(0);
+
+            // The same cap again, or a lower one, keeps the eviction.
+            cap /= 2;
+            await Assert.That(service.Plan()).IsEqualTo(0);
+            await Assert.That(service.Evicted).IsEquivalentTo([jobs[0].Stem], CollectionOrdering.Matching);
+
+            cap *= 8;
+            await Assert.That(service.Plan()).IsEqualTo(1);
+            await service.WorkerTask;
+            using (Assert.Multiple())
+            {
+                await Assert.That(service.Evicted).IsEmpty();
+                await Assert.That(HasPair(clips, jobs[0].Stem)).IsTrue();
+                await Assert.That(File.ReadAllText(Path.Combine(clips, LineupClipService.EvictedFileName)).Trim())
+                    .IsEmpty();
+            }
+        }
+        finally
+        {
+            System.IO.Directory.Delete(clips, true);
+        }
+    }
+
+    [Test]
     public async Task ALineupGoneForOnePlan_KeepsItsEviction_UntilTheGraceRunsOut()
     {
         GrenadeCluster cluster = TwoLineups();
@@ -846,6 +966,28 @@ public class LineupClipTests
                 Throw(demo, Row(i == 0 ? id : $"{id}-{i}", 1000 + (i * 500), 1100 + (i * 500))))
         ]);
 
+    // A full background tier refuses the batch; the clips stay pending and planned, so the next plan finds
+    // nothing new to add and must still start the worker that the refusal stopped.
+    [Test]
+    public async Task AQueueThatRefusedTheBatch_IsAskedAgain_OnTheNextPlan()
+    {
+        FakeRenderer renderer = new();
+        InlineJobs jobs = new();
+        GrenadeCluster cluster = Cluster(Thrown("/d/two.dem", "t", 2));
+        using LineupClipService service = new(() => [cluster], PackStores.At(Directory), () => true, renderer,
+            _ => false, (_, _) => { }, jobs: jobs);
+
+        await Assert.That(service.Plan()).IsEqualTo(1);
+        await service.WorkerTask.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.That(renderer.Calls).IsEmpty().Because("the queue refused the batch");
+
+        jobs.ParseDemo = _ => SyntheticParsedDemo.Create();
+        service.Plan();
+        await service.WorkerTask.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await Assert.That(renderer.Calls.Select(c => c.Demo)).IsEquivalentTo(["/d/two.dem"]);
+    }
+
     [Test]
     public async Task ThePlan_RendersTheMostThrownLineupsFirst()
     {
@@ -940,6 +1082,10 @@ public class LineupClipTests
 
         processing.Resume();
         await service.WorkerTask.WaitAsync(TimeSpan.FromSeconds(10));
+        // The worker goes idle when the last batch's job ends; the visit holding it ends a moment later.
+        SpinWait.SpinUntil(() => processing.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing)
+            .All(i => i.State is not (DemoQueueItemState.Queued or DemoQueueItemState.Running)),
+            TimeSpan.FromSeconds(10));
 
         List<DemoQueueItemSnapshot> items =
             [.. processing.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing)];

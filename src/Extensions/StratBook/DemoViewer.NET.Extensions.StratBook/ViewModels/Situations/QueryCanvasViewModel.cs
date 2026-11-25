@@ -702,10 +702,22 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
             return;
         }
 
-        Maps.Clear();
-        foreach (string map in maps)
+        // In place, never a Clear: the bound ComboBox drops its selection on a reset and writes null back into
+        // Map, which clears the tokens and the result under the user. The picked map is always in the new list.
+        for (int i = Maps.Count - 1; i >= 0; i--)
         {
-            Maps.Add(map);
+            if (!maps.Contains(Maps[i], StringComparer.Ordinal))
+            {
+                Maps.RemoveAt(i);
+            }
+        }
+
+        for (int i = 0; i < maps.Count; i++)
+        {
+            if (i >= Maps.Count || !string.Equals(Maps[i], maps[i], StringComparison.Ordinal))
+            {
+                Maps.Insert(i, maps[i]);
+            }
         }
 
         OnPropertyChanged(nameof(HasMaps));

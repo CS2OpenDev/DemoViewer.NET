@@ -237,11 +237,14 @@ public static class PlayerStatsService
             }
 
             string? sha = library.Find(demo.Path)?.Sha256;
+            // A roster player who played this demo for the other side earned its numbers against the team. With the
+            // team's slots alone in bySlot, the openings and clutches below follow.
+            HashSet<string>? played = demo.Players is { } key ? new HashSet<string>(key, StringComparer.Ordinal) : null;
             Dictionary<string, List<int>> slots = new(StringComparer.Ordinal);
             foreach (LibraryPlayer player in detail.Players)
             {
                 string id = player.SteamId64.ToString(CultureInfo.InvariantCulture);
-                if (player.SteamId64 != 0 && roster.Contains(id))
+                if (player.SteamId64 != 0 && roster.Contains(id) && played?.Contains(id) != false)
                 {
                     (slots.TryGetValue(id, out List<int>? list) ? list : slots[id] = []).Add(player.Slot);
                 }

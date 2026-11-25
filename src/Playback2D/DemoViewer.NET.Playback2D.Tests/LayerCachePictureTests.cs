@@ -173,6 +173,47 @@ public class LayerCachePictureTests
         await Assert.That(layer.RenderCalls).IsEqualTo(7);
     }
 
+    /// <summary>
+    ///     Epochs and content versions only grow, so once a layer re-records for a pane its previous
+    ///     picture can never be hit again: it is disposed then, not left for the LRU cap to find.
+    /// </summary>
+    [Test]
+    public async Task Put_DisposesTheSupersededPictureOfTheSameLayerAndPane()
+    {
+        using LayerPictureCache cache = new(64);
+        MapLevelId level = new(0);
+        MapLevelId other = new(1);
+
+        SKPicture first = Record();
+        SKPicture otherPane = Record();
+        SKPicture otherLayer = Record();
+        cache.Put(new LayerPictureCache.Key(level, "a", 0, 1), first);
+        cache.Put(new LayerPictureCache.Key(other, "a", 0, 1), otherPane);
+        cache.Put(new LayerPictureCache.Key(level, "b", 0, 1), otherLayer);
+
+        SKPicture second = Record();
+        cache.Put(new LayerPictureCache.Key(level, "a", 0, 2), second);
+        await Assert.That(first.Handle).IsEqualTo(IntPtr.Zero);
+        await Assert.That(cache.Get(new LayerPictureCache.Key(level, "a", 0, 1))).IsNull();
+
+        SKPicture third = Record();
+        cache.Put(new LayerPictureCache.Key(level, "a", 1, 2), third);
+        await Assert.That(second.Handle).IsEqualTo(IntPtr.Zero);
+
+        await Assert.That(cache.Get(new LayerPictureCache.Key(level, "a", 1, 2))).IsSameReferenceAs(third);
+        await Assert.That(cache.Get(new LayerPictureCache.Key(other, "a", 0, 1))).IsSameReferenceAs(otherPane);
+        await Assert.That(cache.Get(new LayerPictureCache.Key(level, "b", 0, 1))).IsSameReferenceAs(otherLayer);
+        await Assert.That(otherPane.Handle).IsNotEqualTo(IntPtr.Zero);
+        await Assert.That(otherLayer.Handle).IsNotEqualTo(IntPtr.Zero);
+
+        static SKPicture Record()
+        {
+            using SKPictureRecorder recorder = new();
+            recorder.BeginRecording(new SKRect(0, 0, 8, 8)).DrawColor(SKColors.Red);
+            return recorder.EndRecording();
+        }
+    }
+
     [Test]
     public async Task DisabledLayer_IsSkippedInBothAdvanceAndRender()
     {

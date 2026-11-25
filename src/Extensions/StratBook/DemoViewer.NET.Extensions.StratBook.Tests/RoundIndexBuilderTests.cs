@@ -407,6 +407,28 @@ public class RoundIndexBuilderTests
         }
     }
 
+    [Test]
+    public async Task AZoneNameTheTokenCannotHold_ReadsAsUnknown_AndTheBuildStillFinishes()
+    {
+        FakeZoneResolver resolver = new("zv-1", world => world.X > 0 ? "A: Ramp" : "Short|Cat");
+        ZonePlaceSource source = new(resolver);
+        RoundFactsRows facts = Facts(Round(1, 1000, 1100));
+        List<PositionSample> samples =
+        [
+            .. CtSlots.Select(s => Sample(1000, s, "Outside", x: 10)),
+            .. TSlots.Select(s => Sample(1000, s, "Ramp", x: -10))
+        ];
+
+        RoundIndexDocument document = Build(Demo(), facts, samples, source);
+        RoundIndexRow row = document.ExpandRows(document.Rounds[0]).Single();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(row.Ct).IsEqualTo("?:5").Because("':' is the token's count separator");
+            await Assert.That(row.T).IsEqualTo("?:5").Because("'|' is the token's pair separator");
+        }
+    }
+
     internal sealed class FakeZoneResolver(
         string version,
         Func<System.Numerics.Vector3, string?> resolve,

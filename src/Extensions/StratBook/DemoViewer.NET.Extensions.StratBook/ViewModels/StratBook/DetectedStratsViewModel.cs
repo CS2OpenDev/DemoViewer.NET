@@ -51,6 +51,9 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
 
     private int _settledCount;
 
+    // True while Refresh replaces the rows: the bound list writes a null selection back as they are cleared.
+    private bool _refreshing;
+
     [ObservableProperty]
     private string _statusLine = "";
 
@@ -199,7 +202,7 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
     partial void OnSelectedRowChanged(DetectedRowViewModel? value)
     {
         // By key: Refresh rebuilds every row on each store or mining change and reselects the same pattern.
-        if (Preview is { } shown && shown.Key != value?.Key)
+        if (!_refreshing && Preview is { } shown && shown.Key != value?.Key)
         {
             ClosePreview();
         }
@@ -215,24 +218,18 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
             return;
         }
 
-        StratDocument? doc;
-        if (Preview is { IsReady: true, Document: { } built } preview)
+        PromoteResult result = Preview is { IsReady: true, Document: { } built } preview
+            ? _mining.Promote(preview.Pattern, built, book)
+            : await _mining.PromoteAsync(row.Key, book);
+        if (result.PatternChanged)
         {
-            PromoteResult result = _mining.Promote(preview.Pattern, built, book);
-            if (result.PatternChanged)
-            {
-                const string Changed = "This pattern changed; review again.";
-                StatusLine = Changed;
-                await Rebuild(Changed);
-                return;
-            }
+            const string Changed = "This pattern changed; review again.";
+            StatusLine = Changed;
+            await Rebuild(Changed);
+            return;
+        }
 
-            doc = result.Document;
-        }
-        else
-        {
-            doc = await _mining.PromoteAsync(row.Key, book);
-        }
+        StratDocument? doc = result.Document;
 
         StatusLine = doc is not null ? $"Added \"{doc.Name}\" to the book."
             : _mining.StateProblem is { } problem ? $"Not added: {problem}"
@@ -311,13 +308,28 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
                 .ThenBy(p => p.Pattern.Spread)
                 .Select(p => new DetectedRowViewModel(p, _teamName, ExecuteLeadSeconds))
         ];
-        Rows.Clear();
-        foreach (DetectedRowViewModel row in rows)
+        _refreshing = true;
+        try
         {
-            Rows.Add(row);
+            Rows.Clear();
+            foreach (DetectedRowViewModel row in rows)
+            {
+                Rows.Add(row);
+            }
+
+            SelectedRow = keep is null ? null : Rows.FirstOrDefault(r => r.Key == keep);
+        }
+        finally
+        {
+            _refreshing = false;
         }
 
-        SelectedRow = keep is null ? null : Rows.FirstOrDefault(r => r.Key == keep);
+        // The preview goes only when its pattern is no longer the one selected, once the rows are back.
+        if (Preview is { } shown && shown.Key != SelectedRow?.Key)
+        {
+            ClosePreview();
+        }
+
         OnPropertyChanged(nameof(NewCount));
         OnPropertyChanged(nameof(SettledLabel));
         OnPropertyChanged(nameof(IsMining));

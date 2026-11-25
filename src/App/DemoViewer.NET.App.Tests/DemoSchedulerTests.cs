@@ -742,8 +742,8 @@ public class DemoSchedulerTests
         scheduler.DemoChanged("/x/demo.dem");
         await WaitFor(() => thrower.Count == 1 && !scheduler.HasOutstanding("thrower"), "the throwing run");
 
-        await Assert.That(scheduler.IsFaulted("thrower", "/X/Demo.DEM")).IsTrue();
-        scheduler.ForgetFaults("/X/DEMO.dem");
+        await Assert.That(scheduler.IsFaulted("thrower", PathCase.Other("/x/demo.dem"))).IsTrue();
+        scheduler.ForgetFaults(PathCase.Other("/x/demo.dem"));
         await Assert.That(scheduler.IsFaulted("thrower", "/x/demo.dem")).IsFalse();
     }
 
@@ -755,7 +755,7 @@ public class DemoSchedulerTests
         using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/demo.dem");
-        scheduler.Request("/X/Demo.DEM");
+        scheduler.Request(PathCase.Other("/x/demo.dem"));
 
         await Assert.That(queue.Visits.Select(v => v.Path))
             .IsEquivalentTo(["/x/demo.dem"], CollectionOrdering.Matching);

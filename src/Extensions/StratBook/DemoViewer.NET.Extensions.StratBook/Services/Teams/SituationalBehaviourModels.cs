@@ -64,7 +64,10 @@ public sealed class SituationalBehaviourBlock
     /// <summary>How the man-advantage rounds ended for the team: converted, or the lead given back.</summary>
     public IReadOnlyList<TendencyBucket> ManAdvantageOutcomes { get; init; } = [];
 
-    /// <summary>Rounds the team lost: the denominator of <see cref="SaveDiscipline" />.</summary>
+    /// <summary>
+    ///     Rounds the team lost, every one. Not the denominator of <see cref="SaveDiscipline" />, which leaves
+    ///     some of them out: its shares are of its own buckets' total.
+    /// </summary>
     public TendencyBucket RoundsLost { get; init; } = TendencyBucket.Empty("losses");
 
     /// <summary>

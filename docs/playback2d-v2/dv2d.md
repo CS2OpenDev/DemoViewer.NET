@@ -143,7 +143,9 @@ Under the mask the two rasterisers disagree by up to about 150 on a channel for 
 annotation and by a few pixels per two-letter marker label; the attribution test prints both.
 
 Entries marked `"pending": true` in the manifest are **skipped**, not failed. That is what lets a
-later phase register the fixture it will author before it can render it.
+later phase register the fixture it will author before it can render it. An entry that is **not**
+pending and has no scene file is reported `missing` and fails the gate with exit 4, the same as a
+missing golden.
 
 **The four `strat-mirage-exec-*` entries are pending for a different reason than a missing input**:
 they are the Strat Book canvas's goldens, captured and gated entirely by the

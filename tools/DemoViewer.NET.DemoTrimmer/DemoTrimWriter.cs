@@ -138,7 +138,11 @@ internal static class DemoTrimWriter
         int spawnGroupsOffset = 0;
         string fileInfoBefore, fileInfoAfter;
 
-        using (FileStream fs = new(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
+        // Written beside the destination and moved over it only once it is whole. The header offsets
+        // are patched last, so a file abandoned part-way is a zero-offset stub, and under the final
+        // name that stub replaced whatever good candidate an earlier run had left there.
+        using PendingOutput pending = new(outputPath + ".tmp");
+        using (FileStream fs = new(pending.TempPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
         {
             DemoFormat.WriteFileHeader(fs, 0, 0); // patched at the end
 
@@ -202,13 +206,20 @@ internal static class DemoTrimWriter
                     raw.AsSpan(spawnGroups.PayloadStart, spawnGroups.PayloadLength));
             }
 
+            // The header names the frame's own start, or 0 when the source had none to carry over.
             int fileInfoOffset = (int)fs.Position;
-            WriteFileInfo(fs, demo, raw, tail, emitted, frames, window, out fileInfoBefore, out fileInfoAfter);
+            if (!WriteFileInfo(fs, demo, raw, tail, emitted, frames, window, out fileInfoBefore,
+                    out fileInfoAfter))
+            {
+                fileInfoOffset = 0;
+            }
 
             fs.Flush();
             fs.Position = 0;
             DemoFormat.WriteFileHeader(fs, fileInfoOffset, spawnGroupsOffset);
         }
+
+        pending.MoveTo(outputPath);
 
         return new TrimResult
         {
@@ -231,6 +242,40 @@ internal static class DemoTrimWriter
             IdentityFirstDivergentFrame = firstDivergentFrame,
             SynthesizedTeams = teamSamples ?? []
         };
+    }
+
+    /// <summary>
+    ///     The file a candidate is written to before it has earned its name. Disposing it without
+    ///     <see cref="MoveTo" /> deletes it, which is what an exception anywhere in the write does.
+    /// </summary>
+    private sealed class PendingOutput(string tempPath) : IDisposable
+    {
+        private bool _moved;
+
+        public string TempPath { get; } = tempPath;
+
+        public void Dispose()
+        {
+            if (_moved)
+            {
+                return;
+            }
+
+            try
+            {
+                File.Delete(TempPath);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // The write's own exception is the one worth reporting; a stray .tmp is not.
+            }
+        }
+
+        public void MoveTo(string destination)
+        {
+            File.Move(TempPath, destination, true);
+            _moved = true;
+        }
     }
 
     /// <summary>
@@ -326,7 +371,7 @@ internal static class DemoTrimWriter
     ///         CS2's scrubber cannot show markers for rounds the file no longer contains.
     ///     </para>
     /// </summary>
-    private static void WriteFileInfo(
+    private static bool WriteFileInfo(
         Stream fs, ParsedDemo demo, byte[] raw, DemoTail tail,
         IReadOnlyList<int> emitted, IReadOnlyList<DemoFrame> frames,
         TrimWindow window, out string before, out string after)
@@ -335,7 +380,7 @@ internal static class DemoTrimWriter
         after = "(none)";
         if (tail.FileInfo is not { } fileInfoFrame)
         {
-            return;
+            return false;
         }
 
         CDemoFileInfo source = CDemoFileInfo.Parser.ParseFrom(DemoTail.Payload(raw, fileInfoFrame));
@@ -348,7 +393,7 @@ internal static class DemoTrimWriter
 
         if (trimmed.GameInfo?.Cs is { } cs)
         {
-            List<int> retained = [.. cs.RoundStartTicks.Where(t => t <= window.EndTick)];
+            IReadOnlyList<int> retained = RetainedRoundStartTicks(cs.RoundStartTicks, window);
             cs.RoundStartTicks.Clear();
             cs.RoundStartTicks.AddRange(retained);
         }
@@ -356,6 +401,38 @@ internal static class DemoTrimWriter
         before = Describe(source);
         after = Describe(trimmed);
         DemoFormat.WriteFrame(fs, fileInfoFrame.CommandId, window.EndTick, false, trimmed.ToByteArray());
+        return true;
+    }
+
+    /// <summary>
+    ///     The source's <c>round_start_ticks</c> that still name a round the trimmed file contains.
+    ///     <para>
+    ///         Nothing past the cut survives. A contiguous trim keeps everything before it, because it
+    ///         keeps every frame from 0. A checkpoint entry does not: the stream before the entry is
+    ///         gone, so the rounds that started there are dropped with it.
+    ///     </para>
+    ///     <para>
+    ///         The lower bound is not simply the entry tick. A round starts before its own
+    ///         <c>round_freeze_end</c>, and the entry is the last <c>DEM_FullPacket</c> at or before
+    ///         that boundary, so the checkpoint can land between the two. The first kept round's start
+    ///         is then a little before the file's first tick and is still the marker for the round the
+    ///         file opens on, so it is kept.
+    ///     </para>
+    /// </summary>
+    /// <param name="sourceTicks">The source demo's <c>round_start_ticks</c>.</param>
+    /// <param name="window">The retained window.</param>
+    internal static IReadOnlyList<int> RetainedRoundStartTicks(IEnumerable<int> sourceTicks, TrimWindow window)
+    {
+        List<int> ticks = [.. sourceTicks];
+        int from = int.MinValue;
+        if (window.EnteredAtCheckpoint)
+        {
+            int firstBoundary = window.BoundaryTicks.Count > 0 ? window.BoundaryTicks[0] : window.StartTick;
+            int firstKeptRound = ticks.Where(t => t <= firstBoundary).DefaultIfEmpty(window.StartTick).Max();
+            from = Math.Min(window.StartTick, firstKeptRound);
+        }
+
+        return [.. ticks.Where(t => t >= from && t <= window.EndTick)];
     }
 
     private static string Describe(CDemoFileInfo info) => string.Create(CultureInfo.InvariantCulture,

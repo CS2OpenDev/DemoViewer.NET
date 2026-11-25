@@ -282,6 +282,47 @@ public class DemoOpenVisitTests
         }
     }
 
+    /// <summary>
+    ///     A visit is marked running before its read is decided, and until then it looks like a retained parse
+    ///     with player inputs. An open that looks in between must not ride it: this visit's read skips player
+    ///     inputs, and a forward read would never hand the open a parse at all.
+    /// </summary>
+    [Test]
+    public async Task AnOpenThatLooksBeforeAVisitsReadIsDecided_DoesNotRideIt()
+    {
+        using Rig rig = new();
+        using ManualResetEventSlim entered = new();
+        using ManualResetEventSlim release = new();
+        rig.Queue.ShellDemo = new StallingLease(entered, release);
+        IDemoQueueHandle handle = rig.Queue.SubmitVisit(Visit(null, new FakePass("library")));
+        await Assert.That(entered.Wait(TimeSpan.FromSeconds(30))).IsTrue();
+
+        // The visit is running and its read is not decided yet.
+        using IDemoOpenTicket open = rig.Queue.BeginOpen(Demo, "match.dem");
+        Task<ParsedDemo> parsing = open.ParseAsync(_bytes);
+        release.Set();
+        ParsedDemo parsed = await parsing.WaitAsync(TimeSpan.FromSeconds(30));
+        open.Complete();
+        await handle.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(parsed).IsSameReferenceAs(rig.OpenParse)
+                .Because("the visit's parse was decoded without player inputs");
+            await Assert.That(rig.ByteParses).IsEqualTo(1);
+        }
+    }
+
+    private sealed class StallingLease(ManualResetEventSlim entered, ManualResetEventSlim release) : IShellDemoLease
+    {
+        public IHeldParse? TryHold(string demo)
+        {
+            entered.Set();
+            release.Wait(TimeSpan.FromSeconds(30));
+            return null;
+        }
+    }
+
     private sealed class Lease(string path, ParsedDemo parsed) : IShellDemoLease
     {
         public int Holds;

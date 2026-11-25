@@ -217,8 +217,7 @@ public sealed class MergedRulesBuild
             throw new InvalidOperationException($"the run did not record table {table}");
         }
 
-        MetricTable projected = (run with { Build = run.Build with { Outputs = output } }).ProjectConfiguredOutputs()
-            .Single();
+        MetricTable projected = (run with { Build = run.Build with { Outputs = output } }).ProjectConfiguredOutputs()[0];
         return
         [
             .. projected.Rows.Select(r => new FactRow(
@@ -611,10 +610,13 @@ public sealed class MergedRulesBuild
             }
         }
 
+        // The open re-reads the rule files and the build does not, so after an edit the two differ, and the
+        // open's highlights must not be stored under the build's stamp.
+        IReadOnlyList<RulesetDoc> core = WithoutStampedRulesets(read);
         OpenRunPlan plan =
-            new(WithoutStampedRulesets(read), new HashSet<string>(StringComparer.Ordinal), stampedTables, stampedIds)
+            new(core, new HashSet<string>(StringComparer.Ordinal), stampedTables, stampedIds)
             {
-                Rules = rules, Off = off
+                Rules = rules, Off = off, HighlightsInForce = SameRulesets(core, CoreDocs)
             };
         if (path is null)
         {
@@ -889,6 +891,13 @@ public sealed record OpenRunPlan(
     IReadOnlySet<string> StampedIds)
 {
     internal RuleConfigLoadResult? Rules { get; init; }
+
+    /// <summary>
+    ///     True when the open's read holds the highlight rulesets the build has in force, the ones
+    ///     <see cref="MergedRulesBuild.Fingerprint" /> stamps. False after a rule edit the build has not
+    ///     re-read: the run's highlights then come from rules that stamp does not describe.
+    /// </summary>
+    internal bool HighlightsInForce { get; init; } = true;
 
     internal string? Off { get; init; }
 

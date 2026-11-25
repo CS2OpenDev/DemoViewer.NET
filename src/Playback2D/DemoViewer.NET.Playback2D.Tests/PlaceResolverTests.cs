@@ -187,6 +187,19 @@ public class PlaceResolverTests
         await Assert.That(bySize.Resolve(new Vector3(50, 50, -400)).Name).IsEqualTo("Ramp");
     }
 
+    /// <summary>A click on a 2D pane breaks the same tie the same way the 3D path does.</summary>
+    [Test]
+    public async Task OverlappingVolumes_FollowTheMapsTieRule_OnAFloorToo()
+    {
+        PlaceResolver byLump = new(ZoneFixtures.Build(overlappingRampVolume: true));
+        PlaceResolver bySize = new(ZoneFixtures.Build("de_mirage", true));
+
+        await Assert.That(byLump.ResolveOnFloor(250, 50, ZoneFixtures.Upper).Name).IsEqualTo("Ramp");
+        await Assert.That(bySize.ResolveOnFloor(250, 50, ZoneFixtures.Upper).Name).IsEqualTo("Hut");
+        await Assert.That(bySize.ResolveOnFloor(250, 50, ZoneFixtures.Upper).Kind).IsEqualTo(PlaceHitKind.Volume);
+        await Assert.That(bySize.ResolveOnFloor(50, 50, ZoneFixtures.Upper).Name).IsEqualTo("Ramp");
+    }
+
     [Test]
     public async Task Resolve_IsDeterministic_AcrossInstances()
     {

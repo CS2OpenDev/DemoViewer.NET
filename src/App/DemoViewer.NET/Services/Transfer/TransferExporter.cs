@@ -20,9 +20,9 @@ namespace DemoViewer.NET.Services.Transfer;
 ///     <see cref="DemoCacheStore.SnapshotFiles(string)" /> and its row snapshots, everything else as plain file
 ///     reads. Nothing is written outside the bundle folder but the target check's probe beside it.
 ///     <para>
-///         Every file goes to a temp name in the bundle and is renamed when it is whole, hashed as it streams;
-///         one the bundle already holds with the same size and hash is left alone, so exporting into the same
-///         bundle again copies only what changed. <c>transfer.json</c> is written last, so a cancelled or failed
+///         Every file goes to a temp name in the bundle and is renamed when it is whole, hashed as it streams.
+///         The bundle folder must be new or empty: the export never deletes, so a folder holding an earlier
+///         bundle or anything else is refused. <c>transfer.json</c> is written last, so a cancelled or failed
 ///         run leaves no manifest.
 ///     </para>
 /// </summary>
@@ -86,25 +86,35 @@ public sealed class TransferExporter : ITransferExporter
         IReadOnlyList<TransferExtensionSource> extensions = _planner.ExtensionSources();
         (List<ExportPlanEntry> entries, List<TransferWarning> warnings, long sharedBytes, long libraryBytes) =
             _planner.Plan(request, extensions, ct);
-        string bundle = BundleFolderFor(request.DestinationFolder);
+        string bundle = TransferLayout.ExportBundleFolder(Path.GetFullPath(request.DestinationFolder),
+            _time.GetLocalNow().DateTime);
         ExportPlan plan = new(request, bundle, entries, sharedBytes, warnings)
         {
             LibraryBytes = libraryBytes, ExtensionSources = extensions
         };
-        TransferTargetCheck check = _target.Check(request.DestinationFolder, plan.TotalBytes, plan.LargestFileBytes,
-            _planner.ProtectedRoots());
+        TransferTargetCheck check = Check(request.DestinationFolder, bundle, plan);
         return plan with { Warnings = [.. check.Warnings, .. warnings] };
     }
 
-    // An existing bundle picked as the destination is exported into again, which is how a cut-short export
-    // resumes; any other folder gets a new bundle inside it.
-    private string BundleFolderFor(string destination)
+    // The target checks, plus one of the bundle folder: an empty folder named like a bundle is written into,
+    // but one that holds anything is refused. The export never deletes, so an earlier bundle's demos, .dem copies
+    // and user data, or the user's own files, would otherwise go along with the new bundle.
+    private TransferTargetCheck Check(string destination, string bundle, ExportPlan plan)
     {
-        string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(destination));
-        return Path.GetFileName(full).StartsWith(TransferLayout.BundleNamePrefix, StringComparison.Ordinal)
-               && Directory.Exists(full)
-            ? full
-            : TransferLayout.NewBundleFolder(full, _time.GetLocalNow().DateTime);
+        TransferTargetCheck check = _target.Check(destination, plan.TotalBytes, plan.LargestFileBytes,
+            _planner.ProtectedRoots());
+        return TransferLayout.HoldsAnything(bundle)
+            ? check with
+            {
+                Warnings =
+                [
+                    .. check.Warnings,
+                    new TransferWarning(TransferWarningKind.TargetNotEmpty,
+                        $"{Path.GetFileName(bundle)} already holds a bundle or other files. Choose an empty or new "
+                        + "folder: an export adds to a folder but never deletes from it.", true)
+                ]
+            }
+            : check;
     }
 
     /// <inheritdoc />
@@ -133,9 +143,9 @@ public sealed class TransferExporter : ITransferExporter
         string bundle = plan.BundleFolder;
         List<TransferWarning> warnings = [];
 
-        // The target is checked again: a drive can go away or fill between the review step and the run.
-        TransferTargetCheck check = _target.Check(request.DestinationFolder, plan.TotalBytes, plan.LargestFileBytes,
-            _planner.ProtectedRoots());
+        // The target is checked again: a drive can go away or fill, or the bundle folder gain files, between the
+        // review step and the run.
+        TransferTargetCheck check = Check(request.DestinationFolder, bundle, plan);
         if (!check.CanProceed)
         {
             return new TransferSummary(
@@ -148,8 +158,6 @@ public sealed class TransferExporter : ITransferExporter
         try
         {
             Directory.CreateDirectory(bundle);
-            // What follows changes the bundle, so an older manifest no longer describes it.
-            File.Delete(Path.Combine(bundle, TransferLayout.ManifestFileName));
             run.ExportDemos();
             ct.ThrowIfCancellationRequested();
             List<TransferFile> shared = request.IncludeUserData ? run.ExportShared() : [];
@@ -280,7 +288,9 @@ public sealed class TransferExporter : ITransferExporter
                     if (BundleName(file.FullPath, () => TransferLayout.CacheFile(sha,
                             TransferLayout.DemoFileName(file.Rest))) is { } relative)
                     {
-                        copied.Add(CopyData(file.FullPath, relative, FileShare.Read));
+                        copied.Add(file.IsRecord
+                            ? WriteData(RecordForTransfer(file.FullPath), relative)
+                            : CopyData(file.FullPath, relative, FileShare.Read));
                     }
                 }
 
@@ -335,6 +345,20 @@ public sealed class TransferExporter : ITransferExporter
                 row.MatchTimeUtcTicks is { } ticks ? new DateTime(ticks, DateTimeKind.Utc) : null, dem,
                 facetCounts.Count > 0 ? facetCounts : null));
             return new TransferSummaryItem(sha, entry.DisplayName, TransferOutcome.Transferred, reason);
+        }
+
+        // The record without this machine's paths of the demo; one that does not read fails its demo, as a file
+        // that cannot be read does.
+        private static byte[] RecordForTransfer(string file)
+        {
+            try
+            {
+                return DemoCacheStore.RecordForTransfer(file);
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidDataException)
+            {
+                throw new IOException($"Its cache record does not read: {ex.Message}", ex);
+            }
         }
 
         // A demo the library has not hashed: no data leaves, but its .dem can travel as a plain demo. Hashing
@@ -439,11 +463,19 @@ public sealed class TransferExporter : ITransferExporter
 
                     try
                     {
-                        files.Add(CopyData(file.FullPath, relative, FileShare.Read));
+                        // The header's demo path is this machine's; the importer writes its own.
+                        files.Add(WriteData(ExtensionDemoDataStore.ForTransfer(file.FullPath), relative));
                     }
                     catch (FileNotFoundException)
                     {
                         continue; // rewritten or dropped since it was listed; the stamps say it is stale
+                    }
+                    catch (Exception ex) when (ex is InvalidDataException or JsonException)
+                    {
+                        Warnings.Add(new TransferWarning(TransferWarningKind.Other,
+                            $"{Path.GetFileName(file.FullPath)} could not be read, so it was left out: {ex.Message}",
+                            Sha256: sha));
+                        continue;
                     }
 
                     if (file.IsMain && IndexCounts(root).GetValueOrDefault((sha, file.Facet)) is > 0 and var count)
@@ -738,6 +770,8 @@ public sealed class TransferExporter : ITransferExporter
 
                 JsonObject copy = entry.DeepClone().AsObject();
                 copy["sha256"] = sha;
+                // The path is this machine's; the importer joins by the hash and sets its own.
+                copy.Remove("demoPath");
                 kept.Add(copy);
             }
 

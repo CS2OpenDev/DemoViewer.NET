@@ -35,8 +35,10 @@ public static class OverviewTxt
             {
                 if (child is KvNode sec)
                 {
-                    double altMin = sec.GetDoubleOrDefault("AltitudeMin", double.NegativeInfinity);
-                    double altMax = sec.GetDoubleOrDefault("AltitudeMax", double.PositiveInfinity);
+                    // Finite, because these reach bundle.json, which cannot serialise an infinity. Same
+                    // bounds the single-image layer uses for "all Z".
+                    double altMin = sec.GetDoubleOrDefault("AltitudeMin", -100_000);
+                    double altMax = sec.GetDoubleOrDefault("AltitudeMax", 100_000);
                     sections.Add((name, altMin, altMax));
                 }
             }

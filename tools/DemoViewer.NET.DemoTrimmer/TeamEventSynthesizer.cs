@@ -41,15 +41,15 @@ internal static class TeamEventSynthesizer
 {
     /// <summary>
     ///     Samples each seated player's team (2/3 only: spectators and the recorder are skipped) at
-    ///     the source demo's first <c>round_freeze_end</c>. Returns an empty list when the demo has no
-    ///     freeze-end (nothing worth trimming) or no controllers carry a team.
+    ///     the first <c>round_freeze_end</c> the trimmed file contains (see <see cref="SampleFrame" />).
+    ///     Returns an empty list when there is no freeze-end from <paramref name="startFrame" /> on
+    ///     (nothing worth trimming) or no controllers carry a team.
     /// </summary>
-    public static IReadOnlyList<TeamSample> Sample(ParsedDemo demo)
+    /// <param name="demo">The parsed source demo.</param>
+    /// <param name="startFrame">The window's entry frame, <see cref="TrimWindow.EntryIndex" />.</param>
+    public static IReadOnlyList<TeamSample> Sample(ParsedDemo demo, int startFrame)
     {
-        // FrameNumber is per-fire transport, so this filters on the payload type but reads the
-        // frame off the envelope.
-        int stopFrame = demo.AllGameEvents
-            .FirstOrDefault(e => e.Payload is RoundFreezeEndEvent)?.FrameNumber ?? -1;
+        int stopFrame = SampleFrame(demo, startFrame);
         if (stopFrame < 0)
         {
             return [];
@@ -88,6 +88,26 @@ internal static class TeamEventSynthesizer
 
         return samples;
     }
+
+    /// <summary>
+    ///     The frame the seating is read at: the first <c>round_freeze_end</c> at or after the window's
+    ///     entry frame, or -1 when there is none.
+    ///     <para>
+    ///         From the entry frame, not from the start of the source. A contiguous trim enters at
+    ///         frame 0, so the two are the same event and any later side swap is in the file as the
+    ///         real <c>player_team</c> events. A checkpoint entry after halftime has dropped those
+    ///         events with the stream in front of it, and the source's first freeze-end would hand it
+    ///         the first half's seating: every player on the wrong side, with nothing to correct it.
+    ///     </para>
+    /// </summary>
+    /// <param name="demo">The parsed source demo.</param>
+    /// <param name="startFrame">The window's entry frame.</param>
+    internal static int SampleFrame(ParsedDemo demo, int startFrame) =>
+        // FrameNumber is per-fire transport, so this filters on the payload type but reads the
+        // frame off the envelope.
+        demo.AllGameEvents
+            .FirstOrDefault(e => e.Payload is RoundFreezeEndEvent && e.FrameNumber >= startFrame)
+            ?.FrameNumber ?? -1;
 
     /// <summary>
     ///     Finds the source demo's <c>player_team</c> descriptor in its

@@ -19,8 +19,9 @@ public interface IReelJobService
 
     /// <summary>
     ///     Starts the background job. Throws <see cref="InvalidOperationException" /> when one is
-    ///     already running. Suspends an active live-sync session first (its chip shows
-    ///     "Paused for reel render"; it ends at a Reconnect prompt, never auto-relaunched).
+    ///     already running. Parks live sync for the job's whole duration, stopping an active
+    ///     session first (its chip shows "Paused for reel render"; it ends at a Reconnect prompt,
+    ///     never auto-relaunched).
     /// </summary>
     void Start(ReelRequest request);
 

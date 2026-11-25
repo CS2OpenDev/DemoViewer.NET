@@ -115,8 +115,16 @@ public sealed class VetoHistoryStore
         }
 
         bool changed = false;
+        int dropped = 0;
         foreach (VetoEntry entry in file.Entries)
         {
+            if (teams.IsDropped(entry.OpponentTeamId))
+            {
+                dropped++;
+                ledger.CountSkipped();
+                continue;
+            }
+
             VetoEntry incoming = new()
             {
                 Id = entry.Id,
@@ -149,11 +157,51 @@ public sealed class VetoHistoryStore
             }
         }
 
+        if (dropped > 0)
+        {
+            ledger.Report($"{dropped} veto step(s) were left out: their team was deleted on this machine");
+        }
+
         if (changed)
         {
             Save();
             Changed?.Invoke();
         }
+    }
+
+    /// <summary>
+    ///     Moves the steps of a team that was merged away onto the team that took it over, after the steps already
+    ///     filed there and in the order they had. UI thread, like every other mutator.
+    /// </summary>
+    /// <param name="from">The id the merge tombstoned.</param>
+    /// <param name="into">The team that took it over.</param>
+    /// <returns>False when nothing was filed under <paramref name="from" />.</returns>
+    internal bool Rekey(Guid from, Guid into)
+    {
+        IReadOnlyList<VetoEntry> moving = For(from);
+        if (from == into || moving.Count == 0)
+        {
+            return false;
+        }
+
+        int order = _entries.Where(e => e.OpponentTeamId == into).Select(e => e.Order).DefaultIfEmpty(0).Max();
+        foreach (VetoEntry entry in moving)
+        {
+            _entries[_entries.IndexOf(entry)] = new VetoEntry
+            {
+                Id = entry.Id,
+                OpponentTeamId = into,
+                Order = ++order,
+                Map = entry.Map,
+                Action = entry.Action,
+                ByOpponent = entry.ByOpponent,
+                Note = entry.Note
+            };
+        }
+
+        Save();
+        Changed?.Invoke();
+        return true;
     }
 
     private static bool Same(VetoEntry a, VetoEntry b) =>

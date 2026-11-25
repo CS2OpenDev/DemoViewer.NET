@@ -93,7 +93,8 @@ public interface IPlaybackSurface
     /// </param>
     /// <param name="behaviour">What the lane does, or null for a display-only lane.</param>
     /// <exception cref="ArgumentException">
-    ///     <paramref name="track" />'s id is empty or has a character outside that alphabet.
+    ///     <paramref name="track" />'s id is empty or has a character outside that alphabet, or a lane filed
+    ///     under the same id is still on the timeline. To replace a lane, dispose the old handle first.
     /// </exception>
     ILaneHandle AddLane(ITimelineTrack track, ILaneBehaviour? behaviour = null);
 

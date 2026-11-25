@@ -40,7 +40,10 @@ public sealed class StampedFacts
 
     private const string StampPrefix = "facts:";
 
-    private readonly ConditionalWeakTable<RulesetDoc, Dictionary<int, string?>> _fingerprints = new();
+    // Each fingerprint is kept with the merged set it was composed in: a gate turning a ruleset its use:
+    // reads on or off changes the fingerprint and leaves the doc the same instance.
+    private readonly ConditionalWeakTable<RulesetDoc,
+        Dictionary<int, (IReadOnlyList<RulesetDoc> Docs, string? Fingerprint)>> _fingerprints = new();
 
     /// <param name="rules">The merged rules the facts come out of.</param>
     public StampedFacts(MergedRulesBuild rules)
@@ -119,12 +122,15 @@ public sealed class StampedFacts
             return null;
         }
 
-        Dictionary<int, string?> byRate = _fingerprints.GetValue(doc, _ => []);
+        IReadOnlyList<RulesetDoc> docs = Rules.Docs;
+        Dictionary<int, (IReadOnlyList<RulesetDoc> Docs, string? Fingerprint)> byRate =
+            _fingerprints.GetValue(doc, _ => []);
         lock (byRate)
         {
-            if (byRate.TryGetValue(tickRate, out string? known))
+            if (byRate.TryGetValue(tickRate, out (IReadOnlyList<RulesetDoc> Docs, string? Fingerprint) known)
+                && ReferenceEquals(known.Docs, docs))
             {
-                return known;
+                return known.Fingerprint;
             }
         }
 
@@ -144,7 +150,7 @@ public sealed class StampedFacts
 
         lock (byRate)
         {
-            byRate[tickRate] = fingerprint;
+            byRate[tickRate] = (docs, fingerprint);
         }
 
         return fingerprint;

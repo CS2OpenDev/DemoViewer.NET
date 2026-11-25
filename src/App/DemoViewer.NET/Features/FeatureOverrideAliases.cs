@@ -67,7 +67,7 @@ public static class FeatureOverrideAliases
             return false;
         }
 
-        settings.Write(s => _ = Migrate(s.Features.Overrides, descriptors));
-        return true;
+        // On a file that cannot be written the old id keeps its value on disk and the next launch that can moves it.
+        return settings.TryWrite(s => _ = Migrate(s.Features.Overrides, descriptors));
     }
 }

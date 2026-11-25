@@ -163,6 +163,47 @@ public class HighlightReelDialogViewModelTests
         await Assert.That(clip.EndTick).IsEqualTo(5000 + 5 * Rate);
     }
 
+    // The library roster keeps bots and gives every one SteamID64 "0", so the id alone cannot tell two bots
+    // of one demo apart: their overlapping windows merged into one clip that spectated the first bot only.
+    [Test]
+    public async Task TwoBotsInOneRound_StayTwoGroupsAndTwoClips()
+    {
+        DemoCacheRecord record = new()
+        {
+            Path = "/d/bots.dem",
+            Map = "de_dust2",
+            TickRate = Rate,
+            TickCount = 120_000,
+            Sha256 = "sha",
+            Players =
+            [
+                new CachedPlayerInfo { Slot = 5, Name = "Mike", SteamId64 = "0", IsBot = true },
+                new CachedPlayerInfo { Slot = 6, Name = "Jon", SteamId64 = "0", IsBot = true }
+            ]
+        };
+
+        HighlightSelection Bot(int slot, int tick, string title) => new(record, new CachedHighlightEvent
+        {
+            RulesetId = "rules",
+            HighlightId = "clutch",
+            RoundNumber = 7,
+            Tick = tick,
+            RenderedTitle = title,
+            PlayerSlot = slot
+        });
+
+        HighlightReelDialogViewModel vm = New([Bot(5, 5000, "A"), Bot(6, 5200, "B")], out FakeReelJob job);
+        vm.GenerateCommand.Execute(null);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.ClipGroups.Count).IsEqualTo(2);
+            await Assert.That(job.LastRequest!.Clips.Select(c => c.PlayerNameRaw))
+                .IsEquivalentTo(["Mike", "Jon"], CollectionOrdering.Matching);
+            await Assert.That(job.LastRequest.Clips.All(c => c.PlayerSteamId64 == 0)).IsTrue();
+        }
+    }
+
     // (d) SteamId64 → PlayerSteamId64 via long.TryParse (0 on empty/non-numeric, never throws).
     [Test]
     public async Task SteamId_ParsedOrZero()

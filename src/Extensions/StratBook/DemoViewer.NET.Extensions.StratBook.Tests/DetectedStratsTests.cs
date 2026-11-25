@@ -2,6 +2,8 @@
 
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Data;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
@@ -289,6 +291,50 @@ public class DetectedStratsTests
     }
 
     [Test]
+    public async Task AddingWithoutAPreview_WhenAMineChangesThePatternMeanwhile_RefusesAndRebuilds()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool hold = false;
+            using Library library = Library.Create();
+            using StratMiningService mining = library.Service(a =>
+            {
+                if (hold)
+                {
+                    return release.Task.ContinueWith(_ => a(), TaskScheduler.Default);
+                }
+
+                a();
+                return Task.CompletedTask;
+            });
+            using StratBookTabViewModel vm = Tab(library, mining);
+            DetectedRowViewModel row = SelectAExecute(vm);
+            await Assert.That(vm.Detected.Preview).IsNull();
+
+            // Add to book reads the pattern, then waits on the build; a re-mine publishes in that wait.
+            hold = true;
+            Task adding = vm.Detected.AddToBookCommand.ExecuteAsync(null);
+            hold = false;
+            library.Cache.Upsert(StratMiningServiceTests.Record(5, BombSite.A));
+            library.Positions.WritePositions("/d/m5.dem", StratMiningServiceTests.PositionsOf(5, BombSite.A, 200));
+            await mining.MineAsync();
+            MinedPattern now = mining.Patterns.Single(p => p.Pattern.Key == row.Key).Pattern;
+            release.SetResult();
+            await adding;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(library.Strats.Index).IsEmpty()
+                    .Because("the build was of the pattern as it was before the mine, with its old rounds");
+                await Assert.That(vm.Detected.StatusLine).IsEqualTo("This pattern changed; review again.");
+                await Assert.That(vm.Detected.Preview?.Pattern.Support).IsEqualTo(now.Support);
+                await Assert.That(vm.IsDetectedView).IsTrue();
+            }
+        });
+    }
+
+    [Test]
     public async Task ThePreview_Loads_ThenSaysTheFilesAreGone()
     {
         await HeadlessSession.RunOnUi(async () =>
@@ -388,6 +434,41 @@ public class DetectedStratsTests
             await Assert.That(vm.Detected.Preview).IsNull();
         });
     }
+
+    [Test]
+    [Category("Integration")]
+    public async Task APreview_SurvivesAListRefresh_UnderABoundList() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using Library library = Library.Create();
+            using StratMiningService mining = library.Service();
+            using StratBookTabViewModel vm = Tab(library, mining);
+            SelectAExecute(vm);
+            // The view's own bindings: the list writes its selection back, null while the rows are replaced.
+            ListBox list = new() { DataContext = vm.Detected };
+            list.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(DetectedStratsViewModel.Rows)));
+            list.Bind(SelectingItemsControl.SelectedItemProperty,
+                new Binding(nameof(DetectedStratsViewModel.SelectedRow)));
+            Window window = new() { Width = 400, Height = 600, Content = list };
+            window.Show();
+            Playback2DTimelineHarness.Pump();
+
+            await vm.Detected.PreviewStratCommand.ExecuteAsync(null);
+            StratPreviewViewModel first = vm.Detected.Preview!;
+            string key = first.Key;
+            vm.Detected.ShowSettled = true;
+            Playback2DTimelineHarness.Pump();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Detected.SelectedRow?.Key).IsEqualTo(key);
+                await Assert.That(vm.Detected.Preview).IsSameReferenceAs(first)
+                    .Because("a refresh reselects the same pattern");
+                await Assert.That(first.Canvas).IsNotNull();
+            }
+
+            window.Close();
+        });
 
     [Test]
     [Category("Integration")]

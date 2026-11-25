@@ -2,7 +2,9 @@
 
 using System.IO.Compression;
 using System.Text.Json;
+using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Extensions.StratBook.Services.Portability;
+using Microsoft.Extensions.Logging;
 
 #endregion
 
@@ -61,9 +63,24 @@ public sealed class GrenadeLineupStore
 {
     public const string FileName = "grenade-lineups.json.gz";
 
+    // The waits between tries at a file another process holds. A scan or a sync client lets go within
+    // milliseconds, and giving up on the first try costs the session every lineup edit.
+    private static readonly int[] _lockedReadWaitsMs = [50, 150];
+
+    private static ILogger? _diagLog;
+
     private readonly Func<byte[]?> _read;
     private readonly Action<byte[]>? _write;
     private GrenadeLineupDocument? _loaded;
+
+    // Set by each read of the file: true when one was there and could not be read or parsed (held open by
+    // another process, written by a newer build, corrupt). Writes are then refused, so the empty document
+    // the store falls back to never replaces the lineups whose ids strat steps and clips are named by.
+    private volatile bool _refused;
+
+    // True when the refusal came from a read that threw (a lock, a denied open) and not from a file that was
+    // read and is not a lineup document: the first may read a moment later, the second will not.
+    private bool _retryable;
 
     /// <param name="directory">The folder holding <see cref="FileName" />, or null to keep everything in memory.</param>
     public GrenadeLineupStore(string? directory)
@@ -129,10 +146,104 @@ public sealed class GrenadeLineupStore
     public HashSet<Guid> AnchorIds() => [.. Doc.Maps.Values.SelectMany(m => m.Anchors).Select(a => a.Id)];
 
     // Read on first use, not in the constructor: the file holds every flight and the index is built on the UI thread.
-    private GrenadeLineupDocument Doc => _loaded ??= Read() ?? new GrenadeLineupDocument();
+    private GrenadeLineupDocument Doc => _loaded ??= Load();
 
     /// <summary>Drops the in-memory document; the next use reads the file again. In memory this empties the store.</summary>
     public void Unload() => _loaded = null;
+
+    /// <summary>
+    ///     True while the file is there and was not read: the store holds an empty document in its place and
+    ///     <see cref="Write" /> does nothing, so an edit made now is not kept. Reads the file on first use.
+    /// </summary>
+    public bool IsRefused
+    {
+        get
+        {
+            _ = Doc;
+            return _refused;
+        }
+    }
+
+    /// <summary>True when <see cref="Recover" /> has a read to try again. Cheap; reads nothing.</summary>
+    public bool CanRecover => _loaded is not null && _refused && _retryable;
+
+    /// <summary>
+    ///     Tries the file again after a read that threw. A scan or a sync client can hold it for longer than
+    ///     <see cref="Load" /> waits, and without this the session would stay on the empty document, dropping
+    ///     every edit, until the store is unloaded. True when the file's document replaced the empty one: what
+    ///     was edited meanwhile is gone with it, a <see cref="MapLineups" /> handed out earlier is stale, and a
+    ///     <see cref="Snapshot" /> taken earlier must not be written. Not thread-safe, like the rest of the store.
+    /// </summary>
+    public bool Recover()
+    {
+        if (!CanRecover)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (_read() is not { } bytes)
+            {
+                // The file went away: there is nothing left to protect, and the session's document stands.
+                _refused = false;
+                _retryable = false;
+                return false;
+            }
+
+            if (Parse(bytes) is not { } document)
+            {
+                _retryable = false; // it reads now, and it is not a lineup document: refused until an unload
+                return false;
+            }
+
+            _loaded = document;
+            _refused = false;
+            _retryable = false;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private GrenadeLineupDocument Load()
+    {
+        GrenadeLineupDocument? document;
+        bool present;
+        bool threw = false;
+        for (int attempt = 0;; attempt++)
+        {
+            try
+            {
+                byte[]? bytes = _read();
+                present = bytes is not null;
+                document = bytes is null ? null : Parse(bytes);
+                break;
+            }
+            catch (IOException) when (attempt < _lockedReadWaitsMs.Length)
+            {
+                Thread.Sleep(_lockedReadWaitsMs[attempt]);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                present = true;
+                document = null;
+                threw = true;
+                break;
+            }
+        }
+
+        _refused = present && document is null;
+        _retryable = threw;
+        if (_refused)
+        {
+            GrenadeIndexLog.LineupsRefused(_diagLog ??= DiagnosticsLog.CreateLogger(GrenadeIndexLog.Category));
+        }
+
+        return document ?? new GrenadeLineupDocument();
+    }
 
     /// <summary>A map's lineups, created empty on first use.</summary>
     public MapLineups For(string map)
@@ -175,7 +286,7 @@ public sealed class GrenadeLineupStore
     public void Write(GrenadeLineupDocument snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        if (_write is null)
+        if (_write is null || _refused)
         {
             return;
         }
@@ -229,17 +340,8 @@ public sealed class GrenadeLineupStore
         }
     }
 
-    private static byte[]? ReadFile(string file)
-    {
-        try
-        {
-            return File.Exists(file) ? File.ReadAllBytes(file) : null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
+    // Throws when the file is there but cannot be read, which the caller tells apart from no file.
+    private static byte[]? ReadFile(string file) => File.Exists(file) ? File.ReadAllBytes(file) : null;
 
     // Gzipped or plain, sniffed by the magic bytes.
     private static GrenadeLineupDocument? Parse(byte[] bytes, JsonSerializerOptions? options = null)
@@ -258,8 +360,12 @@ public sealed class GrenadeLineupStore
                 document = JsonSerializer.Deserialize<GrenadeLineupDocument>(bytes, options);
             }
 
-            if (document is not { SchemaVersion: GrenadeLineupDocument.CurrentSchema }
-                || document.Maps.Values.Any(m => m is null))
+            // The local read is not strict about nulls, and everything below and after dereferences these. Not even
+            // the strict one reaches a dictionary's values, so a null path reads under both.
+            if (document is not { SchemaVersion: GrenadeLineupDocument.CurrentSchema, Maps: not null }
+                || document.Maps.Values.Any(m => m is null || m.Anchors is null || m.Aliases is null
+                                                 || m.Paths is null || m.Anchors.Contains(null!)
+                                                 || m.Paths.Values.Any(p => p?.Throw is null || p.Points is null)))
             {
                 return null;
             }
@@ -273,7 +379,9 @@ public sealed class GrenadeLineupStore
 
             return document;
         }
-        catch (Exception ex) when (ex is JsonException or InvalidDataException or IOException)
+        // ArgumentException: two map keys that differ only in case collide under the comparer above. The app
+        // never writes that, so the file is not one of its own and reads as not a lineup document.
+        catch (Exception ex) when (ex is JsonException or InvalidDataException or IOException or ArgumentException)
         {
             return null;
         }

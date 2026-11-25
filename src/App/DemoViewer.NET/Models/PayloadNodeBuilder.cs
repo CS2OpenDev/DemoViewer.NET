@@ -60,7 +60,18 @@ public static class PayloadNodeBuilder
         // message.
         if (message is not null && message.Descriptor.ClrType != message.GetType())
         {
-            message = message.Descriptor.Parser.ParseFrom(message.ToByteArray());
+            // The parser never decoded these bytes, so this is the first parse they get, and a cut or
+            // damaged demo fails it. Like every other decode here, that falls back to the raw scan
+            // instead of throwing out of the frame's card build.
+            byte[] payload = message.ToByteArray();
+            try
+            {
+                message = message.Descriptor.Parser.ParseFrom(payload);
+            }
+            catch (InvalidProtocolBufferException)
+            {
+                return [.. BuildFromRawProto(payload)];
+            }
         }
 
         return message is null ? [] : BuildFields(message);

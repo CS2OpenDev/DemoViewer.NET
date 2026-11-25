@@ -140,4 +140,37 @@ public class Playback2DTimelineScrubTests
             await Assert.That(ctx.SeekFrames).Contains(band.StartFrameIndex);
         });
     }
+
+    // A drag that loses the pointer (Alt+Tab, a system dialog) never sees its release. The scrub used
+    // to stay latched, so merely hovering the bar afterwards kept seeking the shared clock.
+    [Test]
+    public async Task CaptureLostMidScrub_EndsTheScrub_SoALaterHoverDoesNotSeek()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
+            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+            Panel bar = Playback2DTimelineHarness.ScrubBar(Playback2DTimelineHarness.Timeline(view));
+
+            double width = bar.Bounds.Width;
+            double y = bar.Bounds.Height / 2;
+
+            window.MouseDown(Playback2DTimelineHarness.ToWindow(bar, window, width * 0.2, y), MouseButton.Left);
+            Playback2DTimelineHarness.Pump();
+            int seeks = ctx.SeekFrames.Count;
+            await Assert.That(seeks).IsGreaterThanOrEqualTo(1);
+
+            bar.RaiseEvent(new PointerCaptureLostEventArgs(bar, new Pointer(1, PointerType.Mouse, true)));
+            Playback2DTimelineHarness.Pump();
+
+            window.MouseMove(Playback2DTimelineHarness.ToWindow(bar, window, width * 0.8, y));
+            Playback2DTimelineHarness.Pump();
+
+            await Assert.That(ctx.SeekFrames.Count).IsEqualTo(seeks)
+                .Because("the contact is over; a move with nothing held is a hover, and hover is a read");
+
+            window.MouseUp(Playback2DTimelineHarness.ToWindow(bar, window, width * 0.8, y), MouseButton.Left);
+            window.Close();
+        });
+    }
 }

@@ -35,6 +35,19 @@ namespace DemoViewer.NET.Services.Facts;
 /// </summary>
 public sealed class FactsEvaluator : IDemoEvaluator
 {
+    // Two rulesets declaring one table name (a user copy of a shipped ruleset keeps its tables) put two outputs
+    // under the name; the first stands, so one clash never stops every facet's write.
+    internal static Dictionary<string, MetricTable> ProjectedByName(IEnumerable<MetricTable> tables)
+    {
+        Dictionary<string, MetricTable> byName = new(StringComparer.Ordinal);
+        foreach (MetricTable table in tables)
+        {
+            byName.TryAdd(table.Name, table);
+        }
+
+        return byName;
+    }
+
     /// <summary>The pass id, and the queue owner tag.</summary>
     private const string EvaluatorId = HostIds.FactsPass;
 
@@ -189,7 +202,7 @@ public sealed class FactsEvaluator : IDemoEvaluator
                     continue;
                 }
 
-                projected ??= run.ProjectConfiguredOutputs().ToDictionary(t => t.Name, StringComparer.Ordinal);
+                projected ??= ProjectedByName(run.ProjectConfiguredOutputs());
                 List<FactTable> tables = [];
                 foreach (TableDef table in facet.Tables)
                 {

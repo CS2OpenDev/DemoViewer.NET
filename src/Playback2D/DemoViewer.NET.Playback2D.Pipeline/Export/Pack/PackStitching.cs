@@ -18,9 +18,16 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export.Pack;
 ///         session refuses) and the pack goes on without it; a failure in the sink behind (ffmpeg gone, a
 ///         full disk) ends the pack. <see cref="InnerFaulted" /> tells the two apart.
 ///     </para>
+///     <para>
+///         <b>Whose token.</b> The pack's sink is written with the pack's token, never the clip's. ffmpeg
+///         ties its process to the token of its first write, and a clip's (the pack's joined with its demo's
+///         visit) would let a stopped visit kill the encode the later clips write into, and stop reaching it
+///         at all once the clip had disposed it.
+///     </para>
 /// </summary>
 /// <param name="inner">The pack's sink. Not owned.</param>
-internal sealed class PackSegmentSink(IFrameSink inner) : IFrameSink
+/// <param name="packToken">The pack's own token, which every write to <paramref name="inner" /> carries.</param>
+internal sealed class PackSegmentSink(IFrameSink inner, CancellationToken packToken) : IFrameSink
 {
     /// <summary>Frames this segment forwarded.</summary>
     public int FramesWritten { get; private set; }
@@ -35,9 +42,10 @@ internal sealed class PackSegmentSink(IFrameSink inner) : IFrameSink
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(Ended, this);
+        ct.ThrowIfCancellationRequested();
         try
         {
-            await inner.WriteAsync(rgba, width, height, ct).ConfigureAwait(false);
+            await inner.WriteAsync(rgba, width, height, packToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

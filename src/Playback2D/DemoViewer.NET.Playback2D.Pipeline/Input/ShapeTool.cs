@@ -2,6 +2,8 @@
 
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Input;
+using DemoViewer.NET.Playback2D.Levels;
+using SkiaSharp;
 
 #endregion
 
@@ -30,6 +32,10 @@ public sealed class ShapeTool : IPointerTool
     private readonly AnnotationKind _kind;
     private TimeEnvelope _envelope = TimeEnvelope.Static;
     private IDisposable? _gesture;
+
+    // The pane the shape was pressed in, for the same reason as DrawTool's: a drag into another band
+    // arrives with that band's world point.
+    private LevelPane? _pane;
     private float _tapSlopWorld;
 
     /// <summary>Creates the tool for one shape kind.</summary>
@@ -65,6 +71,7 @@ public sealed class ShapeTool : IPointerTool
 
         AnnotationSession session = ink.Session;
         _gesture = session.Document.BeginGesture("shape");
+        _pane = pane;
         _envelope = session.EnvelopeForNewElement(ink.CurrentTick);
         _tapSlopWorld = (float)(TapSlopPixels * ink.WorldUnitsPerPixel(pane));
 
@@ -94,7 +101,8 @@ public sealed class ShapeTool : IPointerTool
         }
 
         // Only the newest position matters to a rubber band, so the coalesced samples are ignored.
-        wet.ReplaceLast(Constrain(wet.Points[0], e.World.X, e.World.Y, e.Pressure, e.Modifiers));
+        SKPoint world = DrawTool.WorldIn(_pane, in e, ink);
+        wet.ReplaceLast(Constrain(wet.Points[0], world.X, world.Y, e.Pressure, e.Modifiers));
         ink.RequestRender();
     }
 
@@ -117,7 +125,8 @@ public sealed class ShapeTool : IPointerTool
         }
 
         InkPoint first = wet.Points[0];
-        InkPoint last = Constrain(first, e.World.X, e.World.Y, e.Pressure, e.Modifiers);
+        SKPoint world = DrawTool.WorldIn(_pane, in e, ink);
+        InkPoint last = Constrain(first, world.X, world.Y, e.Pressure, e.Modifiers);
 
         float dx = last.X - first.X;
         float dy = last.Y - first.Y;
@@ -194,5 +203,6 @@ public sealed class ShapeTool : IPointerTool
     {
         _gesture?.Dispose();
         _gesture = null;
+        _pane = null;
     }
 }

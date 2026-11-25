@@ -50,6 +50,16 @@ internal static class GoldenCommand
         string diffDir = args.String("diff-dir") ?? DefaultDiffDirectory;
         GoldenMode? toleranceOverride = ParseTolerance(args.String("tolerance"));
 
+        // Read every per-plan option once, and refuse a typo or a missing asset root, BEFORE the loop:
+        // in update mode the loop writes each golden as it goes, so a refusal after it is a refusal
+        // after the corpus was rewritten (or rewritten without its radar).
+        CliScenePlan.RequireAssetsRoot(AssetsRootResolver.Resolve(args));
+        _ = args.List("layers");
+        _ = args.List("exclude-layers");
+        _ = BackendResolver.Preference(args, RenderBackendPreference.ForceCpu);
+        CliScenePlan.RequireSingleLevelLayout(args);
+        args.ThrowIfUnconsumed();
+
         int matched = 0;
         int mismatched = 0;
         int missing = 0;
@@ -65,13 +75,21 @@ internal static class GoldenCommand
                 continue;
             }
 
-            if (entry.Pending || !File.Exists(entry.ScenePath))
+            if (entry.Pending)
             {
                 skipped++;
                 results.Add(Result(entry, "skipped", null,
-                    entry.Pending
-                        ? "marked pending: its inputs have not all landed yet"
-                        : "no scene file"));
+                    "marked pending: its inputs have not all landed yet"));
+                continue;
+            }
+
+            // Pending is the only licence to have no scene. A live entry without one is a broken
+            // corpus (a deleted or renamed scene, a partial checkout), and counting it as skipped
+            // let the gate exit 0 having compared nothing. `fixture verify` fails the same case.
+            if (!File.Exists(entry.ScenePath))
+            {
+                missing++;
+                results.Add(Result(entry, "missing", null, $"no scene at {entry.ScenePath}"));
                 continue;
             }
 

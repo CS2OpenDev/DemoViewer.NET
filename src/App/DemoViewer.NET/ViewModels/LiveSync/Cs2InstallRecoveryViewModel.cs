@@ -157,6 +157,13 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
             {
                 IsRestoring = false;
             }
+
+            // A session that started while the restore ran owns the install now: stand down until it ends.
+            if (_disposed || _isCs2Busy())
+            {
+                StandDown();
+                return;
+            }
         }
 
         Notice = null;
@@ -171,8 +178,7 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
     {
         if (_isCs2Busy())
         {
-            _wasBusy = true;
-            NeedsRestore = false;
+            StandDown();
             return;
         }
 
@@ -183,7 +189,24 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
         }
     }
 
-    private void OnLiveSyncStateChanged(object? sender, LiveSyncStateChangedEventArgs e) => Reevaluate();
+    private void StandDown()
+    {
+        _wasBusy = true;
+        NeedsRestore = false;
+    }
+
+    private void OnLiveSyncStateChanged(object? sender, LiveSyncStateChangedEventArgs e)
+    {
+        // A session that ends in Disconnected went through StopAsync (Disable, Reconnect, dispose), which is
+        // what restores the install, often from Faulted: CSVG keeps its backups across a CS2 quit, and the
+        // probe Faulted let run saw them. Look again, or a banner from that probe outlives the restore.
+        if (e.Current.Kind == LiveSyncStateKind.Disconnected && e.Previous.Kind != LiveSyncStateKind.Disconnected)
+        {
+            _wasBusy = true;
+        }
+
+        Reevaluate();
+    }
 
     /// <summary>The one-click restore, with the outcome in the banner either way.</summary>
     [RelayCommand(CanExecute = nameof(CanRestore))]
@@ -194,6 +217,14 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
         try
         {
             Cs2InstallProbe probe = await _liveSync.ProbeInstallAsync().ConfigureAwait(true);
+            // As in CheckAsync: a session that started while the probe was out is patching the install
+            // now, and a restore would un-patch it under the launch.
+            if (_disposed || _isCs2Busy())
+            {
+                StandDown();
+                return;
+            }
+
             IsCs2Running = probe.Cs2Running;
             if (probe.HasLeftovers)
             {

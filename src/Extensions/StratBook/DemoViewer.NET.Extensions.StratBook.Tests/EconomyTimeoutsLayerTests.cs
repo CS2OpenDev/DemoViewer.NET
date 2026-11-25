@@ -3,6 +3,7 @@
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -71,6 +72,90 @@ public class EconomyTimeoutsLayerTests
             await Assert.That(lowBuys.All(r => r.Value.Contains("AWP", StringComparison.Ordinal))).IsTrue();
             await Assert.That(lowBuys.Any(r => r.Label.StartsWith("Full", StringComparison.Ordinal))).IsFalse();
             await Assert.That(low.Rows[^1].Note).IsEqualTo(DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport.EconomyLoadouts.BuyCaveat);
+        }
+    }
+
+    // A loss with no following round (a map's last round) is in no "next" row, so it is not in their total.
+    [Test]
+    public async Task Economy_AfterALoss_SharesAreOfTheLossesThatHaveANextRound()
+    {
+        using ScoutingReportShellRenderTests.SyntheticTeam team =
+            await ScoutingReportShellRenderTests.SyntheticTeam.Create();
+        QueuedPost posted = new();
+        using ScoutingReportTabViewModel vm = team.Tab(posted);
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == team.TeamA);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        vm.SelectMapCommand.Execute(vm.Maps.Single(m => m.Map == "de_nuke"));
+        await ScoutingReportTestKit.Settle(vm, posted);
+
+        int unpaired = 0;
+        List<double> totals = [];
+        foreach (ScoutingSide side in (ScoutingSide[])[ScoutingSide.T, ScoutingSide.Ct])
+        {
+            vm.Side = side;
+            await ScoutingReportTestKit.Settle(vm, posted);
+            ScoutingLayerResult result = await new EconomyLayer()
+                .BuildAsync(vm.Layers.Find("econ")!.Context!, CancellationToken.None);
+            ScoutingInspectorSection section =
+                result.Sections.Single(s => s.Title.StartsWith("After a loss", StringComparison.Ordinal));
+            unpaired += section.Rows[0].Rounds.Count - section.Rows.Skip(1).Sum(r => r.Rounds.Count);
+            totals.Add(section.Rows.Skip(1).Sum(r => r.BarPercent ?? 0));
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(unpaired).IsGreaterThan(0)
+                .Because("the synthetic maps end on a loss, which has no round after it");
+            await Assert.That(totals.All(total => Math.Abs(total - 100.0) < 0.001)).IsTrue()
+                .Because($"the shares after a loss add up to the whole, and they add up to {string.Join(" and ", totals)}");
+        }
+    }
+
+    // A pistol with no live round after it on the same side is in no follow-up row, so it is not in their total.
+    [Test]
+    public async Task Economy_PistolFollowUp_SharesAreOfThePistolsThatHaveAFollowingRound()
+    {
+        using ScoutingReportShellRenderTests.SyntheticTeam team =
+            await ScoutingReportShellRenderTests.SyntheticTeam.Create();
+        // On one of the nuke demos the round after the second-half pistol was not live (a restart, say).
+        DemoCacheRecord record = team.Cache.LoadRecords(e => e.Path == "/d/de_nuke-0.dem").Single();
+        record.RoundFacts!.Rounds.Single(r => r.Number == 10).IsLive = false;
+        team.Cache.Upsert(record);
+        await team.Teams.Idle;
+        QueuedPost posted = new();
+        using ScoutingReportTabViewModel vm = team.Tab(posted);
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == team.TeamA);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        vm.SelectMapCommand.Execute(vm.Maps.Single(m => m.Map == "de_nuke"));
+        await ScoutingReportTestKit.Settle(vm, posted);
+
+        int unpaired = 0;
+        List<double> totals = [];
+        foreach (ScoutingSide side in (ScoutingSide[])[ScoutingSide.T, ScoutingSide.Ct])
+        {
+            vm.Side = side;
+            await ScoutingReportTestKit.Settle(vm, posted);
+            ScoutingLayerResult result = await new EconomyLayer()
+                .BuildAsync(vm.Layers.Find("econ")!.Context!, CancellationToken.None);
+            ScoutingInspectorSection section =
+                result.Sections.Single(s => s.Title.StartsWith("Pistols ·", StringComparison.Ordinal));
+            List<ScoutingInspectorRow> followUp =
+                [.. section.Rows.Where(r => r.Label.Contains("the bonus", StringComparison.Ordinal))];
+            if (followUp.Count == 0)
+            {
+                continue;
+            }
+
+            unpaired += section.Rows[0].Rounds.Count - followUp.Sum(r => r.Rounds.Count);
+            totals.Add(followUp.Sum(r => r.BarPercent ?? 0));
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(unpaired).IsGreaterThan(0)
+                .Because("one second-half pistol has no live round after it");
+            await Assert.That(totals.All(total => Math.Abs(total - 100.0) < 0.001)).IsTrue()
+                .Because($"the follow-up shares add up to the whole, and they add up to {string.Join(" and ", totals)}");
         }
     }
 

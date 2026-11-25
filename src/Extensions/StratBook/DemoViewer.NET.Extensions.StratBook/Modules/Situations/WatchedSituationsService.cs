@@ -198,6 +198,7 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
     /// </summary>
     public void Reload()
     {
+        bool attached;
         lock (_gate)
         {
             _doc = new WatchedSituationsFile();
@@ -205,6 +206,14 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
             _refused = false;
             FileProblem = null;
             Load();
+            attached = _attached;
+        }
+
+        // The new-hit groups are derived from the index, not read from the file: the pack also reloads after an
+        // import, which deletes nothing, and the badges must not drop to zero until the index next changes.
+        if (attached)
+        {
+            Reevaluate();
         }
 
         RaiseChanged();
@@ -652,8 +661,17 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
                 return;
             }
 
-            foreach (WatchedSituation watch in file.Watches.Where(w => w.Id != Guid.Empty))
+            foreach (WatchedSituation watch in file.Watches.Where(w => w is not null && w.Id != Guid.Empty))
             {
+                // The strict read stops a null property, not a null inside the token list; one would throw out of
+                // every evaluation once saved.
+                if (!IsWellFormed(watch))
+                {
+                    ledger.Report(
+                        $"the watch \"{watch.Name}\" in {FileName} has a null where its shape has none and was left out");
+                    continue;
+                }
+
                 int at = _doc.Watches.FindIndex(w => w.Id == watch.Id);
                 WatchedSituation incoming = Remapped(watch, teams,
                     at < 0 ? watch.WatermarkTicks : _doc.Watches[at].WatermarkTicks);
@@ -704,6 +722,11 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
         Filters = watch.Filters with { Opponent = teams.Map(watch.Filters.Opponent) }
     };
 
+    // What evaluation dereferences: the local file is read without the strict options, so every field counts.
+    private static bool IsWellFormed(WatchedSituation? watch) =>
+        watch is { Name: not null, Map: not null, Tokens: not null, Filters: not null }
+        && watch.Tokens.TrueForAll(t => t is not null);
+
     private static bool SameWatch(WatchedSituation a, WatchedSituation b) =>
         JsonSerializer.Serialize(a, WatchedSituationsFile.JsonOptions)
             .Equals(JsonSerializer.Serialize(b, WatchedSituationsFile.JsonOptions), StringComparison.Ordinal);
@@ -730,6 +753,12 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
             {
                 Refuse(
                     $"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
+                return;
+            }
+
+            if (file.Watches is null || !file.Watches.TrueForAll(IsWellFormed))
+            {
+                Refuse($"{FileName} holds a watch with a null where its shape has none");
                 return;
             }
 

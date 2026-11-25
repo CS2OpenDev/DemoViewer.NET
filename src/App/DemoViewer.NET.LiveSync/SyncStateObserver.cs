@@ -66,6 +66,13 @@ internal sealed class SyncStateObserver : IDisposable
     /// <summary>The current demo's mapper (UI thread; rebuilt on DemoReset). Shared with the inbound pump.</summary>
     internal TickMapper? Mapper { get; private set; }
 
+    /// <summary>
+    ///     The demo <see cref="Mapper" /> was built from. Every Republish builds a new mapper from the same
+    ///     inputs, so this, not the mapper's identity, says whether a frame and tick taken from an earlier
+    ///     mapper still mean the same place.
+    /// </summary>
+    internal ParsedDemo? MappedDemo { get; private set; }
+
     public void Dispose()
     {
         if (_disposed)
@@ -127,6 +134,7 @@ internal sealed class SyncStateObserver : IDisposable
         if (demo is null || path is null)
         {
             Mapper = null;
+            MappedDemo = null;
             _engine.SetDesiredDemo(null, null, false);
             return;
         }
@@ -134,11 +142,13 @@ internal sealed class SyncStateObserver : IDisposable
         if (!Path.IsPathRooted(path) || !File.Exists(path))
         {
             Mapper = null;
+            MappedDemo = null;
             _engine.NoteDemoPathUnavailable();
             return;
         }
 
         Mapper = new TickMapper(demo.Frames, _shell.Navigator.TickBoundaryFrames, _tickOffset);
+        MappedDemo = demo;
         _engine.SetDesiredDemo(path, CurrentDesiredTick(), _shell.Playback.IsPlaying);
     }
 

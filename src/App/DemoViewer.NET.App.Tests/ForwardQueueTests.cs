@@ -105,6 +105,84 @@ public class ForwardQueueTests
     }
 
     [Test]
+    public async Task ARequeuedForwardRead_RunByAnotherWorker_CanStillBeStopped()
+    {
+        int reads = 0, stoppedThread = 0;
+        using ManualResetEventSlim firstStarted = new();
+        using ManualResetEventSlim secondStarted = new();
+        using ManualResetEventSlim stoppedWorkerPosted = new();
+        using ManualResetEventSlim secondStopped = new();
+        IDemoQueueHandle? forward = null;
+        using DemoProcessingQueue queue = new(new HeavyJobGate(), a =>
+            {
+                // The stopped worker waits here, between requeueing the read and letting go of it, until
+                // another worker is running the read again.
+                bool stopped = Environment.CurrentManagedThreadId == Volatile.Read(ref stoppedThread);
+                if (stopped)
+                {
+                    secondStarted.Wait(TimeSpan.FromSeconds(10));
+                }
+
+                a();
+                if (stopped)
+                {
+                    stoppedWorkerPosted.Set();
+                }
+            },
+            parseBytes: _ => SyntheticParsedDemo.Create(),
+            compactHeap: () => Task.CompletedTask,
+            parseFileWithPlan: (_, _) => throw new InvalidOperationException("retained parse"),
+            forwardPass: (path, _, _, ct) =>
+            {
+                if (path != "a.dem")
+                {
+                    // The worker running the user's read stays alive until the stopped one has requeued a.dem,
+                    // so it is the one that picks the read up. Otherwise the stopped worker is the only one
+                    // left, and it would run the read itself once its post returned.
+                    SpinWait.SpinUntil(() => forward?.State == DemoQueueItemState.Queued, TimeSpan.FromSeconds(20));
+                    return Pass();
+                }
+
+                if (Interlocked.Increment(ref reads) == 1)
+                {
+                    firstStarted.Set();
+                    ct.WaitHandle.WaitOne(TimeSpan.FromSeconds(20));
+                    Volatile.Write(ref stoppedThread, Environment.CurrentManagedThreadId);
+                    ct.ThrowIfCancellationRequested();
+                }
+
+                secondStarted.Set();
+                if (ct.WaitHandle.WaitOne(TimeSpan.FromSeconds(20)))
+                {
+                    secondStopped.Set();
+                }
+
+                ct.ThrowIfCancellationRequested();
+                return Pass();
+            });
+        queue.MaxConcurrency = 3;
+        forward = queue.SubmitBackground(Forward("a.dem", "roundfacts", ForwardNeeds.Rules));
+        firstStarted.Wait(TimeSpan.FromSeconds(10));
+        queue.SubmitBackground(new DemoProcessingRequest("b.dem", "user", DemoJobPriority.UserRequested, 1, _ => { },
+            null, "b.dem", false, _ => { }, ForwardNeeds.Rules));
+        bool rerun = secondStarted.Wait(TimeSpan.FromSeconds(10));
+        stoppedWorkerPosted.Wait(TimeSpan.FromSeconds(10));
+        // The stopped worker has a few statements left after its post; give it time to run them.
+        await Task.Delay(200);
+
+        forward.Cancel();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(rerun).IsTrue().Because("the requeued read starts on a free worker");
+            await Assert.That(secondStopped.Wait(TimeSpan.FromSeconds(10))).IsTrue()
+                .Because("the worker that was stopped must not clear the cancel source of the run that replaced it");
+        }
+
+        await forward.Completion.WaitAsync(TimeSpan.FromSeconds(20));
+    }
+
+    [Test]
     public async Task ForwardOnlyEntry_NeverMaterializesAParsedDemo()
     {
         int passes = 0;

@@ -46,8 +46,8 @@ public interface ILineupClipRenderer
 ///         planned most-thrown first; once the byte cap is full a lineup is planned only if it outranks the
 ///         lowest-ranked pair on disk, so a full directory stops rendering instead of trading one kept clip for
 ///         another. After each render the directory is held under the cap by deleting the lowest-ranked pairs;
-///         an evicted pair is listed in <see cref="EvictedFileName" /> and rendered again only through
-///         <see cref="Request" />.
+///         an evicted pair is listed in <see cref="EvictedFileName" /> and rendered again through
+///         <see cref="Request" /> (a position card's Render clip), or once the cap is raised, which clears the list.
 ///     </para>
 ///     <para>
 ///         <b>Threading.</b> <see cref="PlanSoon" /> is what an index change calls: it coalesces a burst of
@@ -114,6 +114,9 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     private bool _disposed;
     private bool _released;
     private HashSet<string>? _evicted;
+
+    // The cap the last plan ran under, this session; null before the first.
+    private long? _planCap;
     private TaskCompletionSource? _idle;
     private bool _running;
 
@@ -183,6 +186,25 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     /// <summary>The last orphan sweep, so a test can await it.</summary>
     internal Task SweepTask { get; private set; } = Task.CompletedTask;
 
+    /// <summary>Whether a planned clip's pair was evicted to keep the folder under its cap. Any thread.</summary>
+    /// <param name="job">The clip, as the planner names it.</param>
+    internal bool IsEvicted(LineupClipJob job)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+        lock (_gate)
+        {
+            if (_folder is null)
+            {
+                return false;
+            }
+
+            HashSet<string> evicted = LoadEvicted();
+            return evicted.Contains(job.Stem)
+                   || (evicted.Count > 0
+                       && job.FormerGifPaths.Any(f => evicted.Contains(Path.GetFileNameWithoutExtension(f))));
+        }
+    }
+
     /// <summary>The evicted pair stems, for a test.</summary>
     internal IReadOnlyCollection<string> Evicted
     {
@@ -248,22 +270,33 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     public void Release()
     {
         Task worker;
-        lock (_gate)
+        // The plan lock first, as a plan takes them: _planned and _ranks are a plan's, read and written under
+        // it alone, and a plan or a visit's choice that began before the release would otherwise put its jobs
+        // back after the clear. It ends here before the worker is waited for, which never needs it held.
+        lock (_planLock)
         {
-            if (_released)
+            lock (_gate)
             {
-                return;
-            }
+                if (_released)
+                {
+                    return;
+                }
 
-            _released = true;
-            _pending.Clear();
-            _planned.Clear();
-            _ranks.Clear();
-            _requested.Clear();
+                _released = true;
+                _pending.Clear();
+                _planned.Clear();
+                _ranks.Clear();
+                _requested.Clear();
+                _evictedAbsentSince.Clear();
+                _evicted = null;
+                worker = WorkerTask;
+            }
+        }
+
+        // The sweep's own table, under the sweep's own lock.
+        lock (_sweepGate)
+        {
             _orphanSince.Clear();
-            _evictedAbsentSince.Clear();
-            _evicted = null;
-            worker = WorkerTask;
         }
 
         // A render still running writes nothing back once released (the pack cancelled its queue item too);
@@ -354,7 +387,21 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
             return 0;
         }
 
-        IReadOnlyList<LineupClipJob> every = LineupClipPlanner.PlanEvery(_clusters(), _directory);
+        ForgetEvictionsIfTheCapRose();
+        // One stat per demo per plan: a representative in a deleted or offline demo would fail its read every
+        // session, so its clip is shown from a throw in a demo that is there.
+        Dictionary<string, bool> present = new(StringComparer.OrdinalIgnoreCase);
+        Func<string, bool> probe = DemoExists;
+        IReadOnlyList<LineupClipJob> every = LineupClipPlanner.PlanEvery(_clusters(), _directory, null, path =>
+        {
+            if (!present.TryGetValue(path, out bool there))
+            {
+                there = probe(path);
+                present[path] = there;
+            }
+
+            return there;
+        });
         List<LineupClipJob> jobs = ChooseLocked(every, _directory);
         if (_complete())
         {
@@ -363,18 +410,50 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
         if (jobs.Count == 0)
         {
+            // Nothing new, but a queue that refused the last batch left its clips pending and planned: this plan
+            // is the one that asks the queue again. A no-op while the worker runs or nothing is pending.
+            StartWorker();
             return 0;
         }
 
         HashSet<string> replanned = new(jobs.Select(j => j.Stem), StringComparer.OrdinalIgnoreCase);
         lock (_gate)
         {
+            if (_released || _disposed)
+            {
+                return 0;
+            }
+
             _pending.RemoveAll(p => replanned.Contains(p.Stem));
             _pending.AddRange(jobs);
         }
 
         StartWorker();
         return jobs.Count;
+    }
+
+    // A pair was evicted to fit the cap it was rendered under; a higher cap, or none, is room to have it back, so the
+    // list is cleared and the cap decides again. Only a rise seen this session counts. Under _planLock.
+    private void ForgetEvictionsIfTheCapRose()
+    {
+        long cap = _maxBytes();
+        int forgotten = 0;
+        lock (_gate)
+        {
+            bool rose = _planCap is { } last && last > 0 && (cap <= 0 || cap > last);
+            _planCap = cap;
+            if (rose && LoadEvicted().Count > 0)
+            {
+                forgotten = _evicted!.Count;
+                _evicted.Clear();
+                SaveEvicted();
+            }
+        }
+
+        if (forgotten > 0)
+        {
+            _log?.Invoke($"lineup clips: the folder limit rose; {forgotten} evicted pairs may render again");
+        }
     }
 
     // The jobs to render out of every planned one: no finished pair, not evicted or adopted, not planned already
@@ -566,7 +645,14 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
     private int RequestLocked(Guid lineupId, string? techniqueKey)
     {
-        if (_disposed || _directory is null)
+        bool stopped;
+        lock (_gate)
+        {
+            // Released too: a request would put back the session state the release dropped, and plan nothing.
+            stopped = _released || _disposed;
+        }
+
+        if (stopped || _directory is null)
         {
             return 0;
         }
@@ -913,6 +999,12 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
         return (added, skipped);
     }
+
+    /// <summary>
+    ///     Whether a demo file is there to read: a background plan shows a clip whose representative's demo is gone
+    ///     from another throw's. <see cref="File.Exists(string)" />; a test replaces it.
+    /// </summary>
+    internal Func<string, bool> DemoExists { get; set; } = File.Exists;
 
     /// <summary>Runs inside the eviction pass, between the listing and the deletes. For a test.</summary>
     internal Action? BeforeEvictionDeletes { get; set; }

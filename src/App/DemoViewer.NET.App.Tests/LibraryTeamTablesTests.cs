@@ -188,6 +188,29 @@ public class LibraryTeamTablesTests
         await Assert.That(Show(LibraryTeamTables.Read(run, [], default))).IsEqualTo(Show(LibraryTeamState.Empty()));
     }
 
+    // The coaches read off the run before the Shown cut: a set (empty here) when it recorded the table, null when
+    // it did not, so the shell knows to fall back to the library's record.
+    [Test]
+    public async Task CoachSlotsOf_ReadsTheRunsTable_OrSaysItHasNone()
+    {
+        MergedRulesBuild rules = new(ShippedRules) { OutputsFor = _ => new HashSet<string>(StringComparer.Ordinal) };
+        AnalysisRun run = rules.BareRun(MergedRulesBuildTests.TwoFrameDemo(), "/demos/a.dem");
+        AnalysisRun cut = run with
+        {
+            Build = run.Build with
+            {
+                Outputs = [.. (run.Build.Outputs ?? []).Where(o => o.Id != LibraryTeamTables.CoachesTable)]
+            }
+        };
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(LibraryTeamTables.CoachSlotsOf(run, [])).IsNotNull();
+            await Assert.That(LibraryTeamTables.CoachSlotsOf(run, [])!.Count).IsEqualTo(0);
+            await Assert.That(LibraryTeamTables.CoachSlotsOf(cut, [])).IsNull();
+        }
+    }
+
     [Test]
     public async Task TheLibraryRulesets_StayOutOfTheHighlightSetAndTheFacets()
     {
@@ -252,7 +275,7 @@ public class LibraryTeamTablesTests
         ActiveCollectors active = new();
         IDisposable visit =
             active.Begin("/demos/a.dem", CollectorSet.Empty, ForwardNeeds.FinalState | ForwardNeeds.Rules);
-        ForwardNeeds during = active.NeedsFor("/DEMOS/A.DEM");
+        ForwardNeeds during = active.NeedsFor(PathCase.Other("/demos/a.dem"));
         visit.Dispose();
 
         using (Assert.Multiple())

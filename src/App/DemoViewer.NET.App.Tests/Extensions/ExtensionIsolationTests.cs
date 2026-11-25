@@ -129,6 +129,28 @@ public class ExtensionIsolationTests
         await Assert.That(refusal is null).IsEqualTo(accepted);
     }
 
+    /// <summary>
+    ///     An id may hold '-', so "com.acme-pro" is both an extension and a name "com.acme" could claim under
+    ///     its own '-' rule. The longer id is the closer match and keeps the name: the shorter one's store is
+    ///     refused, or its "Delete extension data" would take the other extension's files.
+    /// </summary>
+    [Test]
+    [Arguments("com.acme", "com.acme-pro", false)]
+    [Arguments("com.acme", "com.acme-pro/notes.json", false)]
+    [Arguments("com.acme", "com.acme-pro.json", false)]
+    [Arguments("com.acme", "com.acme-pro-old/index.bin", false)]
+    [Arguments("com.acme", "com.acme-old/index.bin", true)]
+    [Arguments("com.acme", "com.acme.json", true)]
+    [Arguments("com.acme-pro", "com.acme-pro", true)]
+    [Arguments("com.acme-pro", "com.acme-pro-old/index.bin", true)]
+    public async Task ADeclaredStore_MayNotNameAnotherLoadedExtensionsFiles(string packId, string path,
+        bool accepted)
+    {
+        string? refusal = PackContributions.StoreRefusal(packId,
+            new StoreDescriptor("s", "S", StoreRoot.Config, [path], IsUserWork: false), ["com.acme", "com.acme-pro"]);
+        await Assert.That(refusal is null).IsEqualTo(accepted);
+    }
+
     [Test]
     public async Task TheHostsDelete_ListsTheExtensionsSettingsFile()
     {
@@ -184,6 +206,66 @@ public class ExtensionIsolationTests
 
             await Assert.That(faults.StartupFailed(pack.Id)).IsTrue();
         });
+    }
+
+    /// <summary>
+    ///     The SDK's own advice registers a lifecycle by type. One whose constructor the container cannot satisfy
+    ///     passes Register and the load-time probe, and the host's ValidateOnBuild then failed the whole app at
+    ///     launch, with no extension frame on the stack to blame. It fails that extension's start instead.
+    /// </summary>
+    [Test]
+    [NotInParallel]
+    public async Task ARegistrationTheContainerCannotConstruct_FailsItsExtensionsStartup_NotTheApps()
+    {
+        UnresolvableLifecycle pack = new();
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            ServiceCollection services = App.ComposeServices(new Services.DesktopWindowService(() => null), [pack]);
+            await using ServiceProvider provider =
+                services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
+            ExtensionFaults faults = provider.GetRequiredService<ExtensionFaults>();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(faults.StartupFailed(pack.Id)).IsTrue();
+                await Assert.That(provider.GetKeyedService<IExtensionLifecycle>(pack.Id)).IsNull()
+                    .Because("the failed extension's registrations do not join the host's");
+                await Assert.That(provider.GetService<IFormatProvider>()).IsNull();
+            }
+        });
+    }
+
+    private sealed class UnresolvableLifecycle : IExtension
+    {
+        public string Id => "dev.example.unresolvable";
+        public string FeatureId => "dev.example.unresolvable";
+        public IEnumerable<ExtensionFeature> Features => [];
+
+        public void Register(IServiceCollection services)
+        {
+            services.AddKeyedSingleton<IExtensionLifecycle, NeedsAnUnregisteredService>(Id);
+            services.AddSingleton<IFormatProvider>(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        public void Contribute(IExtensionContributions contributions, IServiceProvider services)
+        {
+        }
+    }
+
+    public sealed class NobodyRegistersThis;
+
+    private sealed class NeedsAnUnregisteredService(NobodyRegistersThis missing) : IExtensionLifecycle
+    {
+        public NobodyRegistersThis Missing { get; } = missing;
+
+        public Task OnEnabledAsync(ExtensionStartReason reason, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task OnDisabledAsync() => Task.CompletedTask;
+
+        public void OnShutdown(TimeSpan budget)
+        {
+        }
     }
 
     private sealed class TakesTheFactsPass : IExtension

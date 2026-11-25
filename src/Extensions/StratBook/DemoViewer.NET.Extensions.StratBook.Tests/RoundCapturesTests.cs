@@ -507,6 +507,51 @@ public class RoundCapturesTests
     private static RoundEndEvent RoundEnd() =>
         new() { Winner = 3, Reason = 8, Message = "", Legacy = 0, PlayerCount = 10, NoMusic = 0 };
 
+    private static byte[] CapturesJson(string rounds) =>
+        Encoding.UTF8.GetBytes(
+            """{"schemaVersion":1,"fingerprint":"x","demo":{"stableKey":"k"},"tickRate":64,"collected":true,"rounds":"""
+            + rounds + ""","timeouts":[]}""");
+
+    [Test]
+    [Arguments("""[{"number":3},{"number":3}]""")]
+    [Arguments("null")]
+    [Arguments("[null]")]
+    [Arguments("""[{"number":3,"kills":null}]""")]
+    [Arguments("""[{"number":3,"purchases":null}]""")]
+    [Arguments("""[{"number":3,"loadouts":[null]}]""")]
+    public async Task ACapturesPartWithARepeatedRoundOrANullList_DoesNotParse(string rounds)
+    {
+        using (Assert.Multiple())
+        {
+            await Assert.That(RoundCapturesDocument.TryDeserialize(CapturesJson(rounds))).IsNull()
+                .Because("the reader indexes rounds by number and its views walk every list");
+            await Assert.That(RoundCapturesDocument.TryDeserialize(CapturesJson("""[{"number":3},{"number":4}]""")))
+                .IsNotNull();
+        }
+    }
+
+    [Test]
+    public async Task TheReader_ReadsAPartWithARepeatedRound_AsMissing()
+    {
+        DemoCacheStore cache = new(null);
+        cache.Upsert(ParsedRecord(Demo));
+        RoundIndexStore store = new(cache.Data());
+        RoundCapturesDocument captures =
+            RoundCapturesBuilder.Build(TwoRounds(), 10000, 64, Events(), Collected(), "fp");
+        captures.Rounds.Add(new CapturedRound { Number = captures.Rounds[0].Number });
+        store.Write(Demo, Document("de_nuke", "fp", (1, 1000, 5000, [])),
+            new RoundPositionsDocument { Fingerprint = "fp" }, "fp", captures);
+
+        DemoCaptures? read = new RoundCapturesReader(store, _ => "fp").Read(Demo, "de_nuke", null,
+            out PositionsMiss miss);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(read).IsNull();
+            await Assert.That(miss).IsEqualTo(PositionsMiss.Missing);
+        }
+    }
+
     private static DemoCaptures Read(RoundCapturesDocument document)
     {
         DemoCacheStore cache = new(null);

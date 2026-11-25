@@ -173,10 +173,15 @@ public sealed class ZoneVolume
         return false;
     }
 
-    /// <summary>Whether the volume's Z range meets a half-open band.</summary>
+    /// <summary>
+    ///     Whether the volume's Z range meets a half-open band: it starts inside the band, or reaches
+    ///     above the band's floor. A volume whose top only touches the floor belongs to the band below
+    ///     (a default-band custom zone's top IS the next band's floor).
+    /// </summary>
     /// <param name="minZ">Band lower Z, inclusive.</param>
     /// <param name="maxZ">Band upper Z, exclusive.</param>
-    public bool MeetsBand(double minZ, double maxZ) => HasGeometry && Max.Z >= minZ && Min.Z < maxZ;
+    public bool MeetsBand(double minZ, double maxZ) =>
+        HasGeometry && Min.Z < maxZ && (Max.Z > minZ || Min.Z >= minZ);
 
     /// <summary>The same geometry under another place id (a merge).</summary>
     /// <param name="placeId">The new place id.</param>

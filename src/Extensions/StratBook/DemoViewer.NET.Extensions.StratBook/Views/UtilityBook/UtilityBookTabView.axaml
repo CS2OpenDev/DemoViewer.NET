@@ -96,6 +96,9 @@
                                             HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding ClipLine}" IsVisible="{Binding HasClipLine}" FontSize="11"
                                            TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
+                                <Button Content="Render clip" Classes="ghost" HorizontalAlignment="Left"
+                                        Command="{Binding RenderClipCommand}" IsVisible="{Binding CanRenderClip}"
+                                        ToolTip.Tip="Queue this position's clip now, ahead of the others" />
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                     <TextBox Grid.Column="0" Text="{Binding ConsoleText}" IsReadOnly="True"
                                              FontSize="11"

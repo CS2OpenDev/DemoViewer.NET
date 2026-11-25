@@ -4,6 +4,7 @@ using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Pipeline;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Rendering;
@@ -20,6 +21,21 @@ namespace DemoViewer.NET.Playback2D.Cli.Tests;
 [NotInParallel]
 public class ReviewRegressionTests
 {
+    /// <summary>
+    ///     The export summary reads the last report straight after the run. A <c>Progress&lt;T&gt;</c> in
+    ///     a console process delivers on the thread pool, so a read right after <c>Report</c> saw nothing.
+    /// </summary>
+    [Test]
+    public async Task ExportProgress_IsVisibleTheMomentItIsReported()
+    {
+        ExportCommand.LastProgress progress = new();
+        ExportProgress report = new(ExportPhase.Preparing, 3, 3, 12.5, TimeSpan.Zero, null, null);
+
+        ((IProgress<ExportProgress>)progress).Report(report);
+
+        await Assert.That(progress.Last).IsEqualTo(report);
+    }
+
     /// <summary>
     ///     One player, so the frame derives a floor band and therefore a pane.
     ///     <para>

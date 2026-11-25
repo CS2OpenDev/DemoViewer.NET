@@ -113,6 +113,7 @@
                    PointerPressed="OnScrubPressed"
                    PointerMoved="OnScrubMoved"
                    PointerReleased="OnScrubReleased"
+                   PointerCaptureLost="OnScrubCaptureLost"
                    PointerExited="OnScrubExited">
 
                 <Rectangle Height="3" VerticalAlignment="Center"

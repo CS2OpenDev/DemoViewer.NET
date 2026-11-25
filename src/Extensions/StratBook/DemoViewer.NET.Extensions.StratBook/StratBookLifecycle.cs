@@ -196,6 +196,16 @@ internal sealed class StratBookLifecycle : IExtensionLifecycle
             LifecycleLog.OperationFailed(log, "grenade lineup flush on shutdown", ex);
         }
 
+        // A teams.json write that failed is retried once more; nothing when the last one landed.
+        try
+        {
+            _instances.Teams?.FlushTeams();
+        }
+        catch (Exception ex)
+        {
+            LifecycleLog.OperationFailed(log, "teams flush on shutdown", ex);
+        }
+
         // The Tag Store defers its index to shutdown; idempotent, so a re-fired request
         // writes nothing new.
         try

@@ -59,7 +59,14 @@ public sealed record LineupImport(
     int Added,
     int Aliased,
     int Skipped,
-    int Paths);
+    int Paths)
+{
+    /// <summary>
+    ///     True when nothing was imported because this machine's lineup file is there and could not be read:
+    ///     anything merged into the empty document standing in for it would never be saved.
+    /// </summary>
+    public bool Refused { get; init; }
+}
 
 /// <summary>
 ///     What to look for. Every filter left null matches everything; <see cref="Map" /> is the one
@@ -514,6 +521,12 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         bool changed = false;
         lock (_gate)
         {
+            RecoverLineupsLocked();
+            if (LineupStore.IsRefused)
+            {
+                return new LineupImport(lineupMap, 0, 0, 0, 0) { Refused = true };
+            }
+
             foreach ((string map, MapLineups theirs) in imported.Maps)
             {
                 MapLineups mine = LineupStore.For(map);
@@ -662,6 +675,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     // loaded; cached until a demo on the map comes or goes. Under _gate.
     private Dictionary<string, Guid> EnsureAssignedLocked(string map)
     {
+        RecoverLineupsLocked();
         if (_assignments.TryGetValue(map, out Dictionary<string, Guid>? cached))
         {
             return cached;
@@ -809,6 +823,34 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     // A demo's content hash as the stores write it: 64 lowercase hex characters.
     private static bool IsContentKey(string demo) =>
         demo.Length == 64 && demo.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    // Under _gate. A lineup file another process held at the first read is tried again, so the session does
+    // not stay on the empty document that stood in for it. When the file reads, every assignment made against
+    // that empty document goes, and so does a pending save of it: the save gate keeps a flush that already
+    // took such a copy from writing it over the file once the store accepts writes again.
+    private void RecoverLineupsLocked()
+    {
+        if (!LineupStore.CanRecover)
+        {
+            return;
+        }
+
+        bool recovered;
+        lock (_saveGate)
+        {
+            recovered = LineupStore.Recover();
+            if (recovered)
+            {
+                Interlocked.Exchange(ref _pendingLineups, null);
+            }
+        }
+
+        if (recovered)
+        {
+            InvalidateLocked(null);
+            _post(() => Changed?.Invoke());
+        }
+    }
 
     // Under _gate. Only the copy is taken here; the gzip and write of the whole file (over a second on a
     // big library) run as a scheduled item, outside the lock. The newest copy wins.
@@ -1269,7 +1311,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         }
     }
 
-    private bool Merge(LibraryDemo entry, IReadOnlyDictionary<string, List<TrajectoryPoint>>? flights = null)
+    private bool Merge(LibraryDemo entry, IReadOnlyDictionary<string, List<TrajectoryPoint>>? flights = null,
+        bool onlyIfAbsent = false)
     {
         lock (_gate)
         {
@@ -1280,6 +1323,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
             }
         }
 
+        // Before the rows: read after them, the stamp could be a newer write's and date these rows as that write's.
+        long writtenAt = Store.Stamp(entry.FilePath)?.WrittenAtTicks ?? 0;
         if (Store.TryReadRows(entry.FilePath, entry.Sha256) is not { } document)
         {
             string fileName = Path.GetFileName(entry.FilePath);
@@ -1314,7 +1359,23 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
         lock (_gate)
         {
-            _loaded[entry.FilePath] = new LoadedDemo(demo, map, zones?.ZonesVersion, grenades);
+            // The read above ran outside the gate. Load walks the library while the evaluator's Walked is already
+            // subscribed, so the evaluator can rewrite these rows and merge them between that read and here: what
+            // is loaded is then the newer write, and these rows are the ones it replaced.
+            if (_loaded.TryGetValue(entry.FilePath, out LoadedDemo? resident) && resident.WrittenAtTicks > writtenAt)
+            {
+                return true;
+            }
+
+            // A fill for a demo nobody walked yields to whatever arrived meanwhile: a walk's merge carries flights.
+            // And to a removal: the demo was loadable when the fill read it, but a change that took it away since
+            // found it absent here and had nothing to remove, so nothing later would.
+            if (onlyIfAbsent && (resident is not null || !IsLoadable(_library.Find(entry.FilePath))))
+            {
+                return false;
+            }
+
+            _loaded[entry.FilePath] = new LoadedDemo(demo, map, zones?.ZonesVersion, grenades, writtenAt);
             InvalidateLocked(map);
         }
 
@@ -1383,16 +1444,20 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     private void OnLibraryChanged(LibraryChange change) => OnCacheChanged(change.Path);
 
 
-    // Removals only: new rows arrive through the evaluator's Walked, so no rows are read here.
+    // Removals here. A walked demo's rows arrive through the evaluator's Walked; rows written current with no walk
+    // (a Library Transfer import, or a demo whose imported facet is listed later) are read off this thread.
     private void OnCacheChanged(string? path)
     {
         bool changed = false;
+        bool absent;
         lock (_gate)
         {
             if (!_ready)
             {
                 return;
             }
+
+            absent = path is null || !_loaded.ContainsKey(path);
 
             IEnumerable<string> candidates = path is null ? _loaded.Keys.ToList() : [path];
             foreach (string loaded in candidates)
@@ -1429,7 +1494,34 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         {
             _post(() => Changed?.Invoke());
         }
+
+        if (absent)
+        {
+            _ = Task.Run(() => MergeAbsent(path));
+        }
     }
 
-    private sealed record LoadedDemo(DemoRef Demo, string Map, string? ZonesVersion, List<IndexedGrenade> Grenades);
+    // Every loadable demo the index does not hold, or just the one named: Load's read for a demo that arrived
+    // after it. Reads the rows, so never on the UI thread.
+    private void MergeAbsent(string? path)
+    {
+        IEnumerable<LibraryDemo> entries = path is null ? _library.Demos
+            : _library.Find(path) is { } named ? [named] : [];
+        bool merged = false;
+        foreach (LibraryDemo entry in entries)
+        {
+            if (!IsLoaded(entry.FilePath) && IsLoadable(entry) && Merge(entry, onlyIfAbsent: true))
+            {
+                merged = true;
+            }
+        }
+
+        if (merged)
+        {
+            _post(() => Changed?.Invoke());
+        }
+    }
+
+    private sealed record LoadedDemo(DemoRef Demo, string Map, string? ZonesVersion, List<IndexedGrenade> Grenades,
+        long WrittenAtTicks);
 }

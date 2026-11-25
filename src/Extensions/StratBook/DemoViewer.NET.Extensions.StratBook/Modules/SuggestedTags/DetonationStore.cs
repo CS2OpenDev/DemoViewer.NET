@@ -146,7 +146,13 @@ public sealed class DetonationStore
 
         try
         {
-            return JsonSerializer.Deserialize(bytes, SuggestedTagsJsonContext.Default.DetonationDocument);
+            // A JSON null lands over an initialised property; the record pass reads the clock and every event.
+            return JsonSerializer.Deserialize(bytes, SuggestedTagsJsonContext.Default.DetonationDocument) is
+            {
+                Map: not null, Clock: not null, Events: not null
+            } document && document.Events.TrueForAll(e => e is { Kind: not null })
+                ? document
+                : null;
         }
         catch (JsonException)
         {

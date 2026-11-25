@@ -1,5 +1,7 @@
 #region
 
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
@@ -123,16 +125,53 @@ public sealed class LaunchGuard
     /// <param name="configRoot">The config root; null (no filesystem) decides from the arguments alone.</param>
     /// <param name="args">The command line.</param>
     /// <param name="clock">The clock; null for the system's.</param>
-    public static LaunchGuard Begin(string? configRoot, IReadOnlyList<string> args, TimeProvider? clock = null)
+    public static LaunchGuard Begin(string? configRoot, IReadOnlyList<string> args, TimeProvider? clock = null) =>
+        Begin(configRoot, args, clock, IsAnotherLiveInstance);
+
+    // The file is shared and nothing stops a second instance, so a record that is not Exited may be the live
+    // record of an instance still starting (Starting lasts until five seconds after its window opens) or one
+    // momentarily flagged hung. That is no failed start, and the record is not this launch's to overwrite: it
+    // decides from the command line alone and writes nothing.
+    internal static LaunchGuard Begin(string? configRoot, IReadOnlyList<string> args, TimeProvider? clock,
+        Func<LaunchState, bool> isAnotherLiveInstance)
     {
         ArgumentNullException.ThrowIfNull(args);
         clock ??= TimeProvider.System;
         string? path = configRoot is null ? null : Path.Combine(configRoot, FileName);
-        SafeModeState decision = Decide(Read(path), args.Any(IsSafeModeArgument));
+        LaunchState? previous = Read(path);
+        bool otherInstance = previous is { Phase: not LaunchPhase.Exited } && isAnotherLiveInstance(previous);
+        SafeModeState decision = Decide(otherInstance ? null : previous, args.Any(IsSafeModeArgument));
         LaunchState state = new(LaunchPhase.Starting, clock.GetUtcNow(), decision.IsActive, Environment.ProcessId);
-        LaunchGuard guard = new(path, clock, decision, state);
+        LaunchGuard guard = new(otherInstance ? null : path, clock, decision, state);
         guard.Write();
         return guard;
+    }
+
+    /// <summary>
+    ///     True when <paramref name="previous" /> was written by another process of this app that is still
+    ///     running. Ids are recycled, so the process must also carry this one's name and have started no later
+    ///     than the record was written.
+    /// </summary>
+    internal static bool IsAnotherLiveInstance(LaunchState previous)
+    {
+        if (previous.ProcessId <= 0 || previous.ProcessId == Environment.ProcessId)
+        {
+            return false;
+        }
+
+        try
+        {
+            using Process other = Process.GetProcessById(previous.ProcessId);
+            using Process self = Process.GetCurrentProcess();
+            return string.Equals(other.ProcessName, self.ProcessName, StringComparison.OrdinalIgnoreCase)
+                   && other.StartTime.ToUniversalTime() <= previous.StartedUtc.UtcDateTime.AddSeconds(2);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or Win32Exception
+                                       or NotSupportedException)
+        {
+            // Gone, not ours to inspect, or no process model (the browser): treat it as the previous launch.
+            return false;
+        }
     }
 
     /// <summary>Makes this the process's <see cref="Current" />, which the shell reads for the safe-mode banner.</summary>
@@ -285,7 +324,7 @@ public enum LaunchPhase
 /// <param name="Phase">Where the launch got to.</param>
 /// <param name="StartedUtc">When it started.</param>
 /// <param name="SafeMode">Whether it ran in safe mode.</param>
-/// <param name="ProcessId">Its process id, for the log.</param>
+/// <param name="ProcessId">Its process id, which tells a live second instance's record from a previous launch's.</param>
 /// <param name="Hung">True while its UI thread was not answering.</param>
 /// <param name="Crash">Its unhandled exception, when it had one.</param>
 public sealed record LaunchState(

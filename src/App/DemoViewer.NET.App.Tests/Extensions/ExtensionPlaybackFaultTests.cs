@@ -98,6 +98,71 @@ public class ExtensionPlaybackFaultTests
         vm.Dispose();
     }
 
+    /// <summary>
+    ///     What a menu callback returns is the extension's as much as the callback is: a null entry or an entry
+    ///     with no Run is that extension's fault, counted against it, and the menu opens with the rest.
+    /// </summary>
+    [Test]
+    public async Task ABandMenuWithANullEntryOrANullRun_IsContained_AndTheOtherMenusStillShow()
+    {
+        (Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab();
+        FaultRig rig = new();
+        using SdkPlaybackSurface surface = new(vm.Surface, rig.Guard);
+        _ = surface.AddBandMenu(_ => [new Sdk.MenuEntry("no run", null!)]);
+        _ = surface.AddBandMenu(_ => [null!]);
+        _ = surface.AddBandMenu(_ => [new Sdk.MenuEntry("good", () => { })]);
+        using Sdk.ILaneHandle lane = surface.AddLane(new QuietTrack(), new NullRunLane());
+        TimelineBandViewModel laneBand = new(new TimelineBand(lane.TrackId, 0, 10, "x", "", 0), 0, 1, Brushes.Gray);
+
+        IReadOnlyList<Sdk.MenuEntry> menu = vm.Timeline.MenuFor(_roundBand);
+        int afterContributors = rig.Faults.StateOf("pack.fake").Count;
+        IReadOnlyList<Sdk.MenuEntry> laneMenu = vm.Timeline.MenuFor(laneBand);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(menu.Select(m => m.Header)).IsEquivalentTo(["good"], CollectionOrdering.Matching);
+            await Assert.That(afterContributors).IsEqualTo(2);
+            await Assert.That(laneMenu.Select(m => m.Header)).IsEquivalentTo(["good"], CollectionOrdering.Matching)
+                .Because("the lane's own menu is dropped and the contributors' still shows");
+            await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(5)
+                .Because("the lane's menu and the two bad contributors again");
+        }
+
+        vm.Dispose();
+    }
+
+    /// <summary>
+    ///     A contributor may drop its own registration from inside its callback. The timeline asks a copy of
+    ///     the list, so that is not a list changed under the loop reading it.
+    /// </summary>
+    [Test]
+    public async Task ABandMenuThatRemovesItselfWhenAsked_DoesNotBreakTheMenu()
+    {
+        (Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab();
+        FaultRig rig = new();
+        using SdkPlaybackSurface surface = new(vm.Surface, rig.Guard);
+        IDisposable? once = null;
+        once = surface.AddBandMenu(_ =>
+        {
+            once!.Dispose();
+            return [new Sdk.MenuEntry("once", () => { })];
+        });
+        _ = surface.AddBandMenu(_ => [new Sdk.MenuEntry("always", () => { })]);
+
+        IReadOnlyList<Sdk.MenuEntry> first = vm.Timeline.MenuFor(_roundBand);
+        IReadOnlyList<Sdk.MenuEntry> second = vm.Timeline.MenuFor(_roundBand);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(first.Select(m => m.Header))
+                .IsEquivalentTo(["once", "always"], CollectionOrdering.Matching);
+            await Assert.That(second.Select(m => m.Header)).IsEquivalentTo(["always"], CollectionOrdering.Matching);
+            await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(0);
+        }
+
+        vm.Dispose();
+    }
+
     [Test]
     public async Task ALaneWhoseTrackThrows_StillBuildsTheTimeline()
     {
@@ -133,6 +198,67 @@ public class ExtensionPlaybackFaultTests
 
         hosted.Detach();
         vm.Dispose();
+    }
+
+    // An open pane whose view model's Dispose and Closed handler throw is taken down at detach with
+    // everything registered after it: the throw is counted, and the key handler does not outlive the switch-off.
+    [Test]
+    public async Task APaneWhoseTeardownThrows_DoesNotStrandTheRegistrationsAfterIt()
+    {
+        (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
+        FaultRig rig = new();
+        PaneThenKeyContribution fake = new();
+        SdkPlaybackContribution hosted = new(fake, rig.Guard);
+        hosted.Attach(vm.Surface, ctx);
+        fake.Pane!.Open();
+
+        Exception? thrown = null;
+        try
+        {
+            hosted.Detach();
+        }
+        catch (Exception ex)
+        {
+            thrown = ex;
+        }
+
+        bool handled = vm.Surface.TryHandleKey(Key.F9, KeyModifiers.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(thrown).IsNull();
+            await Assert.That(handled).IsFalse();
+            await Assert.That(fake.Keys).IsEqualTo(0).Because("the key handler went with the detach");
+            await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsGreaterThanOrEqualTo(1);
+        }
+
+        vm.Dispose();
+    }
+
+    private sealed class PaneThenKeyContribution : Sdk.IPlaybackContribution
+    {
+        public Sdk.IPaneHandle? Pane { get; private set; }
+        public int Keys { get; private set; }
+
+        public void Attach(Sdk.IPlaybackSurface surface, IModuleContext context)
+        {
+            Pane = surface.AddPane(Sdk.PanePlacement.Side, 0, () => new ThrowingViewModel());
+            Pane.Closed += () => throw new InvalidOperationException("closed");
+            _ = surface.AddKeyHandler((_, _) =>
+            {
+                Keys++;
+                return true;
+            });
+        }
+
+        public void Detach()
+        {
+        }
+    }
+
+    private sealed class ThrowingViewModel : IDisposable
+    {
+        public void Dispose() => throw new InvalidOperationException("view model dispose");
     }
 
     private sealed class ThrowingContribution : Sdk.IPlaybackContribution
@@ -181,6 +307,29 @@ public class ExtensionPlaybackFaultTests
 
         public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
             throw new InvalidOperationException("bands");
+    }
+
+    private sealed class QuietTrack : ITimelineTrack
+    {
+        public string Id => "quiet";
+        public string DisplayName => "Quiet";
+
+        public event Action? Changed
+        {
+            add { }
+            remove { }
+        }
+
+        public bool IsAvailable(ITimelineData data) => true;
+
+        public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
+
+        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => [];
+    }
+
+    private sealed class NullRunLane : Sdk.ILaneBehaviour
+    {
+        public IEnumerable<Sdk.MenuEntry> MenuFor(Sdk.PlaybackBand band) => [new("lane entry", null!)];
     }
 
     private sealed class ThrowingLane : Sdk.ILaneBehaviour

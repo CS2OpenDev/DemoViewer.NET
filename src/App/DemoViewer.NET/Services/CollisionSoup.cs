@@ -45,7 +45,9 @@ public static class CollisionSoup
     /// <param name="mapName">Map to resolve, e.g. <c>de_mirage</c>.</param>
     public static string? Find(string? mapName)
     {
-        if (string.IsNullOrWhiteSpace(mapName))
+        // The name is the demo header's; a rooted or climbing one would point both probes below at a
+        // location the demo's author chose.
+        if (!PathSafety.IsMapFolderName(mapName) || !IsMapName(mapName))
         {
             return null;
         }
@@ -69,6 +71,21 @@ public static class CollisionSoup
             return null;
         }
     }
+
+    /// <summary>
+    ///     True for a name that is one plain path segment: ASCII letters, digits, <c>_</c> and <c>-</c>.
+    ///     <para>
+    ///         The name is the demo header's, so it is whatever the demo's author wrote, and both this
+    ///         resolver and the engine's locator join it into the paths they probe. A rooted name replaces
+    ///         the folder it is joined to, <c>..</c> walks out of it, and a <c>\\host\share</c> name makes
+    ///         the probe itself a connection to that host. No shipped or baked map has a name outside
+    ///         this set, and a workshop name with a folder in it has no bake to find either way.
+    ///     </para>
+    /// </summary>
+    /// <param name="mapName">The map name as the demo gave it.</param>
+    internal static bool IsMapName(string mapName) =>
+        mapName.Length is > 0 and <= 128
+        && mapName.All(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '_' or '-');
 
     /// <summary>
     ///     The bake every surface must agree on for a map: this resolver's answer when it has one,

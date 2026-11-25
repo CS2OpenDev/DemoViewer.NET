@@ -58,6 +58,7 @@ internal sealed class PackContributionSet
             // A pack whose registration failed has no services to contribute from.
             if (faults.StartupFailed(pack.Id))
             {
+                contributions.ContributionsUnknown = true;
                 collected.Add(contributions);
                 continue;
             }
@@ -72,7 +73,7 @@ internal sealed class PackContributionSet
                 AppLog.OperationFailed(Log, "contribute extension " + pack.Id, ex);
                 guard.Report("contribute", ex);
                 contributions = new PackContributions(pack, () => ExtensionContextAccess.ForHost(sp, pack.Id),
-                    UiThreadMarshal.Run, guard);
+                    UiThreadMarshal.Run, guard) { ContributionsUnknown = true };
             }
 
             collected.Add(contributions);

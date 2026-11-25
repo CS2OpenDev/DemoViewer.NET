@@ -125,6 +125,22 @@ public class InstallRecoveryTests
     }
 
     [Test]
+    public async Task Restore_RefusesWhileASessionOwnsTheInstall_AndTouchesNothing()
+    {
+        using FakeInstall install = new();
+        install.LeaveCrashedSession(Original);
+        LiveSyncSettings settings = install.Settings;
+
+        await Assert.That(() => InstallRecovery.Restore(settings, null, () => false, () => true))
+            .Throws<InvalidOperationException>().WithMessage(InstallRecovery.SessionOwnsInstallText);
+        await Assert.That(await File.ReadAllTextAsync(install.GameInfo)).IsEqualTo(Patched);
+        await Assert.That(Directory.Exists(install.PluginDir)).IsTrue();
+
+        InstallRecovery.Restore(settings, null, () => false, () => false);
+        await Assert.That(InstallRecovery.Detect(settings, () => false)!.Any).IsFalse();
+    }
+
+    [Test]
     public async Task PreLaunchGuard_RestoresLeftovers_SoTheLaunchBacksUpACleanFile()
     {
         using FakeInstall install = new();

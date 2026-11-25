@@ -348,6 +348,27 @@ public class ScoutingReportModuleTests
     }
 
     [Test]
+    public async Task AddVeto_AfterRemovingAnEarlierStep_NumbersPastTheHighestStep()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
+        VetoHistoryStore vetoes = new(null);
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), vetoes, isBrowser: false);
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
+        foreach (string map in (string[])["de_ancient", "de_nuke", "de_inferno"])
+        {
+            vm.NewVetoMap = map;
+            vm.AddVetoCommand.Execute(null);
+        }
+
+        vm.RemoveVetoCommand.Execute(vm.Vetoes[0]);
+        vm.NewVetoMap = "de_mirage";
+        vm.AddVetoCommand.Execute(null);
+
+        await Assert.That(vm.Vetoes.Select(v => $"{v.Order} {v.Map}")).IsEquivalentTo(
+            ["2 de_nuke", "3 de_inferno", "4 de_mirage"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task WithNoDemos_TheRecordSaysSo_AndVetoesStaySessionOnly()
     {
         DemoCacheStore cache = new(null);

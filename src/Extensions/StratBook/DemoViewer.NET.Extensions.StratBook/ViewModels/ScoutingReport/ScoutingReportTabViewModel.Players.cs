@@ -25,6 +25,9 @@ public sealed partial class ScoutingReportTabViewModel
     private Dictionary<string, FactStatus> _factStatuses = new(StringComparer.OrdinalIgnoreCase);
     private bool _projectingIgl;
     private PlayerStatsSet? _playerStats;
+
+    // The load ended without numbers (a facts file could not be read): null stats no longer mean "still reading".
+    private bool _playerStatsFailed;
     private int _playersGeneration;
 
     /// <summary>The players' numbers over every map instead of the map in view.</summary>
@@ -73,6 +76,7 @@ public sealed partial class ScoutingReportTabViewModel
     {
         Interlocked.Increment(ref _playersGeneration);
         _playerStats = null;
+        _playerStatsFailed = false;
         _factStatuses = new Dictionary<string, FactStatus>(StringComparer.OrdinalIgnoreCase);
         PlayersStatusLine = "";
     }
@@ -118,6 +122,7 @@ public sealed partial class ScoutingReportTabViewModel
             }
 
             _playerStats = run.IsCompletedSuccessfully ? run.Result : null;
+            _playerStatsFailed = _playerStats is null;
             ProjectPlayers();
         }
 
@@ -202,9 +207,15 @@ public sealed partial class ScoutingReportTabViewModel
             string name = DisplayText.Sanitize(player.Member.LastName);
             PlayerStatLine? line = stats?.For(mapName, player.SteamId);
             SetupPlayerPlace? spot = spots.GetValueOrDefault(player.SteamId);
-            (int Count, string Site) entry = entries.GetValueOrDefault(name);
+            // By SteamID, as the stats beside them are: the name buckets hold each demo's name, and a player
+            // who changed names would be read from the newest demos alone. The name is for a player the
+            // library has no SteamID for, who is in no SteamID tally.
+            bool byName = player.SteamId.Length == 0 || player.SteamId == "0";
+            TendencyPlayer? own = byName ? null : t?.Players.GetValueOrDefault(player.SteamId);
+            (int Count, string Site) entry = byName ? entries.GetValueOrDefault(name) : (own?.Entries ?? 0, own?.EntrySite ?? "");
+            int lurked = byName ? lurks.GetValueOrDefault(name) : own?.Lurks ?? 0;
             evidence.Add(new PlayerRoleEvidence(player.SteamId, line?.AwpKills ?? 0,
-                line?.Openings.Count(o => o.Side == 2) ?? 0, entry.Count, entry.Site ?? "", lurks.GetValueOrDefault(name),
+                line?.Openings.Count(o => o.Side == 2) ?? 0, entry.Count, entry.Site ?? "", lurked,
                 spot?.Place, spot?.Rounds.Count ?? 0, spot?.Of ?? 0));
         }
 
@@ -257,7 +268,9 @@ public sealed partial class ScoutingReportTabViewModel
             });
         }
 
-        PlayersStatusLine = StatusLine(stats, demosInScope, withFacts, pending, failed, where);
+        PlayersStatusLine = _playerStatsFailed
+            ? PlayerStatsUnreadable
+            : StatusLine(stats, demosInScope, withFacts, pending, failed, where);
     }
 
     private void ProjectIglOptions(IReadOnlyList<ScoutingRosterPlayer> roster, string? igl)
@@ -279,6 +292,8 @@ public sealed partial class ScoutingReportTabViewModel
             _projectingIgl = false;
         }
     }
+
+    private const string PlayerStatsUnreadable = "Player stats could not be read; select the team again to retry.";
 
     // "Player stats cover 4 of 6 demos on de_nuke. The library is computing the rest in the background."
     private static string StatusLine(PlayerStatsSet? stats, int demos, int withFacts, int pending, int failed,
@@ -326,7 +341,9 @@ public sealed partial class ScoutingReportTabViewModel
     {
         if (stats is null)
         {
-            PlayerStatCellViewModel reading = PlayerStatCellViewModel.Reading;
+            PlayerStatCellViewModel reading = _playerStatsFailed
+                ? PlayerStatCellViewModel.Missing("—", PlayerStatsUnreadable)
+                : PlayerStatCellViewModel.Reading;
             return new PlayerStatCells(reading, reading, reading, reading, reading, reading);
         }
 

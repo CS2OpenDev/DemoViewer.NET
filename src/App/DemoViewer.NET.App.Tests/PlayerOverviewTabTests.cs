@@ -599,6 +599,24 @@ public class PlayerOverviewTabTests
         }
     }
 
+    [Test]
+    public async Task NullSelectedPage_KeepsThePageThatWasShowing()
+    {
+        using IdentityService identity = Identity(Me);
+        using PlayerOverviewTabViewModel vm = Shown(Library(2, 1), identity, new FakeQueue());
+        vm.ShowPage(PlayerOverviewPageKind.Stats);
+
+        vm.SelectedPage = null;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedPage?.Kind).IsEqualTo(PlayerOverviewPageKind.Stats)
+                .Because("a null from the strip keeps the page that was showing");
+            await Assert.That(vm.Pages.Single(p => p.Kind == PlayerOverviewPageKind.Stats).IsActive).IsTrue();
+            await Assert.That(vm.Pages.Count(p => p.IsActive)).IsEqualTo(1);
+        }
+    }
+
     // ── Search ───────────────────────────────────────────────────────────────────────────────────────────
 
     // Two accounts both called "Twin" (three demos and one), and Me as "me" in one more.

@@ -1,6 +1,10 @@
 #region
 
+using System.Text;
+using System.Text.Json;
 using DemoViewer.NET.Modules.Library;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Transfer;
 using static DemoViewer.NET.AppTests.LibraryFingerprintTests;
@@ -97,6 +101,134 @@ public class TransferImportLibraryTests
             await Assert.That(Directory.EnumerateFiles(destination).Select(f => Path.GetFileName(f)!))
                 .IsEquivalentTo(["first.dem"]).Because("a copy cut short never takes its name or stays as a temp");
         }
+    }
+
+    // The importer hashed its own copy, so the library lists it as a confirmed location and a second import of
+    // the same bundle finds the demo already here instead of copying it again as "name (2).dem".
+    [Test]
+    public async Task ImportingTheSameBundleTwice_DoesNotCopyTheDemoAgain()
+    {
+        using TempFolders temp = new();
+        string bundleRoot = temp.New();
+        string destination = Path.Combine(temp.New(), "Imported demos");
+        // Bigger than the fingerprint's two windows, so a fingerprint match leaves part of the file unread.
+        byte[] bytes = new byte[(1 << 20) + 4096];
+        new Random(74).NextBytes(bytes);
+        using Library library = new(temp.New(), new DemoCacheStore(temp.New()));
+        (string sha, DemoContentFingerprint fingerprint) =
+            DemoContentFingerprint.ComputeWithContentHash(new MemoryStream(bytes), library.Reader.WindowBytes);
+        BundleBuilder bundle = new(bundleRoot);
+        bundle.Demo(sha, "match one.dem", bytes.Length,
+            [bundle.Record(BundleBuilder.ParsedRecord(sha, bytes.Length, "de_imported"))], fingerprint,
+            bundle.Dem(sha, bytes));
+        bundle.Write();
+        TransferImporter importer = new(library.Store, library: library.Service);
+        ImportRequest request = new(bundleRoot, ConflictPolicy.KeepMine, new HashSet<string> { sha }, destination,
+            true);
+
+        ImportPreview first = await importer.PreviewAsync(bundleRoot, CancellationToken.None);
+        await importer.RunAsync(request, first, null, CancellationToken.None);
+        string copied = Path.Combine(destination, "match one.dem");
+        await library.Service.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
+        await WaitForAsync(() => library.Store.LocationOf(copied) is not null, "the copied demo attached");
+
+        ImportPreview second = await importer.PreviewAsync(bundleRoot, CancellationToken.None);
+        await importer.RunAsync(request with { DemDestinationIsNewFolder = false }, second, null,
+            CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(library.Store.LocationOf(copied)?.Location.Confirmed).IsTrue();
+            await Assert.That(second.Entries.Single().DemAlreadyInLibrary).IsTrue();
+            await Assert.That(Directory.EnumerateFiles(destination).Select(f => Path.GetFileName(f)!))
+                .IsEquivalentTo(["match one.dem"]);
+        }
+    }
+
+    // The hash of each copy has to reach the library's attach, which runs only after the last copy. The store
+    // keeps 64 recent reads, so a bundle with more demos than that lost the hashes of its first copies to
+    // eviction, listed them unconfirmed, and left the library to read each of them in full again.
+    [Test]
+    public async Task MoreCopiedDemosThanTheStoreKeepsRecentReadsFor_AllAttachConfirmed()
+    {
+        using TempFolders temp = new();
+        string bundleRoot = temp.New();
+        string destination = Path.Combine(temp.New(), "Imported demos");
+        using Library library = new(temp.New(), new DemoCacheStore(temp.New()));
+        BundleBuilder bundle = new(bundleRoot);
+        HashSet<string> shas = new(StringComparer.Ordinal);
+        List<string> copies = [];
+        for (int i = 0; i < 70; i++)
+        {
+            byte[] bytes = new byte[4096];
+            new Random(1000 + i).NextBytes(bytes);
+            (string sha, DemoContentFingerprint fingerprint) =
+                DemoContentFingerprint.ComputeWithContentHash(new MemoryStream(bytes), library.Reader.WindowBytes);
+            bundle.Demo(sha, $"match {i}.dem", bytes.Length,
+                [bundle.Record(BundleBuilder.ParsedRecord(sha, bytes.Length, "de_imported"))], fingerprint,
+                bundle.Dem(sha, bytes));
+            shas.Add(sha);
+            copies.Add(Path.Combine(destination, $"match {i}.dem"));
+        }
+
+        bundle.Write();
+        TransferImporter importer = new(library.Store, library: library.Service);
+
+        ImportPreview preview = await importer.PreviewAsync(bundleRoot, CancellationToken.None);
+        await importer.RunAsync(new ImportRequest(bundleRoot, ConflictPolicy.KeepMine, shas, destination, true),
+            preview, null, CancellationToken.None);
+        await library.Service.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(30));
+        await WaitForAsync(() => copies.All(c => library.Store.LocationOf(c) is not null), "every copy attached");
+
+        await library.Service.Confirmed.WaitAsync(TimeSpan.FromSeconds(30));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(copies.Where(c => library.Store.LocationOf(c)?.Location.Confirmed != true)
+                    .Select(c => Path.GetFileName(c)!))
+                .IsEmpty();
+            await Assert.That(copies.Where(c => library.Reader.FullReads(c) > 0).Select(c => Path.GetFileName(c)!))
+                .IsEmpty().Because("the importer hashed every copy on its way in; reading one again is the cost avoided");
+        }
+    }
+
+    // The clip was imported before the copy was listed: once the rescan has attached the copy, the clip takes
+    // its path through the same lookup the importer and the library's change notice use.
+    [Test]
+    public async Task AnImportedReviewClip_TakesTheCopiedDemosPath_AfterTheRescan()
+    {
+        using TempFolders temp = new();
+        string bundleRoot = temp.New();
+        string destination = Path.Combine(temp.New(), "Imported demos");
+        byte[] bytes = new byte[(1 << 20) + 4096];
+        new Random(75).NextBytes(bytes);
+        DemoCacheStore store = new(temp.New());
+        using Library library = new(temp.New(), store);
+        (string sha, DemoContentFingerprint fingerprint) =
+            DemoContentFingerprint.ComputeWithContentHash(new MemoryStream(bytes), library.Reader.WindowBytes);
+        BundleBuilder bundle = new(bundleRoot);
+        bundle.Demo(sha, "match one.dem", bytes.Length,
+            [bundle.Record(BundleBuilder.ParsedRecord(sha, bytes.Length, "de_imported"))], fingerprint,
+            bundle.Dem(sha, bytes));
+        bundle.Shared(TransferLayout.ReviewQueueFileName, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(
+            new ReviewQueueFile
+            {
+                Entries = [ReviewEntry.Clip("/source/match.dem", 10, 20, "a retake", ReviewSources.Manual, 64, sha)]
+            }, ReviewQueueFile.JsonOptions)));
+        bundle.Write();
+        ReviewQueue review = new(null, pathOfContent: s => store.TryGetByContentId(s)?.Path);
+        TransferImporter importer = new(store, library: library.Service, review: review);
+
+        ImportPreview preview = await importer.PreviewAsync(bundleRoot, CancellationToken.None);
+        await importer.RunAsync(
+            new ImportRequest(bundleRoot, ConflictPolicy.KeepMine, new HashSet<string> { sha }, destination, true),
+            preview, null, CancellationToken.None);
+        string copied = Path.Combine(destination, "match one.dem");
+        await library.Service.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
+        await WaitForAsync(() => store.LocationOf(copied) is not null, "the copied demo attached");
+        review.ResolvePaths();
+
+        await Assert.That(review.Clips.Single().DemoPath).IsEqualTo(copied);
     }
 
     // Cancels once the second demo's copy is under way, after the first finished.

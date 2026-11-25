@@ -153,4 +153,35 @@ public class StratMinerTests
                 .Because("the key follows the shape, not the member set");
         }
     }
+
+    // The key names places; the clustering separates positions inside them. Shifted 400 the second pair stands
+    // in other 512-unit cells, shifted 250 in the same ones.
+    [Test]
+    [Arguments(400f)]
+    [Arguments(250f)]
+    public async Task TwoPatterns_StandingInTheSamePlaces_GetAKeyEach(float shift)
+    {
+        List<RoundSignature> rounds =
+        [
+            Round("a.dem", 1, _stack, null),
+            Round("b.dem", 2, _stack, null),
+            Round("c.dem", 3, Shift(_stack, shift), null),
+            Round("d.dem", 4, Shift(_stack, shift), null)
+        ];
+
+        IReadOnlyList<MinedPattern> patterns = StratMiner.Mine(rounds);
+        IReadOnlyList<MinedPattern> backward = StratMiner.Mine(Enumerable.Reverse(rounds));
+        MinedPattern alone = StratMiner.Mine(rounds.Take(2)).Single();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(patterns.Count).IsEqualTo(2);
+            await Assert.That(patterns.Select(p => p.Key).Distinct().Count()).IsEqualTo(2)
+                .Because("the inbox finds, dismisses and promotes a pattern by its key");
+            await Assert.That(backward.Select(p => p.Key))
+                .IsEquivalentTo(patterns.Select(p => p.Key), CollectionOrdering.Matching);
+            await Assert.That(alone.Key).IsEqualTo(StratMiner.PatternKey(alone.Medoid, alone.CommonThrows))
+                .Because("a pattern with no twin keeps the key its stored dismissal was made under");
+        }
+    }
 }

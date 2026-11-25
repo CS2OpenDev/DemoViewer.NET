@@ -35,21 +35,47 @@ internal static class ZoneOverlayReader
             throw new JsonException($"overlay schemaVersion {dto.SchemaVersion} is not a version this build reads.");
         }
 
+        // A JSON null deserializes to a null entry, and a hand-edited file ends a list with ", null" easily
+        // enough. It names nothing an applier diagnostic could point at, so it is refused here, as the
+        // malformed overlay it is, rather than dereferenced.
         List<ZoneOverlayZone> zones = new(dto.Zones?.Count ?? 0);
-        foreach (ZoneDto zone in dto.Zones ?? [])
+        foreach (ZoneDto? zone in dto.Zones ?? [])
         {
+            if (zone is null)
+            {
+                throw new JsonException($"zones[{zones.Count}] is null.");
+            }
+
             zones.Add(new ZoneOverlayZone(zone.Name ?? "", zone.Floor ?? double.NaN, zone.Polygon ?? [],
                 zone.MinZ, zone.MaxZ, zone.Replaces));
         }
 
         List<ZoneOverlayMerge> merges = new(dto.Merges?.Count ?? 0);
-        foreach (MergeDto merge in dto.Merges ?? [])
+        foreach (MergeDto? merge in dto.Merges ?? [])
         {
+            if (merge is null)
+            {
+                throw new JsonException($"merges[{merges.Count}] is null.");
+            }
+
+            RequireNames(merge.From, $"merges[{merges.Count}].from");
             merges.Add(new ZoneOverlayMerge(merge.Into ?? "", merge.From ?? []));
         }
 
+        RequireNames(dto.Hidden, "hidden");
         return new ZoneOverlayDocument(dto.SchemaVersion, dto.MapName, dto.BasedOn, zones, merges,
             dto.Hidden ?? []);
+    }
+
+    private static void RequireNames(List<string>? names, string field)
+    {
+        for (int i = 0; i < (names?.Count ?? 0); i++)
+        {
+            if (names![i] is null)
+            {
+                throw new JsonException($"{field}[{i}] is null.");
+            }
+        }
     }
 
     private sealed class OverlayDto

@@ -99,6 +99,12 @@ public sealed record ScoutingReportHeader
 ///         <see cref="ToggleStarCommand" />; both land on the same key, so the one-pager preview, the long form and
 ///         the inspector agree. A star written elsewhere over the same store is read back on its <c>Changed</c>.
 ///     </para>
+///     <para>
+///         <b>A star the long form has no line for.</b> The inspector files a star under the buy in view and, on the
+///         AWP trail, the window; the long form builds every layer at All with no window. A starred key no long-form
+///         row carries still stars the row with the same map, side, layer and text (<see cref="StarredRows" />), so
+///         it prints; unstarring that row takes those keys off too. Stored keys are never rewritten.
+///     </para>
 /// </summary>
 public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 {
@@ -175,12 +181,29 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     // The other tab starred or unstarred a line: the rows follow the store. Our own writes find nothing to change.
     private void OnStoreChanged()
     {
+        // A reload after the file was deleted out from under the store reads cleanly again.
+        OnPropertyChanged(nameof(NotesProblem));
+        OnPropertyChanged(nameof(HasNotesProblem));
         if (_teamId is not { } id)
         {
             return;
         }
 
-        HashSet<string> starred = new(_store.For(id).Starred, StringComparer.Ordinal);
+        if (ApplyStars(id))
+        {
+            AfterStar();
+        }
+        else
+        {
+            // A star on a line the long form has no row for at all still moves the inspector's.
+            StarsChanged?.Invoke();
+        }
+    }
+
+    // Sets every row's star from the store; true when one changed.
+    private bool ApplyStars(Guid id)
+    {
+        HashSet<string> starred = StarredRows(_store.For(id).Starred);
         bool any = false;
         foreach (ScoutingReportFindingViewModel row in _rows)
         {
@@ -192,16 +215,76 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             }
         }
 
-        if (any)
-        {
-            AfterStar();
-        }
-        else
-        {
-            // A star on a line the long form does not list (a narrower buy) still moves the inspector's.
-            StarsChanged?.Invoke();
-        }
+        return any;
     }
+
+    /// <summary>
+    ///     The row keys that print starred: every starred key, plus, for a starred key no row carries (filed under
+    ///     a buy or an AWP window the long form does not build), one row key with the same map, side, layer and
+    ///     text under another buy or window (<see cref="AliasTargets" />).
+    /// </summary>
+    /// <param name="stored">The team's starred keys.</param>
+    private HashSet<string> StarredRows(IEnumerable<string> stored)
+    {
+        HashSet<string> starred = new(stored, StringComparer.Ordinal);
+        starred.UnionWith(AliasTargets(starred).Values);
+        return starred;
+    }
+
+    // Each starred key no row carries, with the one row it stars: of the rows with its (map, side, layer, text),
+    // the one under All with no window, else the first in long-form order. One row, so unstarring it unstars
+    // no other line that shares the words.
+    private Dictionary<string, string> AliasTargets(IEnumerable<string> stored)
+    {
+        HashSet<string> rowKeys = new(_rows.Select(r => r.Key), StringComparer.Ordinal);
+        Dictionary<string, string> targets = new(StringComparer.Ordinal);
+        List<(string Key, (string, string, string, string)? Line)>? rowLines = null;
+        foreach (string key in stored)
+        {
+            if (rowKeys.Contains(key) || Line(key) is not { } line)
+            {
+                continue;
+            }
+
+            rowLines ??= [.. _rows.Select(r => (r.Key, Line(r.Key)))];
+            string? pick = null;
+            foreach ((string rowKey, (string, string, string, string)? rowLine) in rowLines)
+            {
+                if (rowLine != line)
+                {
+                    continue;
+                }
+
+                pick ??= rowKey;
+                if (ScoutingReportStarKeys.Parse(rowKey) is { Scope: { Buy: "All" or "", Window: "" } })
+                {
+                    pick = rowKey;
+                    break;
+                }
+            }
+
+            if (pick is not null)
+            {
+                targets[key] = pick;
+            }
+        }
+
+        return targets;
+    }
+
+    // The starred keys no row carries that star this row through StarredRows: unstarring the row clears them.
+    private List<string> AliasesOf(Guid id, string rowKey) =>
+    [
+        .. AliasTargets(_store.For(id).Starred)
+            .Where(t => string.Equals(t.Value, rowKey, StringComparison.Ordinal))
+            .Select(t => t.Key)
+    ];
+
+    // A key's line without its buy and window: (map, side, layer, text); null for a note's or an old key.
+    private static (string, string, string, string)? Line(string key) =>
+        ScoutingReportStarKeys.Parse(key) is { } parsed
+            ? (parsed.Scope.Map, parsed.Scope.Side, parsed.Scope.Layer, parsed.Text)
+            : null;
 
     /// <summary>The layer ids in the order lines print under a side: the registry's chip order.</summary>
     public IReadOnlyList<string> LayerOrder { get; set; } = _catalogOrder;
@@ -320,6 +403,14 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
     public bool NotesAreSessionOnly => _store.IsSessionOnly;
 
+    /// <summary>
+    ///     Set when the notes file could not be read or the last write to it failed, so the long form says why
+    ///     edits do not stick.
+    /// </summary>
+    public string NotesProblem => _store.FileProblem ?? _store.SaveProblem ?? "";
+
+    public bool HasNotesProblem => (_store.FileProblem ?? _store.SaveProblem) is not null;
+
     /// <summary>"Export one-pager · 5 starred", or "Export long form".</summary>
     public string ExportLabel => ExportForm == ScoutingReportForm.OnePager
         ? $"Export one-pager · {StarredCount} starred"
@@ -340,12 +431,17 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             return;
         }
 
-        _store.SetStarred(id, key, starred);
-        foreach (ScoutingReportFindingViewModel row in _rows.Where(r => r.Key == key))
+        if (!starred && _rows.Any(r => r.Key == key))
         {
-            row.IsStarred = starred;
+            // The one-pager unstars by the row's key; the star may be an inspector alias the store holds instead.
+            foreach (string alias in AliasesOf(id, key))
+            {
+                _store.SetStarred(id, alias, false);
+            }
         }
 
+        _store.SetStarred(id, key, starred);
+        ApplyStars(id);
         AfterStar();
     }
 
@@ -365,15 +461,12 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             if (_store.Seed(id, key))
             {
                 any = true;
-                foreach (ScoutingReportFindingViewModel row in _rows.Where(r => r.Key == key))
-                {
-                    row.IsStarred = true;
-                }
             }
         }
 
         if (any)
         {
+            ApplyStars(id);
             AfterStar();
         }
     }
@@ -400,7 +493,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             NewNoteText = "";
         }
 
-        Rebuild();
+        Rebuild(keepOpenEdits: !teamChanged);
         OnPropertyChanged(nameof(HasTeam));
         RaiseCounts();
         StarsChanged?.Invoke();
@@ -592,14 +685,27 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         List<ScoutingReportStageRow>? stages = null;
         if (html && ExportForm == ScoutingReportForm.OnePager && BuyStages is { } buyStages)
         {
+            // The pictures are drawn for the team in view now. Another team picked meanwhile gets no file: the
+            // header and the lines are read live, and would be its own beside these pictures.
+            Guid? team = _teamId;
             ExportLine = "drawing the buy pictures…";
             try
             {
-                stages = RenderStages(await buyStages(StarredMaps()));
+                IReadOnlyList<ScoutingReportBuyStage> drawn = await buyStages(StarredMaps());
+                if (_teamId != team)
+                {
+                    return;
+                }
+
+                stages = RenderStages(drawn);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                ExportLine = $"could not draw the buy pictures: {ex.Message}";
+                if (_teamId == team)
+                {
+                    ExportLine = $"could not draw the buy pictures: {ex.Message}";
+                }
+
                 return;
             }
         }
@@ -640,8 +746,18 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             return;
         }
 
-        row.IsStarred = !row.IsStarred;
-        _store.SetStarred(id, row.Key, row.IsStarred);
+        bool starred = !row.IsStarred;
+        if (!starred)
+        {
+            // The star may be one the inspector filed under a buy or window this line is shown without.
+            foreach (string alias in AliasesOf(id, row.Key))
+            {
+                _store.SetStarred(id, alias, false);
+            }
+        }
+
+        _store.SetStarred(id, row.Key, starred);
+        ApplyStars(id);
         if (ShowStarredOnly)
         {
             Project();
@@ -730,8 +846,13 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         StarsChanged?.Invoke();
     }
 
-    private void Rebuild()
+    private void Rebuild(bool keepOpenEdits = true)
     {
+        // A line open for editing stays open with what was typed: the long form landing, a background stamp or a
+        // note added mid-edit rebuilds every row. Another team's line under the same key is not the one being edited.
+        Dictionary<string, string> open = keepOpenEdits
+            ? _rows.Where(r => r.IsEditing).ToDictionary(r => r.Key, r => r.EditText, StringComparer.Ordinal)
+            : [];
         _rows.Clear();
         _loading = true;
         try
@@ -743,7 +864,6 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             else
             {
                 ScoutingReportTeamNotes notes = _store.For(id);
-                HashSet<string> starred = new(notes.Starred, StringComparer.Ordinal);
                 HashSet<string> hidden = new(notes.Hidden, StringComparer.Ordinal);
                 HashSet<string> seen = new(StringComparer.Ordinal);
                 foreach (ScoutingReportFindingSource source in _sources)
@@ -761,8 +881,9 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                             Map = source.Map,
                             Stage = source.Stage,
                             Shape = source.Shape,
-                            IsStarred = starred.Contains(source.Key),
-                            IsHidden = hidden.Contains(source.Key)
+                            IsHidden = hidden.Contains(source.Key),
+                            EditText = open.GetValueOrDefault(source.Key, ""),
+                            IsEditing = open.ContainsKey(source.Key)
                         });
                 }
 
@@ -771,10 +892,12 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                     string key = ScoutingReportNotesStore.NoteKey(note.Id);
                     _rows.Add(new ScoutingReportFindingViewModel(key, NotesSection, note.Text, note.Text, true, null)
                     {
-                        IsStarred = starred.Contains(key)
+                        EditText = open.GetValueOrDefault(key, ""),
+                        IsEditing = open.ContainsKey(key)
                     });
                 }
 
+                ApplyStars(id);
                 Summary = notes.Summary;
             }
         }

@@ -1,5 +1,6 @@
 #region
 
+using System.Collections.Concurrent;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
@@ -128,7 +129,8 @@ public sealed class ScoutingReportData
     /// <summary>Why a load failed, by name; read after it landed.</summary>
     public IReadOnlyDictionary<string, string> Problems => _problems;
 
-    private readonly Dictionary<string, string> _problems = new(StringComparer.Ordinal);
+    // Concurrent: a layer reads its own load's reason while another load, still running, may be writing its own.
+    private readonly ConcurrentDictionary<string, string> _problems = new(StringComparer.Ordinal);
 
     /// <summary>Starts a team's loads.</summary>
     /// <param name="teamId">The team.</param>
@@ -176,10 +178,7 @@ public sealed class ScoutingReportData
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
-                lock (_problems)
-                {
-                    _problems[name] = ex.Message;
-                }
+                _problems[name] = ex.Message;
             }
         });
         // An inline runner (a test, a host without a queue) has finished already: hand back a completed task, so
@@ -245,6 +244,12 @@ public sealed class ScoutingLayerContext
     public ScoutingBuy Buy { get; }
 
     public string Window { get; }
+
+    /// <summary>
+    ///     The player (SteamID64 as text) whose setup the stage shows alone, others fading; null shows everyone.
+    ///     Only a build for the stage carries it: the long form and the export's pictures draw every player.
+    /// </summary>
+    public string? Isolated { get; init; }
 
     /// <summary>"de_nuke T": how every Review title card of the scope starts.</summary>
     public string Prefix => $"{Map} {Side.Label()}";

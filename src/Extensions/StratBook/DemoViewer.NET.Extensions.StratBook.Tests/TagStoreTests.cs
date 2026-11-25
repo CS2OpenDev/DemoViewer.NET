@@ -175,6 +175,36 @@ public class TagStoreTests
     }
 
     [Test]
+    public async Task ASidecarRewrittenAfterTheLastSaveIndex_IsReadAgain()
+    {
+        string root = TempRoot();
+        try
+        {
+            TagStore store = new(PackStores.At(root));
+            store.Save(Document(Sha, Instance("A execute", 1, 2)));
+            store.SaveIndex();
+
+            // A crash after an autosave and before SaveIndex: index.json still holds the row of the first write.
+            store.Save(Document(Sha, Instance("A execute", 1, 2),
+                Instance("Default", 3, 4, (TagStore.StratGroup, "a-split"))));
+            File.SetLastWriteTimeUtc(TagStore.SidecarPathFor(root, Sha), DateTime.UtcNow.AddMinutes(1));
+
+            TagStore reopened = new(PackStores.At(root));
+            TagIndexEntry row = reopened.Index.Single();
+            using (Assert.Multiple())
+            {
+                await Assert.That(row.InstanceCount).IsEqualTo(2);
+                await Assert.That(row.Codes).IsEquivalentTo(_twoCodes);
+                await Assert.That(row.StratIds).IsEquivalentTo(_oneStrat);
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
     public async Task AtomicOverwrite_LeavesNoTempFile()
     {
         string root = TempRoot();
@@ -289,6 +319,55 @@ public class TagStoreTests
 
             session.Detach();
             await Assert.That(store.TryLoad(Sha)!.Instances[0].Facts.Single().Value).IsEqualTo("CT");
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
+    }
+
+    [Test]
+    public async Task AnAppend_ThatRacesASessionsAttach_IsNotOverwrittenByTheSessionsNextSave()
+    {
+        string root = TempRoot();
+        try
+        {
+            FaultyFolder folder = new(PackStores.At(root));
+            TagStore store = new(folder);
+            store.Save(Document(Sha, Instance("Default", 1, 2)));
+
+            // The session's read of the sidecar has its bytes and has not yet checked the document out.
+            using ManualResetEventSlim read = new();
+            using ManualResetEventSlim goOn = new();
+            int reads = 0;
+            folder.AfterRead = path =>
+            {
+                if (path.EndsWith(TagStore.SidecarExtension, StringComparison.Ordinal)
+                    && Interlocked.Increment(ref reads) == 1)
+                {
+                    read.Set();
+                    goOn.Wait(TimeSpan.FromSeconds(30));
+                }
+            };
+
+            using TagSession session = new(store, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(null),
+                () => false, () => Created) { AutoSaveDelay = TimeSpan.FromHours(1) };
+            Task attach = Task.Run(() => session.AttachAsync(Demo, Clock, "/d/match.dem"));
+            await Assert.That(read.Wait(TimeSpan.FromSeconds(30))).IsTrue();
+
+            // An accepted suggestion lands in that window. It either waits for the attach and is routed to the
+            // session, or it would be written behind the session's back.
+            Task<bool> append = Task.Run(() => store.Append(Demo, Clock, Instance("A execute", 100, 200)));
+            await Task.WhenAny(append, Task.Delay(TimeSpan.FromMilliseconds(500)));
+            goOn.Set();
+            await attach;
+            await Assert.That(await append).IsTrue();
+
+            session.Apply(new TagDelta.Add(Instance("B execute", 300, 400)));
+            await session.FlushAsync();
+
+            await Assert.That(store.TryLoad(Sha)!.Instances.Select(i => i.Code))
+                .IsEquivalentTo(["Default", "A execute", "B execute"]);
         }
         finally
         {
@@ -424,5 +503,64 @@ public class TagStoreIdentityTests
 
         await Assert.That(store.TryLoad(Sha)).IsNotNull();
         await Assert.That(store.Index.Single().Sha256).IsEqualTo(Sha);
+    }
+
+    // What System.Text.Json accepts whatever the annotations say: null for a property, and null in a list.
+    [Test]
+    [Arguments("\"instances\":[null]")]
+    [Arguments("\"instances\":null")]
+    [Arguments("\"instances\":[{\"code\":\"x\",\"labels\":[null]}]")]
+    [Arguments("\"instances\":[{\"code\":\"x\",\"labels\":null}]")]
+    [Arguments("\"instances\":[{\"code\":\"x\",\"facts\":[null]}]")]
+    [Arguments("\"instances\":[{\"code\":\"x\",\"movements\":[{\"from\":null}]}]")]
+    [Arguments("\"clock\":null,\"instances\":[]")]
+    public async Task ASidecarCarryingANull_IsUnreadable_ToTheImportAndToTheNextStart(string body)
+    {
+        string json = $"{{\"demo\":{{\"sha256\":\"{Sha}\"}},{body}}}";
+        string root = TempRoot();
+        string planted = TempRoot();
+        try
+        {
+            TagStore store = new(PackStores.At(root));
+            TagImportResult result = store.Import(Sha, json, null, ImportConflictPolicy.KeepBoth);
+
+            // The same file already in the folder, as an import by a build before this check left it.
+            string path = TagStore.SidecarPathFor(planted, Sha);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, json);
+            TagStore restarted = new(PackStores.At(planted));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.Tags).IsEqualTo(TagImportOutcome.Refused);
+                await Assert.That(File.Exists(TagStore.SidecarPathFor(root, Sha))).IsFalse();
+                await Assert.That(restarted.Index.Count).IsEqualTo(0);
+                await Assert.That(restarted.Load(Sha, Clock).Unreadable).IsTrue();
+            }
+        }
+        finally
+        {
+            DeleteQuietly(root);
+            DeleteQuietly(planted);
+        }
+    }
+
+    [Test]
+    public async Task ANullRowInTheIndex_IsSkipped()
+    {
+        string root = TempRoot();
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "index.json"), "{\"version\":1,\"entries\":[null]}");
+
+            TagStore store = new(PackStores.At(root));
+
+            await Assert.That(store.Index.Count).IsEqualTo(0);
+        }
+        finally
+        {
+            DeleteQuietly(root);
+        }
     }
 }

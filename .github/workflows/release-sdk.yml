@@ -198,17 +198,19 @@ jobs:
       # at the top of the job. The trust policy names this file, so renaming this workflow breaks it.
       - name: Log in to nuget.org (trusted publishing)
         id: nuget-login
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841   # v1.2.0 (v1)
         with:
           user: sid2934
 
       - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
           for package in artifacts/sdk-packages/*.nupkg; do
             dotnet nuget push "$package" \
               --source https://api.nuget.org/v3/index.json \
-              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+              --api-key "$NUGET_API_KEY" \
               --skip-duplicate
           done
 

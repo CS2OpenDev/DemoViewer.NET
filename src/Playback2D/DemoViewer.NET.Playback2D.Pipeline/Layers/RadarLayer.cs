@@ -185,7 +185,9 @@ public sealed class RadarLayer : ISceneLayer
     // (rotate=1, zoom=1.1) aligns correctly with pos/scale alone (parity invariant 9).
     private bool TryDrawRadar(SKCanvas canvas, in SceneRenderContext ctx)
     {
-        if (ctx.Pane.Level?.Radar is not { } image)
+        // A zero handle is an image already disposed: a frame queued on the render thread can outlive the
+        // map bundle that owned it. Skia would fault on it (reading Width included), so it draws as no radar.
+        if (ctx.Pane.Level?.Radar is not { } image || image.Handle == IntPtr.Zero)
         {
             return false;
         }

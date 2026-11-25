@@ -126,7 +126,21 @@ public static class LineupClipPlanner
     /// <param name="directory">Where clips are written.</param>
     /// <param name="sourceDemo">The demo to take the throw from, or null for the representative's.</param>
     public static LineupClipJob? Plan(GrenadeLineup lineup, LineupTechnique? technique, string title, string directory,
-        string? sourceDemo)
+        string? sourceDemo) =>
+        Plan(lineup, technique, title, directory, sourceDemo, null);
+
+    /// <param name="lineup">The throw position.</param>
+    /// <param name="technique">One of its techniques, or null for a lineup without techniques.</param>
+    /// <param name="title">The card's cluster title.</param>
+    /// <param name="directory">Where clips are written.</param>
+    /// <param name="sourceDemo">The demo to take the throw from, or null for the representative's.</param>
+    /// <param name="demoExists">
+    ///     Whether a demo file is there to read. With no <paramref name="sourceDemo" />, a representative whose demo
+    ///     is gone (deleted, or on a drive that is offline) is shown from the next throw whose demo is there; the
+    ///     representative's when none is. Null checks nothing.
+    /// </param>
+    internal static LineupClipJob? Plan(GrenadeLineup lineup, LineupTechnique? technique, string title,
+        string directory, string? sourceDemo, Func<string, bool>? demoExists)
     {
         ArgumentNullException.ThrowIfNull(lineup);
         ArgumentNullException.ThrowIfNull(directory);
@@ -139,11 +153,17 @@ public static class LineupClipPlanner
         }
 
         IndexedGrenade representative = technique?.Representative ?? lineup.Representative;
+        IReadOnlyList<IndexedGrenade> throws = technique?.Throws ?? lineup.Throws;
         IndexedGrenade shown = (sourceDemo is null
                 ? null
-                : (technique?.Throws ?? lineup.Throws).FirstOrDefault(t =>
+                : throws.FirstOrDefault(t =>
                     string.Equals(t.Demo.Path, sourceDemo, StringComparison.OrdinalIgnoreCase)
                     && GrenadeConsole.Format(t.Row) is not null))
+            ?? (sourceDemo is not null || demoExists is null || demoExists(representative.Demo.Path)
+                ? null
+                : throws.FirstOrDefault(t => !ReferenceEquals(t, representative)
+                                             && GrenadeConsole.Format(t.Row) is not null
+                                             && demoExists(t.Demo.Path)))
             ?? representative;
         GrenadeRow row = shown.Row;
         if (GrenadeConsole.Format(row) is not { } console)
@@ -193,7 +213,15 @@ public static class LineupClipPlanner
     /// <param name="directory">Where clips are written.</param>
     /// <param name="sourceDemo">The demo to take throws from, or null for the representatives.</param>
     public static IReadOnlyList<LineupClipJob> PlanEvery(IEnumerable<GrenadeCluster> clusters, string directory,
-        string? sourceDemo)
+        string? sourceDemo) =>
+        PlanEvery(clusters, directory, sourceDemo, null);
+
+    /// <param name="clusters">The index's clusters.</param>
+    /// <param name="directory">Where clips are written.</param>
+    /// <param name="sourceDemo">The demo to take throws from, or null for the representatives.</param>
+    /// <param name="demoExists">Moves a clip whose representative's demo is gone to another throw's; see Plan.</param>
+    internal static IReadOnlyList<LineupClipJob> PlanEvery(IEnumerable<GrenadeCluster> clusters, string directory,
+        string? sourceDemo, Func<string, bool>? demoExists)
     {
         ArgumentNullException.ThrowIfNull(clusters);
 
@@ -211,7 +239,7 @@ public static class LineupClipPlanner
 
                 if (lineup.Techniques.Count == 0)
                 {
-                    if (Plan(lineup, null, title, directory, sourceDemo) is { } only)
+                    if (Plan(lineup, null, title, directory, sourceDemo, demoExists) is { } only)
                     {
                         jobs.Add(only);
                     }
@@ -221,7 +249,7 @@ public static class LineupClipPlanner
 
                 foreach (LineupTechnique technique in lineup.Techniques)
                 {
-                    if (Plan(lineup, technique, title, directory, sourceDemo) is { } job)
+                    if (Plan(lineup, technique, title, directory, sourceDemo, demoExists) is { } job)
                     {
                         jobs.Add(job);
                     }

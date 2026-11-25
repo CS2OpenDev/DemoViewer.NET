@@ -188,6 +188,12 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     /// </summary>
     public string? TeamsFileProblem { get; private set; }
 
+    /// <summary>
+    ///     Why the last write of <c>teams.json</c> failed, or null once one lands. The edits stand in memory and
+    ///     every later write carries them all, but nothing keeps them past the session unless one succeeds.
+    /// </summary>
+    public string? TeamsSaveProblem { get; private set; }
+
     /// <summary>The index was missing, corrupt or behind at load: <see cref="StartAsync" /> rebuilds from the sidecars.</summary>
     public bool NeedsRebuild { get; private set; }
 
@@ -255,6 +261,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
 
         lock (_gate)
         {
+            EditCopy();
             Team? us = _teams.Teams.FirstOrDefault(t => t.IsUs);
             if (us is null)
             {
@@ -382,6 +389,19 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             lock (_gate)
             {
                 return [.. _teams.Teams];
+            }
+        }
+    }
+
+    // Every team's id with the ids it was merged from, the lists copied under the gate: AllTeams hands out the
+    // live teams, whose MergedFrom a merge on the teams queue grows while another thread reads it.
+    internal IReadOnlyList<(Guid Id, Guid[] MergedFrom)> MergeLineage
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _teams.Teams.Select(t => (t.Id, t.MergedFrom.ToArray()))];
             }
         }
     }
@@ -542,6 +562,14 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             _joins.Clear();
         }
 
+        // What the sides pass read goes with the inputs, and a replay queued for it is dropped by the load swap
+        // above, so its ticket goes too.
+        lock (_fromRecords)
+        {
+            _fromRecords.Clear();
+        }
+
+        Volatile.Write(ref _fromRecordsQueued, null);
         _post(() => Changed?.Invoke());
     }
 
@@ -744,19 +772,26 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     // Inputs the sides pass read off records, taken in one replay however many arrived meanwhile.
     private readonly Dictionary<string, DemoSideInput> _fromRecords = new(StringComparer.Ordinal);
 
+    // The replay that takes them, while it is queued. A ticket like _fullSyncWaiting's and not "the dictionary
+    // was empty": a release drops a queued replay without running it, and inputs it left behind would read as a
+    // replay still on its way for the rest of the session.
+    private object? _fromRecordsQueued;
+
     private void LiftFromRecord(DemoSideInput input)
     {
-        bool schedule;
         lock (_fromRecords)
         {
-            schedule = _fromRecords.Count == 0;
             _fromRecords[input.StableKey] = input;
         }
 
-        if (schedule)
+        // Let go before the replay takes what is there, so an input added after that queues the next one, and
+        // again when the task ends, for a replay that was dropped or cancelled.
+        object ticket = new();
+        if (Interlocked.CompareExchange(ref _fromRecordsQueued, ticket, null) is null)
         {
             _ = Schedule(() =>
             {
+                Interlocked.CompareExchange(ref _fromRecordsQueued, null, ticket);
                 List<DemoSideInput> inputs;
                 lock (_fromRecords)
                 {
@@ -765,7 +800,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                 }
 
                 Lift(inputs);
-            });
+            }).ContinueWith(_ => Interlocked.CompareExchange(ref _fromRecordsQueued, null, ticket),
+                TaskScheduler.Default);
         }
     }
 
@@ -1084,6 +1120,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         lock (_gate)
         {
+            EditCopy();
             if (_teams.Find(teamId) is not { } team)
             {
                 return;
@@ -1114,6 +1151,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _load.Ensure();
         lock (_gate)
         {
+            EditCopy();
             foreach (Team team in _teams.Teams)
             {
                 team.IsUs = teamId is not null && team.Id == teamId;
@@ -1144,6 +1182,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _load.Ensure();
         lock (_gate)
         {
+            EditCopy();
             Team? target = _teams.Find(into);
             Team? source = _teams.Find(from);
             if (target is null || source is null || into == from)
@@ -1253,6 +1292,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _load.Ensure();
         lock (_gate)
         {
+            EditCopy();
             if (_teams.Find(teamId) is not { } team)
             {
                 return;
@@ -1377,6 +1417,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _load.Ensure();
         lock (_gate)
         {
+            EditCopy();
             if (_teams.Find(teamId) is not { } team)
             {
                 return;
@@ -1452,6 +1493,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             keep.UnionWith(imported.Overrides.Where(o => o.DemoSha256 is not null).Select(o => o.TeamId)
                 .OfType<Guid>());
 
+            EditCopy();
             bool changed = false;
             foreach (Team incoming in imported.Teams.Where(t => t.Id != Guid.Empty))
             {
@@ -1957,6 +1999,20 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _teams = new TeamsFile();
     }
 
+    /// <summary>Writes <c>teams.json</c> again when the last write failed: shutdown's retry. Never throws for I/O.</summary>
+    public void FlushTeams()
+    {
+        if (TeamsSaveProblem is null)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            SaveTeams();
+        }
+    }
+
     private void SaveTeams()
     {
         MirrorMe();
@@ -1969,16 +2025,22 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         try
         {
             _teamsFile.Write(JsonSerializer.SerializeToUtf8Bytes(_teams, TeamsFile.JsonOptions));
+            TeamsSaveProblem = null;
         }
-        catch (Exception)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // Best effort: the in-memory truth stands for the session and the next write retries.
+            // The in-memory truth stands for the session and the next write, or the shutdown flush, retries. An
+            // edit with no write after it would be lost at exit with nothing said, so the Teams tab says it.
+            TeamsSaveProblem =
+                $"{TeamsFileName} could not be saved ({e.Message}); team edits are kept for this session only.";
         }
     }
 
     private void SaveIndex()
     {
-        if (_indexFile is null || !_attached)
+        // Refused, the replay ran over no teams and minted every team it assigned: an index naming those ids
+        // would outlive the session, and the next one, reading teams.json again, would find none of them.
+        if (_indexFile is null || _teamsRefused || !_attached)
         {
             return;
         }
@@ -1992,6 +2054,12 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             // Rebuildable cache: persistence noise is never surfaced.
         }
     }
+
+    // Under _gate. Teams, AllTeams, Us and TeamOnSide hand out the file's own Team objects, and their readers walk
+    // a team's rosters on other threads without the gate, the Teams tab on the UI thread among them. So a team
+    // that has been handed out is never changed again: a command edits a copy of the file, which the replay or
+    // the save then leaves in place of the one the readers hold.
+    private void EditCopy() => _teams = Clone(_teams);
 
     private static TeamsFile Clone(TeamsFile teams) =>
         JsonSerializer.Deserialize<TeamsFile>(JsonSerializer.Serialize(teams, TeamsFile.JsonOptions),

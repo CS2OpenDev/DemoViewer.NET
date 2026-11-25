@@ -104,5 +104,61 @@ public class CollisionSoupTests
         }
     }
 
+    /// <summary>
+    ///     A map name comes from the demo's header, and it is joined into every probe path. One that is a path
+    ///     itself (rooted, a share, or with a separator or <c>..</c> in it) would point the probe at a file of
+    ///     the demo author's choosing, so only a plain name is looked for.
+    /// </summary>
+    [Test]
+    public async Task AMapNameThatIsAPath_FindsNothing()
+    {
+        string root = Directory.CreateTempSubdirectory("dv-soup-").FullName;
+        try
+        {
+            string evil = Path.Combine(root, "evil");
+            Directory.CreateDirectory(evil);
+            await File.WriteAllBytesAsync(Path.Combine(evil, "collision.tris.gz"), [0x1f, 0x8b]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(CollisionSoup.Find(evil)).IsNull().Because("a rooted name replaces the probed folder");
+                await Assert.That(CollisionSoup.Find(Path.GetRelativePath(AppContext.BaseDirectory, evil))).IsNull()
+                    .Because("a name with .. in it walks out of the probed folder");
+                await Assert.That(CollisionSoup.Find(Map + "/../" + Map)).IsNull();
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    ///     The map name comes from a demo's header, which whoever wrote the demo controls. A rooted name
+    ///     must not turn the probe into a read of that location: Path.Combine drops everything before a
+    ///     rooted segment, so without a check this finds the bake sitting in the temp folder.
+    /// </summary>
+    [Test]
+    public async Task Find_RefusesARootedOrClimbingMapName()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"dv-hostile-map-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            await File.WriteAllBytesAsync(Path.Combine(dir, "collision.tris" + CollisionSoup.CompressedSuffix), [1, 2, 3]);
+            string climbing = Path.GetRelativePath(Path.Combine(AppContext.BaseDirectory, "assets"), dir);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(CollisionSoup.Find(dir)).IsNull();
+                await Assert.That(CollisionSoup.Find(climbing)).IsNull();
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     private static float Lerp(float a, float b, float t) => a + ((b - a) * t);
 }

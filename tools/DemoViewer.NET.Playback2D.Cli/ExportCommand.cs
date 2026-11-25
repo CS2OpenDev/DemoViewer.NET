@@ -63,6 +63,7 @@ internal static class ExportCommand
         double speed = args.Double("speed", 1.0);
         SKSizeI size = args.Size("size", new SKSizeI(1920, 1080));
         string outPath = args.String("out") ?? $"dv2d-export.{format}";
+        RenderCommand.RefuseOutputOverInput(outPath, demoPath);
         bool hud = args.Flag("hud");
         bool ffmpegLog = args.Flag("ffmpeg-log");
 
@@ -71,7 +72,7 @@ internal static class ExportCommand
         // VALIDATOR and not for the picture: same request, two materially different files.
         ScenePalette palette = ResolvePalette(args.String("palette"));
         bool annotations = args.Flag("annotations");
-        if (args.String("annotations") is { Length: > 0 } annotationValue)
+        if (args.FlagValue("annotations") is { Length: > 0 } annotationValue)
         {
             throw new CliUsageException(
                 $"--annotations is a flag and takes no value (got '{annotationValue}'); it burns in " +
@@ -98,6 +99,7 @@ internal static class ExportCommand
         bool perf = PerfOutput.Requested(args);
         IReadOnlyList<string>? layers = args.List("layers");
         AssetsRoot assets = AssetsRootResolver.Resolve(args);
+        CliScenePlan.RequireAssetsRoot(assets);
         // ForceCpu as the bottom rung, same as the golden lane. An auto-probe that finds ANGLE would
         // hand SceneExportSession a thread-affine provider, which the session refuses; auto-probing into
         // a guaranteed refusal is no default. An explicit --gpu still reaches that refusal, and says so.
@@ -215,8 +217,7 @@ internal static class ExportCommand
                 : new FfmpegFrameSink(new FfmpegSinkOptions(outPath, format, size.Width, size.Height, fps,
                     ffmpeg.Directory, encoder, Log: ffmpegLog ? ConsoleOut.Info : null));
 
-        ExportProgress last = default;
-        Progress<ExportProgress> progress = new(p => last = p);
+        LastProgress progress = new();
 
         try
         {
@@ -229,6 +230,7 @@ internal static class ExportCommand
             mapAssets?.Dispose();
         }
 
+        ExportProgress last = progress.Last;
         double elapsedMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         double demoSeconds = (frames[endFrame].ServerTick - frames[startFrame].ServerTick) / (double)tickRate;
         double realtimeRatio = elapsedMs > 0 ? demoSeconds / (elapsedMs / 1000.0) : 0;
@@ -486,4 +488,19 @@ internal static class ExportCommand
     internal static TimelineHudDataSource BuildHud(TrackerFrameSource source, int tickRate) =>
         new([], tickRate, _ => ClockReading.From(source.LastGameInfo),
             rosterAt: _ => source.LastRoster);
+
+    /// <summary>
+    ///     Keeps the session's latest report, assigned inline on the reporting thread. A
+    ///     <see cref="Progress{T}" /> in a console process has no synchronization context to capture, so it
+    ///     posts every report to the thread pool: the summary read straight after the run could see a
+    ///     stale report, or none. Internal so a test can pin it.
+    /// </summary>
+    internal sealed class LastProgress : IProgress<ExportProgress>
+    {
+        /// <summary>The most recent report, or the default value before the first.</summary>
+        public ExportProgress Last { get; private set; }
+
+        /// <inheritdoc />
+        public void Report(ExportProgress value) => Last = value;
+    }
 }

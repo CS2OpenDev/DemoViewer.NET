@@ -206,7 +206,8 @@ public sealed class PlayerCandidateItem
             : string.Create(CultureInfo.InvariantCulture, $"{entry.DemoCount} demos");
         string lastSeen = entry.LastSeenTicks > 0 && entry.LastSeenTicks <= DateTime.MaxValue.Ticks
             ? "last seen "
-            + new DateTime(entry.LastSeenTicks, DateTimeKind.Utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            + new DateTime(entry.LastSeenTicks, DateTimeKind.Utc).ToLocalTime()
+                .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : "";
         string aliases = string.Join(", ", entry.Aliases.Skip(1).Take(3).Select(a => DisplayText.Sanitize(a.Name)));
         return new PlayerCandidateItem(entry.SteamId64, name, demos, lastSeen, aliases);

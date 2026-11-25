@@ -82,6 +82,22 @@ internal sealed class LayerPictureCache : IDisposable
             return;
         }
 
+        // ContentVersion and CameraEpoch only grow, so a layer's earlier picture for this pane can never
+        // be hit again once it re-records. Left to the LRU cap, a pan would pin up to Capacity dead
+        // pictures (a heatmap's each owns a bitmap) until the next Clear.
+        for (int i = _order.Count - 1; i >= 0; i--)
+        {
+            Key stale = _order[i];
+            if (stale.LevelId == key.LevelId && string.Equals(stale.LayerId, key.LayerId, StringComparison.Ordinal))
+            {
+                _order.RemoveAt(i);
+                if (_entries.Remove(stale, out SKPicture? superseded))
+                {
+                    superseded.Dispose();
+                }
+            }
+        }
+
         while (_entries.Count >= Capacity && _order.Count > 0)
         {
             Key oldest = _order[0];
