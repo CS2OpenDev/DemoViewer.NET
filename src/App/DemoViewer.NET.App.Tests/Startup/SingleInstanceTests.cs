@@ -9,8 +9,8 @@ namespace DemoViewer.NET.AppTests.Startup;
 
 /// <summary>
 ///     One desktop instance per config root: a second launch hands its demo to the first and exits, a relaunch
-///     waits for the old process to let go, and an instance that never answers does not keep the app from
-///     starting. Each test claims its own temporary root, so nothing here meets a real instance.
+///     waits for the old process to let go, and an instance that never answers is not started beside. Each test
+///     claims its own temporary root, so nothing here meets a real instance.
 /// </summary>
 public class SingleInstanceTests
 {
@@ -114,9 +114,11 @@ public class SingleInstanceTests
         }
     }
 
+    // A held lock means a live process, since the OS lets go of it on exit. One that never answers is hung, and
+    // starting beside it is the clobbering the lock exists to prevent, so the launch exits instead.
     [Test]
     [Timeout(30_000)]
-    public async Task AnInstanceThatNeverAnswers_DoesNotKeepTheAppFromStarting(CancellationToken cancellationToken)
+    public async Task AnInstanceThatNeverAnswers_KeepsTheLaunchFromStartingBesideIt(CancellationToken cancellationToken)
     {
         string root = NewRoot();
         try
@@ -128,7 +130,38 @@ public class SingleInstanceTests
             using (Assert.Multiple())
             {
                 await Assert.That(claim.HandedOff).IsFalse();
-                await Assert.That(claim.Instance).IsNull().Because("it starts without the guard rather than not at all");
+                await Assert.That(claim.Instance).IsNull();
+                await Assert.That(claim.Blocked).IsTrue().Because("it exits rather than start without the guard");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // The holder answers from the moment it takes the lock, however long the rest of its start takes; what a
+    // launch sends before the window can take it waits for the handler.
+    [Test]
+    [Timeout(30_000)]
+    public async Task ALaunchDuringTheHoldersStart_IsHandedOff_AndDeliveredOnceTheHandlerIsSet(
+        CancellationToken cancellationToken)
+    {
+        string root = NewRoot();
+        string demo = Path.Combine(Path.GetTempPath(), "replays", "early.dem");
+        try
+        {
+            using SingleInstance running = SingleInstance.TryAcquire(root)!;
+            running.Listen();
+
+            SingleInstanceClaim second = SingleInstance.Claim(root, demo, TimeSpan.FromSeconds(10));
+            TaskCompletionSource<string?> received = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            running.Listen(path => received.TrySetResult(path));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(second.HandedOff).IsTrue();
+                await Assert.That(await received.Task.WaitAsync(cancellationToken)).IsEqualTo(demo);
             }
         }
         finally

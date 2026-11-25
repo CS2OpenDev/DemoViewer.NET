@@ -19,9 +19,10 @@ namespace DemoViewer.NET.Services.Startup;
 ///         asked to open (or nothing, to bring the window forward) and exits.
 ///     </para>
 ///     <para>
-///         A relaunch (safe mode off, an update's restart) starts while the old process is still finishing, so
-///         <see cref="Claim" /> waits for the lock for a while before giving up, and then starts anyway rather
-///         than not at all. Only the desktop head claims: the test hosts and UiCapture never run its <c>Main</c>,
+///         The holder answers from the moment it takes the lock, so a held lock that does not answer belongs to
+///         a process that is exiting or hung. A relaunch (safe mode off, an update's restart) starts after the
+///         old process has let go, or while it is finishing, so <see cref="Claim" /> waits for the lock for a
+///         while; past that the launch exits rather than start beside the holder. Only the desktop head claims: the test hosts and UiCapture never run its <c>Main</c>,
 ///         and a run under its own <see cref="AppPaths.ConfigDirEnvVar" /> root is another instance's business.
 ///     </para>
 /// </summary>
@@ -30,7 +31,7 @@ public sealed class SingleInstance : IDisposable
     /// <summary>The lock file's name under the config root.</summary>
     public const string LockFileName = "instance.lock";
 
-    /// <summary>How long a launch waits for an instance that is starting or exiting before it starts anyway.</summary>
+    /// <summary>How long a launch waits for an instance that holds the lock but does not answer.</summary>
     public static readonly TimeSpan DefaultWait = TimeSpan.FromSeconds(10);
 
     // A path is a few hundred characters; anything longer than this is not one.
@@ -43,6 +44,9 @@ public sealed class SingleInstance : IDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly FileStream _lock;
     private readonly string _pipeName;
+    private readonly Lock _gate = new();
+    private readonly List<string?> _pending = [];
+    private Action<string?>? _onActivate;
     private Task? _listening;
 
     private SingleInstance(FileStream lockFile, string pipeName)
@@ -54,8 +58,9 @@ public sealed class SingleInstance : IDisposable
     /// <summary>
     ///     Takes the lock for <paramref name="configRoot" />, or, when another instance holds it, hands that one
     ///     <paramref name="demoPath" /> and reports it. Waits up to <paramref name="wait" /> for an instance that
-    ///     holds the lock but does not answer (starting, or exiting for a relaunch); past that it gives up the
-    ///     guard and returns neither, so this launch still starts.
+    ///     holds the lock but does not answer (exiting for a relaunch); past that it reports
+    ///     <see cref="SingleInstanceClaim.Blocked" />, since starting beside a live holder is what the lock prevents.
+    ///     A lock that cannot be opened at all (no access to the root) claims nothing and does not wait.
     /// </summary>
     /// <param name="configRoot">The config root; null (no filesystem) claims nothing.</param>
     /// <param name="demoPath">The demo this launch was asked to open, already a full path; null for none.</param>
@@ -71,9 +76,14 @@ public sealed class SingleInstance : IDisposable
         TimeSpan limit = wait ?? DefaultWait;
         while (true)
         {
-            if (TryAcquire(configRoot) is { } instance)
+            if (Acquire(configRoot, out bool held) is { } instance)
             {
                 return new SingleInstanceClaim(instance, false);
+            }
+
+            if (!held)
+            {
+                return new SingleInstanceClaim(null, false);
             }
 
             if (TrySignal(configRoot, demoPath))
@@ -83,7 +93,7 @@ public sealed class SingleInstance : IDisposable
 
             if (elapsed.Elapsed >= limit)
             {
-                return new SingleInstanceClaim(null, false);
+                return new SingleInstanceClaim(null, false, true);
             }
 
             Thread.Sleep(_retryDelay);
@@ -94,6 +104,13 @@ public sealed class SingleInstance : IDisposable
     public static SingleInstance? TryAcquire(string configRoot)
     {
         ArgumentNullException.ThrowIfNull(configRoot);
+        return Acquire(configRoot, out _);
+    }
+
+    // Held is false when the lock could not be opened for want of access, which no other instance explains.
+    private static SingleInstance? Acquire(string configRoot, out bool held)
+    {
+        held = false;
         try
         {
             Directory.CreateDirectory(configRoot);
@@ -103,7 +120,8 @@ public sealed class SingleInstance : IDisposable
         }
         catch (IOException)
         {
-            return null; // held by another instance
+            held = true; // by another instance
+            return null;
         }
         catch (UnauthorizedAccessException)
         {
@@ -194,13 +212,38 @@ public sealed class SingleInstance : IDisposable
     }
 
     /// <summary>
-    ///     Starts answering later launches. <paramref name="onActivate" /> runs on a pool thread with the demo the
-    ///     launch asked for (through <see cref="AcceptedDemoPath" />), or null to only bring the window forward.
+    ///     Starts answering later launches, holding what they ask for until <see cref="Listen(Action{string})" />
+    ///     sets the handler. Called right after the claim, so a launch during a slow start still hands off.
+    /// </summary>
+    public void Listen()
+    {
+        lock (_gate)
+        {
+            _listening ??= Task.Run(() => ServeAsync(_stop.Token));
+        }
+    }
+
+    /// <summary>
+    ///     Answers later launches with <paramref name="onActivate" />, which gets the demo the launch asked for
+    ///     (through <see cref="AcceptedDemoPath" />), or null to only bring the window forward. Requests held
+    ///     since <see cref="Listen()" /> run on the calling thread, later ones on a pool thread.
     /// </summary>
     public void Listen(Action<string?> onActivate)
     {
         ArgumentNullException.ThrowIfNull(onActivate);
-        _listening ??= Task.Run(() => ServeAsync(onActivate, _stop.Token));
+        string?[] held;
+        lock (_gate)
+        {
+            _onActivate = onActivate;
+            held = [.. _pending];
+            _pending.Clear();
+        }
+
+        Listen();
+        foreach (string? demoPath in held)
+        {
+            Deliver(onActivate, demoPath);
+        }
     }
 
     /// <summary>Stops answering and releases the lock, so a relaunch started next takes it at once.</summary>
@@ -225,7 +268,7 @@ public sealed class SingleInstance : IDisposable
         _stop.Dispose();
     }
 
-    private async Task ServeAsync(Action<string?> onActivate, CancellationToken stop)
+    private async Task ServeAsync(CancellationToken stop)
     {
         while (!stop.IsCancellationRequested)
         {
@@ -257,14 +300,33 @@ public sealed class SingleInstance : IDisposable
                 continue;
             }
 
-            try
+            string? demoPath = AcceptedDemoPath(message);
+            Action<string?>? onActivate;
+            lock (_gate)
             {
-                onActivate(AcceptedDemoPath(message));
+                onActivate = _onActivate;
+                if (onActivate is null)
+                {
+                    _pending.Add(demoPath);
+                }
             }
-            catch (Exception ex)
+
+            if (onActivate is not null)
             {
-                Debug.WriteLine($"Single instance: handing on an activation failed: {ex}");
+                Deliver(onActivate, demoPath);
             }
+        }
+    }
+
+    private static void Deliver(Action<string?> onActivate, string? demoPath)
+    {
+        try
+        {
+            onActivate(demoPath);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Single instance: handing on an activation failed: {ex}");
         }
     }
 
@@ -293,4 +355,5 @@ public sealed class SingleInstance : IDisposable
 /// <summary>What <see cref="SingleInstance.Claim" /> came to.</summary>
 /// <param name="Instance">The lock this launch now holds; null when it handed off or gave up waiting.</param>
 /// <param name="HandedOff">True when a running instance took this launch's request, so this one exits.</param>
-public sealed record SingleInstanceClaim(SingleInstance? Instance, bool HandedOff);
+/// <param name="Blocked">True when another instance holds the lock and never answered, so this one exits too.</param>
+public sealed record SingleInstanceClaim(SingleInstance? Instance, bool HandedOff, bool Blocked = false);

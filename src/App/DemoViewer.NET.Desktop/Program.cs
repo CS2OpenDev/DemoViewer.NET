@@ -81,7 +81,19 @@ internal static class Program
             return;
         }
 
+        if (claim.Blocked)
+        {
+            // Held by a process that is alive but does not answer; starting beside it would clobber its stores.
+            Console.Error.WriteLine(
+                $"DemoViewer.NET is already running for {AppPaths.ConfigRoot} and did not respond. Close it and try again.");
+            Environment.ExitCode = 1;
+            return;
+        }
+
         using SingleInstance? instance = claim.Instance;
+
+        // Answer later launches now, not after the slow start below: what they send waits for the window.
+        instance?.Listen();
 
         // The extensions this build ships, each replaced by a newer copy staged
         // under <config root>/extensions/ when one is compatible and trusted. The app assembly
@@ -162,8 +174,8 @@ internal static class Program
         // on Windows (this is a WinExe) it only appears when launched from a terminal or via `dotnet run`.
         // Live / per-moment capture without any of this is available via dotnet-counters / dotnet-trace.
         using ProfilingSession? session = ProfilingSession.StartFromEnvironment();
-        // Answering starts once Avalonia is set up: a request is posted to the UI dispatcher, which must not be
-        // first reached from the listener's pool thread before the platform exists. A launch in the gap retries.
+        // Requests reach the handler once Avalonia is set up: it posts to the UI dispatcher, which must not be
+        // first reached from the listener's pool thread before the platform exists. Earlier ones are held.
         BuildAvaloniaApp()
             .AfterSetup(_ => instance?.Listen(static demoPath => Dispatcher.UIThread.Post(() => Activate(demoPath, 0))))
             .StartWithClassicDesktopLifetime(args);
