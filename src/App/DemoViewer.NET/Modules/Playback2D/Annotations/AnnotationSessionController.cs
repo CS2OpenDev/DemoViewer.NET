@@ -6,6 +6,7 @@ using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
+using DemoViewer.NET.Services;
 
 #endregion
 
@@ -269,7 +270,7 @@ public sealed class AnnotationSessionController : IDisposable
 
         string? normalized = string.IsNullOrWhiteSpace(demoPath) ? null : demoPath;
         if (!force && _attached
-            && string.Equals(_demoPath, normalized, StringComparison.OrdinalIgnoreCase))
+            && string.Equals(_demoPath, normalized, PathComparer.Comparison))
         {
             return;
         }

@@ -245,6 +245,59 @@ public class Playback2DAnnotationPersistenceTests
         await Assert.That(saved.Elements.Select(e => e.Id)).Contains(drawn.Id);
     }
 
+    /// <summary>
+    ///     On Linux a demo whose path differs only by case is another file: writing its annotations holds no tab
+    ///     open on this one.
+    /// </summary>
+    [Test]
+    public async Task OnLinux_Coordinator_HoldsNoSessionOnADemoWhosePathDiffersOnlyByCase()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new TUnit.Core.Exceptions.SkipTestException("only a Linux file system keeps two names that differ only by case");
+        }
+
+        using TempDemo demo = new();
+        string other = Path.Combine(Path.GetDirectoryName(demo.DemoPath)!, "Match.dem");
+        File.WriteAllBytes(other, "PBDEMS2\0"u8);
+        AnnotationWriteCoordinator sessions = new();
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using IDisposable registration = sessions.Register(controller);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+        AnnotationWriteCoordinator.Hold hold = await sessions.HoldAsync([other]);
+        AnnotationElement drawn = Stroke();
+        controller.Document.Apply(new DocDelta.Add(drawn, 0));
+        await controller.FlushAsync();
+        AnnotationLoadResult saved = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+        await hold.EndAsync(true);
+
+        await Assert.That(saved.Elements.Select(e => e.Id)).Contains(drawn.Id);
+    }
+
+    /// <summary>On Linux, re-activating the tab on the demo whose path differs only by case attaches that demo.</summary>
+    [Test]
+    public async Task OnLinux_Controller_AttachesADemoWhosePathDiffersOnlyByCase()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new TUnit.Core.Exceptions.SkipTestException("only a Linux file system keeps two names that differ only by case");
+        }
+
+        using TempDemo demo = new();
+        string other = Path.Combine(Path.GetDirectoryName(demo.DemoPath)!, "Match.dem");
+        File.WriteAllBytes(other, "PBDEMS2\0"u8);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
+        await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+        await controller.AttachDemoAsync(other, demo.Clock, force: false); // a tab re-activation
+
+        await Assert.That(controller.AttachedDemoPath).IsEqualTo(other);
+    }
+
     [Test]
     public async Task Controller_AutosavesAfterDebounce()
     {

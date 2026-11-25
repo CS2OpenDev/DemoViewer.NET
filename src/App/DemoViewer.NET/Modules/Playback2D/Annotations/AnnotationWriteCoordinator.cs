@@ -1,6 +1,7 @@
 #region
 
 using System.Runtime.ExceptionServices;
+using DemoViewer.NET.Services;
 
 #endregion
 
@@ -44,7 +45,7 @@ internal sealed class AnnotationWriteCoordinator
             open =
             [
                 .. _sessions.Where(s => s.AttachedDemoPath is { } path
-                                        && demoPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
+                                        && demoPaths.Contains(path, PathComparer.Paths))
             ];
         }
 

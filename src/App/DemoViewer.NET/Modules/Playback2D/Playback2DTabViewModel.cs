@@ -1251,7 +1251,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     private string AnnotationDemoKey(string demoPath)
     {
         if (_context is { DemoSha256: { Length: > 0 } open } context
-            && string.Equals(context.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))
+            && string.Equals(context.DemoPath, demoPath, PathComparer.Comparison))
         {
             return open;
         }
@@ -1318,7 +1318,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     private void OnRoundFactsUpdated(string demoPath)
     {
         if (_context is not { } ctx
-            || !string.Equals(ctx.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(ctx.DemoPath, demoPath, PathComparer.Comparison))
         {
             return;
         }
@@ -1624,8 +1624,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // roster yet, or a context on another demo than the one asked about. The roster seed applies it.
         if (_context is null
             || _context.Players.Count == 0
-            || !string.Equals(demoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(_followDemoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(demoPath, _context.DemoPath, PathComparer.Comparison)
+            || !string.Equals(_followDemoPath, _context.DemoPath, PathComparer.Comparison))
         {
             _pendingFollow = (steamId64, demoPath);
             return true;
@@ -1669,7 +1669,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             return;
         }
 
-        if (!string.Equals(pending.DemoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(pending.DemoPath, _context.DemoPath, PathComparer.Comparison))
         {
             _pendingFollow = null;
             return;
@@ -2355,7 +2355,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // FollowSlotChanged mirror, the per-row flag and the timeline footer clear with them: the funnel
         // is the single place that knows what "following nobody" means. Not ClearFollow(): that also
         // raises FitRequested, and the fit is already coming from the resync's own frame rebuild.
-        demoChanged |= !string.Equals(_followDemoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase);
+        demoChanged |= !string.Equals(_followDemoPath, _context.DemoPath, PathComparer.Comparison);
         _followDemoPath = _context.DemoPath;
 
         if (demoChanged && (FollowedSlot >= 0 || SelectedPlayer is not null))
