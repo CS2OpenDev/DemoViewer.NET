@@ -142,7 +142,7 @@ public sealed class PackExporter
 
                     case PackClip clip:
                         progress?.Report(new PackProgress(i + 1, plan.Segments.Count, Label(clip)));
-                        PackSegmentSink segment = new(sink);
+                        PackSegmentSink segment = new(sink, ct);
                         try
                         {
                             await _clips.RenderAsync(clip, settings, segment, ct).ConfigureAwait(false);

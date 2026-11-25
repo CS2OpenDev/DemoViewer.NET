@@ -556,12 +556,12 @@ public class PackExportTests
     public async Task SegmentSink_EndsTheSegment_NotThePacksSink_AndSaysWhoseFailureItWas()
     {
         RecordingSink inner = new() { FailAfter = 1 };
-        PackSegmentSink segment = new(inner);
+        PackSegmentSink segment = new(inner, CancellationToken.None);
 
         await segment.WriteAsync(new byte[4], 1, 1, CancellationToken.None);
         await segment.DisposeAsync();
 
-        PackSegmentSink second = new(inner);
+        PackSegmentSink second = new(inner, CancellationToken.None);
         await Assert.ThrowsAsync<IOException>(async () =>
             await second.WriteAsync(new byte[4], 1, 1, CancellationToken.None));
         using (Assert.Multiple())
@@ -662,6 +662,52 @@ public class PackExportTests
         await Assert.That(vm.ExportPackCommand.CanExecute(null)).IsTrue();
     }
 
+    /// <summary>
+    ///     The pack's encoder lives as long as the pack, not as the clip that wrote its first frame. ffmpeg
+    ///     links the token of its first write; when that was a clip's (the pack's token joined with its
+    ///     demo's visit), a visit stopped mid-clip killed the encode every later clip writes into.
+    /// </summary>
+    [Test]
+    public async Task Export_Video_AVisitStoppedInTheFirstClip_FailsThatClip_AndThePackGoesOn()
+    {
+        PackPlan plan = PackPlanner.Plan(Queue(), Settings(), Exists);
+        LinkingEncoder encoder = new();
+
+        PackResult result = await new PackExporter(new LeaseClips { StopVisitOn = plan.Clips[0].Number }, encoder)
+            .ExportAsync(plan, null, CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(plan.Segments[0] is PackClip).IsTrue().Because("the first write is a clip's");
+            await Assert.That(result.Failed.Count).IsEqualTo(1);
+            await Assert.That(result.ClipsRendered).IsEqualTo(plan.Clips.Count);
+            await Assert.That(encoder.Sink!.KilledAtClose).IsFalse();
+        }
+    }
+
+    /// <summary>...and the pack's own cancel still reaches the encoder once that first clip is over.</summary>
+    [Test]
+    public async Task Export_Video_CancelledAfterTheFirstClip_StopsTheEncoder()
+    {
+        PackPlan plan = PackPlanner.Plan(Queue(), Settings(), Exists);
+        LinkingEncoder encoder = new();
+        using CancellationTokenSource cts = new();
+        LeaseClips clips = new()
+        {
+            OnRender = n =>
+            {
+                if (n == plan.Clips[1].Number)
+                {
+                    cts.Cancel();
+                }
+            }
+        };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await new PackExporter(clips, encoder).ExportAsync(plan, null, cts.Token));
+        await Assert.That(encoder.Sink!.KilledAtClose).IsTrue();
+    }
+
     // ── Fakes ─────────────────────────────────────────────────────────────────
 
     [Test]
@@ -754,6 +800,78 @@ public class PackExportTests
         foreach (CancellationTokenSource visit in visits)
         {
             visit.Dispose();
+        }
+    }
+
+    /// <summary>A sink that, as ffmpeg's does, stops for good when the token of its first write is cancelled.</summary>
+    private sealed class LinkingSink : IFrameSink
+    {
+        private CancellationTokenSource? _kill;
+
+        public bool? KilledAtClose { get; private set; }
+
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
+        {
+            _kill ??= CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _kill.Token.ThrowIfCancellationRequested();
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            KilledAtClose = _kill?.IsCancellationRequested ?? false;
+            _kill?.Dispose();
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class LinkingEncoder : IPackEncoder
+    {
+        public LinkingSink? Sink { get; private set; }
+
+        public void Prepare(PackSettings settings, CancellationToken ct)
+        {
+        }
+
+        public IFrameSink Open(string outputPath, PackSettings settings) => Sink = new LinkingSink();
+    }
+
+    /// <summary>
+    ///     A clip renderer shaped like <see cref="PackClipRenderer" />: each clip writes under the pack's
+    ///     token joined with its visit's, and a stopped visit fails that clip and not the pack.
+    /// </summary>
+    private sealed class LeaseClips : IPackClipRenderer
+    {
+        public int? StopVisitOn { get; init; }
+
+        public Action<int>? OnRender { get; init; }
+
+        public async Task RenderAsync(PackClip clip, PackSettings settings, IFrameSink sink, CancellationToken ct)
+        {
+            using CancellationTokenSource visit = new();
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct, visit.Token);
+            try
+            {
+                OnRender?.Invoke(clip.Number);
+                byte[] frame = new byte[settings.Side * settings.Side * 4];
+                for (int i = 0; i < 3; i++)
+                {
+                    linked.Token.ThrowIfCancellationRequested();
+                    await sink.WriteAsync(frame, settings.Side, settings.Side, linked.Token);
+                    if (clip.Number == StopVisitOn)
+                    {
+                        await visit.CancelAsync();
+                    }
+                }
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && visit.IsCancellationRequested)
+            {
+                throw new InvalidOperationException("the demo's visit was stopped before the clip finished", ex);
+            }
+            finally
+            {
+                await sink.DisposeAsync();
+            }
         }
     }
 
