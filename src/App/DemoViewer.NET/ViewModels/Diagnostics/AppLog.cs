@@ -176,6 +176,14 @@ internal static partial class AppLog
     public static partial void ExtensionStoreWriteFailed(ILogger logger, string extension, string path, string problem);
 
     /// <summary>
+    ///     settings.json could not be read or replaced, so a preference change was not saved. A plain write keeps
+    ///     the change for the next save that succeeds.
+    /// </summary>
+    [LoggerMessage(EventId = 44, Level = LogLevel.Warning,
+        Message = "Settings could not be saved to {path}: {problem}")]
+    public static partial void SettingsWriteFailed(ILogger logger, string path, string problem);
+
+    /// <summary>
     ///     An entry an older build left in the extension's cache folder could not be moved into the folder the
     ///     extension is handed now. It stays where it is and the extension reads it as absent until it moves.
     /// </summary>

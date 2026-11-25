@@ -6,6 +6,7 @@ using DemoViewer.NET.Models;
 using DemoViewer.NET.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using TUnit.Core.Exceptions;
 
 #endregion
 
@@ -433,6 +434,100 @@ public class SettingsServiceTests
         }
     }
 
+    // A handle that shares nothing, as antivirus or a sync client can hold for a moment.
+    private static FileStream HoldExclusively(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.None);
+
+    /// <summary>
+    ///     A save reads the file before it replaces it. A read refused for a moment threw out of the save, and
+    ///     most callers are UI commands with nothing to catch it.
+    /// </summary>
+    [Test]
+    public async Task OnWindows_AFileHeldForAMoment_IsSavedOnceReleased()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new SkipTestException("only Windows refuses a read of a file held without read sharing");
+        }
+
+        string dir = NewTempDir();
+        string path = Path.Combine(dir, "settings.json");
+        try
+        {
+            SettingsService svc = new(dir);
+            svc.Write(s => s.Theme = "Light");
+
+            FileStream hold = HoldExclusively(path);
+            Thread release = new(() =>
+            {
+                Thread.Sleep(30);
+                hold.Dispose();
+            });
+            release.Start();
+            try
+            {
+                await Assert.That(() => svc.Write(s => s.Theme = "Dark")).ThrowsNothing();
+            }
+            finally
+            {
+                release.Join();
+            }
+
+            await Assert.That(new SettingsService(dir).Current.Theme).IsEqualTo("Dark");
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    /// <summary>
+    ///     A file that stays unreadable is neither replaced with defaults nor allowed to throw out of the save. The
+    ///     change is kept and goes to disk with the next save that can read the file.
+    /// </summary>
+    [Test]
+    public async Task OnWindows_AFileHeldThroughout_IsLeftAlone_AndTheChangeLandsWithTheNextSave()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new SkipTestException("only Windows refuses a read of a file held without read sharing");
+        }
+
+        string dir = NewTempDir();
+        string path = Path.Combine(dir, "settings.json");
+        try
+        {
+            SettingsService svc = new(dir);
+            svc.Write(s =>
+            {
+                s.Theme = "Light";
+                s.Library.Folders = ["/demos/major"];
+            });
+            string before = await File.ReadAllTextAsync(path);
+
+            using (HoldExclusively(path))
+            {
+                await Assert.That(() => svc.Write(s => s.Theme = "Dark")).ThrowsNothing();
+            }
+
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(before);
+
+            svc.Write(s => s.LastSeenVersion = "2");
+
+            AppSettings saved = new SettingsService(dir).Current;
+            using (Assert.Multiple())
+            {
+                await Assert.That(saved.Theme).IsEqualTo("Dark");
+                await Assert.That(saved.LastSeenVersion).IsEqualTo("2");
+                await Assert.That(saved.Library.Folders).IsEquivalentTo(["/demos/major"]);
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     [Test]
     public async Task EnvironmentVariable_OverridesFileValue()
     {
@@ -801,7 +896,8 @@ public class SettingsServiceTests
     ///     Best-effort semantics (preserved from the pre-consolidation stores): a <c>SaveSession</c> /
     ///     <c>SaveRecents</c> whose write cannot land (here the <c>settings.json</c> path is occupied by a
     ///     DIRECTORY, so the atomic <c>File.Move</c> fails) must NOT throw: a shutdown-save or demo-open
-    ///     never crashes the app. The reactive preference <c>Write</c>, by contrast, still surfaces the error.
+    ///     never crashes the app. Nor does the preference <c>Write</c>, whose callers are mostly UI commands: it
+    ///     keeps the change for the next save instead.
     /// </summary>
     [Test]
     public async Task SaveSessionAndRecents_AreBestEffort_DoNotThrowOnWriteFailure()
@@ -830,19 +926,8 @@ public class SettingsServiceTests
             await Assert.That(savesThrew).IsFalse()
                 .Because("both best-effort saves swallow a write failure rather than crashing the app");
 
-            // The reactive preference write is NOT best-effort: it still throws so the UI can surface it.
-            bool writeThrew = false;
-            try
-            {
-                svc.Write(s => s.Theme = "Light");
-            }
-            catch
-            {
-                writeThrew = true;
-            }
-
-            await Assert.That(writeThrew).IsTrue()
-                .Because("the reactive preference write surfaces a write failure rather than swallowing it");
+            await Assert.That(() => svc.Write(s => s.Theme = "Light")).ThrowsNothing()
+                .Because("a failed preference write is logged and kept, not thrown into a UI command");
         }
         finally
         {

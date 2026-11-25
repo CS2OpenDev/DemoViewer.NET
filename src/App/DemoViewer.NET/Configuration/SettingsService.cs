@@ -4,9 +4,11 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Services;
+using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.Configuration;
 
 #endregion
@@ -62,6 +64,9 @@ public sealed class SettingsService
         CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true
     };
 
+    // Pauses between attempts to read a file held without read sharing, about 0.4 s in all.
+    private static readonly int[] _readRetryDelaysMs = [10, 25, 50, 100, 200];
+
     // In-memory provider backing the WASM / no-filesystem path; null on desktop. A resettable variant
     // (see the nested type) so a write can atomically REPLACE the whole key set. The built-in
     // MemoryConfigurationProvider has no clear, which would leak stale keys on a shrinking collection.
@@ -72,6 +77,9 @@ public sealed class SettingsService
     // Serialises every read-modify-write of the file (and the set-aside state it updates). Most writers are on
     // the UI thread, but not all of them.
     private readonly Lock _writeSync = new();
+
+    // Preference changes no save could write yet, oldest first. Each save replays them onto its basis.
+    private readonly List<Action<AppSettings>> _unsaved = [];
 
     // Set by the file-load exception handler when settings.json is present but unparseable.
     private bool _loadFailed;
@@ -263,8 +271,21 @@ public sealed class SettingsService
     ///         <c>IOptionsMonitor&lt;AppSettings&gt;</c> over this configuration raises <c>OnChange</c>
     ///         synchronously before this method returns.
     ///     </para>
+    ///     <para>
+    ///         A file that cannot be read or replaced is left as it is and nothing is thrown: the change is logged,
+    ///         kept, and saved by the next write that succeeds. Until then it is not in <see cref="Current" />.
+    ///         A caller that has to know whether the change landed uses <see cref="TryWrite" />.
+    ///     </para>
     /// </summary>
-    public void Write(Action<AppSettings> mutate)
+    public void Write(Action<AppSettings> mutate) => _ = Persist(mutate, keepOnFailure: true);
+
+    /// <summary>
+    ///     <see cref="Write" />, except that a file that cannot be read or replaced returns <c>false</c> and the
+    ///     change is dropped rather than kept for the next save.
+    /// </summary>
+    public bool TryWrite(Action<AppSettings> mutate) => Persist(mutate, keepOnFailure: false);
+
+    private bool Persist(Action<AppSettings> mutate, bool keepOnFailure)
     {
         ArgumentNullException.ThrowIfNull(mutate);
 
@@ -278,22 +299,15 @@ public sealed class SettingsService
         // runs outside it, so an OnChange handler never runs under the lock; it reads the latest file anyway.
         lock (_writeSync)
         {
-            AppSettings settings = ReadPersistedBasis();
-            mutate(settings);
-
             if (_settingsPath is null)
             {
+                AppSettings settings = ReadPersistedBasis();
+                mutate(settings);
                 WriteInMemory(settings);
             }
-            else
+            else if (!TryWriteFile(mutate, keepOnFailure))
             {
-                // Merge the mutated PREFERENCE keys into the existing file object, leaving the consolidated
-                // Session / Recents sections (which AppSettings does not model) untouched: a preference write
-                // must never clobber them.
-                JsonObject file = ReadFileObject(forWrite: true);
-                MergePreferences(file, settings);
-                WriteObject(file);
-                _loadFailed = false; // valid JSON was just written, so any prior parse failure is cleared
+                return false; // the file is unchanged, so there is nothing to reload
             }
         }
 
@@ -301,6 +315,49 @@ public sealed class SettingsService
         // deterministic. The file watcher (desktop) will additionally re-fire for the same change on a
         // threadpool thread, with identical values, so it is a harmless no-op refresh.
         ((IConfigurationRoot)Configuration).Reload();
+        return true;
+    }
+
+    // Most writers are UI commands with nothing to catch a throw, so a file that cannot be read or replaced is
+    // logged, not thrown. Never a write of defaults over a file that did not read.
+    private bool TryWriteFile(Action<AppSettings> mutate, bool keepOnFailure)
+    {
+        _unsaved.Add(mutate);
+        try
+        {
+            AppSettings settings = ReadPersistedBasis();
+            foreach (Action<AppSettings> change in _unsaved)
+            {
+                change(settings);
+            }
+
+            // Merge the mutated PREFERENCE keys into the existing file object, leaving the consolidated
+            // Session / Recents sections (which AppSettings does not model) untouched: a preference write
+            // must never clobber them.
+            JsonObject file = ReadFileObject(forWrite: true);
+            MergePreferences(file, settings);
+            WriteObject(file);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLog.SettingsWriteFailed(DiagnosticsLog.CreateLogger(AppLog.ShellCategory), _settingsPath!,
+                ex.Message);
+            if (!keepOnFailure)
+            {
+                _unsaved.Remove(mutate);
+            }
+
+            return false;
+        }
+        catch
+        {
+            _unsaved.Remove(mutate); // the caller's own failure, thrown to it as before
+            throw;
+        }
+
+        _unsaved.Clear();
+        _loadFailed = false; // valid JSON was just written, so any prior parse failure is cleared
+        return true;
     }
 
     /// <summary>
@@ -345,8 +402,7 @@ public sealed class SettingsService
         catch
         {
             // Best-effort, like the pre-consolidation SessionStore: a disk-full / locked-file / permission
-            // failure must never crash the app (this runs from the shutdown handler). The reactive preference
-            // Write path keeps rethrowing. Only these non-preference sections swallow.
+            // failure must never crash the app (this runs from the shutdown handler).
         }
     }
 
@@ -398,7 +454,7 @@ public sealed class SettingsService
         catch
         {
             // Best-effort, like the pre-consolidation RecentFilesStore: a write failure during a demo-open
-            // must never crash the app. The reactive preference Write path keeps rethrowing.
+            // must never crash the app.
         }
     }
 
@@ -548,7 +604,7 @@ public sealed class SettingsService
         string text;
         try
         {
-            text = File.ReadAllText(_settingsPath);
+            text = ReadFileText();
         }
         catch (Exception ex) when (!forWrite && ex is IOException or UnauthorizedAccessException)
         {
@@ -573,6 +629,24 @@ public sealed class SettingsService
         }
 
         return new JsonObject();
+    }
+
+    // Antivirus and sync clients can hold the file without read sharing for a moment after a write. Windows
+    // reports that as a sharing or lock violation, retried briefly before it surfaces.
+    private string ReadFileText()
+    {
+        for (int attempt = 0;; attempt++)
+        {
+            try
+            {
+                return File.ReadAllText(_settingsPath!);
+            }
+            catch (IOException ex) when (attempt < _readRetryDelaysMs.Length && OperatingSystem.IsWindows()
+                                         && (ex.HResult & 0xFFFF) is 32 or 33)
+            {
+                Thread.Sleep(_readRetryDelaysMs[attempt]);
+            }
+        }
     }
 
     // The file as it stands, the one time per version of it: settings.json.unreadable-<stamp> beside it. Throws
@@ -774,7 +848,7 @@ public sealed class SettingsService
         }
 
         // A file that cannot be read throws rather than reading as defaults the write would then save.
-        string text = File.ReadAllText(_settingsPath);
+        string text = ReadFileText();
         try
         {
             // An explicit null where the model has a section or a collection is dropped before binding, so the
