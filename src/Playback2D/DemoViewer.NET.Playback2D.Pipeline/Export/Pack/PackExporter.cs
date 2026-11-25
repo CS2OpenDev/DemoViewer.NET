@@ -206,6 +206,17 @@ public sealed class PackExporter
             throw;
         }
 
+        // A cancel after the last clip: a sink closes quietly on a token already cancelled, with no file.
+        if (ct.IsCancellationRequested)
+        {
+            if (sink.Written)
+            {
+                TryDelete(settings.OutputPath);
+            }
+
+            throw new OperationCanceledException(ct);
+        }
+
         return new PackResult([settings.OutputPath], rendered, failed);
     }
 

@@ -73,7 +73,8 @@ public sealed record FfmpegSinkOptions(
 ///         source, which is what <c>CancellableThrough</c> watches; tripping it terminates the process,
 ///         and <see cref="DisposeAsync" /> then removes the partial output. A cancel that lands while
 ///         disposal is draining ffmpeg is rethrown from it once the output is gone, so the caller cannot
-///         mistake the close for a finished file.
+///         mistake the close for a finished file. One already requested when disposal starts is the
+///         caller's to report, and the close stays quiet rather than throw over the caller's own exception.
 ///     </para>
 ///     <para>
 ///         <b>Disposal gives up on an ffmpeg that has said nothing for 30 seconds</b> while draining:
@@ -224,7 +225,8 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink, IOutputOp
         _disposed = true;
 
         // Whether the output is to be removed: the run was aborted or cancelled, or the drain below fails.
-        bool discard = _aborted || (_kill?.IsCancellationRequested ?? false);
+        bool cancelled = _kill?.IsCancellationRequested ?? false;
+        bool discard = _aborted || cancelled;
         _frames.Complete();
 
         if (_encoder is not null)
@@ -241,8 +243,9 @@ public sealed class FfmpegFrameSink : IFrameSink, IAbortableFrameSink, IOutputOp
 
                 // A cancel that landed during the drain, after the caller's last look at its token: the
                 // output is about to be removed, and returning normally would read as a finished file.
-                // An aborted run already knows it failed, and its close stays quiet.
-                if (!_aborted)
+                // An aborted run, or one whose token was cancelled before the close, already knows; a
+                // throw here would only replace the caller's own exception in its finally.
+                if (!_aborted && !cancelled)
                 {
                     throw;
                 }

@@ -383,6 +383,76 @@ public class ExportFailureTests
         }
     }
 
+    /// <summary>
+    ///     A caller whose own token was cancelled before it closed the sink, as an <c>await using</c> does
+    ///     after the cancel it is handling. The output goes, but the close does not throw over the
+    ///     caller's own exception.
+    /// </summary>
+    [Test]
+    public async Task ACancelBeforeTheClose_ClosesQuietly_AndLeavesNoFile()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-precancel-{Guid.NewGuid():N}.mp4");
+        using CancellationTokenSource source = new();
+        FfmpegFrameSink sink = DrainUntilKilled(path, ExportFormats.Mp4, 8, 8);
+
+        try
+        {
+            await sink.WriteAsync(new byte[8 * 8 * 4], 8, 8, source.Token);
+            await source.CancelAsync();
+            await sink.DisposeAsync();
+
+            await Assert.That(File.Exists(path)).IsFalse();
+            await Assert.That(File.Exists(sink.EncodePath)).IsFalse();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    ///     A cancel between the session's last look at the token and the close. Both sinks then close
+    ///     quietly with no file, so the session has to look again.
+    /// </summary>
+    [Test]
+    [Arguments(ExportFormats.Gif)]
+    [Arguments(ExportFormats.WebM)]
+    public async Task ACancelJustBeforeTheClose_IsReportedCancelled_NotCompletedWithNoFile(string format)
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"dv-closecancel-{Guid.NewGuid():N}.{format}");
+        using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
+        using CpuSurfaceProvider surfaces = new();
+        using CancellationTokenSource source = new();
+        List<ExportProgress> reports = [];
+        bool gif = string.Equals(format, ExportFormats.Gif, StringComparison.Ordinal);
+        int fps = gif ? 20 : 30;
+        IFrameSink inner = gif ? new ManagedGifSink(path, fps) : DrainUntilKilled(path, format, 64, 48);
+        CancelOnCloseFrameSink sink = new(inner, source, beforeClose: true);
+
+        try
+        {
+            Exception? failure = null;
+            try
+            {
+                await new SceneExportSession(compositor).RunAsync(
+                    ExportFixtures.Request(4, format, new SKSizeI(64, 48), fps: fps),
+                    ExportFixtures.Source(4), sink, surfaces, new DirectProgress(reports.Add), source.Token);
+            }
+            catch (OperationCanceledException ex)
+            {
+                failure = ex;
+            }
+
+            await Assert.That(File.Exists(path)).IsFalse();
+            await Assert.That(reports[^1].Phase).IsEqualTo(ExportPhase.Cancelled);
+            await Assert.That(failure).IsNotNull();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     /// <summary>The same cancel through the session: the run is Cancelled, never Completed with no file.</summary>
     [Test]
     public async Task ACancelDuringTheDrain_IsReportedCancelled_NotCompletedWithNoFile()
@@ -575,8 +645,14 @@ public class ExportFailureTests
         return sink;
     }
 
-    /// <summary>The cancel arrives once the session has started closing the sink: mid-drain.</summary>
-    private sealed class CancelOnCloseFrameSink(FfmpegFrameSink inner, CancellationTokenSource source)
+    /// <summary>
+    ///     The cancel arrives once the session has started closing the sink: mid-drain, or with
+    ///     <paramref name="beforeClose" /> just before the inner sink's close begins.
+    /// </summary>
+    private sealed class CancelOnCloseFrameSink(
+        IFrameSink inner,
+        CancellationTokenSource source,
+        bool beforeClose = false)
         : IFrameSink, IAbortableFrameSink
     {
         public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct) =>
@@ -586,6 +662,13 @@ public class ExportFailureTests
 
         public async ValueTask DisposeAsync()
         {
+            if (beforeClose)
+            {
+                await source.CancelAsync();
+                await inner.DisposeAsync();
+                return;
+            }
+
             Task closing = inner.DisposeAsync().AsTask();
             await source.CancelAsync();
             await closing;

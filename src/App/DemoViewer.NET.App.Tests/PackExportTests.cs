@@ -325,6 +325,42 @@ public class PackExportTests
     }
 
     /// <summary>
+    ///     A cancel after the last clip, before the pack's file is closed. The sink then closes quietly and
+    ///     writes nothing, so the pack must not report a file that is not there.
+    /// </summary>
+    [Test]
+    public async Task Export_Video_CancelledAfterTheLastClip_Throws_RatherThanReportingAFileItDidNotWrite()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}");
+        string path = Path.Combine(root, "scrims.mp4");
+        using CancellationTokenSource cts = new();
+        PackPlan plan = PackPlanner.Plan(Queue(), Settings(path), Exists);
+        int last = plan.Clips[^1].Number;
+        FakeClips clips = new(framesPerClip: 2)
+        {
+            OnRendered = n =>
+            {
+                if (n == last)
+                {
+                    cts.Cancel();
+                }
+            }
+        };
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await new PackExporter(clips, new ManagedGifEncoder()).ExportAsync(plan, null, cts.Token));
+            await Assert.That(File.Exists(path)).IsFalse();
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
     ///     Closing the file is where it is muxed, so a pack whose every clip rendered can still fail there.
     ///     It is reported as the failure it is, and what was written goes with it.
     /// </summary>
@@ -823,6 +859,9 @@ public class PackExportTests
 
         public Action<int>? OnRender { get; init; }
 
+        /// <summary>Runs once a clip's frames are written, before its sink is closed.</summary>
+        public Action<int>? OnRendered { get; init; }
+
         /// <summary>The clip that writes one frame and then fails.</summary>
         public int? FailAfterFramesOn { get; init; }
 
@@ -851,6 +890,8 @@ public class PackExportTests
                         throw new ExportValidationException("the demo ended early");
                     }
                 }
+
+                OnRendered?.Invoke(clip.Number);
             }
             catch when (AbortOnFailure)
             {
