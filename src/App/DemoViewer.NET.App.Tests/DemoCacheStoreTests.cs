@@ -764,4 +764,31 @@ public class DemoCacheStoreTests
             Directory.Delete(root, true);
         }
     }
+
+    /// <summary>The same failed write in a store with no folder: rolled back, and passed on only when it must land.</summary>
+    [Test]
+    public async Task AFailedWriteInMemory_IsHandledAsOnDisk()
+    {
+        const string Path = "/demos/provisional.dem";
+        DemoCacheStore store = new(null);
+        DemoCacheRecord provisional = Record(Path);
+        provisional.Sha256 = null;
+        store.Upsert(provisional);
+        store.RecordWriteForTest = () => throw new IOException("There is not enough space on the disk.");
+
+        await Assert.That(() => store.UpdateExistingOrThrow(Path, r =>
+        {
+            r.SetContentHash("sha-moved", null);
+            r.Map = "de_inferno";
+        })).Throws<IOException>();
+        await Assert.That(() => store.UpdateExisting(Path, r => r.Server = "Valve")).ThrowsNothing();
+        store.RecordWriteForTest = null;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(store.TryGetIndex(Path)?.Sha256).IsNull();
+            await Assert.That(store.HoldsContent("sha-moved")).IsFalse();
+            await Assert.That(store.TryLoadRecord(Path)?.Map).IsEqualTo("de_dust2");
+        }
+    }
 }

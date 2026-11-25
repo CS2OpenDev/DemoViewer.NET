@@ -2772,21 +2772,20 @@ public sealed partial class DemoCacheStore
         Exception? failure = null;
         WithWriteKey(demoPath, (key, row) =>
         {
-            if (CacheRoot is null)
-            {
-                RecordWriteForTest?.Invoke();
-                lock (_gate)
-                {
-                    _memoryRecords[key] = bytes;
-                }
-
-                return;
-            }
-
             bool landed = false;
             try
             {
                 RecordWriteForTest?.Invoke();
+                if (CacheRoot is null)
+                {
+                    lock (_gate)
+                    {
+                        _memoryRecords[key] = bytes;
+                    }
+
+                    return;
+                }
+
                 string file = RecordFile(key);
                 AtomicFile.WriteAllBytes(file, bytes);
                 landed = true;
