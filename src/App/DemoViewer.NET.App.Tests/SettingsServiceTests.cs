@@ -404,6 +404,35 @@ public class SettingsServiceTests
         }
     }
 
+    /// <summary>
+    ///     The copy is named to the second, so a second unparseable version set aside within the same second
+    ///     replaced the first copy.
+    /// </summary>
+    [Test]
+    public async Task TwoUnparseableVersions_SetAsideInOneSecond_BothSurvive()
+    {
+        const string BrokenOne = """{ "Theme": "Light" """;
+        const string BrokenTwo = """{ "Theme": "Dark", "Library": """;
+        string dir = NewTempDir();
+        string path = Path.Combine(dir, "settings.json");
+        try
+        {
+            await File.WriteAllTextAsync(path, BrokenOne);
+            SettingsService svc = new(dir);
+            svc.Write(s => s.LastSeenVersion = "1");
+            await File.WriteAllTextAsync(path, BrokenTwo);
+            svc.Write(s => s.LastSeenVersion = "2");
+
+            string[] texts = await Task.WhenAll(Directory.GetFiles(dir, "settings.json.unreadable-*")
+                .Select(f => File.ReadAllTextAsync(f)));
+            await Assert.That(texts).IsEquivalentTo([BrokenOne, BrokenTwo]);
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     [Test]
     public async Task EnvironmentVariable_OverridesFileValue()
     {

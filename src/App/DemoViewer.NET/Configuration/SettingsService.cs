@@ -586,9 +586,16 @@ public sealed class SettingsService
             return;
         }
 
-        string copy = string.Create(CultureInfo.InvariantCulture,
+        // Named to the second, so a name already taken gets a counter: an earlier copy is never replaced.
+        string stem = string.Create(CultureInfo.InvariantCulture,
             $"{_settingsPath}.unreadable-{DateTime.UtcNow:yyyyMMdd-HHmmss}");
-        File.Copy(_settingsPath!, copy, overwrite: true);
+        string copy = stem;
+        for (int n = 2; File.Exists(copy); n++)
+        {
+            copy = string.Create(CultureInfo.InvariantCulture, $"{stem}-{n}");
+        }
+
+        File.Copy(_settingsPath!, copy, overwrite: false);
         _setAside = version;
     }
 
