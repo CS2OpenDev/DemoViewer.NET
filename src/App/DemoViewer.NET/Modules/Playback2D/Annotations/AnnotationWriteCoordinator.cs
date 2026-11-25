@@ -1,3 +1,9 @@
+#region
+
+using System.Runtime.ExceptionServices;
+
+#endregion
+
 namespace DemoViewer.NET.Modules.Playback2D.Annotations;
 
 /// <summary>
@@ -42,14 +48,31 @@ internal sealed class AnnotationWriteCoordinator
             ];
         }
 
-        List<AnnotationSessionController> held = [];
-        foreach (AnnotationSessionController session in open)
+        Hold hold = new([]);
+        try
         {
-            await session.BeginExternalWriteAsync();
-            held.Add(session);
+            foreach (AnnotationSessionController session in open)
+            {
+                await session.BeginExternalWriteAsync();
+                hold.Add(session);
+            }
+        }
+        catch (Exception ex)
+        {
+            // The writer gets no hold to end, so the sessions held so far are let go here.
+            try
+            {
+                await hold.EndAsync(false);
+            }
+            catch (Exception endEx)
+            {
+                throw new AggregateException(ex, endEx);
+            }
+
+            throw;
         }
 
-        return new Hold(held);
+        return hold;
     }
 
     /// <summary>The sessions one <see cref="HoldAsync" /> holds.</summary>
@@ -59,19 +82,40 @@ internal sealed class AnnotationWriteCoordinator
 
         internal Hold(List<AnnotationSessionController> sessions) => _sessions = sessions;
 
+        internal void Add(AnnotationSessionController session) => _sessions.Add(session);
+
         /// <summary>
         ///     Ends the hold: each session reloads the file when <paramref name="written" />, keeping what was drawn
         ///     during the hold, and saves again.
         /// </summary>
         /// <param name="written">Whether the writer changed the file.</param>
+        /// <exception cref="AggregateException">More than one session failed to end; each still ended its hold.</exception>
         public async Task EndAsync(bool written)
         {
-            foreach (AnnotationSessionController session in _sessions)
+            AnnotationSessionController[] sessions = [.. _sessions];
+            _sessions.Clear();
+            List<Exception>? failures = null;
+            foreach (AnnotationSessionController session in sessions)
             {
-                await session.EndExternalWriteAsync(written);
+                // One session failing must not leave the next one held, its saves refused for good.
+                try
+                {
+                    await session.EndExternalWriteAsync(written);
+                }
+                catch (Exception ex)
+                {
+                    (failures ??= []).Add(ex);
+                }
             }
 
-            _sessions.Clear();
+            switch (failures)
+            {
+                case [var only]:
+                    ExceptionDispatchInfo.Throw(only);
+                    break;
+                case [_, _, ..]:
+                    throw new AggregateException(failures);
+            }
         }
     }
 

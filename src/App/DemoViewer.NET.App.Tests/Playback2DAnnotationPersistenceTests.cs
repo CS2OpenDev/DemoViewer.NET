@@ -178,6 +178,73 @@ public class Playback2DAnnotationPersistenceTests
         await Assert.That(controller.Document.Elements.Select(e => e.Id)).IsEquivalentTo([theirs.Id, mine.Id]);
     }
 
+    /// <summary>
+    ///     Two tabs on one demo, the second failing to save before the hold. The hold fails, and the first tab,
+    ///     held by then, saves again: nothing would ever end its hold.
+    /// </summary>
+    [Test]
+    public async Task Coordinator_ASessionFailingToHold_LeavesNoOtherSessionHeld()
+    {
+        using TempDemo demo = new();
+        AnnotationWriteCoordinator sessions = new();
+        using AnnotationSessionController first = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using AnnotationSessionController second = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using IDisposable firstRegistration = sessions.Register(first);
+        using IDisposable secondRegistration = sessions.Register(second);
+        await first.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        await second.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        second.Document.Apply(new DocDelta.Add(Stroke(), 0));
+        second.StateChanged += () => throw new InvalidOperationException("status line");
+
+        await Assert.That(async () => await sessions.HoldAsync([demo.DemoPath])).Throws<InvalidOperationException>();
+        AnnotationElement drawn = Stroke();
+        first.Document.Apply(new DocDelta.Add(drawn, 0));
+        await first.FlushAsync();
+        AnnotationLoadResult saved = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+
+        await Assert.That(saved.Elements.Select(e => e.Id)).Contains(drawn.Id);
+    }
+
+    /// <summary>
+    ///     Two tabs on one demo, the first failing to end the hold. The second still ends it and saves again,
+    ///     and the failure still reaches the writer.
+    /// </summary>
+    [Test]
+    public async Task Coordinator_ASessionFailingToEnd_StillEndsTheOthers()
+    {
+        using TempDemo demo = new();
+        AnnotationWriteCoordinator sessions = new();
+        using AnnotationSessionController first = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using AnnotationSessionController second = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
+        using IDisposable firstRegistration = sessions.Register(first);
+        using IDisposable secondRegistration = sessions.Register(second);
+        await first.AttachDemoAsync(demo.DemoPath, demo.Clock);
+        await second.AttachDemoAsync(demo.DemoPath, demo.Clock);
+
+        AnnotationWriteCoordinator.Hold hold = await sessions.HoldAsync([demo.DemoPath]);
+        first.Document.Apply(new DocDelta.Add(Stroke(), 0));
+        first.Document.Changed += () => throw new InvalidOperationException("layer");
+        await Assert.That(() => hold.EndAsync(true)).Throws<InvalidOperationException>();
+        AnnotationElement drawn = Stroke();
+        second.Document.Apply(new DocDelta.Add(drawn, 0));
+        await second.FlushAsync();
+        AnnotationLoadResult saved = await new AnnotationStore(demo.AppData).LoadAsync(demo.DemoPath, demo.Clock);
+
+        await Assert.That(saved.Elements.Select(e => e.Id)).Contains(drawn.Id);
+    }
+
     [Test]
     public async Task Controller_AutosavesAfterDebounce()
     {
